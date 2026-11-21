@@ -72,7 +72,7 @@ describe("SAML 2.0 Auth Engine Utilities", () => {
 
   describe("InResponseTo Replay Validation", () => {
     it("throws error when expectedRequestId is supplied but InResponseTo is missing", async () => {
-      const settings = { samlCert: "dummy-cert" };
+      const settings = { samlCert: "dummy-cert", baseUrl: "https://router.example.com" };
       const rawXml = Buffer.from('<Response ID="123"></Response>').toString("base64");
       await expect(
         validateSamlResponse(null, { SAMLResponse: rawXml }, "req-123", settings)
@@ -80,7 +80,7 @@ describe("SAML 2.0 Auth Engine Utilities", () => {
     });
 
     it("throws error when expectedRequestId is supplied but InResponseTo does not match", async () => {
-      const settings = { samlCert: "dummy-cert" };
+      const settings = { samlCert: "dummy-cert", baseUrl: "https://router.example.com" };
       const rawXml = Buffer.from('<Response InResponseTo="wrong-id"></Response>').toString("base64");
       await expect(
         validateSamlResponse(null, { SAMLResponse: rawXml }, "req-123", settings)
@@ -92,6 +92,13 @@ describe("SAML 2.0 Auth Engine Utilities", () => {
       await expect(
         validateSamlResponse(null, { SAMLResponse: rawXml }, "req-123", {})
       ).rejects.toThrow(/Certificate/);
+    });
+
+    it("refuses to validate when no base URL is configured (ACS must not come from Host)", async () => {
+      const rawXml = Buffer.from('<Response InResponseTo="req-123"></Response>').toString("base64");
+      await expect(
+        validateSamlResponse(null, { SAMLResponse: rawXml }, "req-123", { samlCert: "dummy-cert" })
+      ).rejects.toThrow(/configured base URL/);
     });
   });
 
