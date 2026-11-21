@@ -1,5 +1,5 @@
 # ==========================================
-# XRouter Go Core - Multi-Stage Containerfile
+# OMEG4MON ROUTER Go Core - Multi-Stage Containerfile
 # Ultra-lightweight, Zero-CGO, Pure Go
 # Memory footprint: ~20-40 MB | Startup: <50ms
 # ==========================================
@@ -17,21 +17,21 @@ RUN go mod download
 COPY . .
 
 # Compile static binary (CGO_ENABLED=0)
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o /build/xrouter ./cmd/xrouter
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o /build/omeg4mon-router ./cmd/omeg4mon-router
 
 # Runtime Stage
 FROM alpine:3.21 AS runner
 
 RUN apk add --no-cache ca-certificates tzdata curl && \
     mkdir -p /app/data && \
-    addgroup -S xrouter && adduser -S xrouter -G xrouter && \
-    chown -R xrouter:xrouter /app
+    addgroup -S omeg4mon-router && adduser -S omeg4mon-router -G omeg4mon-router && \
+    chown -R omeg4mon-router:omeg4mon-router /app
 
 WORKDIR /app
 
-COPY --from=builder /build/xrouter /app/xrouter
+COPY --from=builder /build/omeg4mon-router /app/omeg4mon-router
 
-USER xrouter
+USER omeg4mon-router
 
 ENV PORT=20128
 ENV DATA_DIR=/app/data
@@ -40,4 +40,4 @@ ENV GODEBUG=madvdontneed=1
 
 EXPOSE 20128
 
-ENTRYPOINT ["/app/xrouter"]
+ENTRYPOINT ["/app/omeg4mon-router"]

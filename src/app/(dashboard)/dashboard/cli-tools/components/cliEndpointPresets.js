@@ -50,8 +50,8 @@ function createStore({ storageKey, changeEvent, itemField, normalize = (v) => v,
 const stripSlash = (url) => (url || "").replace(/\/+$/, "");
 
 const endpoints = createStore({
-  storageKey: "xrouter.cliToolEndpointPresets",
-  changeEvent: "xrouter:endpoint-presets-changed",
+  storageKey: "omeg4mon-router.cliToolEndpointPresets",
+  changeEvent: "omeg4mon-router:endpoint-presets-changed",
   itemField: "baseUrl",
   normalize: stripSlash,
   defaultName: (url) => {
@@ -60,8 +60,8 @@ const endpoints = createStore({
 });
 
 const apiKeys = createStore({
-  storageKey: "xrouter.cliToolApiKeyPresets",
-  changeEvent: "xrouter:api-key-presets-changed",
+  storageKey: "omeg4mon-router.cliToolApiKeyPresets",
+  changeEvent: "omeg4mon-router:api-key-presets-changed",
   itemField: "key",
 });
 

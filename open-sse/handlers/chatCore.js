@@ -610,11 +610,12 @@ export async function handleChatCore({ body, modelInfo, credentials, log, onCred
             proxyOptions,
             providerOverrides,
           });
-          if (retryResult.response.ok) {
-            providerResponse = retryResult.response;
-            providerUrl = retryResult.url;
-            providerResponseFormat = retryResult.responseFormat || targetFormat;
-          }
+          // The retry ran with fresh credentials, so its status (e.g. 429) is the real
+          // answer even when it is not ok; the stale 401/403 would mis-drive fallback.
+          providerResponse.body?.cancel?.().catch?.(() => {});
+          providerResponse = retryResult.response;
+          providerUrl = retryResult.url;
+          providerResponseFormat = retryResult.responseFormat || targetFormat;
         } catch { log?.warn?.("TOKEN", `${provider.toUpperCase()} | retry after refresh failed`); }
       } else {
         log?.warn?.("TOKEN", `${provider.toUpperCase()} | refresh failed`);
@@ -696,6 +697,7 @@ export async function handleChatCore({ body, modelInfo, credentials, log, onCred
             signal: streamController.signal,
             log,
             proxyOptions,
+            providerOverrides,
           });
           if (attempt.response.ok) {
             providerResponse = attempt.response;

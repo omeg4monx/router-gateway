@@ -53,8 +53,8 @@ function generateRootCA() {
   cert.validity.notAfter.setFullYear(cert.validity.notBefore.getFullYear() + 10);
 
   const attrs = [
-    { name: "commonName", value: "X Router MITM Root CA" },
-    { name: "organizationName", value: "X Router" },
+    { name: "commonName", value: "OMEG4MON ROUTER MITM Root CA" },
+    { name: "organizationName", value: "OMEG4MON ROUTER" },
     { name: "countryName", value: "US" }
   ];
 
@@ -85,7 +85,7 @@ function generateRootCA() {
   const privateKeyPem = forge.pki.privateKeyToPem(keys.privateKey);
   const certPem = forge.pki.certificateToPem(cert);
 
-  fs.writeFileSync(ROOT_CA_KEY_PATH, privateKeyPem);
+  fs.writeFileSync(ROOT_CA_KEY_PATH, privateKeyPem, { mode: 0o600 });
   fs.writeFileSync(ROOT_CA_CERT_PATH, certPem);
 
   console.log("✅ Root CA generated successfully");
@@ -99,6 +99,9 @@ function loadRootCA() {
   if (!fs.existsSync(ROOT_CA_KEY_PATH) || !fs.existsSync(ROOT_CA_CERT_PATH)) {
     throw new Error("Root CA not found. Generate it first.");
   }
+
+  // Keys generated before the 0600 write may still be group/world-readable.
+  try { fs.chmodSync(ROOT_CA_KEY_PATH, 0o600); } catch { /* not owner / Windows */ }
 
   const keyPem = fs.readFileSync(ROOT_CA_KEY_PATH, "utf8");
   const certPem = fs.readFileSync(ROOT_CA_CERT_PATH, "utf8");

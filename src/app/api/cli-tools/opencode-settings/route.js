@@ -68,9 +68,9 @@ const readConfig = async () => {
   }
 };
 
-const hasXRouterConfig = (config) => {
+const hasOmeg4monRouterConfig = (config) => {
   if (!config?.provider) return false;
-  return !!config.provider["xrouter"];
+  return !!config.provider["omeg4mon-router"];
 };
 
 // GET - Check opencode CLI and read current settings
@@ -87,17 +87,17 @@ export async function GET() {
     }
 
     const config = await readConfig();
-    const providerConfig = config?.provider?.["xrouter"];
+    const providerConfig = config?.provider?.["omeg4mon-router"];
     const modelMap = providerConfig?.models || {};
 
     return NextResponse.json({
       installed: true,
       config,
-      hasXRouter: hasXRouterConfig(config),
+      hasOmeg4monRouter: hasOmeg4monRouterConfig(config),
       configPath: getConfigPath(),
         opencode: {
           models: Object.keys(modelMap),
-          activeModel: config?.model?.startsWith("xrouter/") ? config.model.replace(/^xrouter\//, "") : null,
+          activeModel: config?.model?.startsWith("omeg4mon-router/") ? config.model.replace(/^omeg4mon-router\//, "") : null,
           baseURL: providerConfig?.options?.baseURL || null,
         },
     });
@@ -107,7 +107,7 @@ export async function GET() {
   }
 }
 
-// POST - Apply X Router as openai-compatible provider (multi-model support)
+// POST - Apply OMEG4MON ROUTER as openai-compatible provider (multi-model support)
 export async function POST(request) {
   try {
     const { baseUrl, apiKey, model, models, activeModel, subagentModel } = await request.json();
@@ -132,14 +132,14 @@ export async function POST(request) {
     } catch { /* No existing config */ }
 
     const normalizedBaseUrl = baseUrl.endsWith("/v1") ? baseUrl : `${baseUrl}/v1`;
-    const keyToUse = apiKey || "sk_xrouter";
+    const keyToUse = apiKey || "sk_omeg4mon_router";
     const effectiveSubagentModel = subagentModel || modelsArray[0];
 
     // Ensure provider object
     if (!config.provider) config.provider = {};
 
-    // Preserve any existing xrouter provider entry and its models
-    const existingProvider = config.provider["xrouter"] || { npm: "@ai-sdk/openai-compatible", options: {}, models: {} };
+    // Preserve any existing omeg4mon-router provider entry and its models
+    const existingProvider = config.provider["omeg4mon-router"] || { npm: "@ai-sdk/openai-compatible", options: {}, models: {} };
 
     // Merge options (overwrite baseURL/apiKey)
     existingProvider.options = {
@@ -162,7 +162,7 @@ export async function POST(request) {
     }
 
     // Save merged provider back
-    config.provider["xrouter"] = existingProvider;
+    config.provider["omeg4mon-router"] = existingProvider;
 
     // Set the active model: prefer explicit activeModel, else first of modelsArray
     // If activeModel is explicitly empty string, clear the model
@@ -171,7 +171,7 @@ export async function POST(request) {
     } else {
       const finalActive = activeModel || modelsArray[0];
       if (finalActive) {
-        config.model = `xrouter/${finalActive}`;
+        config.model = `omeg4mon-router/${finalActive}`;
       }
     }
 
@@ -180,7 +180,7 @@ export async function POST(request) {
     config.agent.explorer = {
       description: "Fast explorer subagent for codebase exploration",
       mode: "subagent",
-      model: `xrouter/${effectiveSubagentModel}`,
+      model: `omeg4mon-router/${effectiveSubagentModel}`,
     };
 
     await fs.writeFile(configPath, JSON.stringify(config, null, 2));
@@ -215,7 +215,7 @@ export async function PATCH(request) {
 
     if (clearActiveModel === true) {
       // Clear active model but keep models in the list
-      if (config.model?.startsWith("xrouter/")) {
+      if (config.model?.startsWith("omeg4mon-router/")) {
         config.model = "";
       }
     }
@@ -232,7 +232,7 @@ export async function PATCH(request) {
   }
 }
 
-// DELETE - Remove X Router provider or specific models from config
+// DELETE - Remove OMEG4MON ROUTER provider or specific models from config
 export async function DELETE(request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -251,26 +251,26 @@ export async function DELETE(request) {
     }
 
     // If specific model provided, remove just that model
-    if (modelToRemove && config.provider?.["xrouter"]?.models) {
-      delete config.provider["xrouter"].models[modelToRemove];
+    if (modelToRemove && config.provider?.["omeg4mon-router"]?.models) {
+      delete config.provider["omeg4mon-router"].models[modelToRemove];
       
       // If no models left, remove the provider
-      if (Object.keys(config.provider["xrouter"].models).length === 0) {
-        delete config.provider["xrouter"];
-        if (config.model?.startsWith("xrouter/")) delete config.model;
-      } else if (config.model === `xrouter/${modelToRemove}`) {
+      if (Object.keys(config.provider["omeg4mon-router"].models).length === 0) {
+        delete config.provider["omeg4mon-router"];
+        if (config.model?.startsWith("omeg4mon-router/")) delete config.model;
+      } else if (config.model === `omeg4mon-router/${modelToRemove}`) {
         // If removed model was active, switch to first remaining model
-        const remainingModels = Object.keys(config.provider["xrouter"].models);
-        config.model = `xrouter/${remainingModels[0]}`;
+        const remainingModels = Object.keys(config.provider["omeg4mon-router"].models);
+        config.model = `omeg4mon-router/${remainingModels[0]}`;
       }
     } else {
-      // No specific model - remove entire xrouter provider
-      if (config.provider) delete config.provider["xrouter"];
-      if (config.model?.startsWith("xrouter/")) delete config.model;
+      // No specific model - remove entire omeg4mon-router provider
+      if (config.provider) delete config.provider["omeg4mon-router"];
+      if (config.model?.startsWith("omeg4mon-router/")) delete config.model;
     }
 
     // Remove subagent configuration
-    if (config.agent?.explorer?.model?.startsWith("xrouter/")) {
+    if (config.agent?.explorer?.model?.startsWith("omeg4mon-router/")) {
       delete config.agent.explorer;
       // Clean up empty agent object
       if (Object.keys(config.agent).length === 0) delete config.agent;
@@ -280,7 +280,7 @@ export async function DELETE(request) {
 
     return NextResponse.json({
       success: true,
-      message: modelToRemove ? `Model "${modelToRemove}" removed` : "X Router settings removed from OpenCode",
+      message: modelToRemove ? `Model "${modelToRemove}" removed` : "OMEG4MON ROUTER settings removed from OpenCode",
     });
   } catch (error) {
     console.log("Error resetting opencode settings:", error);

@@ -2,7 +2,7 @@ import { loadState, saveState, generateShortId } from "../shared/state.js";
 import { spawnQuickTunnel, killCloudflared, isCloudflaredRunning, setUnexpectedExitHandler } from "./cloudflared.js";
 import { clearPid } from "./pid.js";
 import { waitForHealth, probeUrlAlive } from "./healthCheck.js";
-import { WORKER_URL } from "./config.js";
+import { WORKER_URL, workerPublicUrl } from "./config.js";
 import { getSettings, updateSettings } from "@/lib/localDb";
 import { getAppPort } from "@/shared/constants/config";
 
@@ -22,6 +22,7 @@ let onUnexpectedExit = null;
 export function setTunnelUnexpectedExitCallback(cb) { onUnexpectedExit = cb; }
 
 async function registerTunnelUrl(shortId, tunnelUrl, retries = 3) {
+  if (!WORKER_URL) return false; // direct trycloudflare URL only
   for (let i = 0; i < retries; i++) {
     try {
       const res = await fetch(`${WORKER_URL}/api/tunnel/register`, {
@@ -70,7 +71,7 @@ async function _doEnableTunnel(localPort) {
     if (isCloudflaredRunning()) {
       const existing = loadState();
       if (existing?.tunnelUrl && existing?.shortId) {
-        const publicUrl = `https://r${existing.shortId}.abc-tunnel.us`;
+        const publicUrl = workerPublicUrl(existing.shortId) || existing.tunnelUrl;
         // Reuse if cloudflared is running and either URL responds or process is healthy
         const [directOk, publicOk] = await Promise.all([
           probeUrlAlive(existing.tunnelUrl),
@@ -116,7 +117,7 @@ async function _doEnableTunnel(localPort) {
     console.log(`[Tunnel] spawned: ${tunnelUrl}`);
     throwIfCancelled(token);
 
-    const publicUrl = `https://r${shortId}.abc-tunnel.us`;
+    const publicUrl = workerPublicUrl(shortId) || tunnelUrl;
     await registerTunnelUrl(shortId, tunnelUrl);
     saveState({ shortId, tunnelUrl });
     await updateSettings({ tunnelEnabled: true, tunnelUrl });
@@ -142,7 +143,7 @@ async function _doEnableTunnel(localPort) {
         verified = true;
         console.log(`[Tunnel] verified alive (direct=${directOk}, public=${publicOk})`);
         // If direct works but public doesn't, re-register and retry public once
-        if (directOk && !publicOk) {
+        if (WORKER_URL && directOk && !publicOk) {
           console.log("[Tunnel] public URL not responding, re-registering...");
           await registerTunnelUrl(shortId, tunnelUrl);
           await new Promise(r => setTimeout(r, 3000));
@@ -209,7 +210,7 @@ export async function getTunnelStatus() {
   // and a live process with a wiped state file must still answer running:true.
   const running = isCloudflaredRunning();
   const settingsEnabled = settings.tunnelEnabled === true || running;
-  let publicUrl = shortId ? `https://r${shortId}.abc-tunnel.us` : "";
+  let publicUrl = workerPublicUrl(shortId);
   const tunnelUrl = state?.tunnelUrl || "";
   // If shortlink worker is dead/unresponsive, fallback to direct trycloudflare tunnelUrl
   if (!publicUrl) {

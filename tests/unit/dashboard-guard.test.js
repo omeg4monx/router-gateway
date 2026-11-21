@@ -31,6 +31,7 @@ vi.mock("@/shared/utils/machineId", () => ({
 
 vi.mock("@/lib/auth/dashboardSession", () => ({
   verifyDashboardAuthToken: mocks.verifyDashboardAuthToken,
+  getDashboardAuthSession: vi.fn(async () => null),
 }));
 
 const { proxy, __test__ } = await import("../../src/dashboardGuard.js");
@@ -284,6 +285,36 @@ describe("dashboard guard local-only access", () => {
     }));
 
     expect(response).toBe(mocks.nextResponse);
+  });
+});
+
+describe("dashboard guard high-severity regressions", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    process.env.NINEROUTER_PEER_TOKEN = PEER_TOKEN;
+    mocks.getSettings.mockResolvedValue({ requireLogin: true });
+    mocks.validateApiKey.mockResolvedValue(false);
+    mocks.getConsistentMachineId.mockResolvedValue("cli-token");
+    mocks.verifyDashboardAuthToken.mockResolvedValue(false);
+  });
+
+  it("does not let anonymous callers spend quota through /api/models/test", async () => {
+    const response = await proxy(request("/api/models/test", { host: "router.example.com" }));
+    expect(response.status).toBe(401);
+  });
+
+  it("does not let anonymous callers run Telegram bot commands", async () => {
+    const response = await proxy(request("/api/connection/telegram/command", { host: "router.example.com" }));
+    expect(response.status).toBe(401);
+  });
+
+  it("keeps remote tunnel control closed when requireLogin=false", async () => {
+    mocks.getSettings.mockResolvedValue({ requireLogin: false });
+    const response = await proxy(localRequest("/api/tunnel/enable", {
+      host: "router.example.com",
+      "x-9r-real-ip": "203.0.113.7",
+    }));
+    expect(response.status).toBe(403);
   });
 });
 

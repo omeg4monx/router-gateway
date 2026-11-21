@@ -152,7 +152,7 @@ async function autoStartMitm(settings) {
     const activeKey = keys.find(k => k.isActive !== false);
 
     console.log("[InitApp] MITM was enabled, auto-starting...");
-    await startMitm(activeKey?.key || "sk_xrouter", password);
+    await startMitm(activeKey?.key || "sk_omeg4mon_router", password);
     console.log("[InitApp] MITM auto-started");
     try {
       await restoreToolDNS(password);

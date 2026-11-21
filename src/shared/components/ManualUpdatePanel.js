@@ -15,7 +15,7 @@ export default function ManualUpdatePanel({ latestVersion, installCmd, copied, o
           <span className="material-symbols-outlined text-[24px]">content_copy</span>
         </div>
         <div>
-          <h2 className="text-lg font-semibold">Update X Router{latestVersion ? ` to v${latestVersion}` : ""}</h2>
+          <h2 className="text-lg font-semibold">Update OMEG4MON ROUTER{latestVersion ? ` to v${latestVersion}` : ""}</h2>
           <p className="text-xs text-text-muted">
             {isDisconnected
               ? "Server stopped. Paste the command into a terminal to install."
@@ -34,7 +34,7 @@ export default function ManualUpdatePanel({ latestVersion, installCmd, copied, o
       <ol className="text-xs text-text-muted space-y-1 list-decimal list-inside mb-4">
         <li>Click <strong>Copy & Shutdown</strong> below.</li>
         <li>Paste the command into your terminal and press Enter.</li>
-        <li>Run <code className="px-1 rounded bg-surface-3 text-success">xrouter</code> again after install.</li>
+        <li>Run <code className="px-1 rounded bg-surface-3 text-success">omeg4mon-router</code> again after install.</li>
       </ol>
 
       {isDisconnected ? (

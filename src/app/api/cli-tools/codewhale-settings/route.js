@@ -29,9 +29,9 @@ const checkCodewhaleInstalled = async () => {
   }
 };
 
-const hasXRouterConfig = (content) => {
+const hasOmeg4monRouterConfig = (content) => {
   if (!content) return false;
-  return content.includes("managed by X Router") || content.includes("localhost:20128");
+  return content.includes("managed by OMEG4MON ROUTER") || content.includes("localhost:20128");
 };
 
 const readConfig = async () => {
@@ -62,7 +62,7 @@ export async function GET() {
     return NextResponse.json({
       installed: true,
       config,
-      hasXRouter: hasXRouterConfig(content),
+      hasOmeg4monRouter: hasOmeg4monRouterConfig(content),
       configPath: getCodewhaleConfigPath(),
     });
   } catch (err) {
@@ -97,11 +97,11 @@ export async function POST(request) {
 
     existing.openai = {
       base_url: normalizedBaseUrl,
-      api_key: apiKey || "sk_xrouter",
+      api_key: apiKey || "sk_omeg4mon_router",
       model: model || "provider/model-id",
     };
 
-    const header = "# CodeWhale config — managed by X Router\n\n";
+    const header = "# CodeWhale config — managed by OMEG4MON ROUTER\n\n";
     const content = header + stringifyTOML(existing);
 
     await fs.writeFile(configPath, content, "utf-8");
@@ -135,7 +135,7 @@ export async function DELETE() {
       await fs.writeFile(configPath, stringifyTOML(existing), "utf-8");
     }
 
-    return NextResponse.json({ success: true, message: "X Router removed from CodeWhale" });
+    return NextResponse.json({ success: true, message: "OMEG4MON ROUTER removed from CodeWhale" });
   } catch (err) {
     return NextResponse.json({ error: { message: err.message } }, { status: 500 });
   }

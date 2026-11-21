@@ -4,7 +4,7 @@ import { killAppProcesses, spawnUpdaterAndExit } from "@/lib/appUpdater";
 export async function POST() {
   if (process.env.NODE_ENV !== "production") {
     return NextResponse.json(
-      { success: false, message: "Update is only available in production build (xrouter CLI)" },
+      { success: false, message: "Update is only available in production build (omeg4mon-router CLI)" },
       { status: 403 }
     );
   }

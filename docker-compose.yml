@@ -1,12 +1,13 @@
 services:
-  xrouter:
-    image: decolua/xrouter:latest
-    container_name: xrouter
+  omeg4mon-router:
+    build: .
+    image: omeg4mon-router:local
+    container_name: omeg4mon-router
     restart: always
     ports:
       - "20128:20128"
     volumes:
-      - xrouter-data:/app/data
+      - omeg4mon-router-data:/app/data
     env_file:
       - .env
     environment:
@@ -26,5 +27,5 @@ services:
       - "127.0.0.1:8787:8787"
 
 volumes:
-  xrouter-data:
-    name: xrouter-data
+  omeg4mon-router-data:
+    name: ${OMEG4MON_ROUTER_VOLUME:-omeg4mon-router-data}

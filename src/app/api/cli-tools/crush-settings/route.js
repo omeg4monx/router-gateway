@@ -32,9 +32,9 @@ const checkCrushInstalled = async () => {
   }
 };
 
-const hasXRouterConfig = (settings) => {
+const hasOmeg4monRouterConfig = (settings) => {
   if (!settings || !settings.providers) return false;
-  const p = settings.providers["xrouter"];
+  const p = settings.providers["omeg4mon-router"];
   if (p && p.base_url) return true;
   for (const prov of Object.values(settings.providers)) {
     if (prov.base_url && prov.base_url.includes("20128")) return true;
@@ -67,7 +67,7 @@ export async function GET() {
     return NextResponse.json({
       installed: true,
       config,
-      hasXRouter: hasXRouterConfig(config),
+      hasOmeg4monRouter: hasOmeg4monRouterConfig(config),
       configPath: getCrushConfigPath(),
     });
   } catch (err) {
@@ -105,10 +105,10 @@ export async function POST(request) {
     const normalizedBaseUrl = baseUrl.endsWith("/v1") ? baseUrl : `${baseUrl}/v1`;
     const modelId = model || "provider/model-id";
 
-    existing.providers["xrouter"] = {
+    existing.providers["omeg4mon-router"] = {
       type: "openai-compat",
       base_url: normalizedBaseUrl,
-      api_key: apiKey || "sk_xrouter",
+      api_key: apiKey || "sk_omeg4mon_router",
       models: [
         {
           id: modelId,
@@ -141,13 +141,13 @@ export async function DELETE() {
       return NextResponse.json({ success: true, message: "No config file to reset" });
     }
 
-    if (existing.providers && existing.providers["xrouter"]) {
-      delete existing.providers["xrouter"];
+    if (existing.providers && existing.providers["omeg4mon-router"]) {
+      delete existing.providers["omeg4mon-router"];
       if (Object.keys(existing.providers).length === 0) delete existing.providers;
       await fs.writeFile(configPath, JSON.stringify(existing, null, 2), "utf-8");
     }
 
-    return NextResponse.json({ success: true, message: "X Router removed from Crush" });
+    return NextResponse.json({ success: true, message: "OMEG4MON ROUTER removed from Crush" });
   } catch (err) {
     return NextResponse.json({ error: { message: err.message } }, { status: 500 });
   }

@@ -71,7 +71,7 @@ const OAUTH_TEST_CONFIG = {
     method: "GET",
     authHeader: "Authorization",
     authPrefix: "Bearer ",
-    extraHeaders: { "User-Agent": "X Router", "Accept": "application/vnd.github+json" },
+    extraHeaders: { "User-Agent": "OMEG4MON ROUTER", "Accept": "application/vnd.github+json" },
   },
   iflow: {
     // iFlow getUserInfo requires accessToken as query param, not header

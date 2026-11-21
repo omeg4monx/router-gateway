@@ -9,7 +9,7 @@ import os from "os";
 
 const execAsync = promisify(exec);
 
-const PROVIDER_NAME = "xrouter";
+const PROVIDER_NAME = "omeg4mon-router";
 
 const getDeepSeekDir = () => path.join(os.homedir(), ".deepseek");
 const getDeepSeekConfigPath = () => path.join(getDeepSeekDir(), "config.toml");
@@ -51,8 +51,8 @@ const parseToml = (content) => {
     return result;
 };
 
-// Build TOML config for X Router (openai provider mode)
-const buildXRouterConfig = (baseUrl, apiKey, model) => {
+// Build TOML config for OMEG4MON ROUTER (openai provider mode)
+const buildOmeg4monRouterConfig = (baseUrl, apiKey, model) => {
     const normalizedBaseUrl = baseUrl.endsWith("/v1") ? baseUrl : `${baseUrl}/v1`;
     return `provider = "openai"
 
@@ -92,8 +92,8 @@ const readConfigToml = async () => {
     }
 };
 
-// Detect X Router by checking if provider is "openai" and base_url points to localhost/127.0.0.1
-const hasXRouterConfig = (config) => {
+// Detect OMEG4MON ROUTER by checking if provider is "openai" and base_url points to localhost/127.0.0.1
+const hasOmeg4monRouterConfig = (config) => {
     if (!config) return false;
     const provider = config.provider;
     if (provider !== "openai") return false;
@@ -113,7 +113,7 @@ export async function GET() {
         return NextResponse.json({
             installed: true,
             settings: config,
-            hasXRouter: hasXRouterConfig(config),
+            hasOmeg4monRouter: hasOmeg4monRouterConfig(config),
             configPath: getDeepSeekConfigPath(),
         });
     } catch (error) {
@@ -132,7 +132,7 @@ export async function POST(request) {
         const dir = getDeepSeekDir();
         await fs.mkdir(dir, { recursive: true });
 
-        const newConfig = buildXRouterConfig(baseUrl, apiKey || "sk_xrouter", model);
+        const newConfig = buildOmeg4monRouterConfig(baseUrl, apiKey || "sk_omeg4mon_router", model);
         await fs.writeFile(getDeepSeekConfigPath(), newConfig);
 
         return NextResponse.json({

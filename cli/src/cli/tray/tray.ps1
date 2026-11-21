@@ -1,4 +1,4 @@
-# X Router tray icon for Windows using NotifyIcon
+# OMEG4MON ROUTER tray icon for Windows using NotifyIcon
 # IPC: stdin JSON commands, stdout JSON events
 param([string]$IconPath, [string]$Tooltip)
 

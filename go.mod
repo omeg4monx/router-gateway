@@ -1,4 +1,4 @@
-module github.com/johsua092-ui/xrouter
+module github.com/omeg4monx/router-gateway
 
 go 1.26.0
 

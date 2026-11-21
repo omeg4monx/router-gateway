@@ -716,7 +716,7 @@ routing, translation or persistence paths is touched.
   - Added explicit regex-aligned error rules for `FreeUsageLimitError`, `free usage limit reached`, and `AI_APICallError` in `open-sse/config/errorConfig.js` to trigger automatic routing failover to the next connection instead of surfacing generic runtime errors.
 
 - **Documentation & Distribution Cleanup**:
-  - Deprecated and removed global NPM package instructions (`npm install -g xrouter-ai`, `npx xrouter-ai`) and badges from `README.md` to align with the repository's native Git & Go Core distribution model.
+  - Deprecated and removed global NPM package instructions (`npm install -g omeg4mon-router`, `npx omeg4mon-router`) and badges from `README.md` to align with the repository's native Git & Go Core distribution model.
 
 - **Port Complete Magpie OpenCode Specification**:
   - Upgraded OpenCode fingerprint tool definitions to full 5 core tools (`edit`, `glob`, `grep`, `read`, `shell`) with exact upstream schemas.
@@ -957,12 +957,12 @@ routing, translation or persistence paths is touched.
   - Ensured compliance with upstream ZCode gateway content inspection on `/api/v1/zcode-plan/anthropic/v1/messages`.
 
 - **Fix Standalone Preloaded wreq-js Instance & Zero-Import ZCode TLS Impersonation**:
-  - Preloaded `wreq-js` instance into `globalThis.__xrouter_wreq__` in both `custom-server.js` and standalone `server.js` before Next.js server initialization.
-  - Prioritized `globalThis.__xrouter_wreq__` directly in `zcodeTlsClient.js` and `opencodeTlsClient.js`, bypassing webpack chunk dynamic import isolation completely (`Cannot find package 'wreq-js'`).
+  - Preloaded `wreq-js` instance into `globalThis.__omeg4monRouter_wreq__` in both `custom-server.js` and standalone `server.js` before Next.js server initialization.
+  - Prioritized `globalThis.__omeg4monRouter_wreq__` directly in `zcodeTlsClient.js` and `opencodeTlsClient.js`, bypassing webpack chunk dynamic import isolation completely (`Cannot find package 'wreq-js'`).
   - Cleaned up entrypoint require hook injection in `scripts/copy-standalone-assets.mjs`.
 - **Fix Standalone Webpack Scope wreq-js Native Loader & 3012 WAF Bypass**:
   - Resolved `eval("require")` reference failure in Webpack standalone chunk scope where `require` was not in lexical scope, leading to `wreq-js unavailable` and failing open to native fetch.
-  - Implemented global require bootstrap hook (`globalThis.__xrouter_native_require__`) initialized at entrypoint (`custom-server.js` and standalone `server.js`).
+  - Implemented global require bootstrap hook (`globalThis.__omeg4monRouter_native_require__`) initialized at entrypoint (`custom-server.js` and standalone `server.js`).
   - Added multi-tier resolution using `process.getBuiltinModule("module")`, dynamic `Function` constructor require/import completely invisible to Webpack AST analysis, candidate `package.json` resolution, and direct `.cjs` file resolution.
   - Hardened both `zcodeTlsClient.js` and `opencodeTlsClient.js` against standalone Next.js bundling quirks.
 - **Fix Standalone & CLI wreq-js Native Loader & 3012 WAF Bypass**:
@@ -1025,7 +1025,7 @@ routing, translation or persistence paths is touched.
 - **Recipe blob keeps the wire format only** (endpoints, client headers, user agent) and is versioned `v2` so a stale blob cannot be mistaken for the current one.
 
 ## Notes
-- Self-hosters using ADCode must set `ADCODE_FB_KEY` (see `/etc/xrouter/adcode.env`); every other provider is unaffected.
+- Self-hosters using ADCode must set `ADCODE_FB_KEY` (see `/etc/omeg4mon-router/adcode.env`); every other provider is unaffected.
 
 # v0.6.228 (2026-10-23)
 
@@ -1075,13 +1075,13 @@ routing, translation or persistence paths is touched.
 # v0.6.217 (2026-10-22)
 
 ## Updates & Bug Fixes
-- **Global NPM Package Auth Guard**: Bundle `open-sse/`, `jose`, `bcryptjs`, and `uuid` alongside `src/shared` and `src/lib` in `xrouter-ai` CLI bundle with enhanced module resolution hooks to permanently eliminate `{"error":"Auth guard unavailable"}` on clean environments (Windows 11, macOS, Linux).
+- **Global NPM Package Auth Guard**: Bundle `open-sse/`, `jose`, `bcryptjs`, and `uuid` alongside `src/shared` and `src/lib` in `omeg4mon-router` CLI bundle with enhanced module resolution hooks to permanently eliminate `{"error":"Auth guard unavailable"}` on clean environments (Windows 11, macOS, Linux).
 
 # v0.6.216 (2026-10-22)
 
 ## Updates & New Providers
 - **OpenSatan Provider**: Zero-auth uncensored provider integrating `gemma-4-26b-a4b-it-uncensored-abliterix-mlx-int5-affine` with Satan and Genie personas.
-- **Update Checker & Notification Bell**: Point update inspection to public repository `johsua092-ui/xrouter` and NPM registry (`xrouter-ai`) so commit and release alerts reliably pop up on the header bell icon.
+- **Update Checker & Notification Bell**: Point update inspection to public repository `omeg4monx/router-gateway` and NPM registry (`omeg4mon-router`) so commit and release alerts reliably pop up on the header bell icon.
 
 # v0.6.215 (2026-10-22)
 
@@ -1092,12 +1092,12 @@ routing, translation or persistence paths is touched.
 # v0.6.214 (2026-10-22)
 
 ## Updates & Bug Fixes
-- **CLI Package Packaging**: Include complete `src/shared` and `src/lib` folders alongside `scripts/auth-guard-hooks.mjs` and built-in `NextResponse` fallback shim to fix `Auth guard unavailable` on all platforms (Windows, Linux, macOS) for `npm install -g xrouter-ai`.
+- **CLI Package Packaging**: Include complete `src/shared` and `src/lib` folders alongside `scripts/auth-guard-hooks.mjs` and built-in `NextResponse` fallback shim to fix `Auth guard unavailable` on all platforms (Windows, Linux, macOS) for `npm install -g omeg4mon-router`.
 
 # v0.6.212 (2026-10-22)
 
 ## Updates & Bug Fixes
-- **CLI Package Packaging**: Include `scripts/` (`auth-guard-hooks.mjs`) and `src/dashboardGuard.js` in published npm package to fix `Auth guard unavailable` on `npm install -g xrouter-ai`.
+- **CLI Package Packaging**: Include `scripts/` (`auth-guard-hooks.mjs`) and `src/dashboardGuard.js` in published npm package to fix `Auth guard unavailable` on `npm install -g omeg4mon-router`.
 
 # v0.6.211 (2026-10-22)
 

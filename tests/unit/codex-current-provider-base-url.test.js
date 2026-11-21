@@ -4,12 +4,12 @@ import { getCurrentCodexProviderBaseUrl, getCurrentCodexProviderSettings } from 
 describe("Codex current provider base URL", () => {
   it("uses the base URL from the configured model provider, not an earlier provider", () => {
     const config = `model = "gpt-5"
-model_provider = "xrouter"
+model_provider = "omeg4mon-router"
 
 [model_providers.omniroute]
 base_url = "https://omniroute.example/v1"
 
-[model_providers.xrouter]
+[model_providers.omeg4mon-router]
 base_url = "http://127.0.0.1:20128/v1"
 `;
 
@@ -17,7 +17,7 @@ base_url = "http://127.0.0.1:20128/v1"
   });
 
   it("reads the active provider URL and bearer key when another provider appears first", () => {
-    const config = `model_provider = "xrouter"
+    const config = `model_provider = "omeg4mon-router"
 
 [model_providers.omniroute]
 base_url = "https://omniroute.example/v1"
@@ -25,16 +25,16 @@ base_url = "https://omniroute.example/v1"
 [model_providers.omniroute.http_headers]
 Authorization = "Bearer placeholder-omniroute-key"
 
-[model_providers.xrouter]
-base_url = "https://xrouter.example/v1/"
+[model_providers.omeg4mon-router]
+base_url = "https://omeg4mon-router.example/v1/"
 
-[model_providers.xrouter.http_headers]
-Authorization = "Bearer placeholder-xrouter-key"
+[model_providers.omeg4mon-router.http_headers]
+Authorization = "Bearer placeholder-omeg4mon-router-key"
 `;
 
     expect(getCurrentCodexProviderSettings(config)).toEqual({
-      baseUrl: "https://xrouter.example/v1/",
-      apiKey: "placeholder-xrouter-key",
+      baseUrl: "https://omeg4mon-router.example/v1/",
+      apiKey: "placeholder-omeg4mon-router-key",
     });
   });
 

@@ -13,7 +13,7 @@ export async function GET() {
     const machineSalt = process.env.MACHINE_ID_SALT || "";
     const apiKeySecret = process.env.API_KEY_SECRET || "";
     const port = process.env.PORT || "20128";
-    const dataDir = process.env.DATA_DIR || "/var/lib/xrouter";
+    const dataDir = process.env.DATA_DIR || "/var/lib/omeg4mon-router";
     const baseUrl = process.env.BASE_URL || `http://localhost:${port}`;
 
     return NextResponse.json({
@@ -22,11 +22,12 @@ export async function GET() {
       dataDir,
       jwtSecretSet: Boolean(jwtSecret),
       jwtSecretLength: jwtSecret.length,
-      jwtSecretMasked: jwtSecret ? `${jwtSecret.slice(0, 4)}••••••••${jwtSecret.slice(-4)}` : "Not Set",
+      // Secrets are reported as set/unset only: even partial characters narrow guessing.
+      jwtSecretMasked: jwtSecret ? `Set (${jwtSecret.length} chars)` : "Not Set",
       machineSaltSet: Boolean(machineSalt),
-      machineSaltMasked: machineSalt ? `${machineSalt.slice(0, 3)}••••••••` : "Not Set",
+      machineSaltMasked: machineSalt ? "Set" : "Not Set",
       apiKeySecretSet: Boolean(apiKeySecret),
-      apiKeySecretMasked: apiKeySecret ? `${apiKeySecret.slice(0, 3)}••••••••` : "Not Set",
+      apiKeySecretMasked: apiKeySecret ? "Set" : "Not Set",
     });
   } catch (err) {
     return NextResponse.json({ error: err.message }, { status: 500 });

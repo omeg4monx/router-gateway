@@ -19,15 +19,15 @@ export default function Navigation() {
           <div className="size-8 rounded bg-linear-to-br from-[var(--color-brand-500)] to-brand-500 flex items-center justify-center text-white">
             <span className="material-symbols-outlined text-[20px]">hub</span>
           </div>
-          <h2 className="text-white text-xl font-bold tracking-tight">X Router</h2>
+          <h2 className="text-white text-xl font-bold tracking-tight">OMEG4MON ROUTER</h2>
         </button>
 
         {/* Desktop menu */}
         <div className="hidden md:flex items-center gap-8">
           <a className="text-muted hover:text-white text-sm font-medium transition-colors" href="#features">Features</a>
           <a className="text-muted hover:text-white text-sm font-medium transition-colors" href="#how-it-works">How it Works</a>
-          <a className="text-muted hover:text-white text-sm font-medium transition-colors" href="https://github.com/johsua092-ui/x-router#readme" target="_blank" rel="noopener noreferrer">Docs</a>
-          <a className="text-muted hover:text-white text-sm font-medium transition-colors flex items-center gap-1" href="https://github.com/johsua092-ui/x-router" target="_blank" rel="noopener noreferrer">
+          <a className="text-muted hover:text-white text-sm font-medium transition-colors" href="https://github.com/omeg4monx/router-gateway/tree/main/docs" target="_blank" rel="noopener noreferrer">Docs</a>
+          <a className="text-muted hover:text-white text-sm font-medium transition-colors flex items-center gap-1" href="https://github.com/omeg4monx/router-gateway" target="_blank" rel="noopener noreferrer">
             GitHub <span className="material-symbols-outlined text-[14px]">open_in_new</span>
           </a>
         </div>
@@ -55,8 +55,8 @@ export default function Navigation() {
           <div className="flex flex-col gap-4 p-6">
             <a className="text-muted hover:text-white text-sm font-medium transition-colors" href="#features" onClick={() => setMobileMenuOpen(false)}>Features</a>
             <a className="text-muted hover:text-white text-sm font-medium transition-colors" href="#how-it-works" onClick={() => setMobileMenuOpen(false)}>How it Works</a>
-            <a className="text-muted hover:text-white text-sm font-medium transition-colors" href="https://github.com/johsua092-ui/x-router#readme" target="_blank" rel="noopener noreferrer">Docs</a>
-            <a className="text-muted hover:text-white text-sm font-medium transition-colors" href="https://github.com/johsua092-ui/x-router" target="_blank" rel="noopener noreferrer">GitHub</a>
+            <a className="text-muted hover:text-white text-sm font-medium transition-colors" href="https://github.com/omeg4monx/router-gateway/tree/main/docs" target="_blank" rel="noopener noreferrer">Docs</a>
+            <a className="text-muted hover:text-white text-sm font-medium transition-colors" href="https://github.com/omeg4monx/router-gateway" target="_blank" rel="noopener noreferrer">GitHub</a>
             <button 
               onClick={() => router.push("/dashboard")}
               className="h-9 rounded-lg bg-[var(--color-brand-500)] hover:bg-[#e0650a] text-[#181411] text-sm font-bold"

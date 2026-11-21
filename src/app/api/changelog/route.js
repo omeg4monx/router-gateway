@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 const OFFICIAL_URL = "https://raw.githubusercontent.com/decolua/9router/refs/heads/master/CHANGELOG.md";
 
 function readLocalChangelog(filename) {
-  const dirs = [process.cwd(), "/root/xrouter", "/root/xrouter-remake"];
+  const dirs = [process.cwd(), "/root/omeg4mon-router", "/root/omeg4mon-router-remake"];
   for (const dir of dirs) {
     try {
       const p = path.join(dir, filename);

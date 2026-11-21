@@ -85,7 +85,8 @@ export default function MediaProviderDetailPage() {
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
           <div className="size-12 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: `${provider.color}15` }}>
             <ProviderIcon
-              src={getCustomLogo(provider) || `/providers/${provider.id}.png`}
+              providerId={provider.id}
+              src={getCustomLogo(provider)}
               alt={provider.name}
               size={48}
               className="object-contain rounded-lg max-w-[48px] max-h-[48px]"

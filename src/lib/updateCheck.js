@@ -31,7 +31,7 @@ function githubJson(endpoint) {
     const req = https.get(`${API}${endpoint}`, {
       timeout: 5000,
       headers: {
-        "User-Agent": "X Router-App",
+        "User-Agent": "OMEG4MON ROUTER-App",
         Accept: "application/vnd.github.v3+json",
         ...(process.env.GITHUB_TOKEN ? { Authorization: `Bearer ${process.env.GITHUB_TOKEN}` } : {}),
       },
@@ -68,7 +68,7 @@ function fetchText(url) {
   return new Promise((resolve) => {
     const req = https.get(url, {
       timeout: 5000,
-      headers: { "User-Agent": "X Router-App" },
+      headers: { "User-Agent": "OMEG4MON ROUTER-App" },
     }, (res) => {
       let data = "";
       let size = 0;
@@ -93,8 +93,8 @@ function fetchText(url) {
 
 function readGitRevision() {
   return new Promise((resolve) => {
-    // Check both cwd and /root/xrouter for git revision
-    const targetDirs = ["/root/xrouter", process.cwd(), "/root/xrouter-remake"];
+    // Check both cwd and /root/omeg4mon-router for git revision
+    const targetDirs = ["/root/omeg4mon-router", process.cwd(), "/root/omeg4mon-router-remake"];
     const checkDir = (dirs) => {
       if (dirs.length === 0) {
         cache.gitInstall = false;
@@ -139,38 +139,6 @@ async function fetchRemoteRelease() {
   const release = parseChangelogRelease(text);
   cache.remoteRelease = release;
   return release;
-}
-
-// Check npm registry for latest published CLI package version
-async function fetchNpmRelease() {
-  return new Promise((resolve) => {
-    const req = https.get("https://registry.npmjs.org/xrouter-ai/latest", {
-      timeout: 5000,
-      headers: { "User-Agent": "XRouter-App" },
-    }, (res) => {
-      let data = "";
-      res.on("data", (chunk) => { data += chunk; });
-      res.on("end", () => {
-        if (res.statusCode !== 200) return resolve(null);
-        try {
-          const pkg = JSON.parse(data);
-          if (pkg?.version) {
-            resolve({
-              version: `v${pkg.version}`,
-              notes: [pkg.description || `New release v${pkg.version} available on npm`],
-            });
-            return;
-          }
-        } catch {}
-        resolve(null);
-      });
-    });
-    req.on("error", () => resolve(null));
-    req.on("timeout", () => {
-      req.destroy();
-      resolve(null);
-    });
-  });
 }
 
 function parseChangelogRelease(text) {
@@ -259,12 +227,10 @@ export async function getUpdateInfo(currentVersion) {
                    existsSync(path.join(process.cwd(), "cmd")) ||
                    Boolean(localRelease && /^v0\.0\./.test(localRelease));
 
-  const [head, release, npmRelease] = await Promise.all([
+  const [head, effectiveRelease] = await Promise.all([
     fetchRemoteHead(),
     fetchRemoteRelease(),
-    isGoRepo ? Promise.resolve(null) : fetchNpmRelease(),
   ]);
-  const effectiveRelease = isGoRepo ? release : (release || npmRelease);
   cache.fetchedAt = Date.now();
 
   // git signal: commits this checkout is missing. Unavailable without a revision.
@@ -276,14 +242,8 @@ export async function getUpdateInfo(currentVersion) {
       behindBy = compare ? compare.pendingBy : null;
     }
   }
-  // A published build carries APP_REVISION from its own checkout, which is a
-  // different history than the repository the updater watches. Comparing those
-  // shas is meaningless and pinned the bell to "update available" forever, so
-  // the npm release is the only signal that counts for a published build.
-  const gitSignalUsable = isGoRepo || !npmRelease;
-  const gitSaysUpdate = gitSignalUsable && (behindBy === null
-    ? Boolean(localSha && head && localSha !== head.sha)
-    : behindBy > 0);
+  // Only report a Git update when the configured repository confirms it.
+  const gitSaysUpdate = behindBy !== null && behindBy > 0;
 
   // release signal: the repository's newest changelog entry against this build.
   // ONLY alert if remote version is strictly newer than local version (releaseOrder === 1).

@@ -6,6 +6,7 @@ import (
 )
 
 type Config struct {
+	Host            string
 	Port            string
 	DataDir         string
 	DBPath          string
@@ -20,18 +21,23 @@ func Load() *Config {
 		port = "8080"
 	}
 
+	// Loopback by default: this server has no auth; set HOST=0.0.0.0 only behind one.
+	host := os.Getenv("HOST")
+	if host == "" {
+		host = "127.0.0.1"
+	}
+
 	dataDir := os.Getenv("DATA_DIR")
 	if dataDir == "" {
 		home, err := os.UserHomeDir()
 		if err != nil {
 			home = "/root"
 		}
-		// Default to shared xrouter data directory if present
-		candidate := filepath.Join(home, "xrouter-remake", "data")
-		if _, err := os.Stat(candidate); err == nil {
-			dataDir = candidate
-		} else {
-			dataDir = filepath.Join(home, ".xrouter", "data")
+		dataDir = filepath.Join(home, ".omeg4mon-router", "data")
+		// Prefer the side-by-side "remake" checkout's database when it exists.
+		remake := filepath.Join(home, "omeg4mon-router-remake", "data")
+		if info, err := os.Stat(filepath.Join(remake, "db", "data.sqlite")); err == nil && !info.IsDir() {
+			dataDir = remake
 		}
 	}
 
@@ -39,7 +45,7 @@ func Load() *Config {
 
 	initialPassword := os.Getenv("INITIAL_PASSWORD")
 	if initialPassword == "" {
-		initialPassword = "xrouter123"
+		initialPassword = "omeg4mon123"
 	}
 
 	publicBaseUrl := os.Getenv("PUBLIC_BASE_URL")
@@ -48,6 +54,7 @@ func Load() *Config {
 	}
 
 	return &Config{
+		Host:            host,
 		Port:            port,
 		DataDir:         dataDir,
 		DBPath:          dbPath,

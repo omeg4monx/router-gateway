@@ -1,5 +1,5 @@
 /**
- * Dual-Stage High-Precision Semantic Prompt Caching Helper for XRouter
+ * Dual-Stage High-Precision Semantic Prompt Caching Helper for OMEG4MON ROUTER
  * 
  * Inspired by messkan/prompt-cache:
  * - Tier 1: Exact Request Hash Match (0ms instant return)

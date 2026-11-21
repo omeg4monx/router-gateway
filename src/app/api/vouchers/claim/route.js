@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { audit } from "@/lib/auth/auditLog";
 import { claimVoucher, getVoucherByCode, getActiveBansosVoucher } from "@/lib/localDb";
 import { getClientIp } from "@/lib/auth/loginLimiter";
+import { isLocalRequest } from "@/dashboardGuard";
 import { isKnownProxyIp } from "@/lib/security/proxyIpBlocker";
 import {
   normalizeClientIp,
@@ -22,8 +23,9 @@ clearAllLockouts();
 export async function GET(request) {
   try {
     // Edge Proxy Gate: Enforce Cloudflare Edge for all external public traffic
-    const host = request.headers.get("host") || "";
-    const isLocal = host.startsWith("127.0.0.1") || host.startsWith("localhost");
+    // custom-server strips cf-ray unless the socket is loopback (cloudflared); "local"
+    // comes from the stamped socket address, never from the spoofable Host header.
+    const isLocal = isLocalRequest(request);
     const cfRay = request.headers.get("cf-ray");
     if (!isLocal && !cfRay) {
       return NextResponse.json(
@@ -137,8 +139,7 @@ export async function GET(request) {
 // POST /api/vouchers/claim -> Bulletproof Anti-Abuse Protected Claim Handler
 export async function POST(request) {
   // Edge Proxy Gate: Enforce Cloudflare Edge for all external public traffic
-  const host = request.headers.get("host") || "";
-  const isLocal = host.startsWith("127.0.0.1") || host.startsWith("localhost");
+  const isLocal = isLocalRequest(request);
   const cfRay = request.headers.get("cf-ray");
   if (!isLocal && !cfRay) {
     return NextResponse.json(
@@ -243,7 +244,7 @@ export async function POST(request) {
     recordSuccess(ip);
 
     // Determine Base URL
-    const host = request.headers.get("x-forwarded-host") || request.headers.get("host") || "xrouter.consoleapi.qzz.io";
+    const host = request.headers.get("x-forwarded-host") || request.headers.get("host") || "localhost:20128";
     const proto = request.headers.get("x-forwarded-proto") || (host.includes("localhost") || host.includes("127.0.0.1") ? "http" : "https");
     const baseUrl = `${proto}://${host}/v1`;
 
@@ -262,7 +263,7 @@ client = OpenAI(
 
 response = client.chat.completions.create(
     model="${result.allowedModels === "*" ? "gpt-4o" : result.allowedModels.split(",")[0].trim()}",
-    messages=[{"role": "user", "content": "Hello X Router!"}]
+    messages=[{"role": "user", "content": "Hello OMEG4MON ROUTER!"}]
 )
 print(response.choices[0].message.content)`,
 

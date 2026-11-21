@@ -10,7 +10,7 @@ let tempDir;
 let sqliteDb;
 
 beforeAll(async () => {
-  tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "xrouter-db-compare-"));
+  tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "omeg4mon-router-db-compare-"));
   process.env.DATA_DIR = tempDir;
   vi.resetModules();
   sqliteDb = await import("@/lib/db/index.js");

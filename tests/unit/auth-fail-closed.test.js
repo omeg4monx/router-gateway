@@ -33,10 +33,13 @@ describe("custom-server auth guard fails closed", () => {
   });
 
   it("answers 503 instead of forwarding when the wrapper promise rejects", () => {
-    const wrapperCatch = server.slice(server.indexOf('".catch((error) => {'), -1);
-    const tail = server.slice(server.indexOf(".catch((error) => {"));
-    expect(tail).toContain("denyUnresolved(req, res)");
-    expect(wrapperCatch).toBeDefined();
+    const start = server.indexOf("return runAuthGuard(req, res)");
+    expect(start).toBeGreaterThan(-1);
+    const chain = server.slice(start, server.indexOf("};", start));
+    const catchBlock = chain.slice(chain.indexOf(".catch("));
+    expect(chain.indexOf(".catch(")).toBeGreaterThan(-1);
+    expect(catchBlock).toMatch(/denyService\(res,\s*503/);
+    expect(catchBlock).not.toContain("handler(req, res)");
   });
 
   it("resolves 503 as HTML for pages and JSON for API", () => {

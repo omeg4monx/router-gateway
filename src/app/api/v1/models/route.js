@@ -159,7 +159,7 @@ const parseOpenAIStyleModels = (data) => {
 };
 
 // Header sent by fetchCompatibleModelIds to detect cross-instance /models fetches
-// and break recursive loops between xrouter instances connected to each other.
+// and break recursive loops between omeg4mon-router instances connected to each other.
 const INTERNAL_MODELS_FETCH_HEADER = "x-9r-internal-models-fetch";
 
 // LLM kind sentinel — combos/models with no explicit kind default to LLM
@@ -259,7 +259,7 @@ function providerMatchesKinds(providerId, kindFilter) {
   return kindFilter.some((k) => kinds.includes(k));
 }
 
-// Providers that need no credential are callable the moment X Router runs, so they
+// Providers that need no credential are callable the moment OMEG4MON ROUTER runs, so they
 // never own a connection row. Without this pass they only appeared while the whole
 // provider table was empty, and any client that reads /v1/models (Hermes, Cline,
 // SDK model pickers) could not see a single one of their models.
@@ -306,7 +306,7 @@ export async function buildModelsList(kindFilter, options = {}) {
  // listing can never promise a model the request gate would refuse.
  const callerPatterns = await getAllowedModelsOfKey(readCallerApiKey(options.request));
  // When this header is present, the /v1/models request came from another
- // xrouter instance's fetchCompatibleModelIds — skip dynamic fetch to break
+ // omeg4mon-router instance's fetchCompatibleModelIds — skip dynamic fetch to break
  // cross-instance recursive loops.
  const skipDynamicFetch = true;
 

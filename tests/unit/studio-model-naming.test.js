@@ -10,7 +10,7 @@ const originalDataDir = process.env.DATA_DIR;
 let ctx;
 
 beforeEach(async () => {
- const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "xrouter-studio-naming-"));
+ const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "omeg4mon-router-studio-naming-"));
  process.env.DATA_DIR = tempDir;
  vi.resetModules();
  const db = await import("@/lib/db/index.js");

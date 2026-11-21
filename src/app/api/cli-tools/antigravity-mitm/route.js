@@ -105,7 +105,7 @@ export async function POST(request) {
 
     if (!checkPrivilege(pwd)) {
       return NextResponse.json(
-        { error: isWin ? "Administrator required — restart X Router as Administrator" : "Root or sudo password required to start MITM" },
+        { error: isWin ? "Administrator required — restart OMEG4MON ROUTER as Administrator" : "Root or sudo password required to start MITM" },
         { status: 403 }
       );
     }
@@ -180,7 +180,7 @@ export async function PATCH(request) {
     const needsAdmin = !(isWin && action === "trust-cert");
     if (needsAdmin && !checkPrivilege(pwd)) {
       return NextResponse.json(
-        { error: isWin ? "Administrator required — restart X Router as Administrator" : "Root or sudo password required to modify DNS" },
+        { error: isWin ? "Administrator required — restart OMEG4MON ROUTER as Administrator" : "Root or sudo password required to modify DNS" },
         { status: 403 }
       );
     }

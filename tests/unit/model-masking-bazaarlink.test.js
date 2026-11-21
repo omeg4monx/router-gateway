@@ -15,7 +15,7 @@ describe("Model Masking & BazaarLink Anti-Probe", () => {
   });
 
   it("modelEditorRepo persists and returns ownedBy", async () => {
-    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "xrouter-mask-test-"));
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "omeg4mon-router-mask-test-"));
     const origDataDir = process.env.DATA_DIR;
     process.env.DATA_DIR = tempDir;
 

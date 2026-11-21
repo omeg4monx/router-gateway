@@ -16,14 +16,14 @@ export default function GetStarted() {
           <div className="flex-1">
             <h2 className="text-3xl md:text-4xl font-bold mb-6">Get Started in 30 Seconds</h2>
             <p className="text-muted text-lg mb-8">
-              Install X Router, configure your providers via web dashboard, and start routing AI requests.
+              Install OMEG4MON ROUTER, configure your providers via web dashboard, and start routing AI requests.
             </p>
             
             <div className="flex flex-col gap-6">
               <div className="flex gap-4">
                 <div className="flex-none w-8 h-8 rounded-full bg-[var(--color-brand-500)]/20 text-[var(--color-brand-500)] flex items-center justify-center font-bold">1</div>
                 <div>
-                  <h4 className="font-bold text-lg">Install X Router</h4>
+                  <h4 className="font-bold text-lg">Install OMEG4MON ROUTER</h4>
                   <p className="text-sm text-muted mt-1">Run npx command to start the server instantly</p>
                 </div>
               </div>
@@ -61,17 +61,17 @@ export default function GetStarted() {
               <div className="p-6 font-mono text-sm leading-relaxed overflow-x-auto">
                 <div 
                   className="flex items-center gap-2 mb-4 group cursor-pointer"
-                  onClick={() => handleCopy("npx xrouter")}
+                  onClick={() => handleCopy("bun install && bun run dev")}
                 >
                   <span className="text-success">$</span>
-                  <span className="text-white">npx xrouter</span>
+                  <span className="text-white">bun install && bun run dev</span>
                   <span className="ml-auto text-muted text-xs opacity-0 group-hover:opacity-100">
                     {copied === "landing" ? "Tersalin" : "Copy"}
                   </span>
                 </div>
                 
                 <div className="text-muted mb-6">
-                  <span className="text-[var(--color-brand-500)]">&gt;</span> Starting X Router...<br/>
+                  <span className="text-[var(--color-brand-500)]">&gt;</span> Starting OMEG4MON ROUTER...<br/>
                   <span className="text-[var(--color-brand-500)]">&gt;</span> Server running on <span className="text-info">http://localhost:20128</span><br/>
                   <span className="text-[var(--color-brand-500)]">&gt;</span> Dashboard: <span className="text-info">http://localhost:20128/dashboard</span><br/>
                   <span className="text-success">&gt;</span> Ready to route.
@@ -83,8 +83,8 @@ export default function GetStarted() {
                 
                 <div className="text-muted text-xs">
                   <span className="text-info">Data Location:</span><br/>
-                  <span className="text-muted">  macOS/Linux:</span> ~/.xrouter/db/data.sqlite<br/>
-                  <span className="text-muted">  Windows:</span> %APPDATA%/xrouter/db/data.sqlite
+                  <span className="text-muted">  macOS/Linux:</span> ~/.omeg4mon-router/db/data.sqlite<br/>
+                  <span className="text-muted">  Windows:</span> %APPDATA%/omeg4mon-router/db/data.sqlite
                 </div>
               </div>
             </div>

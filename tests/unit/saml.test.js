@@ -60,11 +60,11 @@ describe("SAML 2.0 Auth Engine Utilities", () => {
     it("generates valid SP XML metadata with Entity ID and ACS binding", () => {
       const settings = {
         samlEntryPoint: "https://idp.example.com/sso",
-        samlIssuer: "urn:xrouter:sp",
+        samlIssuer: "urn:omeg4mon-router:sp",
         samlCert: "MIIC123456789012345678901234567890123456789012345678901234567890",
       };
       const xml = generateSamlMetadata("https://localhost:20127", settings);
-      expect(xml).toContain('entityID="urn:xrouter:sp"');
+      expect(xml).toContain('entityID="urn:omeg4mon-router:sp"');
       expect(xml).toContain('Location="https://localhost:20127/api/auth/saml/acs"');
       expect(xml).toContain('WantAssertionsSigned="true"');
     });
@@ -72,7 +72,7 @@ describe("SAML 2.0 Auth Engine Utilities", () => {
 
   describe("InResponseTo Replay Validation", () => {
     it("throws error when expectedRequestId is supplied but InResponseTo is missing", async () => {
-      const settings = { samlCert: "dummy-cert" };
+      const settings = { samlCert: "dummy-cert", baseUrl: "https://router.example.com" };
       const rawXml = Buffer.from('<Response ID="123"></Response>').toString("base64");
       await expect(
         validateSamlResponse(null, { SAMLResponse: rawXml }, "req-123", settings)
@@ -80,7 +80,7 @@ describe("SAML 2.0 Auth Engine Utilities", () => {
     });
 
     it("throws error when expectedRequestId is supplied but InResponseTo does not match", async () => {
-      const settings = { samlCert: "dummy-cert" };
+      const settings = { samlCert: "dummy-cert", baseUrl: "https://router.example.com" };
       const rawXml = Buffer.from('<Response InResponseTo="wrong-id"></Response>').toString("base64");
       await expect(
         validateSamlResponse(null, { SAMLResponse: rawXml }, "req-123", settings)
@@ -92,6 +92,13 @@ describe("SAML 2.0 Auth Engine Utilities", () => {
       await expect(
         validateSamlResponse(null, { SAMLResponse: rawXml }, "req-123", {})
       ).rejects.toThrow(/Certificate/);
+    });
+
+    it("refuses to validate when no base URL is configured (ACS must not come from Host)", async () => {
+      const rawXml = Buffer.from('<Response InResponseTo="req-123"></Response>').toString("base64");
+      await expect(
+        validateSamlResponse(null, { SAMLResponse: rawXml }, "req-123", { samlCert: "dummy-cert" })
+      ).rejects.toThrow(/configured base URL/);
     });
   });
 
@@ -135,7 +142,7 @@ describe("SAML 2.0 Auth Engine Utilities", () => {
     it("mergeWithDefaults safely populates SAML defaults for existing installations", () => {
       const merged = mergeWithDefaults({ authMode: "password" });
       expect(merged.ssoType).toBe("oidc");
-      expect(merged.samlIssuer).toBe("urn:xrouter:sp");
+      expect(merged.samlIssuer).toBe("urn:omeg4mon-router:sp");
       expect(merged.samlLoginLabel).toBe("Sign in with SAML SSO");
       expect(merged.samlAttributeEmail).toBe("email");
       expect(merged.samlAttributeName).toBe("name");

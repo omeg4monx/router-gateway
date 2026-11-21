@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "path";
 import os from "os";
 
-const APP_NAME = "xrouter";
+const APP_NAME = "omeg4mon-router";
 
 function defaultDir() {
   if (process.platform === "win32") {

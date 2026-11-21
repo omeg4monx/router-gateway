@@ -2,7 +2,7 @@ const fs = require("fs");
 const path = require("path");
 const os = require("os");
 
-const APP_NAME = "xrouter";
+const APP_NAME = "omeg4mon-router";
 
 function defaultDir() {
   if (process.platform === "win32") {
@@ -19,7 +19,7 @@ function getDataDir() {
   // from a Linux-targeted .env or Docker config — they are not valid here.
   // Without this guard the dashboard (src/lib/dataDir.js, which has the same
   // check) and the MITM server resolve DIFFERENT dirs: the dashboard reads
-  // %APPDATA%\xrouter\mitm while the server serves certs out of D:\var\lib\...
+  // %APPDATA%\omeg4mon-router\mitm while the server serves certs out of D:\var\lib\...
   // so the trust status shown in the UI never matches the cert in use.
   if (process.platform === "win32" && /^\//.test(configured)) {
     console.warn(`[DATA_DIR] '${configured}' is a Unix path on Windows → fallback to default`);

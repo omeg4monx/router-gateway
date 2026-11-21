@@ -1,8 +1,8 @@
 /**
- * `xrouter connect <server-url>` — point local CLI tools (Claude Code, Codex, …) at a
- * REMOTE xrouter server. Nothing runs locally: we log in with the dashboard
+ * `omeg4mon-router connect <server-url>` — point local CLI tools (Claude Code, Codex, …) at a
+ * REMOTE omeg4mon-router server. Nothing runs locally: we log in with the dashboard
  * password, reuse/create an API key for this machine, then write the tool's
- * settings files (see connectTools.js). Works via `npx xrouter connect …` with no global install.
+ * settings files (see connectTools.js). Works via `omeg4mon-router connect …` with no global install.
  *
  * The password and API key are never printed (key is masked).
  */
@@ -13,13 +13,13 @@ const { TOOL_IDS, CLAUDE_MODELS, resolveTools } = require("./connectTools");
 const DEFAULT_MODEL = "cc/claude-sonnet-5";
 
 const HELP = `
-Usage: xrouter connect <server-url> [options]
+Usage: omeg4mon-router connect <server-url> [options]
 
-Configure CLI tools on THIS machine to use a remote xrouter server.
+Configure CLI tools on THIS machine to use a remote omeg4mon-router server.
 No local server is started. Run without installing:
 
-  npx xrouter connect http://<server-host>:20128
-  npx xrouter connect http://<server-host>:20128 --tools claude,codex,opencode
+  omeg4mon-router connect http://<server-host>:20128
+  omeg4mon-router connect http://<server-host>:20128 --tools claude,codex,opencode
 
 Options:
   --tools <list>         Comma-separated tools to configure (prompted if omitted
@@ -33,7 +33,7 @@ Options:
   --fable|--opus|--sonnet|--haiku <model>
                          Override Claude Code model mapping
   --print-env            Also print OpenAI-compatible env vars for other CLIs
-  --reset                Remove xrouter settings from the selected tools and exit
+  --reset                Remove omeg4mon-router settings from the selected tools and exit
   -h, --help             Show this help
 `;
 
@@ -86,7 +86,7 @@ const prompt = (p) => p.run().catch((err) => { throw err || new Cancelled("Cance
 async function promptPassword() {
   if (!process.stdin.isTTY) throw new Error("Password required: pass --password or set NINE_ROUTER_PASSWORD");
   const { Password } = require("enquirer");
-  return prompt(new Password({ message: "xrouter dashboard password" }));
+  return prompt(new Password({ message: "omeg4mon-router dashboard password" }));
 }
 
 async function request(url, { method = "GET", body, cookie, apiKey } = {}) {
@@ -196,7 +196,7 @@ async function runConnect(argv) {
     for (const t of tools) {
       try {
         const files = await t.reset();
-        console.log(files.length ? `✅ ${t.name}: removed xrouter settings (${files.join(", ")})` : `• ${t.name}: nothing to reset`);
+        console.log(files.length ? `✅ ${t.name}: removed omeg4mon-router settings (${files.join(", ")})` : `• ${t.name}: nothing to reset`);
       } catch (err) {
         failed++;
         console.log(`❌ ${t.name}: ${err.message}`);
@@ -256,7 +256,7 @@ async function runConnect(argv) {
     for (const m of CLAUDE_MODELS) console.log(`   ${m.envKey}=${claudeModels[m.envKey]}`);
   }
   if (tools.some((t) => t.id !== "claude")) console.log(`   Model (other tools): ${model}`);
-  console.log(`   Restart the tools to apply. Undo: npx xrouter connect --reset --tools ${tools.map((t) => t.id).join(",")}`);
+  console.log(`   Restart the tools to apply. Undo: omeg4mon-router connect --reset --tools ${tools.map((t) => t.id).join(",")}`);
 
   if (opts.printEnv) {
     console.log("\nOpenAI-compatible CLIs (codex, opencode, aider, …):");

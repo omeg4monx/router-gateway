@@ -18,8 +18,8 @@ const SQL_JS_VERSION = "1.14.1";
 function getDataDir() {
   if (process.env.DATA_DIR) return process.env.DATA_DIR;
   return process.platform === "win32"
-    ? path.join(process.env.APPDATA || os.homedir(), "xrouter")
-    : path.join(os.homedir(), ".xrouter");
+    ? path.join(process.env.APPDATA || os.homedir(), "omeg4mon-router")
+    : path.join(os.homedir(), ".omeg4mon-router");
 }
 
 function getRuntimeDir() {
@@ -38,10 +38,10 @@ function ensureRuntimeDir() {
   const pkgPath = path.join(dir, "package.json");
   if (!fs.existsSync(pkgPath)) {
     fs.writeFileSync(pkgPath, JSON.stringify({
-      name: "xrouter-runtime",
+      name: "omeg4mon-router-runtime",
       version: "1.0.0",
       private: true,
-      description: "User-writable runtime deps for xrouter (better-sqlite3 native binary)",
+      description: "User-writable runtime deps for omeg4mon-router (better-sqlite3 native binary)",
     }, null, 2));
   }
   return dir;

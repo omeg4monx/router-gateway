@@ -179,7 +179,7 @@ export default function LeftRail() {
 
   useEffect(() => {
     try {
-      const saved = localStorage.getItem("xrouter_left_rail_pinned");
+      const saved = localStorage.getItem("omeg4mon_router_left_rail_pinned");
       if (saved !== null) {
         setPinned(saved === "true");
       }
@@ -207,7 +207,7 @@ export default function LeftRail() {
     setPinned((prev) => {
       const next = !prev;
       try {
-        localStorage.setItem("xrouter_left_rail_pinned", String(next));
+        localStorage.setItem("omeg4mon_router_left_rail_pinned", String(next));
       } catch {}
       return next;
     });
@@ -266,7 +266,7 @@ export default function LeftRail() {
             <Link
               href="/dashboard/endpoint"
               className="flex items-center gap-2 overflow-hidden transition-opacity hover:opacity-90 min-w-0 flex-1"
-              title="X Router Dashboard"
+              title="OMEG4MON ROUTER Dashboard"
             >
               <div
                 className="size-7 rounded-[5px] border bg-surface-2 flex items-center justify-center shrink-0 shadow-xs overflow-hidden p-0.5"

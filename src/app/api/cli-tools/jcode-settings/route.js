@@ -15,7 +15,7 @@ const getConfigPath = () => path.join(getJcodeConfigDir(), "config.toml");
 
 const getProviderEnvPath = () => {
   const configDir = process.env.XDG_CONFIG_HOME || path.join(os.homedir(), ".config");
-  return path.join(configDir, "jcode", "provider-xrouter.env");
+  return path.join(configDir, "jcode", "provider-omeg4mon-router.env");
 };
 
 const checkJcodeInstalled = async () => {
@@ -44,12 +44,12 @@ const readConfig = async () => {
   }
 };
 
-const hasXRouterConfig = (config) => {
+const hasOmeg4monRouterConfig = (config) => {
   if (!config || !config.providers) return false;
 
   const providers = config.providers;
 
-  if (providers["xrouter"]) return true;
+  if (providers["omeg4mon-router"]) return true;
 
   for (const [name, provider] of Object.entries(providers)) {
     if (provider.base_url && provider.base_url.includes("localhost:20128")) {
@@ -118,12 +118,12 @@ export async function GET() {
   }
 
   const config = await readConfig();
-  const hasXRouter = hasXRouterConfig(config);
+  const hasOmeg4monRouter = hasOmeg4monRouterConfig(config);
 
   return NextResponse.json({
     installed: true,
     config,
-    hasXRouter,
+    hasOmeg4monRouter,
     configPath: getConfigPath(),
   });
 }
@@ -149,12 +149,12 @@ export async function POST(request) {
       config.providers = {};
     }
 
-    config.providers["xrouter"] = {
+    config.providers["omeg4mon-router"] = {
       type: "openai-compatible",
       base_url: normalizedBaseUrl,
       auth: "bearer",
       api_key_env: "JCODE_9ROUTER_API_KEY",
-      env_file: "provider-xrouter.env",
+      env_file: "provider-omeg4mon-router.env",
       default_model: models && models.length > 0 ? models[0] : "cc/claude-opus-4-7",
       requires_api_key: true,
     };
@@ -174,7 +174,7 @@ export async function POST(request) {
 
     return NextResponse.json({
       success: true,
-      message: "jcode configured successfully. Use: jcode --provider-profile xrouter",
+      message: "jcode configured successfully. Use: jcode --provider-profile omeg4mon-router",
       configPath: getConfigPath(),
     });
   } catch (error) {
@@ -194,7 +194,7 @@ export async function DELETE() {
       return NextResponse.json({ success: true, message: "No configuration to remove" });
     }
 
-    delete config.providers["xrouter"];
+    delete config.providers["omeg4mon-router"];
 
     await writeConfig(config);
 
@@ -204,7 +204,7 @@ export async function DELETE() {
 
     return NextResponse.json({
       success: true,
-      message: "xrouter configuration removed from jcode",
+      message: "omeg4mon-router configuration removed from jcode",
     });
   } catch (error) {
     console.error("Error removing jcode configuration:", error);

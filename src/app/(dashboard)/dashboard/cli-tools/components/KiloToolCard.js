@@ -49,7 +49,7 @@ export default function KiloToolCard({ tool, isExpanded, onToggle, baseUrl, apiK
 
   const getConfigStatus = () => {
     if (!status?.installed) return null;
-    return status.hasXRouter ? "configured" : "not_configured";
+    return status.hasOmeg4monRouter ? "configured" : "not_configured";
   };
 
   const configStatus = getConfigStatus();
@@ -80,7 +80,7 @@ export default function KiloToolCard({ tool, isExpanded, onToggle, baseUrl, apiK
     try {
       const keyToUse = (selectedApiKey && selectedApiKey.trim())
         ? selectedApiKey
-        : (!cloudEnabled ? "sk_xrouter" : selectedApiKey);
+        : (!cloudEnabled ? "sk_omeg4mon_router" : selectedApiKey);
 
       const res = await fetch("/api/cli-tools/kilo-settings", {
         method: "POST",
@@ -126,7 +126,7 @@ export default function KiloToolCard({ tool, isExpanded, onToggle, baseUrl, apiK
   const getManualConfigs = () => {
     const keyToUse = (selectedApiKey && selectedApiKey.trim())
       ? selectedApiKey
-      : (!cloudEnabled ? "sk_xrouter" : "<API_KEY_FROM_DASHBOARD>");
+      : (!cloudEnabled ? "sk_omeg4mon_router" : "<API_KEY_FROM_DASHBOARD>");
 
     return [{
       filename: "~/.local/share/kilo/auth.json",
@@ -176,7 +176,7 @@ export default function KiloToolCard({ tool, isExpanded, onToggle, baseUrl, apiK
                   <span className="material-symbols-outlined text-warning">warning</span>
                   <div className="flex-1">
                     <p className="font-medium text-warning">Kilo Code not detected locally</p>
-                    <p className="text-sm text-text-muted">Manual configuration is still available if xrouter is deployed on a remote server.</p>
+                    <p className="text-sm text-text-muted">Manual configuration is still available if omeg4mon-router is deployed on a remote server.</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2 pl-9">

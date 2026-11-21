@@ -7,7 +7,7 @@ const path = require("path");
 const os = require("os");
 const { execFileSync } = require("child_process");
 
-const ROOT = "/root/xrouter";
+const ROOT = "/root/omeg4mon-router";
 const SRC = fs.readFileSync(path.join(ROOT, "src/app/global-error.js"), "utf8");
 
 let pass = 0, fail = 0;

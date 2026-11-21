@@ -1376,7 +1376,7 @@ export default function ProxyPoolsPage() {
       >
         <div className="flex flex-col gap-4">
           <div className="rounded-lg bg-surface-2 p-3 border border-border text-xs text-text-muted">
-            Paste your <code className="text-primary font-mono font-medium">vmess://</code>, <code className="text-primary font-mono font-medium">vless://</code>, <code className="text-primary font-mono font-medium">trojan://</code>, or <code className="text-primary font-mono font-medium">ss://</code> link. XRouter will auto-route through this tunnel via an internal proxy.
+            Paste your <code className="text-primary font-mono font-medium">vmess://</code>, <code className="text-primary font-mono font-medium">vless://</code>, <code className="text-primary font-mono font-medium">trojan://</code>, or <code className="text-primary font-mono font-medium">ss://</code> link. OMEG4MON ROUTER will auto-route through this tunnel via an internal proxy.
           </div>
 
           {v2rayStatus?.running && (
@@ -1706,7 +1706,7 @@ export default function ProxyPoolsPage() {
           <div className="flex flex-col gap-3 rounded-lg border border-border/50 p-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="font-medium text-sm">Strict Proxy</p>
-              <p className="text-xs text-text-muted">Fail request if proxy is unreachable instead of falling back to direct.</p>
+              <p className="text-xs text-text-muted">Treat proxy gateway errors (502/504/524) as failures so the request rotates. Requests never fall back to a direct connection.</p>
             </div>
             <Toggle
               checked={formData.strictProxy === true}

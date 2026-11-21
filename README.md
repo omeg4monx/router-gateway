@@ -1,276 +1,203 @@
-<p align="center">
-  <img src="./public/banner.png" alt="X Router Banner" width="100%" />
-</p>
+# OMEG4MON ROUTER
 
-<p align="center">
-  <a href="https://nodejs.org"><img src="https://img.shields.io/badge/Node.js-26-339933?style=for-the-badge&logo=nodedotjs&logoColor=white" alt="Node.js" /></a>
-  <a href="https://nextjs.org"><img src="https://img.shields.io/badge/Next.js-14.2-000000?style=for-the-badge&logo=next.js&logoColor=white" alt="Next.js" /></a>
-  <a href="https://sqlite.org"><img src="https://img.shields.io/badge/SQLite-WAL%20Zero--CGO-003B57?style=for-the-badge&logo=sqlite&logoColor=white" alt="SQLite" /></a>
-  <a href="https://github.com/johsua092-ui/xrouter"><img src="https://img.shields.io/badge/Release-v0.1.0-E56A4A?style=for-the-badge" alt="Release" /></a>
-  <a href="https://go.dev"><img src="https://img.shields.io/badge/Go%20Core-v0.0.1-00ADD8?style=for-the-badge&logo=go&logoColor=white" alt="Go Core" /></a>
-  <a href="./LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge" alt="License" /></a>
-</p>
+Local AI routing gateway with a web dashboard. It exposes one OpenAI- and Anthropic-compatible endpoint (`/v1`) and routes each request to the upstream provider you configure, translating request and response formats on the way.
+
+- **Gateway**: Next.js 16 server (`custom-server.js`) on port `20128`.
+- **Dashboard**: `http://localhost:20128/dashboard`.
+- **API base**: `http://localhost:20128/v1`.
+- **CLI launcher**: the `omeg4mon-router` package in `cli/`, which starts the server, can run it from the system tray and writes configs for coding tools.
 
 ---
 
-## ⚡ Overview
+## Features
 
-**X Router** is an ultra-lightweight, high-performance AI routing gateway running on **Node.js 26 (ESM)** with an embedded Next.js 14.2 dashboard, currently in transition toward a planned **Hybrid Go Core** architecture (see [Migration Plan](./docs/ROADMAP_GO_MIGRATION.md)).
-
-It consolidates 40+ upstream AI providers (Claude, OpenAI, Antigravity, DeepSeek, River AI, OpenCode, Kilo, Grok, Gemini, and custom nodes) behind unified OpenAI and Anthropic-compatible wire surfaces with high-efficiency Node.js concurrency, zero-CGO SQLite WAL persistence, automated dead-account pruning, and integrated Telegram Bot Remote Control.
-
----
-
-## 🏛️ Architecture
-
-```text
- ┌────────────────────────────────────────────────────────────────────────┐
- │                           CLIENT INGRESS                               │
- │   OpenAI SDK / cURL                    Claude Code / Anthropic SDK     │
- │   POST /v1/chat/completions            POST /v1/messages               │
- └──────────────────┬─────────────────────────────────┬───────────────────┘
-                    │                                 │
-                    ▼                                 ▼
- ┌────────────────────────────────────────────────────────────────────────┐
- │                              X ROUTER                                  │
- │                                                                        │
- │  [1. Authentication & Security Gate]                                   │
- │      • Virtual API Key validation & Rate Limiter (RPM/TPM)             │
- │      • IP Whitelist & Allowed Models filter                            │
- │                                                                        │
- │  [2. Cache-Aware Session Affinity] ⚡ NEW                             │
- │      • Matches conversation fingerprint & prompt cache TTL             │
- │      • Keeps turns glued to the warm account (5m Claude, 60m Gemini)   │
- │      • Up to 90% input token cost reduction & sub-second TTFT          │
- │                                                                        │
- │  [3. Token Savers & Prompt Injector Engine]                            │
- │      • RTK (Request Token Killer): de-duplicates tool results          │
- │      • Anti-Slop: strips repetitive AI cliches (Lite/Full/Ultra)       │
- │      • Uncensoring Kernel: raw prompt-path execution                   │
- │      • OpenAI Tool Bridge: structures prose tool invocations           │
- │                                                                        │
- │  [4. Multi-Account Ring & Failover Engine]                             │
- │      • Round-Robin / Fill-First account rotation                       │
- │      • Auto-Prune: instant purging of 401/403/exhausted accounts       │
- │      • Transparent format translation (OpenAI ↔ Claude ↔ Responses)   │
- └──────────────────┬─────────────────┬─────────────────┬─────────────────┘
-                    │                 │                 │
-                    ▼                 ▼                 ▼
-             ┌─────────────┐   ┌─────────────┐   ┌─────────────┐
-             │  Anthropic  │   │  OpenAI /   │   │ DeepSeek /  │
-             │   Claude    │   │ Antigravity │   │  River AI   │
-             └─────────────┘   └─────────────┘   └─────────────┘
-```
+- **One endpoint, many providers.** About 146 provider definitions (`open-sse/providers/registry/`): OpenAI-compatible APIs through a generic executor, and dedicated executors for non-standard upstreams.
+- **Format translation.** OpenAI Chat, Anthropic Messages, OpenAI Responses and Gemini formats. Translators pivot through the OpenAI format, with direct routes for lossy pairs.
+- **Fallback.**
+  - **Combos** try a list of models in order.
+  - **Multi-account rotation** applies per-error cooldowns.
+  - **Automatic token refresh** renews OAuth credentials.
+  - **Request-scoped errors** (malformed request, unsupported parameter) are returned instead of burning the whole chain.
+- **API keys** with per-key permissions, allowed models and usage tracking.
+- **Usage and cost dashboard**, request logs and provider limits.
+- **CLI tool setup.** Writes configs for Claude Code, Codex, OpenCode, Cline, Kilo, Droid, Crush, Hermes, OpenClaw, Grok Build, OMP and others.
+- **Optional components:**
+  - Cloudflare quick tunnel or Tailscale for remote access.
+  - Proxy pools.
+  - Local MITM proxy for IDE traffic.
+  - Headroom token compression.
+  - SAML/OIDC login.
 
 ---
 
-## 🌟 Why X Router? (Battle-Tested Advantages)
+## Requirements
 
-Unlike traditional generic reverse proxies (such as One-API, New-API, or raw LiteLLM), **X Router** was engineered specifically for high-load production environments, multi-account community distribution ("Bansos"), and aggressive token economy.
-
-| Feature | Generic AI Gateways (One-API / LiteLLM) | **X Router** |
-| :--- | :--- | :--- |
-| **Bansos Faucet & Public Distribution** | ❌ None (Manual key creation only) | ✅ **1-Click Faucet & Anti-Abuse Voucher Engine** (Hardware fingerprinting, Turnstile, Audio PoW, Carrier /16 lock) |
-| **Token Economy & Prompt Caching** | ⚠️ Destroys cache via naive round-robin | ✅ **Cache-Aware Smart Affinity** (up to 90% cost cut) + **RAM Exact Prompt Cache** (~10ms at 0 token) |
-| **Multi-Cookie Provider Support** | ❌ Complex single-line manual concatenation | ✅ **Structured 2-Column Inputs** with real-time smart auto-split (Gemini `1PSID/1PSIDTS`, Grok `sso/sso-rw`) |
-| **Dead Account / Key Handling** | ⚠️ Blacklists keys with manual reset required | ✅ **Zero-Maintenance Auto-Prune** (Instantly evicts expired/401/403/banned keys with zero cluster downtime) |
-| **Provider Modularity** | ⚠️ Generic OpenAI endpoints only | ✅ **40+ Native Adapters** including OpenCode Free, Antigravity v2, Nous, Minimax Code, Kiro, & Claude Responses |
-| **CLI & Desktop Integration** | ❌ Web-only / Server Docker only | ✅ **Native Go Core & System Service** with built-in MITM proxy & Terminal UI |
+- Node.js 22 (see `.nvmrc`). The CLI accepts Node ≥ 18.
+- npm (Bun also works: `dev:bun`, `build:bun`, `start:bun`).
+- Optional: Docker, Go 1.26+ for the experimental Go core.
 
 ---
 
-## 🌟 Key Features
-
-### 1. 🎁 Public Faucet & Bulletproof "Bansos" Voucher Engine
-Distributing free AI quotas to communities, students, or teams has never been this seamless and protected:
-- **Instant Faucet Page (`/claim`)**: Share a clean, responsive link for users to claim API keys without registration.
-- **Hardware & Biometric Anti-Farming**: Multi-layer abuse defense featuring hardware canvas/WebGL fingerprinting, audio hash detection, mouse trajectory velocity checks, and carrier `/16` IP subnet locking.
-- **Multi-Level CAPTCHA**: Built-in zero-dependency Math/Audio Proof-of-Work with native Cloudflare Turnstile integration.
-- **Dynamic Quota & Model Scoping**: Define exact allowed models, RPM/TPM limits, and token budgets (e.g. 1M tokens) per batch.
-- **Seamless Key Reclaim**: Users who clear cookies can securely reclaim their existing key via persistent cryptographic receipts.
-
-### 2. ⚡ Cache-Aware Smart Session Stickiness & RAM Cache
-- **KV-Cache Preservation**: Vendor prompt caching (Claude ~5m, Gemini ~60m, DeepSeek) saves up to 90% input costs. Naive round-robin destroys this cache by scattering conversation turns across different accounts. X Router tracks conversation fingerprints and glues multi-turn chats to the warm account.
-- **Exact Prompt RAM Cache**: Repeating prompts (cron bots, system evals, repetitive queries) are answered instantly in **~10ms using 0 upstream tokens**.
-
-### 3. 🍪 Structured Dual-Column Web Cookie Management
-Say goodbye to messy manual cookie formatting:
-- Dedicated two-column inputs for multi-token sessions:
-  - **Gemini Web**: `__Secure-1PSID` (Session) + `__Secure-1PSIDTS` (Timestamp).
-  - **Grok Web**: `sso` + `sso-rw`.
-- **Smart Auto-Split Parser**: Simply paste the raw browser cookie header into the first box, and X Router automatically splits, extracts, and populates both fields correctly in real-time.
-- **Proxy-Aware Credential Validation**: Validates session cookies through your configured residential proxy pools to bypass cloud hosting IP blocks.
-
-### 4. 🔌 Dual Wire Surfaces & Native Translators
-- **OpenAI Compatible**: `https://<your-domain>/v1` (`/v1/chat/completions`, `/v1/models`, `/v1/embeddings`).
-- **Anthropic Claude Compatible**: Native `/v1/messages` format translation with full support for Claude thinking blocks and tool calling.
-- **Codex Responses Wire**: Seamless translation between Chat Completions and Responses API.
-
-### 5. 🗑️ Auto-Prune Dead Keys & Connection Health
-Zero-maintenance cluster reliability. When a provider connection encounters a permanent error (`401 Invalid Key`, `403 Banned`, `402 Quota Exhausted`, or `"insufficient_quota"`), X Router immediately purges the dead connection from the active pool to preserve cluster health.
-
-### 6. 📊 Real-Time Visual Quota Progress Bars
-Every client API key features a live animated quota progress bar in the dashboard. Displays token consumption with dynamic state colors:
-- **Emerald**: < 75% utilized
-- **Amber Warning**: 75% – 90% utilized
-- **Pulsing Red**: > 90% or exhausted
-- **Infinite Neon**: Unlimited budget keys
-
-### 7. 🛡️ Security Audit Log & Automated Hardening
-- **Security Audit Trail**: Logs sign-ins, lockouts, and automatically fingerprints malicious probes (SQLi, XSS, path traversal).
-- **Settings History & Rollback**: Automatic before-image snapshots with instant 1-click revert.
-- **Socket Stabilization**: Built-in `keepAliveTimeout` (65s) and `headersTimeout` (66s) socket tuning prevents 502 Bad Gateway race conditions behind Nginx and Cloudflare.
-
----
-
-## 🚀 Quick Start
-
-### 1. Automated Setup Wizard (`install.sh`) (Recommended)
-
-Run the production setup wizard directly on your server with one command:
+## Quick start (from source)
 
 ```bash
-# Interactive setup wizard (prompts for port, password, and deployment mode)
-curl -fsSL https://raw.githubusercontent.com/johsua092-ui/x-router/main/install.sh | bash
-
-# Or non-interactive one-liner with flags
-bash install.sh --port 8080 --password "MySecretPass" -y
-```
-
-> **Note on Security Secrets:** When running `install.sh`, all core cryptographic secrets (`JWT_SECRET`, `MACHINE_ID_SALT`, and `API_KEY_SECRET`) are automatically generated with secure random hex tokens. You do not need to enter or configure them manually. If you prefer custom secrets, you can still override them via CLI flags (`--jwt-secret`, `--salt`, `--api-key-secret`) or edit `.env` directly.
-
-### 2. Manual / Development Setup (From Git)
-
-```bash
-# Clone the repository
-git clone https://github.com/johsua092-ui/xrouter.git
-cd xrouter
-
-# Copy environment template (optional, customize your port & secrets)
-cp .env.example .env
-
-# Install dependencies & build
+git clone https://github.com/omeg4monx/router-gateway.git
+cd router-gateway
+cp .env.example .env        # set JWT_SECRET and INITIAL_PASSWORD
 npm install
 npm run build
-
-# Start server
-npm start
+npm run start               # http://localhost:20128/dashboard
 ```
 
-X Router automatically reads configuration from `.env` (such as `PORT`, `DATA_DIR`, `INITIAL_PASSWORD`).
-If unconfigured, it defaults to `http://localhost:20128` (or `PORT` specified in your `.env`).
+To develop with hot reload, run `npm run dev`. It serves on `127.0.0.1:20128` only.
 
-### 3. Production Service (systemd)
+> `next dev` does **not** load `custom-server.js`, so the dashboard auth guard is inactive in dev mode. Never expose a dev server to a network.
 
-```ini
-[Unit]
-Description=X Router - AI Gateway
-After=network.target
+### First login
 
-[Service]
-Type=simple
-WorkingDirectory=/root/xrouter-remake
-Environment=HOME=/root/xrouter-remake
-Environment=NODE_ENV=production
-Environment=PORT=8080
-Environment=DATA_DIR=/root/xrouter-remake/data
-Environment=INITIAL_PASSWORD=xrouter123
-Environment=BASE_URL=https://your-domain.com
-Environment=PUBLIC_BASE_URL=https://your-domain.com
-Environment=NEXT_PUBLIC_BASE_URL=https://your-domain.com
-Environment=NEXT_TELEMETRY_DISABLED=1
-ExecStart=/usr/local/bin/node custom-server.js --port 8080
-Restart=always
-RestartSec=3
-NoNewPrivileges=true
-PrivateTmp=true
-ProtectSystem=strict
-ReadWritePaths=/root/xrouter-remake/data
-
-[Install]
-WantedBy=multi-user.target
-```
+- Without `INITIAL_PASSWORD`, the default password is `omeg4mon123`. It is accepted only from a trusted network (loopback, LAN, Docker or Tailscale) unless `ALLOW_REMOTE_DEFAULT_LOGIN=true`.
+- To change the password for the first time, enter the current initial password.
 
 ---
 
-## 💻 Client Integration
-
-### 1. OpenAI Python SDK
-
-```python
-from openai import OpenAI
-
-client = OpenAI(
-    base_url="https://your-domain.com/v1",
-    api_key="sk-your-virtual-key"
-)
-
-response = client.chat.completions.create(
-    model="claude-sonnet-4-6",
-    messages=[{"role": "user", "content": "Explain quantum computing in one sentence."}]
-)
-
-print(response.choices[0].message.content)
-```
-
-### 2. Anthropic Python SDK
-
-```python
-from anthropic import Anthropic
-
-client = Anthropic(
-    base_url="https://your-domain.com",
-    api_key="sk-your-virtual-key"
-)
-
-message = client.messages.create(
-    model="claude-sonnet-4-6",
-    max_tokens=1024,
-    messages=[{"role": "user", "content": "Hello Claude via X Router!"}]
-)
-
-print(message.content[0].text)
-```
-
-### 3. cURL (Streaming)
+## Docker
 
 ```bash
-curl -N https://your-domain.com/v1/chat/completions \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer sk-your-virtual-key" \
-  -d '{
-    "model": "deepseek-ai/DeepSeek-V4.1-Flash",
-    "messages": [{"role": "user", "content": "Write a fast fibonacci function in Rust."}],
-    "stream": true
-  }'
+cp .env.example .env
+docker compose up -d        # gateway on :20128, Headroom on 127.0.0.1:8787
 ```
 
----
+You can also run `./start.sh`, which rebuilds and runs a single container.
 
-## 🛠️ Tech Stack & Future Roadmap
-
-- **Current Runtime**: Node.js 26 (ESM) + Next.js 14.2 (App Router + Standalone)
-- **Database**: SQLite WAL via `node:sqlite` / `better-sqlite3` (Schema v14)
-- **Planned Architecture**: Single-repo Hybrid Golang Core with embedded Next.js static dashboard ([Read the Migration Plan](./docs/ROADMAP_GO_MIGRATION.md)).
-- **Low-Spec Optimization (1GB RAM / 1 Core / 1GB Disk)**:
-  - **Go Core (`Dockerfile.go`)**: Ultra-lightweight container with pure Zero-CGO, runtime memory footprint ~15-30 MB, image size ~25 MB, ideal for minimal cloud tiers (e.g. Koyeb 512MB RAM, 1GB VPS).
-  - **Node Gateway**: Configured with `--expose-gc --max-old-space-size=512` and automatic heap reclamation to prevent OOM on budget VPS nodes.
-- **Styling**: Tailwind CSS + Material Symbols + Semantic Color Tokens
-- **State Management**: Zustand stores (Session, Tasks, Notifications)
+- Data lives in the `omeg4mon-router-data` volume (override with `OMEG4MON_ROUTER_VOLUME`).
+- The container listens on all interfaces. Put it behind a reverse proxy or firewall before exposing it.
 
 ---
 
-## 🤝 Credits & Acknowledgements
+## Linux server install
 
-Deep gratitude and respect to the builders and minds behind the foundations of X Router:
+```bash
+sudo ./install.sh --port 20128 --password '<strong-password>'
+```
 
-1. **[decolua](https://github.com/decolua)** — Founder and original creator of 9router (`decolua/9router`), pioneering unified AI gateway routing.
-2. **[Naub (naummi)](https://github.com/naummi)** — Lead System Architect, Core Model Reverse-Engineering, Protocol Decryption, and Frontier Gateway Intelligence.
-3. **[Bayu (BvsshXyz)](https://github.com/BvsshXyz)** — Infrastructure architecture, remote daemon reliability, and high-performance server network bridges.
+`install.sh` does the following:
+- Writes `.env` with generated secrets (mode `600`).
+- Builds the app.
+- Installs a systemd service named `omeg4mon-router`. The unit runs as root; review it before use.
+
+Run `./install.sh --help` for all flags.
 
 ---
 
-## 📄 License
+## CLI launcher
 
-MIT © [X Router Contributors](https://github.com/johsua092-ui/x-router).
-Built with craft and conviction.
+```bash
+npm run cli:pack            # builds and packs the cli/ package
+npm i -g ./omeg4mon-router-*.tgz   # pack:cli writes the tarball to the repo root
+omeg4mon-router             # starts the server and opens the dashboard
+```
+
+| Option | Description |
+|---|---|
+| `-p, --port <port>` | Port (default `20128`) |
+| `-H, --host <host>` | Bind address (default `127.0.0.1`; use `0.0.0.0` for LAN access) |
+| `-n, --no-browser` | Don't open the browser |
+| `-l, --log` | Show server logs |
+| `-t, --tray` | Run in the system tray |
+| `--skip-update` | Skip the update check |
+
+**Commands:**
+- `omeg4mon-router connect http://<host>:20128` configures local coding tools against a remote gateway. That gateway must be started with `--host 0.0.0.0`.
+- `omeg4mon-router xai video --help` generates video through the gateway.
+
+---
+
+## Using the API
+
+Create an API key in **Dashboard → Keys**, then call the gateway like any OpenAI or Anthropic endpoint:
+
+```bash
+curl http://localhost:20128/v1/chat/completions \
+  -H "Authorization: Bearer <api-key>" \
+  -H "Content-Type: application/json" \
+  -d '{"model":"<provider>/<model>","messages":[{"role":"user","content":"Hello"}]}'
+```
+
+| Endpoint | Format |
+|---|---|
+| `POST /v1/chat/completions` | OpenAI Chat Completions |
+| `POST /v1/messages` | Anthropic Messages |
+| `POST /v1/responses` | OpenAI Responses |
+| `GET /v1/models` | Model list |
+| `/v1/embeddings`, `/v1/images`, `/v1/audio`, `/v1/videos` | Media endpoints (provider-dependent) |
+| `/v1beta/models/*` | Gemini-style |
+
+The API key can also be sent as `x-api-key`, `x-goog-api-key` or `?key=`.
+
+Loopback requests are accepted without a key unless **Require API key** is enabled. Remote requests always need a valid key.
+
+---
+
+## Configuration
+
+Every variable is documented in `.env.example`. The most important ones:
+
+| Variable | Purpose |
+|---|---|
+| `JWT_SECRET` | Signs dashboard sessions (generated into `DATA_DIR/jwt-secret` if unset) |
+| `INITIAL_PASSWORD` | Dashboard password until you set one |
+| `DATA_DIR` | Data location (default `~/.omeg4mon-router`, `%APPDATA%\omeg4mon-router` on Windows) |
+| `PORT` | Listen port (default `20128`) |
+| `OMEG4MON_ROUTER_VAULT_KEY` | At-rest key for stored credentials. If unset, a random key is created in `DATA_DIR/vault.key` |
+| `TUNNEL_WORKER_URL` | Optional short-link worker for tunnels. Leave unset unless you run the worker yourself |
+| `BASE_URL` | Public URL. **Required for SAML** |
+
+### Data and backups
+
+- State is stored in SQLite at `DATA_DIR/db/data.sqlite`.
+- The driver is chosen automatically, in this order: `bun:sqlite`, `better-sqlite3`, `node:sqlite`, `sql.js`.
+- Back up `DATA_DIR/vault.key` together with the database. Without it, stored provider credentials cannot be decrypted.
+
+---
+
+## Security notes
+
+- The gateway binds to loopback by default. Before exposing it, set strong `JWT_SECRET` and `INITIAL_PASSWORD` values and enable **Require API key**.
+- Configured proxies fail closed: a request never falls back to a direct connection when its proxy fails.
+- Telegram control needs a configured user ID and a webhook registered from the dashboard. The webhook secret is verified on every update.
+- The MITM component installs a local root CA and edits the hosts file. Enable it only on machines you control.
+- Using consumer web sessions or IDE identities of third-party services through this gateway may violate their terms of service. You are responsible for how providers are used.
+
+---
+
+## Project layout
+
+```
+src/            Next.js app: dashboard, /api routes, auth guard, persistence, MITM
+open-sse/       Provider-agnostic engine: translators, executors, fallback, token refresh
+cli/            omeg4mon-router CLI launcher (separate package)
+cmd/, internal/ Experimental Go core (not feature-complete; see docs/ROADMAP_GO_MIGRATION.md)
+tests/          Vitest suite (independent package)
+```
+
+- Request flow: `/v1/*` → `src/sse/handlers/chat.js` → `open-sse/handlers/chatCore.js` → executor and translator → upstream.
+- See `docs/ARCHITECTURE.md` and `open-sse/AGENTS.md` before changing the engine.
+
+---
+
+## Tests
+
+```bash
+npm install
+cd tests && npm install
+npx vitest run                      # whole suite
+npx vitest run unit/<file>.test.js  # one file
+```
+
+Some tests are known to fail on a plain checkout: `tests/__baseline__/` holds the regression baselines, and `real/*.real.test.js` calls live providers and needs credentials. Compare against a baseline run instead of expecting an all-green suite.
+
+---
+
+## License
+
+MIT. See [LICENSE](./LICENSE).

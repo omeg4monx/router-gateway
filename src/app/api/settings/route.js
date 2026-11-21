@@ -5,6 +5,7 @@ import { applyOutboundProxyEnv } from "@/lib/network/outboundProxy";
 import { resetComboRotation } from "open-sse/services/combo.js";
 import bcrypt from "bcryptjs";
 import { bumpVersion } from "@/lib/auth/sessionVersions";
+import { verifyDashboardPassword } from "@/lib/auth/dashboardSession";
 import { audit } from "@/lib/auth/auditLog";
 
 export const dynamic = "force-dynamic";
@@ -47,24 +48,13 @@ export async function PATCH(request) {
 
     // If updating password, hash it
     if (body.newPassword) {
-      const settings = await getSettings();
-      const currentHash = settings.password;
-
-      // Verify current password if it exists
-      if (currentHash) {
-        if (!body.currentPassword) {
-          return NextResponse.json({ error: "Current password required" }, { status: 400 });
-        }
-        const isValid = await bcrypt.compare(body.currentPassword, currentHash);
-        if (!isValid) {
-          return NextResponse.json({ error: "Invalid current password" }, { status: 401 });
-        }
-      } else {
-        // First time setting password, no current password needed
-        // Allow empty currentPassword or default "xrouter123"
-        if (body.currentPassword && body.currentPassword !== "xrouter123") {
-           return NextResponse.json({ error: "Invalid current password" }, { status: 401 });
-        }
+      // Stored hash, or INITIAL_PASSWORD/default before the first change: either way
+      // the caller must prove it, so a session alone cannot take over the account.
+      if (!body.currentPassword) {
+        return NextResponse.json({ error: "Current password required" }, { status: 400 });
+      }
+      if (!(await verifyDashboardPassword(body.currentPassword))) {
+        return NextResponse.json({ error: "Invalid current password" }, { status: 401 });
       }
 
       const salt = await bcrypt.genSalt(10);

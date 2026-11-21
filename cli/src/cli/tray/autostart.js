@@ -3,8 +3,8 @@ const path = require("path");
 const os = require("os");
 const { execSync } = require("child_process");
 
-const APP_NAME = "xrouter";
-const APP_LABEL = "com.xrouter.autostart";
+const APP_NAME = "omeg4mon-router";
+const APP_LABEL = "com.omeg4mon-router.autostart";
 
 /**
  * Resolve the absolute path to this package's cli.js.
@@ -12,7 +12,7 @@ const APP_LABEL = "com.xrouter.autostart";
  * Order of preference:
  *   1. Explicit `cliPath` argument — cleanest, used when called from running
  *      cli.js with `__filename`.
- *   2. `process.argv[1]` if it's our cli.js — true when xrouter is currently
+ *   2. `process.argv[1]` if it's our cli.js — true when omeg4mon-router is currently
  *      running and the tray menu fires this code path.
  *   3. Compute relative to this file's own location. autostart.js lives at
  *      `<pkg>/src/cli/tray/autostart.js`, so cli.js is three levels up.
@@ -115,7 +115,7 @@ function isAutoStartEnabled() {
  * launchd is managing under our agent label.
  *
  * `launchctl unload <plist>` (and `load`) for an Aqua user-domain agent sends
- * SIGTERM to the running process. When the running xrouter cli.js was itself
+ * SIGTERM to the running process. When the running omeg4mon-router cli.js was itself
  * spawned by the autostart launchd agent (i.e. user enabled autostart at
  * some point, then rebooted, then clicked the tray icon's "Disable
  * Auto-start" menu item), an unload would kill the very process executing
@@ -182,9 +182,9 @@ function enableMacOS(cliPath) {
     <key>KeepAlive</key>
     <false/>
     <key>StandardOutPath</key>
-    <string>/tmp/xrouter.log</string>
+    <string>/tmp/omeg4mon-router.log</string>
     <key>StandardErrorPath</key>
-    <string>/tmp/xrouter.error.log</string>
+    <string>/tmp/omeg4mon-router.error.log</string>
 </dict>
 </plist>`;
 
@@ -247,7 +247,7 @@ function enableWindows(cliPath) {
   if (!routerScript) return false;
 
   // Run node + cli.js directly, hidden window. Avoids the fragile
-  // `xrouter.cmd` lookup that depended on the npm prefix path.
+  // `omeg4mon-router.cmd` lookup that depended on the npm prefix path.
   const vbsContent = `Set WshShell = CreateObject("WScript.Shell")
 WshShell.Run """${nodePath}"" ""${routerScript}"" --tray --skip-update", 0, False
 `;
@@ -280,8 +280,8 @@ function enableLinux(cliPath) {
 
   const desktopContent = `[Desktop Entry]
 Type=Application
-Name=X Router
-Comment=X Router API Proxy
+Name=OMEG4MON ROUTER
+Comment=OMEG4MON ROUTER API Proxy
 Exec=${nodePath} ${routerScript} --tray --skip-update
 Hidden=false
 NoDisplay=false

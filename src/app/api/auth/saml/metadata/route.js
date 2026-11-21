@@ -1,10 +1,10 @@
 import { getSettings } from "@/lib/localDb";
-import { generateSamlMetadata } from "@/lib/auth/saml";
+import { generateSamlMetadata, getSamlBaseUrl } from "@/lib/auth/saml";
 
 export async function GET(request) {
   try {
     const settings = await getSettings();
-    const origin = new URL(request.url).origin;
+    const origin = getSamlBaseUrl(request, settings);
     const metadataXml = generateSamlMetadata(origin, settings);
 
     return new Response(metadataXml, {

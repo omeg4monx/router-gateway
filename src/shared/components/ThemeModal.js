@@ -190,7 +190,7 @@ function PhotoshopColorPicker({ color, onChange, onApply, isActive }) {
       <div className="flex items-center justify-between">
         <span className="text-[11px] font-semibold text-text-muted uppercase tracking-wider flex items-center gap-1.5">
           <span className="material-symbols-outlined text-[15px]">palette</span>
-          X Router Custom Studio Palette
+          OMEG4MON ROUTER Custom Studio Palette
         </span>
         <button
           type="button"

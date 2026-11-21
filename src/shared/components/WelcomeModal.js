@@ -11,19 +11,19 @@ export default function WelcomeModal() {
   const [isOpen, setIsOpen] = useState(false);
 
   useEffect(() => {
-    const neverShow = localStorage.getItem("xrouter:welcomeNeverShow") === "true";
-    const justLoggedIn = sessionStorage.getItem("xrouter:justLoggedIn") === "true";
+    const neverShow = localStorage.getItem("omeg4mon-router:welcomeNeverShow") === "true";
+    const justLoggedIn = sessionStorage.getItem("omeg4mon-router:justLoggedIn") === "true";
 
     if (neverShow || !justLoggedIn) {
       setIsOpen(false);
     } else {
-      sessionStorage.removeItem("xrouter:justLoggedIn");
+      sessionStorage.removeItem("omeg4mon-router:justLoggedIn");
       setIsOpen(true);
     }
   }, []);
 
   const handleDontShowAgain = () => {
-    localStorage.setItem("xrouter:welcomeNeverShow", "true");
+    localStorage.setItem("omeg4mon-router:welcomeNeverShow", "true");
     setIsOpen(false);
   };
 
@@ -38,7 +38,7 @@ export default function WelcomeModal() {
       isOpen={isOpen}
       onClose={handleClose}
       closeOnOverlay={false}
-      title="Selamat datang di X Router"
+      title="Selamat datang di OMEG4MON ROUTER"
       size="md"
       footer={null}
     >

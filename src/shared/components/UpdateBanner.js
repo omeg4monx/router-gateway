@@ -13,7 +13,7 @@ import { useCopyToClipboard } from "@/shared/hooks/useCopyToClipboard";
 import ChangelogModal from "./ChangelogModal";
 
 const POLL_MS = 60000;
-const DISMISSED_KEY = "xrouter:dismissed_update";
+const DISMISSED_KEY = "omeg4mon-router:dismissed_update";
 
 function readDismissed() {
   try {
@@ -205,7 +205,7 @@ export default function UpdateBanner({ pollMs = POLL_MS }) {
           setShowConfirm(false);
           setIsUpdating(true);
         }}
-        title="Update X Router"
+        title="Update OMEG4MON ROUTER"
         message={`Show install command for v${info.latestVersion || ""}? You can copy it and shutdown to install manually.`}
         confirmText="Show Command"
         cancelText="Cancel"

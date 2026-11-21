@@ -1,6 +1,6 @@
 /**
- * `xrouter xai video` — generate a Grok Imagine video through the local
- * xrouter gateway and save the result as an MP4 file.
+ * `omeg4mon-router xai video` — generate a Grok Imagine video through the local
+ * omeg4mon-router gateway and save the result as an MP4 file.
  *
  * Flow: POST /v1/videos/generations → poll GET /v1/videos/{request_id}
  * until done/failed/timeout → download video.url → atomic rename.
@@ -23,9 +23,9 @@ const TERMINAL_STATUSES = new Set(["done", "failed", "completed", "error", "expi
 const FAILED_STATUSES = new Set(["failed", "error", "expired", "cancelled"]);
 
 const HELP = `
-Usage: xrouter xai video --prompt "..." [options]
+Usage: omeg4mon-router xai video --prompt "..." [options]
 
-Generate a Grok Imagine video via your local xrouter gateway
+Generate a Grok Imagine video via your local omeg4mon-router gateway
 (requires a connected xAI account — Grok Build OAuth or API key).
 
 Options:
@@ -39,7 +39,7 @@ Options:
   --timeout <seconds>     Max wait for the job (default: ${DEFAULT_TIMEOUT_SEC})
   --port <port>           Gateway port (default: ${DEFAULT_PORT})
   --host <host>           Gateway host (default: ${DEFAULT_HOST})
-  --api-key <key>         xrouter API key (or env NINE_ROUTER_API_KEY)
+  --api-key <key>         omeg4mon-router API key (or env NINE_ROUTER_API_KEY)
   -h, --help              Show this help
 `;
 
@@ -258,7 +258,7 @@ async function run(argv) {
     }
 
     const requestId = create.body.request_id;
-    const connectionId = create.headers["x-xrouter-connection-id"] || null;
+    const connectionId = create.headers["x-omeg4mon-router-connection-id"] || null;
     console.log(`📋 Job accepted: ${requestId}`);
 
     let lastLine = "";

@@ -936,7 +936,7 @@ function ProviderCard({
     if (isCompatible)
       return "/providers/custom-openai.svg";
     if (isAnthropicCompatible) return "/providers/custom-anthropic.svg";
-    return getProviderIconSrc(provider.id) || `/providers/${provider.id}.png`;
+    return getProviderIconSrc(provider.id);
   };
 
   const typeLabel = isMoonshot

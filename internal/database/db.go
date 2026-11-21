@@ -42,14 +42,15 @@ type ProxyPool struct {
 }
 
 type TelegramConfig struct {
-	Enabled      bool   `json:"enabled"`
-	BotToken     string `json:"botToken"`
-	UserID       string `json:"userId"`
-	WebhookURL   string `json:"webhookUrl"`
-	Status       string `json:"status"`
-	BotUsername  string `json:"botUsername,omitempty"`
-	BotID        int64  `json:"botId,omitempty"`
-	LastTestedAt string `json:"lastTestedAt,omitempty"`
+	Enabled       bool   `json:"enabled"`
+	BotToken      string `json:"botToken"`
+	UserID        string `json:"userId"`
+	WebhookSecret string `json:"webhookSecret,omitempty"`
+	WebhookURL    string `json:"webhookUrl"`
+	Status        string `json:"status"`
+	BotUsername   string `json:"botUsername,omitempty"`
+	BotID         int64  `json:"botId,omitempty"`
+	LastTestedAt  string `json:"lastTestedAt,omitempty"`
 }
 
 func Open(dbPath string) (*DB, error) {

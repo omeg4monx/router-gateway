@@ -202,10 +202,10 @@ export default function ClaudeToolCard({
     try {
       const env = { ANTHROPIC_BASE_URL: getEffectiveBaseUrl() };
 
-      // Get key from dropdown, fallback to first key or sk_xrouter for localhost
+      // Get key from dropdown, fallback to first key or sk_omeg4mon_router for localhost
       const keyToUse = selectedApiKey?.trim()
         || (apiKeys?.length > 0 ? apiKeys[0].key : null)
-        || (!cloudEnabled ? "sk_xrouter" : null);
+        || (!cloudEnabled ? "sk_omeg4mon_router" : null);
 
       if (keyToUse) {
         env.ANTHROPIC_AUTH_TOKEN = keyToUse;
@@ -277,7 +277,7 @@ export default function ClaudeToolCard({
   const getManualConfigs = () => {
     const keyToUse = (selectedApiKey && selectedApiKey.trim())
       ? selectedApiKey
-      : (!cloudEnabled ? "sk_xrouter" : "<API_KEY_FROM_DASHBOARD>");
+      : (!cloudEnabled ? "sk_omeg4mon_router" : "<API_KEY_FROM_DASHBOARD>");
     const env = { ANTHROPIC_BASE_URL: getEffectiveBaseUrl(), ANTHROPIC_AUTH_TOKEN: keyToUse };
     tool.defaultModels.forEach((model) => {
       const targetModel = modelMappings[model.alias];
@@ -331,7 +331,7 @@ export default function ClaudeToolCard({
                   <span className="material-symbols-outlined text-warning">warning</span>
                   <div className="flex-1">
                     <p className="font-medium text-warning">Claude CLI not detected locally</p>
-                    <p className="text-sm text-text-muted">Manual configuration is still available if xrouter is deployed on a remote server.</p>
+                    <p className="text-sm text-text-muted">Manual configuration is still available if omeg4mon-router is deployed on a remote server.</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2 pl-9">
@@ -472,7 +472,7 @@ export default function ClaudeToolCard({
                 <Button variant="primary" size="sm" onClick={handleApplySettings} disabled={!hasActiveProviders} loading={applying}>
                   <span className="material-symbols-outlined text-[14px] mr-1">save</span>Apply
                 </Button>
-                <Button variant="outline" size="sm" onClick={handleResetSettings} disabled={!claudeStatus?.hasXRouter} loading={restoring}>
+                <Button variant="outline" size="sm" onClick={handleResetSettings} disabled={!claudeStatus?.hasOmeg4monRouter} loading={restoring}>
                   <span className="material-symbols-outlined text-[14px] mr-1">restore</span>Reset
                 </Button>
                 <Button variant="ghost" size="sm" onClick={() => setShowManualConfigModal(true)}>

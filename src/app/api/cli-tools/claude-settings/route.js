@@ -101,13 +101,13 @@ export async function GET() {
     }
 
     const settings = await readSettings();
-    const hasXRouter = !!(settings?.env?.ANTHROPIC_BASE_URL);
+    const hasOmeg4monRouter = !!(settings?.env?.ANTHROPIC_BASE_URL);
     const claudeJson = await readClaudeJson();
 
     return NextResponse.json({
       installed: true,
       settings: settings,
-      hasXRouter: hasXRouter,
+      hasOmeg4monRouter: hasOmeg4monRouter,
       exaMcpEnabled: !!claudeJson?.mcpServers?.exa,
       settingsPath: getClaudeSettingsPath(),
     });

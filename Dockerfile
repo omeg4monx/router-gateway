@@ -44,7 +44,7 @@ RUN if [ "$ALPINE_MIRROR" != "dl-cdn.alpinelinux.org" ]; then \
       sed -i "s|dl-cdn.alpinelinux.org|${ALPINE_MIRROR}|g" /etc/apk/repositories; \
     fi
 
-LABEL org.opencontainers.image.title="xrouter" \
+LABEL org.opencontainers.image.title="omeg4mon-router" \
       org.opencontainers.image.version="${APP_VERSION}"
 
 ENV NODE_ENV=production
@@ -72,7 +72,7 @@ COPY --from=builder /app/node_modules/confbox ./node_modules/confbox
 
 RUN mkdir -p /app/data && chown -R node:node /app && \
   mkdir -p /app/data-home && chown node:node /app/data-home && \
-  ln -sf /app/data-home /root/.xrouter 2>/dev/null || true
+  ln -sf /app/data-home /root/.omeg4mon-router 2>/dev/null || true
 
 # Avoid a full distribution upgrade in the runtime image. It makes builds less
 # reproducible and is unrelated to installing the runtime entrypoint helper.

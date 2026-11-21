@@ -53,38 +53,37 @@ function trimTrailingSlashes(str) {
   return (str || "").replace(/\/+$/, "");
 }
 
+function configuredSamlBaseUrl(settings) {
+  const configured =
+    (settings?.baseUrl || "").trim() ||
+    process.env.BASE_URL ||
+    process.env.NEXT_PUBLIC_BASE_URL ||
+    "";
+  return configured ? trimTrailingSlashes(configured) : "";
+}
+
 /**
- * Resolves the public Base URL / Origin for SAML requests.
- * Respects settings.baseUrl, process.env.BASE_URL, x-forwarded-proto, and x-forwarded-host.
+ * Origin for redirects back into the app: the configured base URL, else the
+ * request's own origin. Forwarded-host headers are never trusted here.
  * @param {Request} request
  * @param {object} settings
  * @returns {string}
  */
 export function getSamlBaseUrl(request, settings) {
-  const configuredBaseUrl =
-    (settings?.baseUrl || "").trim() ||
-    process.env.BASE_URL ||
-    process.env.NEXT_PUBLIC_BASE_URL ||
-    "";
-
-  if (configuredBaseUrl) {
-    return trimTrailingSlashes(configuredBaseUrl);
-  }
-
-  if (request) {
-    const forwardedProto = request?.headers?.get?.("x-forwarded-proto") || "";
-    const forwardedHost = request?.headers?.get?.("x-forwarded-host") || "";
-    const host = forwardedHost || request?.headers?.get?.("host") || "";
-    if (host) {
-      const protocol = (forwardedProto || new URL(request.url).protocol || "http:").replace(/:$/, "");
-      return `${protocol}://${host}`.replace(/\/+$/, "");
-    }
-    if (request.url) {
-      return trimTrailingSlashes(new URL(request.url).origin);
-    }
-  }
-
+  const configured = configuredSamlBaseUrl(settings);
+  if (configured) return configured;
+  if (request?.url) return trimTrailingSlashes(new URL(request.url).origin);
   return "http://localhost:20128";
+}
+
+// The ACS URL goes into AuthnRequests and is checked against signed Destination,
+// so it must come from configuration, never from a client-supplied Host header.
+function requireSamlBaseUrl(settings) {
+  const configured = configuredSamlBaseUrl(settings);
+  if (!configured) {
+    throw new Error("SAML requires a configured base URL (Settings baseUrl or BASE_URL env)");
+  }
+  return configured;
 }
 
 export function createSamlInstance(settings, origin) {
@@ -92,7 +91,7 @@ export function createSamlInstance(settings, origin) {
   const callbackUrl = `${origin}/api/auth/saml/acs`;
   return new SAML({
     entryPoint: settings?.samlEntryPoint || "https://example.com/sso",
-    issuer: settings?.samlIssuer || "urn:xrouter:sp",
+    issuer: settings?.samlIssuer || "urn:omeg4mon-router:sp",
     idpCert: cert,
     cert: cert,
     callbackUrl: callbackUrl,
@@ -110,7 +109,7 @@ export function createSamlInstance(settings, origin) {
  * @returns {Promise<{ authorizeUrl: string, requestId: string }>}
  */
 export async function buildSamlAuthorizeUrl(request, settings) {
-  const origin = getSamlBaseUrl(request, settings);
+  const origin = requireSamlBaseUrl(settings);
   const samlInstance = createSamlInstance(settings, origin);
 
   const xml = await samlInstance.generateAuthorizeRequestAsync(false, false);
@@ -135,7 +134,7 @@ export async function validateSamlResponse(request, body, expectedRequestId, set
     throw new Error("IdP X.509 Certificate (samlCert) is missing or not configured");
   }
 
-  const origin = getSamlBaseUrl(request, settings);
+  const origin = requireSamlBaseUrl(settings);
   const samlInstance = createSamlInstance(settings, origin);
 
   const container = typeof body === "object" && body !== null ? body : { SAMLResponse: body };
@@ -151,6 +150,8 @@ export async function validateSamlResponse(request, body, expectedRequestId, set
   if (!expectedRequestId) {
     throw new Error("Missing saml_state cookie — refusing SAML response (login CSRF/replay protection)");
   }
+  // Cheap early reject on the raw XML; the authoritative check below uses the
+  // InResponseTo node-saml read from the signature-verified document.
   const xml = Buffer.from(rawSamlResponse, "base64").toString("utf8");
   const match = xml.match(/InResponseTo=["']([^"']+)["']/i);
   const inResponseTo = match ? match[1] : null;
@@ -161,6 +162,10 @@ export async function validateSamlResponse(request, body, expectedRequestId, set
 
   const result = await samlInstance.validatePostResponseAsync({ SAMLResponse: rawSamlResponse });
   const profile = result?.profile || result;
+
+  if (profile?.inResponseTo !== expectedRequestId) {
+    throw new Error("InResponseTo mismatch: signed response does not answer this login request");
+  }
 
   return profile;
 }

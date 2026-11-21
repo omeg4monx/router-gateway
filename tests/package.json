@@ -1,9 +1,9 @@
 {
-  "name": "xrouter-tests",
+  "name": "omeg4mon-router-tests",
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "Unit tests for xrouter embeddings endpoint",
+  "description": "Unit tests for omeg4mon-router embeddings endpoint",
   "scripts": {
     "test": "vitest run --reporter=verbose",
     "test:watch": "vitest --reporter=verbose"

@@ -6,7 +6,7 @@ import LogoMark from "@/shared/components/LogoMark";
 
 // Password default instance ini. Ditampilkan sebagai petunjuk di bawah input
 // supaya pemilik tidak terkunci di luar dashboard-nya sendiri.
-const DEFAULT_PASSWORD = "xrouter123";
+const DEFAULT_PASSWORD = "omeg4mon123";
 
 // Panel brand kiri: dipakai oleh semua state login (form, no-access, ganti password).
 function BrandPanel() {
@@ -28,7 +28,7 @@ function BrandPanel() {
           </div>
           <div className="leading-tight">
             <p className="text-[15px] font-semibold text-text-main">
-              X <span className="text-primary">Router</span>
+              OMEG4MON <span className="text-primary">ROUTER</span>
             </p>
             <p className="text-xs text-text-muted">LLM Gateway</p>
           </div>
@@ -71,7 +71,7 @@ function CompactBrand() {
         <LogoMark className="size-full" />
       </div>
       <h1 className="text-[26px] leading-tight font-semibold tracking-tight text-text-main">
-        X <span className="text-primary">Router</span>
+        OMEG4MON <span className="text-primary">ROUTER</span>
       </h1>
     </div>
   );
@@ -179,7 +179,7 @@ export default function LoginPage() {
           return;
         }
         if (typeof window !== "undefined") {
-          sessionStorage.setItem("xrouter:justLoggedIn", "true");
+          sessionStorage.setItem("omeg4mon-router:justLoggedIn", "true");
         }
         if (data.role === "apikey" && !data.homePath) {
           setNoAccess(true);
@@ -213,7 +213,7 @@ export default function LoginPage() {
       });
       if (res.ok) {
         if (typeof window !== "undefined") {
-          sessionStorage.setItem("xrouter:justLoggedIn", "true");
+          sessionStorage.setItem("omeg4mon-router:justLoggedIn", "true");
         }
         window.location.assign("/dashboard");
       } else {
@@ -383,12 +383,12 @@ export default function LoginPage() {
                     {loginMethod === "password" ? (
                       <div className="flex flex-col gap-3">
                         <div className="flex flex-col gap-1.5">
-                          <label htmlFor="xrouter-password" className="text-sm font-medium text-text-main">
+                          <label htmlFor="omeg4mon-router-password" className="text-sm font-medium text-text-main">
                             Password
                           </label>
                           <div className="relative">
                             <input
-                              id="xrouter-password"
+                              id="omeg4mon-router-password"
                               type={showPassword ? "text" : "password"}
                               placeholder="Masukkan password"
                               value={password}
@@ -443,7 +443,7 @@ export default function LoginPage() {
                         )}
                         {resetHint && (
                           <p className="text-xs text-text-muted">
-                            Lupa password? Jalankan CLI <code className="bg-surface-2 px-1 rounded">xrouter</code> di server, buka <b>Settings</b>, lalu <b>Reset Password to Default</b>.
+                            Lupa password? Jalankan CLI <code className="bg-surface-2 px-1 rounded">omeg4mon-router</code> di server, buka <b>Settings</b>, lalu <b>Reset Password to Default</b>.
                           </p>
                         )}
                       </div>
@@ -485,7 +485,7 @@ export default function LoginPage() {
           </Card>
 
           <p className="text-center text-xs text-text-muted mt-6">
-            X Router, self-hosted LLM gateway
+            OMEG4MON ROUTER, self-hosted LLM gateway
           </p>
         </div>
       </div>

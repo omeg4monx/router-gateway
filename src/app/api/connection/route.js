@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import { NextResponse } from "next/server";
 import { getConnectionConfig, setConnectionConfig } from "@/lib/db/repos/connectionRepo";
 import { getSettings } from "@/lib/localDb";
@@ -7,6 +8,12 @@ function maskToken(token) {
   if (!token || typeof token !== "string") return "";
   if (token.length <= 10) return "••••••••••";
   return token.slice(0, 4) + "••••••••" + token.slice(-4);
+}
+
+// Never echo secrets to the browser: the dashboard only renders the masked token.
+function publicTelegram(tg) {
+  const { botToken, webhookSecret, ...rest } = tg;
+  return { ...rest, botTokenMasked: maskToken(botToken), hasToken: Boolean(botToken) };
 }
 
 export async function GET() {
@@ -23,11 +30,7 @@ export async function GET() {
     return NextResponse.json({
       success: true,
       data: {
-        telegram: {
-          ...config.telegram,
-          botTokenMasked: maskToken(config.telegram.botToken),
-          hasToken: Boolean(config.telegram.botToken),
-        },
+        telegram: publicTelegram(config.telegram),
         system: {
           name: APP_CONFIG.name,
           version: APP_CONFIG.version,
@@ -117,11 +120,15 @@ export async function POST(request) {
         return NextResponse.json({ success: delData.ok, data: delData });
       }
 
+      // Telegram echoes this in X-Telegram-Bot-Api-Secret-Token; the webhook rejects
+      // any update without it.
+      const webhookSecret = crypto.randomBytes(32).toString("hex");
       const setRes = await fetch(
-        `https://api.telegram.org/bot${token}/setWebhook?url=${encodeURIComponent(webhookUrl)}`,
+        `https://api.telegram.org/bot${token}/setWebhook?url=${encodeURIComponent(webhookUrl)}&secret_token=${webhookSecret}`,
         { signal: AbortSignal.timeout(10000) }
       );
       const setData = await setRes.json();
+      if (setData.ok) await setConnectionConfig({ telegram: { webhookSecret } });
       return NextResponse.json({ success: setData.ok, data: setData });
     }
 
@@ -149,11 +156,7 @@ export async function POST(request) {
     return NextResponse.json({
       success: true,
       data: {
-        telegram: {
-          ...updated.telegram,
-          botTokenMasked: maskToken(updated.telegram.botToken),
-          hasToken: Boolean(updated.telegram.botToken),
-        },
+        telegram: publicTelegram(updated.telegram),
       },
     });
   } catch (err) {

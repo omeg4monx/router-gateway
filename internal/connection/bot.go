@@ -2,14 +2,16 @@ package connection
 
 import (
 	"bytes"
+	"crypto/subtle"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"runtime"
 	"strings"
 	"time"
 
-	"github.com/johsua092-ui/xrouter/internal/database"
+	"github.com/omeg4monx/router-gateway/internal/database"
 )
 
 var startTime = time.Now()
@@ -54,13 +56,10 @@ func HandleCommand(rawCmd, requestUserId, requestToken string, db *database.DB) 
 		return "", err
 	}
 
-	if cfg.BotToken != "" {
-		tokenMatch := requestToken != "" && requestToken == cfg.BotToken
-		userMatch := cfg.UserID != "" && requestUserId == strings.TrimSpace(cfg.UserID)
-
-		if !tokenMatch && !userMatch {
-			return "", fmt.Errorf("unauthorized: invalid token or user ID")
-		}
+	// The bot token is the only secret here; a Telegram user id is public, so it
+	// can never authenticate on its own.
+	if cfg.BotToken == "" || subtle.ConstantTimeCompare([]byte(requestToken), []byte(cfg.BotToken)) != 1 {
+		return "", fmt.Errorf("unauthorized: invalid token")
 	}
 
 	parts := strings.Fields(strings.TrimSpace(rawCmd))
@@ -72,7 +71,7 @@ func HandleCommand(rawCmd, requestUserId, requestToken string, db *database.DB) 
 
 	switch cmd {
 	case "start", "help":
-		return "⚡ *X Router Go Core Controller*\n" +
+		return "⚡ *OMEG4MON ROUTER Go Core Controller*\n" +
 			"High-Performance Go Engine · Control Panel\n\n" +
 			"*Available Commands:*\n" +
 			"• `/status` - Live system health, uptime & metrics\n" +
@@ -83,7 +82,7 @@ func HandleCommand(rawCmd, requestUserId, requestToken string, db *database.DB) 
 			"• `/help` - Show this command list", nil
 
 	case "ping":
-		return fmt.Sprintf("🏓 Pong! X Router Go Core is active (Uptime: %s)", formatUptime(time.Since(startTime))), nil
+		return fmt.Sprintf("🏓 Pong! OMEG4MON ROUTER Go Core is active (Uptime: %s)", formatUptime(time.Since(startTime))), nil
 
 	case "status":
 		activeConns, totalConns, _ := db.GetActiveConnectionCount()
@@ -93,7 +92,7 @@ func HandleCommand(rawCmd, requestUserId, requestToken string, db *database.DB) 
 		runtime.ReadMemStats(&mem)
 		allocMb := float64(mem.Alloc) / (1024 * 1024)
 
-		return fmt.Sprintf(`📊 *X Router Go Telemetry*
+		return fmt.Sprintf(`📊 *OMEG4MON ROUTER Go Telemetry*
 • *Engine:* `+"`Golang %s`"+`
 • *Uptime:* %s
 • *Memory Allocated:* %.2f MB
@@ -140,6 +139,20 @@ func HandleWebhook(w http.ResponseWriter, r *http.Request, db *database.DB) {
 		return
 	}
 
+	// Only updates carrying the secret registered with setWebhook come from Telegram.
+	secret := r.Header.Get("X-Telegram-Bot-Api-Secret-Token")
+	if cfg.WebhookSecret == "" || subtle.ConstantTimeCompare([]byte(secret), []byte(cfg.WebhookSecret)) != 1 {
+		w.WriteHeader(http.StatusUnauthorized)
+		w.Write([]byte(`{"ok":false,"error":"unauthorized"}`))
+		return
+	}
+	allowed := strings.TrimSpace(cfg.UserID)
+	if allowed == "" {
+		w.WriteHeader(http.StatusForbidden)
+		w.Write([]byte(`{"ok":false,"error":"userId not configured"}`))
+		return
+	}
+
 	var update TelegramUpdate
 	if err := json.NewDecoder(r.Body).Decode(&update); err != nil || update.Message == nil {
 		w.WriteHeader(http.StatusOK)
@@ -157,15 +170,11 @@ func HandleWebhook(w http.ResponseWriter, r *http.Request, db *database.DB) {
 		return
 	}
 
-	// Verify User ID
-	if cfg.UserID != "" {
-		allowed := strings.TrimSpace(cfg.UserID)
-		if fmt.Sprintf("%d", fromId) != allowed && fmt.Sprintf("%d", chatId) != allowed {
-			sendTelegramMessage(cfg.BotToken, chatId, "⛔ *Akses Ditolak*\nAnda tidak memiliki otorisasi untuk mengontrol X Router ini.")
-			w.WriteHeader(http.StatusOK)
-			w.Write([]byte(`{"ok":true,"authorized":false}`))
-			return
-		}
+	if fmt.Sprintf("%d", fromId) != allowed && fmt.Sprintf("%d", chatId) != allowed {
+		sendTelegramMessage(cfg.BotToken, chatId, "⛔ *Akses Ditolak*\nAnda tidak memiliki otorisasi untuk mengontrol OMEG4MON ROUTER ini.")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"ok":true,"authorized":false}`))
+		return
 	}
 
 	replyText, err := HandleCommand(text, fmt.Sprintf("%d", fromId), cfg.BotToken, db)
@@ -178,6 +187,8 @@ func HandleWebhook(w http.ResponseWriter, r *http.Request, db *database.DB) {
 	w.Write([]byte(`{"ok":true}`))
 }
 
+var telegramClient = &http.Client{Timeout: 10 * time.Second}
+
 func sendTelegramMessage(botToken string, chatId int64, text string) {
 	payload := map[string]interface{}{
 		"chat_id":    chatId,
@@ -186,7 +197,16 @@ func sendTelegramMessage(botToken string, chatId int64, text string) {
 	}
 	bodyBytes, _ := json.Marshal(payload)
 	url := fmt.Sprintf("https://api.telegram.org/bot%s/sendMessage", botToken)
-	http.Post(url, "application/json", bytes.NewBuffer(bodyBytes))
+	resp, err := telegramClient.Post(url, "application/json", bytes.NewBuffer(bodyBytes))
+	if err != nil {
+		// err embeds the URL, which carries the bot token: log only that it failed.
+		log.Printf("[Telegram] sendMessage failed (network error)")
+		return
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		log.Printf("[Telegram] sendMessage failed: HTTP %d", resp.StatusCode)
+	}
 }
 
 func TestBotToken(botToken string) (map[string]interface{}, error) {

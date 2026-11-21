@@ -1,3 +1,4 @@
+import crypto from "crypto";
 import fs from "fs";
 import path from "path";
 import https from "https";
@@ -17,7 +18,18 @@ const QUICK_TUNNEL_PROTOCOLS = new Set(["http2", "quic", "auto"]);
 // ISP blocks port 7844 with different severities per protocol — fallback order matters
 const PROTOCOL_FALLBACK = ["http2", "quic"];
 
-const GITHUB_BASE_URL = "https://github.com/cloudflare/cloudflared/releases/latest/download";
+// Pinned release: every asset below is checked against its SHA-256 before use.
+// To upgrade, bump the version and copy the digests from the GitHub release assets.
+const CLOUDFLARED_VERSION = "2026.11.1";
+const GITHUB_BASE_URL = `https://github.com/cloudflare/cloudflared/releases/download/${CLOUDFLARED_VERSION}`;
+const ASSET_SHA256 = {
+  "cloudflared-darwin-amd64.tgz": "5e0403b188dfee71fbd9b995e7dc9910d61b661c52371935ab6475d41185632f",
+  "cloudflared-darwin-arm64.tgz": "02fe4bcf08f2c09699cff30658228a739a0c47fb75f3653d1b8772a27ade4462",
+  "cloudflared-linux-amd64": "97bb3b02d23a5980fc9c15a1a270e692da1923f103f920d5b16d4931d5ab55e7",
+  "cloudflared-linux-arm64": "b155cec3e48e489cfb8e5c602769fb8c771083018d8881d68b4d18a791567c5a",
+  "cloudflared-windows-386.exe": "060868e138e638237e33329315c3e374e0156a2fb18879e571dbc0d506060df3",
+  "cloudflared-windows-amd64.exe": "341deda3db5ec498a0482254d6c38c0b7cf01a30c37bb5dd95d2216d08955e35",
+};
 
 const PLATFORM_MAPPINGS = {
   darwin: {
@@ -42,7 +54,7 @@ const PLATFORM_FALLBACK = {
   linux: "cloudflared-linux-amd64"
 };
 
-function getDownloadUrl() {
+function getDownloadAsset() {
   const platform = os.platform();
   const arch = os.arch();
 
@@ -52,7 +64,15 @@ function getDownloadUrl() {
   }
 
   const binaryName = platformMapping[arch] || PLATFORM_FALLBACK[platform];
-  return `${GITHUB_BASE_URL}/${binaryName}`;
+  return { url: `${GITHUB_BASE_URL}/${binaryName}`, sha256: ASSET_SHA256[binaryName] };
+}
+
+function assertSha256(filePath, expected) {
+  const actual = crypto.createHash("sha256").update(fs.readFileSync(filePath)).digest("hex");
+  if (actual !== expected) {
+    fs.unlinkSync(filePath);
+    throw new Error(`[cloudflared] checksum mismatch (expected ${expected}, got ${actual}); download discarded`);
+  }
 }
 
 // Download state — shared so status API can read it
@@ -165,11 +185,12 @@ async function _ensureCloudflared() {
     }
   }
 
-  const url = getDownloadUrl();
+  const { url, sha256 } = getDownloadAsset();
   const isArchive = url.endsWith(".tgz");
   const downloadDest = isArchive ? path.join(BIN_DIR, "cloudflared.tgz.tmp") : tmpPath;
 
   await downloadFile(url, downloadDest);
+  assertSha256(downloadDest, sha256);
 
   if (isArchive) {
     execSync(`tar -xzf "${downloadDest}" -C "${BIN_DIR}"`, { stdio: "pipe", windowsHide: true });

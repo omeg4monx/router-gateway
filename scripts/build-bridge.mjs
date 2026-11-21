@@ -1,14 +1,14 @@
 #!/usr/bin/env node
 /**
- * build-bridge.mjs — prepares the Go core binary for `bin/xrouter`.
+ * build-bridge.mjs — prepares the Go core binary for `bin/omeg4mon-router`.
  *
  * Three paths, in order:
- *   1. A Go toolchain is present  -> compile from ./cmd/xrouter.
+ *   1. A Go toolchain is present  -> compile from ./cmd/omeg4mon-router.
  *   2. No toolchain, but a binary already exists -> keep it, report the reuse.
  *   3. Neither -> fail with the exact command to fix it.
  *
  * There is intentionally NO download step. The upstream release pipeline that
- * would host `xrouter-<os>-<arch>` artifacts does not exist in this repo (no
+ * would host `omeg4mon-router-<os>-<arch>` artifacts does not exist in this repo (no
  * .github/workflows), so a downloader would only ever 404. Compiling locally is
  * the only honest path.
  *
@@ -24,7 +24,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(here, "..");
 const binExt = process.platform === "win32" ? ".exe" : "";
 const binDir = path.join(root, "bin");
-const binPath = path.join(binDir, `xrouter${binExt}`);
+const binPath = path.join(binDir, `omeg4mon-router${binExt}`);
 
 function hasGo() {
   try {
@@ -57,12 +57,12 @@ if (!hasGo()) {
 console.log("\u26a1 Go toolchain detected \u2014 compiling core...");
 execFileSync(
   "go",
-  ["build", "-trimpath", "-ldflags=-s -w", "-o", binPath, "./cmd/xrouter"],
+  ["build", "-trimpath", "-ldflags=-s -w", "-o", binPath, "./cmd/omeg4mon-router"],
   { cwd: root, stdio: "inherit" },
 );
 
 const size = fs.statSync(binPath).size;
-console.log(`\u2713 Go core ready: bin/xrouter (${humanSize(size)})`);
+console.log(`\u2713 Go core ready: bin/omeg4mon-router (${humanSize(size)})`);
 
 if (process.platform !== "win32") {
   try {

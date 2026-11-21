@@ -418,12 +418,11 @@ function targetHost(url) {
 }
 
 /**
- * After a proxied attempt, replay once on the direct egress when upstream
- * rejected the *proxy's IP* (403 FreeTierError). A body already consumed by
- * the first attempt cannot be resent, and strictProxy keeps its contract of
- * never leaving over another path — both return the rejection as-is.
+ * Upstream rejected the *proxy's IP* (403 FreeTierError). Quarantine the pool
+ * entry and surface the rejection; never replay on the direct egress, which
+ * would expose the host IP the proxy exists to hide.
  */
-async function replayFreeTierRejectionDirect(url, options, proxied, proxyOptions) {
+async function handleFreeTierRejection(url, proxied, proxyOptions) {
   if (proxied.status !== 403) return proxied;
   let text;
   try {
@@ -445,17 +444,7 @@ async function replayFreeTierRejectionDirect(url, options, proxied, proxyOptions
   if (proxyOptions?.strictProxy === true || poolId || isOpencode) {
     throw new Error(`[ProxyFetch] 403 FreeTierError: Proxy IP flagged by OpenCode free-tier gate`);
   }
-
-  if (options?.body && typeof options.body.getReader === "function" && options.body.locked) {
-    return bufferedResponse(text, proxied);
-  }
-  console.warn(`[ProxyFetch] Proxy egress rejected by the OpenCode free-tier gate (403 FreeTierError); replaying direct: ${targetHost(url)}`);
-  try {
-    return await originalFetch(url, options);
-  } catch (directError) {
-    console.warn(`[ProxyFetch] Direct replay failed: ${directError.message}`);
-    return bufferedResponse(text, proxied);
-  }
+  return bufferedResponse(text, proxied);
 }
 
 export async function proxyAwareFetch(url, options = {}, proxyOptions = null) {
@@ -500,10 +489,8 @@ export async function proxyAwareFetch(url, options = {}, proxyOptions = null) {
         }
         return res;
       } catch (proxyError) {
-        if (proxyOptions?.strictProxy === true) {
-          throw new Error(`[ProxyFetch] Proxy required but failed (strictProxy=true): ${proxyError.message}`);
-        }
-        console.warn(`[ProxyFetch] Proxy failed, falling back to direct bypass: ${proxyError.message}`);
+        // Never fall back to a direct connection: that leaks the host IP.
+        throw new Error(`[ProxyFetch] Proxy required but failed: ${proxyError.message}`);
       }
     }
     // No proxy — manually resolve real IP to bypass DNS spoof
@@ -536,7 +523,7 @@ export async function proxyAwareFetch(url, options = {}, proxyOptions = null) {
           throw new Error(`[ProxyFetch] Proxy returned HTTP ${res.status} timeout/bad gateway`);
         }
       }
-      return await replayFreeTierRejectionDirect(url, options, res, proxyOptions);
+      return await handleFreeTierRejection(url, res, proxyOptions);
     } catch (proxyError) {
       if (poolId) {
         try {
@@ -544,13 +531,9 @@ export async function proxyAwareFetch(url, options = {}, proxyOptions = null) {
           quarantineProxy(poolId, 15 * 60 * 1000);
         } catch {}
       }
-      // If strictProxy is enabled, fail hard so the caller can rotate!
-      // But for normal proxy pools, allow fallback to direct connection so requests aren't killed with 502.
-      if (proxyOptions?.strictProxy === true) {
-        throw new Error(`[ProxyFetch] Proxy required but failed: ${proxyError.message}`);
-      }
-      console.warn(`[ProxyFetch] Proxy ${proxyUrl} failed, falling back to direct connection: ${proxyError.message}`);
-      return originalFetch(url, options);
+      // Fail closed: a configured proxy is never bypassed for a direct connection,
+      // which would expose the host IP. Callers rotate on the thrown error.
+      throw new Error(`[ProxyFetch] Proxy required but failed: ${proxyError.message}`);
     }
   }
 

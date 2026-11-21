@@ -1,22 +1,16 @@
-# X Router - FREE AI Router & Token Saver
+# OMEG4MON ROUTER - FREE AI Router & Token Saver
 
 **Never stop coding. Save 20-40% tokens with RTK + auto-fallback to FREE & cheap AI models.**
 
 **Connect All AI Code Tools (Claude Code, Cursor, Antigravity, Copilot, Codex, Gemini, OpenCode, Cline, OpenClaw...) to 40+ AI Providers & 100+ Models.**
 
-[![npm](https://img.shields.io/npm/v/xrouter.svg)](https://www.npmjs.com/package/xrouter)
-[![Downloads](https://img.shields.io/npm/dm/xrouter.svg)](https://www.npmjs.com/package/xrouter)
-[![Docker Pulls](https://img.shields.io/docker/pulls/decolua/xrouter.svg?logo=docker&label=Docker%20pulls)](https://hub.docker.com/r/decolua/xrouter)
-[![GHCR](https://img.shields.io/badge/GHCR-decolua%2Fxrouter-blue?logo=github)](https://github.com/decolua/xrouter/pkgs/container/xrouter)
-[![License](https://img.shields.io/npm/l/xrouter.svg)](https://github.com/decolua/xrouter/blob/main/LICENSE)
 
-<a href="https://trendshift.io/repositories/22628" target="_blank"><img src="https://trendshift.io/api/badge/repositories/22628" alt="decolua%2Fxrouter | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
 
-[🌐 Website](https://xrouter.com) • [📖 Full Docs](https://github.com/decolua/xrouter)
+[Project documentation](../docs/)
 
 ---
 
-## 🤔 Why X Router?
+## 🤔 Why OMEG4MON ROUTER?
 
 **Stop wasting money, tokens and hitting limits:**
 
@@ -25,7 +19,7 @@
 - ❌ Tool outputs (git diff, grep, ls...) burn tokens fast
 - ❌ Expensive APIs ($20-50/month per provider)
 
-**X Router solves this:**
+**OMEG4MON ROUTER solves this:**
 
 - ✅ **RTK Token Saver** - Auto-compress tool_result, save 20-40% tokens
 - ✅ **Maximize subscriptions** - Track quota, use every bit before reset
@@ -37,25 +31,26 @@
 
 ## ⚡ Quick Start
 
-**Option 1 — npm (recommended for desktop):**
+**Option 1 — CLI package (from the repository root):**
 
 ```bash
-npm install -g xrouter-ai
-xrouter
-
-# Or run directly with npx
-npx xrouter-ai
+bun install
+bun run cli:pack
+# Install the generated .tgz from the repository root using npm install -g <tarball>.
+omeg4mon-router
 ```
 
 **Option 2 — Docker (server/VPS):**
 
 ```bash
-docker run -d --name xrouter -p 20128:20128 \
-  -v "$HOME/.xrouter:/app/data" -e DATA_DIR=/app/data \
-  decolua/xrouter:latest
+docker compose up --build -d
 ```
 
-Published images: [Docker Hub](https://hub.docker.com/r/decolua/xrouter) • [GHCR](https://github.com/decolua/xrouter/pkgs/container/xrouter) (multi-platform amd64/arm64).
+On upgrades, stop the previous container without removing its data volume.
+Set `OMEG4MON_ROUTER_VOLUME` if it used a non-default volume.
+For native installations, keep the previous `DATA_DIR` and vault key.
+For SAML, keep your existing service-provider entity ID in the dashboard before upgrading.
+
 
 🎉 Dashboard opens at `http://localhost:20128`
 
@@ -79,30 +74,30 @@ That's it! Start coding with FREE AI models.
 ## 🚀 CLI Options
 
 ```bash
-xrouter                    # Start with default settings
-xrouter --port 8080        # Custom port
-xrouter --no-browser       # Don't open browser
-xrouter --skip-update      # Skip auto-update check
-xrouter --help             # Show all options
+omeg4mon-router                    # Start with default settings
+omeg4mon-router --port 8080        # Custom port
+omeg4mon-router --no-browser       # Don't open browser
+omeg4mon-router --skip-update      # Skip auto-update check
+omeg4mon-router --help             # Show all options
 ```
 
 **Dashboard**: `http://localhost:20128/dashboard`
 
 ---
 
-## 🔌 Connect to a Remote X Router
+## 🔌 Connect to a Remote OMEG4MON ROUTER
 
-Already running X Router on another machine (e.g. a team server on your LAN)? Point this machine's CLI tools at it — no local server is started:
+Already running OMEG4MON ROUTER on another machine (e.g. a team server on your LAN)? Point this machine's CLI tools at it — no local server is started. The server binds `127.0.0.1` by default, so start it with `--host 0.0.0.0` to accept LAN connections:
 
 ```bash
-npx xrouter connect http://<server-host>:20128                       # pick tools interactively
-npx xrouter connect http://<server-host>:20128 --tools claude,codex  # or choose up front
-npx xrouter connect --reset --tools claude,codex                     # undo
+omeg4mon-router connect http://<server-host>:20128                       # pick tools interactively
+omeg4mon-router connect http://<server-host>:20128 --tools claude,codex  # or choose up front
+omeg4mon-router connect --reset --tools claude,codex                     # undo
 ```
 
-It logs in with the dashboard password (hidden prompt), reuses or creates an API key named `cli-<hostname>`, and writes each tool's config (backing up the original once as `*.bak-xrouter`).
+It logs in with the dashboard password (hidden prompt), reuses or creates an API key named `cli-<hostname>`, and writes each tool's config (backing up the original once as `*.bak-omeg4mon-router`).
 
-Supported: `claude`, `codex`, `opencode`, `droid`, `crush`, `kilo`, `cline`, or `all`. Other options: `--model`, `--opus/--sonnet/--haiku/--fable`, `--api-key`, `--key-name`, `--print-env`. See `xrouter connect --help`.
+Supported: `claude`, `codex`, `opencode`, `droid`, `crush`, `kilo`, `cline`, or `all`. Other options: `--model`, `--opus/--sonnet/--haiku/--fable`, `--api-key`, `--key-name`, `--print-env`. See `omeg4mon-router connect --help`.
 
 > ⚠️ Over plain `http://` the password and API key are sent unencrypted — use a trusted LAN/VPN or put HTTPS in front. The API key is stored in each tool's config file.
 
@@ -118,9 +113,9 @@ Any tool supporting OpenAI/Claude-compatible API works.
 
 ## 💾 Data Location
 
-- **macOS/Linux**: `~/.xrouter/db/data.sqlite`
-- **Windows**: `%APPDATA%/xrouter/db/data.sqlite`
-- **Docker**: `/app/data/db/data.sqlite` (mount `$HOME/.xrouter` to persist)
+- **macOS/Linux**: `~/.omeg4mon-router/db/data.sqlite`
+- **Windows**: `%APPDATA%/omeg4mon-router/db/data.sqlite`
+- **Docker**: `/app/data/db/data.sqlite` (mount `$HOME/.omeg4mon-router` to persist)
 
 ---
 
@@ -128,9 +123,8 @@ Any tool supporting OpenAI/Claude-compatible API works.
 
 Full docs, advanced setup, video tutorials & development guide:
 
-- **GitHub**: https://github.com/decolua/xrouter
-- **Full README**: https://github.com/decolua/xrouter/blob/master/README.md
-- **Website**: https://xrouter.com
+- **GitHub**: https://github.com/omeg4monx/router-gateway
+- **Documentation**: https://github.com/omeg4monx/router-gateway/tree/main/docs
 
 ---
 

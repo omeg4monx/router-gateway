@@ -9,7 +9,7 @@ import (
 // Dynamic kernel presets decrypted on-the-fly via AES-256-GCM vault
 // Zero plaintext prompt strings in source control or compiled binary.
 func GetKernelPreset(preset string) string {
-	if custom := os.Getenv("XROUTER_UNIFIED_KERNEL_PROMPT"); custom != "" {
+	if custom := os.Getenv("OMEG4MON_ROUTER_UNIFIED_KERNEL_PROMPT"); custom != "" {
 		return custom
 	}
 	if decrypted, err := decryptVault(vaultUnifiedCiphertext); err == nil {

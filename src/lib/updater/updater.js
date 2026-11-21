@@ -9,7 +9,12 @@ const path = require("path");
 const fs = require("fs");
 const os = require("os");
 
-const packageName = process.env.UPDATER_PKG_NAME || "xrouter";
+// No default: never guess which npm package to install globally.
+const packageName = process.env.UPDATER_PKG_NAME;
+if (!packageName) {
+  console.error("[updater] UPDATER_PKG_NAME is required; refusing to guess a package to install");
+  process.exit(1);
+}
 const port = parseInt(process.env.UPDATER_PORT || "20129", 10);
 const tailLines = parseInt(process.env.UPDATER_TAIL_LINES || "8", 10);
 const maxRetries = parseInt(process.env.UPDATER_RETRIES || "3", 10);
@@ -24,9 +29,9 @@ const appPort = parseInt(process.env.UPDATER_APP_PORT || "20128", 10);
 function getDataDir() {
   if (process.env.DATA_DIR) return process.env.DATA_DIR;
   if (process.platform === "win32") {
-    return path.join(process.env.APPDATA || path.join(os.homedir(), "AppData", "Roaming"), "xrouter");
+    return path.join(process.env.APPDATA || path.join(os.homedir(), "AppData", "Roaming"), "omeg4mon-router");
   }
-  return path.join(os.homedir(), ".xrouter");
+  return path.join(os.homedir(), ".omeg4mon-router");
 }
 const updateDir = path.join(getDataDir(), "update");
 try { fs.mkdirSync(updateDir, { recursive: true }); } catch { /* best effort */ }
@@ -64,9 +69,23 @@ function setPhase(phase) {
   persistStatus();
 }
 
+// Only the local dashboard polls this; other sites must not read install logs.
+function isLoopbackOrigin(origin) {
+  try {
+    const host = new URL(origin).hostname;
+    return host === "localhost" || host === "[::1]" || /^127\./.test(host);
+  } catch {
+    return false;
+  }
+}
+
 // HTTP server exposing status (browser polls this while Next server is dead)
 const server = http.createServer((req, res) => {
-  res.setHeader("Access-Control-Allow-Origin", "*");
+  const origin = req.headers.origin;
+  if (origin && isLoopbackOrigin(origin)) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+    res.setHeader("Vary", "Origin");
+  }
   res.setHeader("Cache-Control", "no-store");
   if (req.url === "/update/status" || req.url === "/") {
     res.setHeader("Content-Type", "application/json");

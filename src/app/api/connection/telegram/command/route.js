@@ -20,35 +20,14 @@ function formatUptime(seconds) {
 }
 
 /**
- * Command dispatcher for Telegram Bot / external controllers
- * Supports both JSON response and pre-formatted Telegram Markdown text.
+ * Command dispatcher for the Telegram bot and the dashboard simulator.
+ * Auth: dashboardGuard requires a dashboard session or CLI token over HTTP; the
+ * webhook calls this handler in-process after verifying Telegram's secret header.
  */
 export async function POST(request) {
   try {
-    const config = await getConnectionConfig();
-    const tgConfig = config.telegram || {};
-
-    const authHeader = request.headers.get("authorization");
-    const bearerToken = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
-
+    const tgConfig = (await getConnectionConfig()).telegram || {};
     const body = await request.json().catch(() => ({}));
-    const requestToken = body.token || bearerToken;
-    const requestUserId = body.userId ? String(body.userId).trim() : null;
-
-    // Security Verification:
-    // If telegram bot integration is configured, require either matching bot token or matching userId
-    if (tgConfig.botToken) {
-      const tokenMatches = requestToken && requestToken === tgConfig.botToken;
-      const userMatches = tgConfig.userId && requestUserId === String(tgConfig.userId).trim();
-
-      // If caller provides neither a valid token nor an authorized userId, reject!
-      if (!tokenMatches && !userMatches) {
-        return NextResponse.json(
-          { error: "Unauthorized: Invalid token or user ID" },
-          { status: 401 }
-        );
-      }
-    }
 
     const rawCommand = (body.command || body.text || "/status").trim();
     const parts = rawCommand.split(/\s+/);
@@ -58,7 +37,7 @@ export async function POST(request) {
     switch (cmd) {
       case "start":
       case "help": {
-        const text = `⚡ *X Router Bot Controller*
+        const text = `⚡ *OMEG4MON ROUTER Bot Controller*
 v${APP_CONFIG.version} · Control Panel
 
 *Available Commands:*
@@ -82,7 +61,7 @@ _Authorized for User ID: ${tgConfig.userId || "Any"}_`;
         return NextResponse.json({
           success: true,
           command: "ping",
-          text: `🏓 Pong! X Router is active (Uptime: ${formatUptime(process.uptime())})`,
+          text: `🏓 Pong! OMEG4MON ROUTER is active (Uptime: ${formatUptime(process.uptime())})`,
         });
       }
 
@@ -97,7 +76,7 @@ _Authorized for User ID: ${tgConfig.userId || "Any"}_`;
         const livePools = pools.filter((p) => p.isActive !== false && p.testStatus !== "error");
         const memoryMb = (process.memoryUsage().rss / (1024 * 1024)).toFixed(1);
 
-        const text = `📊 *X Router System Telemetry*
+        const text = `📊 *OMEG4MON ROUTER System Telemetry*
 • *Version:* \`v${APP_CONFIG.version}\`
 • *Uptime:* ${formatUptime(process.uptime())}
 • *Memory:* ${memoryMb} MB RSS
@@ -127,7 +106,7 @@ _Authorized for User ID: ${tgConfig.userId || "Any"}_`;
           return NextResponse.json({
             success: true,
             command: "providers",
-            text: "ℹ️ No provider connections found in X Router.",
+            text: "ℹ️ No provider connections found in OMEG4MON ROUTER.",
           });
         }
 

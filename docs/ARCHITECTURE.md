@@ -1,10 +1,10 @@
-# 9Router Architecture
+# OMEG4MON ROUTER Architecture
 
-_Last updated: 2026-02-06_
+_Last updated: 2026-11-21_
 
 ## Executive Summary
 
-9Router is a local AI routing gateway and dashboard built on Next.js.
+OMEG4MON ROUTER is a local AI routing gateway and dashboard built on Next.js.
 It provides a single OpenAI-compatible endpoint (`/v1/*`) and routes traffic across multiple upstream providers with translation, fallback, token refresh, and usage tracking.
 
 Core capabilities:
@@ -52,12 +52,12 @@ flowchart LR
         BROWSER[Browser Dashboard]
     end
 
-    subgraph Router[9Router Local Process]
+    subgraph Router[OMEG4MON ROUTER Local Process]
         API[V1 Compatibility API\n/v1/*]
         DASH[Dashboard + Management API\n/api/*]
         CORE[SSE + Translation Core\nopen-sse + src/sse]
-        DB[(db.json)]
-        UDB[(usage.json + log.txt)]
+        DB[(SQLite data.sqlite\nstate)]
+        UDB[(SQLite data.sqlite\nusage + request details)]
     end
 
     subgraph Upstreams[Upstream Providers]
@@ -135,17 +135,14 @@ Main flow modules:
 
 ## 3) Persistence Layer
 
-Primary state DB:
+All state lives in one SQLite database at `${DATA_DIR}/db/data.sqlite`. When `DATA_DIR` is unset it defaults to `~/.omeg4mon-router`, or `%APPDATA%\omeg4mon-router` on Windows.
 
-- `src/lib/localDb.js`
-- file: `${DATA_DIR}/db.json` (or `~/.9router/db.json` when `DATA_DIR` is unset)
-- entities: providerConnections, providerNodes, modelAliases, combos, apiKeys, settings, pricing
-
-Usage DB:
-
-- `src/lib/usageDb.js`
-- files: `~/.9router/usage.json`, `~/.9router/log.txt`
-- note: currently independent from `DATA_DIR`
+- **Code:** `src/lib/db/` (`driver.js`, `schema.js`, `migrations/`, per-entity `repos/`).
+  - `src/lib/localDb.js` and `src/lib/usageDb.js` are compatibility re-exports of `src/lib/db/index.js`.
+- **Driver chain:** `bun:sqlite`, then `better-sqlite3`, then `node:sqlite`, then `sql.js`.
+- **Entities:** providerConnections, providerNodes, modelAliases, combos, apiKeys, settings, pricing.
+- **Usage tables:** `usageHistory`, `usageDaily`, `requestDetails`. They follow `DATA_DIR` like everything else.
+- **Credentials:** provider credentials are sealed with AES-256-GCM. The key comes from `${DATA_DIR}/vault.key` or `OMEG4MON_ROUTER_VAULT_KEY`.
 
 ## 4) Auth + Security Surfaces
 
@@ -377,9 +374,9 @@ erDiagram
 
 Physical storage files:
 
-- main state: `${DATA_DIR}/db.json` (or `~/.9router/db.json`)
-- usage stats: `~/.9router/usage.json`
-- request log lines: `~/.9router/log.txt`
+- main state and usage: `${DATA_DIR}/db/data.sqlite` (default `~/.omeg4mon-router/db/data.sqlite`)
+- credential key: `${DATA_DIR}/vault.key` (back up together with the database)
+- pre-migration safety backups: `${DATA_DIR}/db/backups/`
 - optional translator/request debug sessions: `<repo>/logs/...`
 
 ## Deployment Topology
@@ -391,11 +388,11 @@ flowchart LR
         Browser[Dashboard Browser]
     end
 
-    subgraph ContainerOrProcess[9Router Runtime]
+    subgraph ContainerOrProcess[OMEG4MON ROUTER Runtime]
         Next[Next.js Server\nPORT=20128]
         Core[SSE Core + Executors]
-        MainDB[(db.json)]
-        UsageDB[(usage.json/log.txt)]
+        MainDB[(SQLite data.sqlite)]
+        UsageDB[(SQLite usage tables)]
     end
 
     subgraph External[External Services]
@@ -508,22 +505,21 @@ Translations are selected dynamically based on source payload shape and provider
 ## 5) Data Integrity
 
 - DB shape migration/repair for missing keys
-- corrupt JSON reset safeguards for localDb and usageDb
+- schema migrations with a safety backup before each schema change
 
 ## Observability and Operational Signals
 
 Runtime visibility sources:
 
 - console logs from `src/sse/utils/logger.js`
-- per-request usage aggregates in `usage.json`
-- textual request status log in `log.txt`
+- usage aggregates and per-request details in the SQLite usage tables
 - optional deep request/translation logs under `logs/` when `ENABLE_REQUEST_LOGS=true`
 - dashboard usage endpoints (`/api/usage/*`) for UI consumption
 
 ## Security-Sensitive Boundaries
 
 - JWT secret (`JWT_SECRET`) secures dashboard session cookie verification/signing
-- Initial password fallback (`INITIAL_PASSWORD`, default `123456`) must be overridden in real deployments
+- Initial password fallback (`INITIAL_PASSWORD`, default `omeg4mon123`, accepted only from trusted networks) must be overridden in real deployments
 - API key HMAC secret (`API_KEY_SECRET`) secures generated local API key format
 - Provider secrets (API keys/tokens) are persisted in local DB and should be protected at filesystem level
 - Cloud sync endpoints rely on API key auth + machine id semantics
@@ -542,15 +538,15 @@ Environment variables actively used by code:
 
 ## Known Architectural Notes
 
-1. `usageDb` currently stores under `~/.9router` and does not follow `DATA_DIR`.
+1. Usage and request details share the main SQLite database under `DATA_DIR`.
 2. `/api/v1/route.js` returns a static model list and is not the main models source used by `/v1/models`.
 3. Request logger writes full headers/body when enabled; treat log directory as sensitive.
 4. Cloud behavior depends on correct `NEXT_PUBLIC_BASE_URL` and cloud endpoint reachability.
 
 ## Operational Verification Checklist
 
-- Build from source: `cd /root/dev/9router && npm run build`
-- Build Docker image: `cd /root/dev/9router && docker build -t 9router .`
+- Build from source: `npm run build` (repo root)
+- Build Docker image: `docker build -t omeg4mon-router .`
 - Start service and verify:
 - `GET /api/settings`
 - `GET /api/v1/models`

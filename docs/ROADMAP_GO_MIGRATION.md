@@ -1,7 +1,7 @@
-# X Router Architecture Migration Plan: Hybrid Go + Next.js (Single Repo)
+# OMEG4MON ROUTER Architecture Migration Plan: Hybrid Go + Next.js (Single Repo)
 
 > **Status:** Draft / Planned Architectural Roadmap  
-> **Target:** Ultra-low RAM footprint (~25MB), high-throughput SSE concurrency, and single-binary packaging while retaining the Next.js dashboard UI and global NPM distribution (`npm install -g xrouter-ai`).
+> **Target:** Ultra-low RAM footprint (~25MB), high-throughput SSE concurrency, and single-binary packaging while retaining the Next.js dashboard UI and global NPM distribution (`npm install -g omeg4mon-router`).
 
 ---
 
@@ -15,16 +15,16 @@
 * **Core Engine in Golang:** Sub-millisecond latency, native Goroutine concurrency (~2KB stack per streaming connection), and **idle memory footprint drop to ~15MB – 30MB (saving ~85% RAM)**.
 * **Preserve Next.js Dashboard UI:** Zero degradation of UI/UX, charts, Bansos faucet, and settings panels.
 * **Single Unified Git Repository:** No splitting into separate repos; maintain frontend and backend side-by-side.
-* **Seamless Distribution via NPM:** Users continue installing via `npm install -g xrouter-ai` or running `npx xrouter-ai`. An automated multi-platform binary wrapper delivers pre-compiled Go binaries under the hood.
+* **Seamless Distribution via NPM:** Users continue installing via `npm install -g omeg4mon-router` or running `npx omeg4mon-router`. An automated multi-platform binary wrapper delivers pre-compiled Go binaries under the hood.
 
 ---
 
 ## 2. Target Repository Structure (Hybrid Monorepo)
 
 ```text
-x-router/ (Single Git Repository)
+omeg4mon-router/ (Single Git Repository)
 ├── cmd/
-│   └── xrouter/                # Main Golang binary entrypoint (main.go)
+│   └── omeg4mon-router/                # Main Golang binary entrypoint (main.go)
 │
 ├── internal/                   # Core Golang Backend
 │   ├── gateway/                # HTTP server (Gin / Fiber / Chi) with HTTP/2 & Keep-Alive
@@ -43,7 +43,7 @@ x-router/ (Single Git Repository)
 ├── cli/                        # NPM Distribution Wrapper
 │   ├── bin/                    # OS-specific Go binary downloader / stub
 │   ├── index.js                # Lightweight Node.js launcher (detects OS & launches Go)
-│   └── package.json            # Published to npmjs.com as `xrouter-ai`
+│   └── package.json            # Published to npmjs.com as `omeg4mon-router`
 │
 ├── scripts/
 │   └── build-all.sh            # Cross-compiles Go binaries for Linux, macOS, and Windows
@@ -69,15 +69,15 @@ x-router/ (Single Git Repository)
   //go:embed web/out/*
   var dashboardFS embed.FS
   ```
-* Running `./xrouter` starts both the AI API Gateway (`/v1/*`) and serves the embedded Web Dashboard on port 8080 from a single 25MB executable!
+* Running `./omeg4mon-router` starts both the AI API Gateway (`/v1/*`) and serves the embedded Web Dashboard on port 8080 from a single 25MB executable!
 
 ### C. NPM Global Distribution ("Binary Wrapper Pattern")
-* When a user runs `npm install -g xrouter-ai`, npm installs a tiny Node.js script.
+* When a user runs `npm install -g omeg4mon-router`, npm installs a tiny Node.js script.
 * On installation (`postinstall`), it detects:
   * OS: `linux`, `darwin` (macOS), `win32` (Windows)
   * Arch: `x64`, `arm64`
 * It fetches or unzips the matching pre-compiled Go binary and sets execution permissions.
-* The user executes `xrouter` as usual; Node simply spawns the Go binary in the background.
+* The user executes `omeg4mon-router` as usual; Node simply spawns the Go binary in the background.
 
 ---
 
@@ -110,7 +110,7 @@ x-router/ (Single Git Repository)
 - Build GitHub Actions workflow for multi-platform compilation (`goreleaser` or custom script).
 - Update `cli/package.json` with the OS binary wrapper launcher.
 - Test full deployment on Koyeb, Docker, and Linux VPS.
-- Release as `xrouter-ai v1.0.0`.
+- Release as `omeg4mon-router v1.0.0`.
 
 ---
 

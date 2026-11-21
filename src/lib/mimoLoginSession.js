@@ -25,7 +25,7 @@ const SSO_UA = "MiClaw/1.0";
 const BROWSER_UA =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 
-// Paths that belong to the xrouter app itself — never proxy these upstream,
+// Paths that belong to the omeg4mon-router app itself — never proxy these upstream,
 // even while a login session is active. Everything else is fair game: the
 // login SPA hits evolving endpoints (/pass2/config, /v3/...), so a static
 // allowlist rots fast. (Edge-safe: plain strings only.)
@@ -498,22 +498,11 @@ async function socksFetch(url, init, proxyUrl) {
 async function loginFetch(url, init, sessionProxyUrl = null) {
   if (!sessionProxyUrl) return fetch(url, init); // direct — no agent machinery needed
   const proxyOptions = { enabled: true, url: sessionProxyUrl };
-  try {
-    if (/^socks/i.test(sessionProxyUrl)) return await socksFetch(url, init, sessionProxyUrl);
-    if (!_pafPromise) {
-      _pafPromise = import("../../open-sse/utils/proxyFetch.js")
-        .then((m) => m.proxyAwareFetch)
-        .catch((e) => {
-          console.log(`${new Date().toISOString().slice(11,23)} [mimo-login] proxyAwareFetch unavailable (runtime?), direct only:`, e?.message || e);
-          return null;
-        });
-    }
-    const paf = await _pafPromise;
-    if (paf) return await paf(url, init, proxyOptions);
-  } catch (e) {
-    console.log(`${new Date().toISOString().slice(11,23)} [mimo-login] proxied fetch failed, falling back to direct:`, e?.message || e);
-  }
-  return fetch(url, init);
+  if (/^socks/i.test(sessionProxyUrl)) return socksFetch(url, init, sessionProxyUrl);
+  if (!_pafPromise) _pafPromise = import("../../open-sse/utils/proxyFetch.js").then((m) => m.proxyAwareFetch);
+  // No direct fallback: a session pinned to a proxy must never leak the host IP.
+  const paf = await _pafPromise;
+  return paf(url, init, proxyOptions);
 }
 
 /** Public alias — start/status routes share the same egress path. */
@@ -535,7 +524,7 @@ function browserCookieHeader(req) {
 const STRIP_UPSTREAM_HEADERS = new Set([
   "host", "cookie", "connection", "content-length", "transfer-encoding",
   "keep-alive", "upgrade", "expect", "proxy-connection",
-  // Credentials for xrouter itself — must never reach a third-party upstream.
+  // Credentials for omeg4mon-router itself — must never reach a third-party upstream.
   "authorization", "proxy-authorization",
 ]);
 
@@ -732,7 +721,7 @@ h1{font-size:1.1rem;margin:.2rem 0 .6rem}p{opacity:.8;font-size:.9rem;line-heigh
 }
 
 function donePage() {
-  return htmlPage("登录成功 ✅", ["账号会话已捕获，可以关闭此窗口。", "回到 xrouter 弹窗继续。"], true);
+  return htmlPage("登录成功 ✅", ["账号会话已捕获，可以关闭此窗口。", "回到 omeg4mon-router 弹窗继续。"], true);
 }
 
 function pendingPage() {

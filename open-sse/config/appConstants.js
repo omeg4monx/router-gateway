@@ -8,7 +8,7 @@ import { createRequire } from "module";
 export const NOUS_ATTRIBUTION = {
   hostname: "inference-api.nousresearch.com",
   chatCompletionsPath: "/v1/chat/completions",
-  tags: ["product=xrouter", "client=xrouter", "user=xrouter"],
+  tags: ["product=omeg4mon-router", "client=omeg4mon-router", "user=omeg4mon-router"],
 };
 
 // === Gemini CLI === derive từ registry gemini-cli.transport
