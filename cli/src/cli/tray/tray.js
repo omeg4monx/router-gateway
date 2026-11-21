@@ -1,4 +1,4 @@
-const { exec } = require("child_process");
+const { execFile } = require("child_process");
 const fs = require("fs");
 const path = require("path");
 
@@ -302,21 +302,12 @@ function killTray() {
 }
 
 /**
- * Open browser
+ * Open browser (argv, no shell, so the URL is never parsed as a command)
  */
 function openBrowser(url) {
-  const platform = process.platform;
-  let cmd;
-
-  if (platform === "darwin") {
-    cmd = `open "${url}"`;
-  } else if (platform === "win32") {
-    cmd = `start "" "${url}"`;
-  } else {
-    cmd = `xdg-open "${url}"`;
-  }
-
-  exec(cmd);
+  if (process.platform === "darwin") execFile("open", [url], () => {});
+  else if (process.platform === "win32") execFile("rundll32", ["url.dll,FileProtocolHandler", url], () => {});
+  else execFile("xdg-open", [url], () => {});
 }
 
 module.exports = {

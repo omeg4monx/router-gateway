@@ -92,7 +92,7 @@ xrouter --help             # Show all options
 
 ## 🔌 Connect to a Remote X Router
 
-Already running X Router on another machine (e.g. a team server on your LAN)? Point this machine's CLI tools at it — no local server is started:
+Already running X Router on another machine (e.g. a team server on your LAN)? Point this machine's CLI tools at it — no local server is started. The server binds `127.0.0.1` by default, so start it with `--host 0.0.0.0` to accept LAN connections:
 
 ```bash
 npx xrouter connect http://<server-host>:20128                       # pick tools interactively

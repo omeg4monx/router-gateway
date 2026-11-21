@@ -15,7 +15,7 @@
   });
 })();
 
-const { spawn, exec, execSync } = require("child_process");
+const { spawn, execFile, execSync } = require("child_process");
 const path = require("path");
 const fs = require("fs");
 const https = require("https");
@@ -121,7 +121,9 @@ const APP_NAME = pkg.name; // Use from package.json
 const INSTALL_CMD_LATEST = `npm i -g ${APP_NAME}@latest --prefer-online`;
 
 const DEFAULT_PORT = 20128;
-const DEFAULT_HOST = "0.0.0.0";
+// Loopback by default; pass --host 0.0.0.0 to expose the gateway on the LAN.
+const DEFAULT_HOST = "127.0.0.1";
+const ALL_INTERFACES = "0.0.0.0";
 
 // First non-internal IPv4 — the address remote peers actually reach when bound to 0.0.0.0.
 function getLanIp() {
@@ -135,7 +137,7 @@ function getLanIp() {
 
 // Local URL stays "localhost"; warn separately when bound to all interfaces (network-exposed).
 function getDisplayHost() {
-  return host === DEFAULT_HOST ? "localhost" : host;
+  return host === DEFAULT_HOST || host === ALL_INTERFACES ? "localhost" : host;
 }
 const MAX_PORT_ATTEMPTS = 10;
 // Identifiers for killAllAppProcesses - only kill xrouter specifically
@@ -537,20 +539,16 @@ function checkForUpdate() {
   });
 }
 
-// Open browser
+// Open browser. execFile with an argv (no shell), so the URL is never parsed as a command.
+function browserCommand(url) {
+  if (process.platform === "darwin") return ["open", [url]];
+  if (process.platform === "win32") return ["rundll32", ["url.dll,FileProtocolHandler", url]];
+  return ["xdg-open", [url]];
+}
+
 function openBrowser(url) {
-  const platform = process.platform;
-  let cmd;
-
-  if (platform === "darwin") {
-    cmd = `open "${url}"`;
-  } else if (platform === "win32") {
-    cmd = `start "" "${url}"`;
-  } else {
-    cmd = `xdg-open "${url}"`;
-  }
-
-  exec(cmd, { windowsHide: true }, (err) => {
+  const [file, argv] = browserCommand(url);
+  execFile(file, argv, { windowsHide: true }, (err) => {
     if (err) {
       console.log(`Open browser manually: ${url}`);
     }
@@ -630,10 +628,10 @@ function startServer(updatePromise) {
   const latestVersionPromise = Promise.resolve(updatePromise);
   const displayHost = getDisplayHost();
   const url = `http://${displayHost}:${port}/dashboard`;
-  // Surface real network exposure when bound to all interfaces (default 0.0.0.0).
-  if (host === DEFAULT_HOST) {
+  // Surface real network exposure when explicitly bound to all interfaces.
+  if (host === ALL_INTERFACES) {
     const lanIp = getLanIp();
-    if (lanIp) console.log(`\x1b[33m⚠ Network-exposed: reachable at http://${lanIp}:${port} (bound 0.0.0.0). Use --host 127.0.0.1 for local-only.\x1b[0m`);
+    if (lanIp) console.log(`\x1b[33m⚠ Network-exposed: reachable at http://${lanIp}:${port} (bound 0.0.0.0). Omit --host for local-only.\x1b[0m`);
   }
 
   let restartCount = 0;
