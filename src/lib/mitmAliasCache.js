@@ -7,7 +7,7 @@ import { DATA_DIR } from "./dataDir.js";
 
 // DATA_DIR comes from src/lib/dataDir.js so this cache resolves the SAME
 // directory as the rest of the app. It used to read the env var directly,
-// which on Windows honoured a Unix-style .env value like /var/lib/xrouter — the
+// which on Windows honoured a Unix-style .env value like /var/lib/omeg4mon-router — the
 // same split that made the MITM server and the dashboard disagree about where
 // the certs live. One resolver, one path. This module is ESM (see package.json
 // "type": "module") and is imported from Next.js routes, so the alias matches.

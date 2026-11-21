@@ -37,9 +37,9 @@ const checkPiInstalled = async () => {
   }
 };
 
-const hasXRouterConfig = (settings) => {
+const hasOmeg4monRouterConfig = (settings) => {
   if (!settings || !settings.providers) return false;
-  const p = settings.providers["xrouter"];
+  const p = settings.providers["omeg4mon-router"];
   if (p && p.baseUrl) return true;
   for (const prov of Object.values(settings.providers)) {
     if (prov.baseUrl && prov.baseUrl.includes("20128")) return true;
@@ -90,7 +90,7 @@ export async function GET() {
     return NextResponse.json({
       installed: true,
       config,
-      hasXRouter: hasXRouterConfig(config),
+      hasOmeg4monRouter: hasOmeg4monRouterConfig(config),
       configPath,
     });
   } catch (err) {
@@ -144,9 +144,9 @@ export async function POST(request) {
       modelList = [{ id: modelId, name: modelId, contextWindow: 128000, maxTokens: 16384 }];
     }
 
-    existing.providers["xrouter"] = {
+    existing.providers["omeg4mon-router"] = {
       baseUrl: normalizedBaseUrl,
-      apiKey: apiKey || "sk_xrouter",
+      apiKey: apiKey || "sk_omeg4mon_router",
       api: "openai-completions",
       models: modelList,
     };
@@ -155,7 +155,7 @@ export async function POST(request) {
 
     return NextResponse.json({
       success: true,
-      message: "Pi settings applied! Use /model in Pi to select the X Router model.",
+      message: "Pi settings applied! Use /model in Pi to select the OMEG4MON ROUTER model.",
       configPath,
     });
   } catch (err) {
@@ -174,13 +174,13 @@ export async function DELETE() {
       return NextResponse.json({ success: true, message: "No config file to reset" });
     }
 
-    if (existing.providers && existing.providers["xrouter"]) {
-      delete existing.providers["xrouter"];
+    if (existing.providers && existing.providers["omeg4mon-router"]) {
+      delete existing.providers["omeg4mon-router"];
       if (Object.keys(existing.providers).length === 0) delete existing.providers;
       await fs.writeFile(configPath, JSON.stringify(existing, null, 2), "utf-8");
     }
 
-    return NextResponse.json({ success: true, message: "X Router removed from Pi" });
+    return NextResponse.json({ success: true, message: "OMEG4MON ROUTER removed from Pi" });
   } catch (err) {
     return NextResponse.json({ error: { message: err.message } }, { status: 500 });
   }

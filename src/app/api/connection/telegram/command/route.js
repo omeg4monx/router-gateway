@@ -37,7 +37,7 @@ export async function POST(request) {
     switch (cmd) {
       case "start":
       case "help": {
-        const text = `⚡ *X Router Bot Controller*
+        const text = `⚡ *OMEG4MON ROUTER Bot Controller*
 v${APP_CONFIG.version} · Control Panel
 
 *Available Commands:*
@@ -61,7 +61,7 @@ _Authorized for User ID: ${tgConfig.userId || "Any"}_`;
         return NextResponse.json({
           success: true,
           command: "ping",
-          text: `🏓 Pong! X Router is active (Uptime: ${formatUptime(process.uptime())})`,
+          text: `🏓 Pong! OMEG4MON ROUTER is active (Uptime: ${formatUptime(process.uptime())})`,
         });
       }
 
@@ -76,7 +76,7 @@ _Authorized for User ID: ${tgConfig.userId || "Any"}_`;
         const livePools = pools.filter((p) => p.isActive !== false && p.testStatus !== "error");
         const memoryMb = (process.memoryUsage().rss / (1024 * 1024)).toFixed(1);
 
-        const text = `📊 *X Router System Telemetry*
+        const text = `📊 *OMEG4MON ROUTER System Telemetry*
 • *Version:* \`v${APP_CONFIG.version}\`
 • *Uptime:* ${formatUptime(process.uptime())}
 • *Memory:* ${memoryMb} MB RSS
@@ -106,7 +106,7 @@ _Authorized for User ID: ${tgConfig.userId || "Any"}_`;
           return NextResponse.json({
             success: true,
             command: "providers",
-            text: "ℹ️ No provider connections found in X Router.",
+            text: "ℹ️ No provider connections found in OMEG4MON ROUTER.",
           });
         }
 

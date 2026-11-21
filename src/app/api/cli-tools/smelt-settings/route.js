@@ -28,10 +28,10 @@ const checkSmeltInstalled = async () => {
   }
 };
 
-const hasXRouterConfig = (settings) => {
+const hasOmeg4monRouterConfig = (settings) => {
   if (!settings) return false;
   return (
-    settings._managedBy === "xrouter" ||
+    settings._managedBy === "omeg4mon-router" ||
     (typeof settings.baseUrl === "string" && settings.baseUrl.length > 0 && settings.baseUrl.includes("20128"))
   );
 };
@@ -61,7 +61,7 @@ export async function GET() {
     return NextResponse.json({
       installed: true,
       config,
-      hasXRouter: hasXRouterConfig(config),
+      hasOmeg4monRouter: hasOmeg4monRouterConfig(config),
       configPath: getSmeltConfigPath(),
     });
   } catch (err) {
@@ -96,9 +96,9 @@ export async function POST(request) {
     const updated = {
       ...existing,
       baseUrl: normalizedBaseUrl,
-      apiKey: apiKey || "sk_xrouter",
+      apiKey: apiKey || "sk_omeg4mon_router",
       model: model || existing.model || "provider/model-id",
-      _managedBy: "xrouter",
+      _managedBy: "omeg4mon-router",
     };
 
     await fs.writeFile(configPath, JSON.stringify(updated, null, 2), "utf-8");
@@ -135,7 +135,7 @@ export async function DELETE() {
       await fs.writeFile(configPath, JSON.stringify(existing, null, 2), "utf-8");
     }
 
-    return NextResponse.json({ success: true, message: "Smelt X Router settings removed" });
+    return NextResponse.json({ success: true, message: "Smelt OMEG4MON ROUTER settings removed" });
   } catch (err) {
     return NextResponse.json({ error: { message: err.message } }, { status: 500 });
   }

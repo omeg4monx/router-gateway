@@ -55,7 +55,7 @@ export async function POST(request) {
     const fbKey = getFbKey();
     if (!fbKey) {
       return NextResponse.json(
-        { error: "Server belum dikonfigurasi dengan ADCODE_FB_KEY di /etc/xrouter/adcode.env" },
+        { error: "Server belum dikonfigurasi dengan ADCODE_FB_KEY di /etc/omeg4mon-router/adcode.env" },
         { status: 500 }
       );
     }

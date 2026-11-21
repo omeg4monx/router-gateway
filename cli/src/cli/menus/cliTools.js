@@ -179,10 +179,10 @@ async function buildCodexHeader() {
   const result = await api.getCliToolSettings("codex");
   if (!result.success) return `  ${COLORS.red}Failed to load settings${COLORS.reset}`;
 
-  const { installed, hasXRouter, config } = result.data;
+  const { installed, hasOmeg4monRouter, config } = result.data;
   if (!installed) return `Status:   ${COLORS.red}✗ Codex CLI not installed${COLORS.reset}`;
 
-  if (!hasXRouter) {
+  if (!hasOmeg4monRouter) {
     return [
       `Status:   ${COLORS.red}✗ Not configured${COLORS.reset}`,
       `${COLORS.dim}Run "Quick Setup" to configure${COLORS.reset}`
@@ -267,18 +267,18 @@ async function buildDroidHeader() {
   const result = await api.getCliToolSettings("droid");
   if (!result.success) return `  ${COLORS.red}Failed to load settings${COLORS.reset}`;
 
-  const { installed, hasXRouter, settings } = result.data;
+  const { installed, hasOmeg4monRouter, settings } = result.data;
   if (!installed) return `Status:   ${COLORS.red}✗ Factory Droid not installed${COLORS.reset}`;
 
-  if (!hasXRouter) {
+  if (!hasOmeg4monRouter) {
     return [
       `Status:   ${COLORS.red}✗ Not configured${COLORS.reset}`,
       `${COLORS.dim}Run "Quick Setup" to configure${COLORS.reset}`
     ].join("\n");
   }
 
-  // Extract X Router custom model config
-  const custom = settings?.customModels?.find(m => m.id === "custom:X Router-0");
+  // Extract OMEG4MON ROUTER custom model config
+  const custom = settings?.customModels?.find(m => m.id === "custom:OMEG4MON ROUTER-0");
   const lines = [`Status:   ${COLORS.green}✓ Configured${COLORS.reset}`];
   if (custom?.baseUrl) lines.push(`Endpoint: ${COLORS.cyan}${custom.baseUrl}${COLORS.reset}`);
   if (custom?.model)   lines.push(`Model:    ${COLORS.dim}${custom.model}${COLORS.reset}`);
@@ -350,20 +350,20 @@ async function buildOpenClawHeader() {
   const result = await api.getCliToolSettings("openclaw");
   if (!result.success) return `  ${COLORS.red}Failed to load settings${COLORS.reset}`;
 
-  const { installed, hasXRouter, settings } = result.data;
+  const { installed, hasOmeg4monRouter, settings } = result.data;
   if (!installed) return `Status:   ${COLORS.red}✗ Open Claw not installed${COLORS.reset}`;
 
-  if (!hasXRouter) {
+  if (!hasOmeg4monRouter) {
     return [
       `Status:   ${COLORS.red}✗ Not configured${COLORS.reset}`,
       `${COLORS.dim}Run "Quick Setup" to configure${COLORS.reset}`
     ].join("\n");
   }
 
-  // Extract X Router provider config
-  const provider = settings?.models?.providers?.["xrouter"];
+  // Extract OMEG4MON ROUTER provider config
+  const provider = settings?.models?.providers?.["omeg4mon-router"];
   const primary = settings?.agents?.defaults?.model?.primary || "";
-  const model = primary.startsWith("xrouter/") ? primary.replace("xrouter/", "") : (provider?.models?.[0]?.id || "");
+  const model = primary.startsWith("omeg4mon-router/") ? primary.replace("omeg4mon-router/", "") : (provider?.models?.[0]?.id || "");
   const lines = [`Status:   ${COLORS.green}✓ Configured${COLORS.reset}`];
   if (provider?.baseUrl) lines.push(`Endpoint: ${COLORS.cyan}${provider.baseUrl}${COLORS.reset}`);
   if (model)             lines.push(`Model:    ${COLORS.dim}${model}${COLORS.reset}`);
@@ -431,10 +431,10 @@ async function buildOpenCodeHeader() {
   const result = await api.getCliToolSettings("opencode");
   if (!result.success) return `  ${COLORS.red}Failed to load settings${COLORS.reset}`;
 
-  const { installed, hasXRouter, opencode } = result.data;
+  const { installed, hasOmeg4monRouter, opencode } = result.data;
   if (!installed) return `Status:   ${COLORS.red}✗ OpenCode CLI not installed${COLORS.reset}`;
 
-  if (!hasXRouter) {
+  if (!hasOmeg4monRouter) {
     return [
       `Status:   ${COLORS.red}✗ Not configured${COLORS.reset}`,
       `${COLORS.dim}Run "Quick Setup" to configure${COLORS.reset}`
@@ -519,10 +519,10 @@ async function buildHermesHeader() {
   const result = await api.getCliToolSettings("hermes");
   if (!result.success) return `  ${COLORS.red}Failed to load settings${COLORS.reset}`;
 
-  const { installed, hasXRouter, settings } = result.data;
+  const { installed, hasOmeg4monRouter, settings } = result.data;
   if (!installed) return `Status:   ${COLORS.red}✗ Hermes Agent not installed${COLORS.reset}`;
 
-  if (!hasXRouter) {
+  if (!hasOmeg4monRouter) {
     return [
       `Status:   ${COLORS.red}✗ Not configured${COLORS.reset}`,
       `${COLORS.dim}Run "Quick Setup" to configure${COLORS.reset}`
@@ -585,7 +585,7 @@ async function showCliToolsMenu(port, breadcrumb = []) {
   await showMenuWithBack({
     title: "🔧 CLI Tools",
     breadcrumb,
-    headerContent: `Configure CLI tools to use X Router\nEndpoint: ${endpoint}`,
+    headerContent: `Configure CLI tools to use OMEG4MON ROUTER\nEndpoint: ${endpoint}`,
     items: [
       {
         label: "Claude Code",

@@ -23,7 +23,7 @@ import { fileURLToPath } from "node:url";
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(here, "..");
 const binExt = process.platform === "win32" ? ".exe" : "";
-const goBin = path.join(root, "bin", `xrouter${binExt}`);
+const goBin = path.join(root, "bin", `omeg4mon-router${binExt}`);
 
 if (!fs.existsSync(goBin)) {
   console.error(

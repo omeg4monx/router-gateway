@@ -30,26 +30,26 @@ const readConfig = async () => {
   }
 };
 
-const hasXRouterConfig = (config) => {
+const hasOmeg4monRouterConfig = (config) => {
   if (!Array.isArray(config)) return false;
-  return config.some((entry) => entry.name === "X Router");
+  return config.some((entry) => entry.name === "OMEG4MON ROUTER");
 };
 
-const getXRouterEntry = (config) => {
+const getOmeg4monRouterEntry = (config) => {
   if (!Array.isArray(config)) return null;
-  return config.find((entry) => entry.name === "X Router") || null;
+  return config.find((entry) => entry.name === "OMEG4MON ROUTER") || null;
 };
 
 // GET - Read current copilot config
 export async function GET() {
   try {
     const config = await readConfig();
-    const entry = getXRouterEntry(config);
+    const entry = getOmeg4monRouterEntry(config);
 
     return NextResponse.json({
       installed: true,
       config,
-      hasXRouter: hasXRouterConfig(config),
+      hasOmeg4monRouter: hasOmeg4monRouterConfig(config),
       configPath: getConfigPath(),
       currentModel: entry?.models?.[0]?.id || null,
       currentUrl: entry?.models?.[0]?.url || null,
@@ -60,7 +60,7 @@ export async function GET() {
   }
 }
 
-// POST - Apply X Router config to chatLanguageModels.json
+// POST - Apply OMEG4MON ROUTER config to chatLanguageModels.json
 export async function POST(request) {
   try {
     const { baseUrl, apiKey, models } = await request.json();
@@ -81,10 +81,10 @@ export async function POST(request) {
     } catch { /* No existing config */ }
 
     const endpointUrl = `${baseUrl}/chat/completions#models.ai.azure.com`;
-    const keyToUse = apiKey || "sk_xrouter";
+    const keyToUse = apiKey || "sk_omeg4mon_router";
 
     const newEntry = {
-      name: "X Router",
+      name: "OMEG4MON ROUTER",
       vendor: "azure",
       apiKey: keyToUse,
       models: models.map((id) => ({
@@ -98,8 +98,8 @@ export async function POST(request) {
       })),
     };
 
-    // Replace existing X Router entry or append
-    const idx = config.findIndex((e) => e.name === "X Router");
+    // Replace existing OMEG4MON ROUTER entry or append
+    const idx = config.findIndex((e) => e.name === "OMEG4MON ROUTER");
     if (idx >= 0) {
       config[idx] = newEntry;
     } else {
@@ -119,7 +119,7 @@ export async function POST(request) {
   }
 }
 
-// DELETE - Remove X Router entry from chatLanguageModels.json
+// DELETE - Remove OMEG4MON ROUTER entry from chatLanguageModels.json
 export async function DELETE() {
   try {
     const configPath = getConfigPath();
@@ -136,12 +136,12 @@ export async function DELETE() {
       throw error;
     }
 
-    config = config.filter((e) => e.name !== "X Router");
+    config = config.filter((e) => e.name !== "OMEG4MON ROUTER");
     await fs.writeFile(configPath, JSON.stringify(config, null, 2));
 
     return NextResponse.json({
       success: true,
-      message: "X Router removed from Copilot config",
+      message: "OMEG4MON ROUTER removed from Copilot config",
     });
   } catch (error) {
     console.log("Error resetting copilot settings:", error);

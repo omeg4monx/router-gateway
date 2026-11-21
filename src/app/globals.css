@@ -29,7 +29,7 @@
 }
 
 /* ============================================================
-   X Router palette — adopted from 9remote_private/web
+   OMEG4MON ROUTER palette — adopted from 9remote_private/web
    Brand orange (dark) / soft coral (light), neutral warm bases
    ============================================================ */
 :root {
@@ -767,7 +767,7 @@ button:disabled,
 
 /* ============================================================
    Ember theme — SOLID warm panels (no frosted/translucent surfaces)
-   Applied as `<html class="dark ember">` (default in X Router).
+   Applied as `<html class="dark ember">` (default in OMEG4MON ROUTER).
 
    Same explicit-colour approach as before: `@theme inline` bakes tokens into
    utilities, so token overrides alone do not repaint `.bg-surface`.
@@ -806,7 +806,7 @@ button:disabled,
 
 
 /* ============================================================
-   X Router system layer — primitives shared by every screen.
+   OMEG4MON ROUTER system layer — primitives shared by every screen.
    One gesture (the ember hairline), one radius scale, one field
    treatment. Screens compose these instead of inventing their own.
    ============================================================ */
@@ -910,7 +910,7 @@ h1, h2, h3 {
   border-color: var(--color-field-border) !important;
 }
 
-/* Modals and dialogs: solid surface matching X Router design language */
+/* Modals and dialogs: solid surface matching OMEG4MON ROUTER design language */
 [role="dialog"] {
   background-color: var(--color-surface);
 }

@@ -12,8 +12,8 @@ function killMitmByPidFile() {
   try {
     const mitmPidFile = path.join(
       process.platform === "win32"
-        ? path.join(process.env.APPDATA || "", "xrouter")
-        : path.join(os.homedir(), ".xrouter"),
+        ? path.join(process.env.APPDATA || "", "omeg4mon-router")
+        : path.join(os.homedir(), ".omeg4mon-router"),
       "mitm",
       ".mitm.pid"
     );
@@ -39,7 +39,7 @@ function killMitmByPidFile() {
 
 // Directories that only this install's processes run from: the app dir (and the CLI
 // package around it when started via the CLI) and DATA_DIR (cloudflared, tray, MITM).
-// Generic names like "next-server" or "xrouter" also matched unrelated processes.
+// Generic names like "next-server" or "omeg4mon-router" also matched unrelated processes.
 function appRoots() {
   const cwd = process.cwd();
   const roots = [cwd, getDataDir()];
@@ -80,9 +80,9 @@ function collectAppPids() {
 function getDataDir() {
   if (process.env.DATA_DIR) return process.env.DATA_DIR;
   if (process.platform === "win32") {
-    return path.join(process.env.APPDATA || path.join(os.homedir(), "AppData", "Roaming"), "xrouter");
+    return path.join(process.env.APPDATA || path.join(os.homedir(), "AppData", "Roaming"), "omeg4mon-router");
   }
-  return path.join(os.homedir(), ".xrouter");
+  return path.join(os.homedir(), ".omeg4mon-router");
 }
 
 function resolveBundledUpdaterPath() {
@@ -137,10 +137,10 @@ export async function killAppProcesses() {
   }
 }
 
-// Resolve npx/xrouter binary to relaunch after update (cross-platform)
+// Resolve npx/omeg4mon-router binary to relaunch after update (cross-platform)
 function resolveRelaunchCommand() {
   const isWin = process.platform === "win32";
-  // Prefer `npx xrouter` — works regardless of global bin path changes after npm i -g
+  // Prefer `npx omeg4mon-router` — works regardless of global bin path changes after npm i -g
   const npx = isWin ? "npx.cmd" : "npx";
   return { cmd: npx, args: [UPDATER_CONFIG.npmPackageName] };
 }

@@ -2,8 +2,6 @@ import crypto from "node:crypto";
 import vaultKey from "./vaultKey.cjs";
 import { DATA_DIR } from "../dataDir.js";
 
-const VAULT_SALT = "xrouter-credential-vault-salt-2026";
-
 let customMasterKey = null;
 
 export function setVaultMasterKey(key) {
@@ -39,9 +37,7 @@ export function unsealCredential(stored) {
   if (parts.length !== 5) return stored;
 
   try {
-    // Legacy machine-id key: values sealed before vault.key existed stay readable
-    // and are re-sealed with the new key on their next write.
-    return vaultKey.open(parts.slice(2).join(":"), [primaryKey(), vaultKey.legacyMachineKey(VAULT_SALT)]);
+    return vaultKey.open(parts.slice(2).join(":"), primaryKey());
   } catch (err) {
     console.error("[CredentialVault] Failed to unseal credential:", err.message);
     return stored;

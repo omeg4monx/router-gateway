@@ -11,6 +11,7 @@ export default function LogoMark({ className = "size-full" }) {
       }}
     >
       <svg
+        aria-hidden="true"
         viewBox="0 0 100 100"
         width="100%"
         height="100%"
@@ -29,25 +30,8 @@ export default function LogoMark({ className = "size-full" }) {
           strokeWidth="2"
         />
 
-        {/* 4 Crossing Arrow Arms */}
-        <g stroke="currentColor" strokeLinecap="round" strokeWidth="7.5">
-          <line x1="26" y1="74" x2="44" y2="56" />
-          <line x1="26" y1="26" x2="44" y2="44" />
-          <line x1="56" y1="44" x2="72" y2="28" />
-          <line x1="56" y1="56" x2="72" y2="72" />
-        </g>
-
-        {/* Arrowheads */}
-        <path d="M63 23 H77 V37 L70 30 Z" fill="currentColor" />
-        <path d="M77 63 V77 H63 L70 70 Z" fill="currentColor" />
-
-        {/* Center Hub */}
-        <path
-          fillRule="evenodd"
-          clipRule="evenodd"
-          d="M50 39.5 C44.2 39.5 39.5 44.2 39.5 50 C39.5 55.8 44.2 60.5 50 60.5 C55.8 60.5 60.5 55.8 60.5 50 C60.5 44.2 55.8 39.5 50 39.5 Z M50 45 C47.2 45 45 47.2 45 50 C45 52.8 47.2 55 50 55 C52.8 55 55 52.8 55 50 C55 47.2 52.8 45 50 45 Z"
-          fill="currentColor"
-        />
+        <path d="M 29 50 H 39 M 60 43 L 69 34 H 76 M 60 57 L 69 66 H 76" stroke="currentColor" strokeWidth="7" strokeLinecap="round" strokeLinejoin="round" />
+        <circle cx="50" cy="50" r="11" stroke="currentColor" strokeWidth="7" />
       </svg>
     </span>
   );

@@ -1,4 +1,4 @@
-// `xrouter connect` — arg parsing, URL/cookie helpers and per-tool config writers.
+// `omeg4mon-router connect` — arg parsing, URL/cookie helpers and per-tool config writers.
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { createRequire } from "node:module";
 import fs from "node:fs";
@@ -93,7 +93,7 @@ describe("connect tool writers", () => {
     }
   });
 
-  it("claude merges env and keeps unrelated settings; reset removes only xrouter keys", async () => {
+  it("claude merges env and keeps unrelated settings; reset removes only omeg4mon-router keys", async () => {
     const f = path.join(home, ".claude", "settings.json");
     fs.mkdirSync(path.dirname(f), { recursive: true });
     fs.writeFileSync(f, JSON.stringify({ theme: "dark", env: { KEEP: "1" } }));
@@ -101,7 +101,7 @@ describe("connect tool writers", () => {
     const cfg = readJson(f);
     expect(cfg.theme).toBe("dark");
     expect(cfg.env).toMatchObject({ KEEP: "1", ANTHROPIC_BASE_URL: "http://gw.test:20128/v1", ANTHROPIC_AUTH_TOKEN: CTX.apiKey });
-    expect(fs.existsSync(`${f}.bak-xrouter`)).toBe(true);
+    expect(fs.existsSync(`${f}.bak-omeg4mon-router`)).toBe(true);
     await tool("claude").reset();
     expect(readJson(f)).toEqual({ theme: "dark", hasCompletedOnboarding: true, env: { KEEP: "1" } });
   });
@@ -112,20 +112,20 @@ describe("connect tool writers", () => {
     fs.writeFileSync(f, '[mcp_servers.x]\ncommand = "foo"\n');
     await tool("codex").apply(CTX);
     const text = fs.readFileSync(f, "utf8");
-    expect(text).toContain('model_provider = "xrouter"');
+    expect(text).toContain('model_provider = "omeg4mon-router"');
     expect(text).toContain("[mcp_servers.x]");
     await tool("codex").reset();
     const after = fs.readFileSync(f, "utf8");
     expect(after).toContain("[mcp_servers.x]");
-    expect(after).not.toMatch(/xrouter|model_providers|\[agents\]/);
+    expect(after).not.toMatch(/omeg4mon-router|model_providers|\[agents\]/);
   });
 
-  it("droid keeps user models and puts xrouter first", async () => {
+  it("droid keeps user models and puts omeg4mon-router first", async () => {
     const f = path.join(home, ".factory", "settings.json");
     fs.mkdirSync(path.dirname(f), { recursive: true });
     fs.writeFileSync(f, JSON.stringify({ customModels: [{ id: "mine", model: "m" }] }));
     await tool("droid").apply(CTX);
-    expect(readJson(f).customModels.map((m) => m.id)).toEqual(["custom:9Router-0", "mine"]);
+    expect(readJson(f).customModels.map((m) => m.id)).toEqual(["custom:omeg4mon-router-0", "mine"]);
     await tool("droid").reset();
     expect(readJson(f).customModels.map((m) => m.id)).toEqual(["mine"]);
   });

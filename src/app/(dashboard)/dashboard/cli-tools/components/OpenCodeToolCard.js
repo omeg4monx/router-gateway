@@ -58,8 +58,8 @@ export default function OpenCodeToolCard({ tool, isExpanded, onToggle, baseUrl, 
     }
 
     // Parse subagent settings from agent.explorer if exists
-    if (status?.config?.agent?.explorer?.model?.startsWith("xrouter/")) {
-      setSubagentModel(status.config.agent.explorer.model.replace("xrouter/", ""));
+    if (status?.config?.agent?.explorer?.model?.startsWith("omeg4mon-router/")) {
+      setSubagentModel(status.config.agent.explorer.model.replace("omeg4mon-router/", ""));
     }
   }, [status]);
 
@@ -77,7 +77,7 @@ export default function OpenCodeToolCard({ tool, isExpanded, onToggle, baseUrl, 
     try {
       const keyToUse = (selectedApiKey && selectedApiKey.trim())
         ? selectedApiKey
-        : (!cloudEnabled ? "sk_xrouter" : selectedApiKey);
+        : (!cloudEnabled ? "sk_omeg4mon_router" : selectedApiKey);
       const validActiveModel = models.includes(activeModel) ? activeModel : (models[0] || "");
       await fetch("/api/cli-tools/opencode-settings", {
         method: "POST",
@@ -95,13 +95,13 @@ export default function OpenCodeToolCard({ tool, isExpanded, onToggle, baseUrl, 
     }
   };
 
-  const currentBaseUrl = status?.config?.provider?.["xrouter"]?.options?.baseURL || "";
+  const currentBaseUrl = status?.config?.provider?.["omeg4mon-router"]?.options?.baseURL || "";
 
   const getConfigStatus = () => {
     if (!status?.installed) return null;
     if (!status.config) return "not_configured";
-    if (!status.hasXRouter) return "not_configured";
-    const url = status.config?.provider?.["xrouter"]?.options?.baseURL || "";
+    if (!status.hasOmeg4monRouter) return "not_configured";
+    const url = status.config?.provider?.["omeg4mon-router"]?.options?.baseURL || "";
     return matchKnownEndpoint(url, { tunnelPublicUrl, tailscaleUrl }) ? "configured" : "other";
   };
 
@@ -133,7 +133,7 @@ export default function OpenCodeToolCard({ tool, isExpanded, onToggle, baseUrl, 
     try {
       const keyToUse = (selectedApiKey && selectedApiKey.trim())
         ? selectedApiKey
-        : (!cloudEnabled ? "sk_xrouter" : selectedApiKey);
+        : (!cloudEnabled ? "sk_omeg4mon_router" : selectedApiKey);
 
       const res = await fetch("/api/cli-tools/opencode-settings", {
         method: "POST",
@@ -188,7 +188,7 @@ export default function OpenCodeToolCard({ tool, isExpanded, onToggle, baseUrl, 
   const getManualConfigs = () => {
     const keyToUse = (selectedApiKey && selectedApiKey.trim())
       ? selectedApiKey
-      : (!cloudEnabled ? "sk_xrouter" : "<API_KEY_FROM_DASHBOARD>");
+      : (!cloudEnabled ? "sk_omeg4mon_router" : "<API_KEY_FROM_DASHBOARD>");
 
     const modelsToShow = selectedModels.length > 0 ? selectedModels : ["provider/model-id"];
     const activeModelToShow = activeModel || selectedModels[0] || modelsToShow[0];
@@ -203,18 +203,18 @@ export default function OpenCodeToolCard({ tool, isExpanded, onToggle, baseUrl, 
       filename: "~/.config/opencode/opencode.json",
       content: JSON.stringify({
         provider: {
-          "xrouter": {
+          "omeg4mon-router": {
             npm: "@ai-sdk/openai-compatible",
             options: { baseURL: getEffectiveBaseUrl(), apiKey: keyToUse },
             models: modelsObj,
           },
         },
-        model: `xrouter/${activeModelToShow}`,
+        model: `omeg4mon-router/${activeModelToShow}`,
         agent: {
           explorer: {
             description: "Fast explorer subagent for codebase exploration",
             mode: "subagent",
-            model: `xrouter/${effectiveSubagentModel}`
+            model: `omeg4mon-router/${effectiveSubagentModel}`
           }
         }
       }, null, 2),
@@ -257,7 +257,7 @@ export default function OpenCodeToolCard({ tool, isExpanded, onToggle, baseUrl, 
                   <span className="material-symbols-outlined text-warning">warning</span>
                   <div className="flex-1">
                     <p className="font-medium text-warning">OpenCode CLI not detected locally</p>
-                    <p className="text-sm text-text-muted">Manual configuration is still available if xrouter is deployed on a remote server.</p>
+                    <p className="text-sm text-text-muted">Manual configuration is still available if omeg4mon-router is deployed on a remote server.</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2 pl-9">
@@ -307,12 +307,12 @@ export default function OpenCodeToolCard({ tool, isExpanded, onToggle, baseUrl, 
                 </div>
 
                 {/* Current configured */}
-                {status?.config?.provider?.["xrouter"]?.options?.baseURL && (
+                {status?.config?.provider?.["omeg4mon-router"]?.options?.baseURL && (
                   <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-[8rem_auto_1fr_auto] sm:items-center sm:gap-2">
                     <span className="text-xs font-semibold text-text-main sm:text-right sm:text-sm">Current</span>
                     <span className="material-symbols-outlined hidden text-text-muted text-[14px] sm:inline">arrow_forward</span>
                     <span className="min-w-0 truncate rounded bg-surface/40 px-2 py-2 text-xs text-text-muted sm:py-1.5">
-                      {status.config.provider["xrouter"].options.baseURL}
+                      {status.config.provider["omeg4mon-router"].options.baseURL}
                     </span>
                   </div>
                 )}
@@ -445,7 +445,7 @@ export default function OpenCodeToolCard({ tool, isExpanded, onToggle, baseUrl, 
                 <Button variant="primary" size="sm" onClick={handleApply} disabled={selectedModels.length === 0} loading={applying}>
                   <span className="material-symbols-outlined text-[14px] mr-1">save</span>Apply
                 </Button>
-                <Button variant="outline" size="sm" onClick={handleReset} disabled={!status.hasXRouter} loading={restoring}>
+                <Button variant="outline" size="sm" onClick={handleReset} disabled={!status.hasOmeg4monRouter} loading={restoring}>
                   <span className="material-symbols-outlined text-[14px] mr-1">restore</span>Reset
                 </Button>
                 <Button variant="ghost" size="sm" onClick={() => setShowManualConfigModal(true)}>

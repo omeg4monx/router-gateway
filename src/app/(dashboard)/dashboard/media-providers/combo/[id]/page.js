@@ -300,7 +300,7 @@ export default function ComboDetailPage() {
                 <div key={`${entry}-${idx}`} className="flex items-center gap-3 p-2 rounded-lg bg-surface-2">
                   <span className="text-xs text-text-muted w-5 text-center">{idx + 1}</span>
                   <ProviderIcon
-                    src={`/providers/${providerId}.png`}
+                    providerId={providerId}
                     alt={p?.name || providerId}
                     size={24}
                     className="object-contain rounded shrink-0"

@@ -56,19 +56,19 @@ const readSettings = async () => {
   }
 };
 
-// Check if settings has X Router config
-const hasXRouterConfig = (settings) => {
+// Check if settings has OMEG4MON ROUTER config
+const hasOmeg4monRouterConfig = (settings) => {
   if (!settings || !settings.models || !settings.models.providers) return false;
-  return !!settings.models.providers["xrouter"];
+  return !!settings.models.providers["omeg4mon-router"];
 };
 
-// Read per-agent models.json and return current model id (without "xrouter/" prefix)
+// Read per-agent models.json and return current model id (without "omeg4mon-router/" prefix)
 const readAgentModel = async (agentDir) => {
   try {
     const modelsPath = path.join(agentDir, "models.json");
     const content = await fs.readFile(modelsPath, "utf-8");
     const data = JSON.parse(content);
-    const models = data?.providers?.["xrouter"]?.models;
+    const models = data?.providers?.["omeg4mon-router"]?.models;
     return models?.[0]?.id || null;
   } catch {
     return null;
@@ -105,7 +105,7 @@ export async function GET() {
       installed: true,
       settings,
       agents: enrichedAgents,
-      hasXRouter: hasXRouterConfig(settings),
+      hasOmeg4monRouter: hasOmeg4monRouterConfig(settings),
       settingsPath: getOpenClawSettingsPath(),
     });
   } catch (error) {
@@ -125,7 +125,7 @@ const writeAgentModels = async (agentDir, model, baseUrl, apiKey) => {
   } catch { /* No existing */ }
 
   if (!existing.providers) existing.providers = {};
-  existing.providers["xrouter"] = {
+  existing.providers["omeg4mon-router"] = {
     baseUrl,
     apiKey: apiKey || "your_api_key",
     api: "openai-completions",
@@ -134,7 +134,7 @@ const writeAgentModels = async (agentDir, model, baseUrl, apiKey) => {
   await fs.writeFile(modelsPath, JSON.stringify(existing, null, 2));
 };
 
-// POST - Update X Router settings (merge with existing settings)
+// POST - Update OMEG4MON ROUTER settings (merge with existing settings)
 export async function POST(request) {
   try {
     // agentModels: { [agentId]: modelId } for per-agent override
@@ -163,11 +163,11 @@ export async function POST(request) {
     if (!settings.models.providers) settings.models.providers = {};
 
     const normalizedBaseUrl = baseUrl.endsWith("/v1") ? baseUrl : `${baseUrl}/v1`;
-    const fullModelId = `xrouter/${model}`;
+    const fullModelId = `omeg4mon-router/${model}`;
 
-    // Remove all old xrouter/* entries from agents.defaults.models
+    // Remove all old omeg4mon-router/* entries from agents.defaults.models
     Object.keys(settings.agents.defaults.models)
-      .filter((k) => k.startsWith("xrouter/"))
+      .filter((k) => k.startsWith("omeg4mon-router/"))
       .forEach((k) => { delete settings.agents.defaults.models[k]; });
 
     // Update default model
@@ -177,16 +177,16 @@ export async function POST(request) {
     const allModelIds = new Set([model]);
     Object.values(agentModels).forEach((m) => { if (m) allModelIds.add(m); });
 
-    // Add fresh xrouter models to allowlist
+    // Add fresh omeg4mon-router models to allowlist
     allModelIds.forEach((m) => {
-      settings.agents.defaults.models[`xrouter/${m}`] = {};
+      settings.agents.defaults.models[`omeg4mon-router/${m}`] = {};
     });
 
-    // Remove old xrouter model from each agent in agents.list. The
+    // Remove old omeg4mon-router model from each agent in agents.list. The
     // model field may be a plain string or `{ primary, fallbacks }`.
     if (settings.agents.list) {
       settings.agents.list = settings.agents.list.map((agent) => {
-        if (resolveAgentModel(agent.model).startsWith("xrouter/")) {
+        if (resolveAgentModel(agent.model).startsWith("omeg4mon-router/")) {
           const { model: _, ...rest } = agent;
           return rest;
         }
@@ -194,8 +194,8 @@ export async function POST(request) {
       });
     }
 
-    // Update models.providers.xrouter with all models
-    settings.models.providers["xrouter"] = {
+    // Update models.providers.omeg4mon-router with all models
+    settings.models.providers["omeg4mon-router"] = {
       baseUrl: normalizedBaseUrl,
       apiKey: apiKey || "your_api_key",
       api: "openai-completions",
@@ -206,7 +206,7 @@ export async function POST(request) {
     if (settings.agents.list) {
       settings.agents.list = settings.agents.list.map((agent) => {
         const agentModel = agentModels[agent.id];
-        if (agentModel) return { ...agent, model: `xrouter/${agentModel}` };
+        if (agentModel) return { ...agent, model: `omeg4mon-router/${agentModel}` };
         return agent;
       });
 
@@ -234,7 +234,7 @@ export async function POST(request) {
   }
 }
 
-// DELETE - Remove X Router settings only (keep other settings)
+// DELETE - Remove OMEG4MON ROUTER settings only (keep other settings)
 export async function DELETE() {
   try {
     const settingsPath = getOpenClawSettingsPath();
@@ -254,9 +254,9 @@ export async function DELETE() {
       throw error;
     }
 
-    // Remove X Router from models.providers
+    // Remove OMEG4MON ROUTER from models.providers
     if (settings.models && settings.models.providers) {
-      delete settings.models.providers["xrouter"];
+      delete settings.models.providers["omeg4mon-router"];
       
       // Remove providers object if empty
       if (Object.keys(settings.models.providers).length === 0) {
@@ -264,9 +264,9 @@ export async function DELETE() {
       }
     }
 
-    // Remove xrouter models from agents.defaults.models allowlist
+    // Remove omeg4mon-router models from agents.defaults.models allowlist
     if (settings.agents?.defaults?.models) {
-      const keysToRemove = Object.keys(settings.agents.defaults.models).filter((k) => k.startsWith("xrouter/"));
+      const keysToRemove = Object.keys(settings.agents.defaults.models).filter((k) => k.startsWith("omeg4mon-router/"));
       for (const key of keysToRemove) {
         delete settings.agents.defaults.models[key];
       }
@@ -275,8 +275,8 @@ export async function DELETE() {
       }
     }
 
-    // Reset agents.defaults.model.primary if it uses xrouter
-    if (settings.agents?.defaults?.model?.primary?.startsWith("xrouter/")) {
+    // Reset agents.defaults.model.primary if it uses omeg4mon-router
+    if (settings.agents?.defaults?.model?.primary?.startsWith("omeg4mon-router/")) {
       delete settings.agents.defaults.model.primary;
     }
 
@@ -285,7 +285,7 @@ export async function DELETE() {
 
     return NextResponse.json({
       success: true,
-      message: "X Router settings removed successfully",
+      message: "OMEG4MON ROUTER settings removed successfully",
     });
   } catch (error) {
     console.log("Error resetting openclaw settings:", error);

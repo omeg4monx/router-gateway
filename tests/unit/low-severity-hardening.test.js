@@ -34,7 +34,7 @@ describe("first password set", () => {
 
   it("rejects the built-in default when INITIAL_PASSWORD is configured", async () => {
     vi.stubEnv("INITIAL_PASSWORD", "custom-initial");
-    const res = await patch({ newPassword: "n3w-secret", currentPassword: "xrouter123" });
+    const res = await patch({ newPassword: "n3w-secret", currentPassword: "omeg4mon123" });
     expect(res.status).toBe(401);
   });
 

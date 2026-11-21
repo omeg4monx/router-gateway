@@ -1,7 +1,7 @@
 export default function manifest() {
   return {
-    name: 'X Router - AI Infrastructure Management',
-    short_name: 'X Router',
+    name: 'OMEG4MON ROUTER - AI Infrastructure Management',
+    short_name: 'OMEG4MON ROUTER',
     description: 'One endpoint for all your AI providers. Manage keys, monitor usage, and scale effortlessly.',
     start_url: '/',
     display: 'standalone',

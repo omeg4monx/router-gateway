@@ -1,4 +1,4 @@
-const PENDING_RESET_ATTEMPT_PREFIX = "xrouter:resetCardPending:";
+const PENDING_RESET_ATTEMPT_PREFIX = "omeg4mon-router:resetCardPending:";
 
 // recordIds are unique only within each GLM type bucket.
 export function normalizeResetCard(card) {

@@ -867,7 +867,7 @@ export default function ModelSelectModal({
                   )}
                 >
                   <ProviderIcon
-                    src={`/providers/${providerId}.png`}
+                    providerId={providerId}
                     alt={group.name}
                     size={13}
                     fallbackText={(group.name || providerId).slice(0, 2).toUpperCase()}
@@ -1031,7 +1031,7 @@ export default function ModelSelectModal({
               <div key={providerId} className="space-y-2">
                 <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-text-muted border-b border-border pb-1">
                   <ProviderIcon
-                    src={`/providers/${providerId}.png`}
+                    providerId={providerId}
                     alt={group.name}
                     size={15}
                     fallbackText={(group.name || providerId).slice(0, 2).toUpperCase()}

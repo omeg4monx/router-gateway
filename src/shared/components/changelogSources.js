@@ -1,14 +1,14 @@
 /**
  * Which changelog the modal is showing.
  *
- * X Router Go (v0.0.x), Node.js engine (v0.6.x), and Upstream (Decolua 9router)
+ * OMEG4MON ROUTER Go (v0.0.x), Node.js engine (v0.6.x), and Upstream (Decolua 9router)
  * are separate documents, so they get dedicated tabs instead of one confusing scroll.
  */
 
 export const GO_SOURCE = {
   id: "go",
-  label: "X Router Go",
-  heading: "Official Releases (X Router Go)",
+  label: "OMEG4MON ROUTER Go",
+  heading: "Official Releases (OMEG4MON ROUTER Go)",
   accent: {
     color: "#00ADD8",
     border: "rgba(0,173,216,0.35)",

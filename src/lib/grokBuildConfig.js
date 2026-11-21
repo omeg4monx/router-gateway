@@ -1,8 +1,8 @@
-export const GROK_MAIN_MODEL_SLOT = "xrouter";
+export const GROK_MAIN_MODEL_SLOT = "omeg4mon-router";
 export const GROK_BUILTIN_DEFAULT = "grok-build";
 export const GROK_SUBAGENT_TYPES = ["general-purpose", "explore", "plan"];
 
-const UNSET_SENTINEL = "__xrouter_unset__";
+const UNSET_SENTINEL = "__omeg4monRouter_unset__";
 const MODELS_SECTION = "models";
 const SUBAGENT_MODELS_SECTION = "subagents.models";
 
@@ -17,10 +17,10 @@ const sectionRegExp = (section) =>
 
 const modelSlot = (type) => `${GROK_MAIN_MODEL_SLOT}-${type}`;
 
-const previousDefaultRegExp = /^# xrouter-prev-default = "([^"]*)"[ \t]*\r?\n?/m;
+const previousDefaultRegExp = /^# omeg4mon-router-prev-default = "([^"]*)"[ \t]*\r?\n?/m;
 const previousSubagentRegExp = (type) =>
   new RegExp(
-    `^# xrouter-prev-subagent-${escapeRegExp(type)} = "([^"]*)"[ \\t]*\\r?\\n?`,
+    `^# omeg4mon-router-prev-subagent-${escapeRegExp(type)} = "([^"]*)"[ \\t]*\\r?\\n?`,
     "m",
   );
 
@@ -97,7 +97,7 @@ function buildModelSection({ slot, model, baseUrl, apiKey, contextWindow, name }
     `model = ${tomlString(model)}`,
     `base_url = ${tomlString(baseUrl)}`,
     `name = ${tomlString(name)}`,
-    `description = ${tomlString("Routed via X Router gateway")}`,
+    `description = ${tomlString("Routed via OMEG4MON ROUTER gateway")}`,
     `api_backend = "chat_completions"`,
   ];
   if (apiKey) lines.push(`api_key = ${tomlString(apiKey)}`);
@@ -132,7 +132,7 @@ function rememberPreviousDefault(toml) {
   if (previousDefaultRegExp.test(toml)) return toml;
   const current = getSectionField(toml, MODELS_SECTION, "default");
   if (!current || current === GROK_MAIN_MODEL_SLOT) return toml;
-  return insertMarker(toml, `# xrouter-prev-default = ${tomlString(current)}\n`);
+  return insertMarker(toml, `# omeg4mon-router-prev-default = ${tomlString(current)}\n`);
 }
 
 function restorePreviousDefault(toml) {
@@ -151,7 +151,7 @@ function rememberPreviousSubagent(toml, type) {
   const previous = current == null ? UNSET_SENTINEL : current;
   return insertMarker(
     toml,
-    `# xrouter-prev-subagent-${type} = ${tomlString(previous)}\n`,
+    `# omeg4mon-router-prev-subagent-${type} = ${tomlString(previous)}\n`,
   );
 }
 
@@ -202,7 +202,7 @@ export function applyGrokBuildConfig(
     baseUrl,
     apiKey,
     contextWindow,
-    name: "X Router",
+    name: "OMEG4MON ROUTER",
   });
   next = setSectionField(next, MODELS_SECTION, "default", GROK_MAIN_MODEL_SLOT);
 
@@ -218,7 +218,7 @@ export function applyGrokBuildConfig(
           baseUrl,
           apiKey,
           contextWindow: selected.contextWindow,
-          name: `X Router ${type}`,
+          name: `OMEG4MON ROUTER ${type}`,
         });
         next = setSectionField(next, SUBAGENT_MODELS_SECTION, type, slot);
       } else {
@@ -237,8 +237,8 @@ export function resetGrokBuildConfig(toml) {
     next = restorePreviousSubagent(next, type);
     next = removeModelSection(next, modelSlot(type));
   }
-  next = removeModelSection(next, GROK_MAIN_MODEL_SLOT);
   next = restorePreviousDefault(next);
+  next = removeModelSection(next, GROK_MAIN_MODEL_SLOT);
   return next.replace(/\n{3,}/g, "\n\n");
 }
 

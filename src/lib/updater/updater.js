@@ -9,7 +9,7 @@ const path = require("path");
 const fs = require("fs");
 const os = require("os");
 
-// No default: the unscoped "xrouter" npm package belongs to someone else.
+// No default: never guess which npm package to install globally.
 const packageName = process.env.UPDATER_PKG_NAME;
 if (!packageName) {
   console.error("[updater] UPDATER_PKG_NAME is required; refusing to guess a package to install");
@@ -29,9 +29,9 @@ const appPort = parseInt(process.env.UPDATER_APP_PORT || "20128", 10);
 function getDataDir() {
   if (process.env.DATA_DIR) return process.env.DATA_DIR;
   if (process.platform === "win32") {
-    return path.join(process.env.APPDATA || path.join(os.homedir(), "AppData", "Roaming"), "xrouter");
+    return path.join(process.env.APPDATA || path.join(os.homedir(), "AppData", "Roaming"), "omeg4mon-router");
   }
-  return path.join(os.homedir(), ".xrouter");
+  return path.join(os.homedir(), ".omeg4mon-router");
 }
 const updateDir = path.join(getDataDir(), "update");
 try { fs.mkdirSync(updateDir, { recursive: true }); } catch { /* best effort */ }

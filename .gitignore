@@ -33,7 +33,7 @@ product
 
 # misc
 *.tgz
-xrouter-ai-*.tgz
+omeg4mon-router-*.tgz
 .DS_Store
 *.pem
 

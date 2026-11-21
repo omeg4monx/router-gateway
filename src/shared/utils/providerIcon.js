@@ -8,6 +8,8 @@ const ICON_ALIASES = {
   "gitlab-duo": "gitlab",
   "vercel-ai-gateway": "vercel",
   "ollama-search": "ollama",
+  "minimax-code": "minimax-cn",
+  "minimax-code-global": "minimax",
   "deepseek-web": "deepseek",
   "gemini-web": "gemini",
   "kimi-web": "kimi",
@@ -34,6 +36,9 @@ const TYPE_PREFIX_ALIASES = {
   "custom-embedding-": "selfhosted-embedding",
 };
 
+// These providers intentionally display their text icon until an asset ships.
+const TEXT_ICON_PROVIDERS = new Set(["ovh", "dothoosh"]);
+
 // Runtime only — first 404 remembers id for the whole session
 const failedIds = new Set();
 
@@ -45,8 +50,7 @@ function normalizeId(providerId) {
 /** Resolve icon file id (after alias). Empty if previously failed this session. */
 export function resolveProviderIconId(providerId) {
   const id = normalizeId(providerId);
-  if (!id) return "";
-  if (failedIds.has(id)) return "";
+  if (!id || TEXT_ICON_PROVIDERS.has(id) || failedIds.has(id)) return "";
   let aliased = ICON_ALIASES[id] || id;
   for (const [prefix, target] of Object.entries(TYPE_PREFIX_ALIASES)) {
     if (aliased.startsWith(prefix)) {

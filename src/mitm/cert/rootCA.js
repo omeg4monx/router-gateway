@@ -53,8 +53,8 @@ function generateRootCA() {
   cert.validity.notAfter.setFullYear(cert.validity.notBefore.getFullYear() + 10);
 
   const attrs = [
-    { name: "commonName", value: "X Router MITM Root CA" },
-    { name: "organizationName", value: "X Router" },
+    { name: "commonName", value: "OMEG4MON ROUTER MITM Root CA" },
+    { name: "organizationName", value: "OMEG4MON ROUTER" },
     { name: "countryName", value: "US" }
   ];
 

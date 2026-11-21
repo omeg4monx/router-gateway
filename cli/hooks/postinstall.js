@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 
-// Postinstall: warm-up SQLite deps into ~/.xrouter/runtime so the first
-// `xrouter` start doesn't need network. Failure here is non-fatal —
+// Postinstall: warm-up SQLite deps into ~/.omeg4mon-router/runtime so the first
+// `omeg4mon-router` start doesn't need network. Failure here is non-fatal —
 // cli.js will retry at runtime if anything is missing.
-// `npx xrouter …` (npm_command=exec) is typically a one-shot `connect` — skip
+// `npx omeg4mon-router …` (npm_command=exec) is typically a one-shot `connect` — skip
 // the runtime warm-up; cli.js self-heals it if the server is started later.
 if (process.env.npm_command === "exec") process.exit(0);
 
@@ -12,15 +12,15 @@ const { ensureTrayRuntime } = require("./trayRuntime");
 
 try {
   ensureSqliteRuntime({ silent: false });
-  console.log("[xrouter] runtime SQLite deps ready");
+  console.log("[omeg4mon-router] runtime SQLite deps ready");
 } catch (e) {
-  console.warn(`[xrouter] runtime warm-up skipped: ${e.message}`);
+  console.warn(`[omeg4mon-router] runtime warm-up skipped: ${e.message}`);
 }
 
 try {
   ensureTrayRuntime({ silent: false });
 } catch (e) {
-  console.warn(`[xrouter] tray runtime skipped: ${e.message}`);
+  console.warn(`[omeg4mon-router] tray runtime skipped: ${e.message}`);
 }
 
 // Clean, zero-emoji, animated developer installation banner
@@ -38,26 +38,26 @@ async function renderBanner() {
   const reset = "\x1b[0m";
 
   if (isTTY) {
-    process.stdout.write("\n" + brandOrange + "  [>] Initializing X Router CLI environment..." + reset);
+    process.stdout.write("\n" + brandOrange + "  [>] Initializing OMEG4MON ROUTER CLI environment..." + reset);
     const spinner = ["-", "\\", "|", "/"];
     for (let i = 0; i < 8; i++) {
-      process.stdout.write("\r" + brandOrange + `  [${spinner[i % spinner.length]}] Initializing X Router CLI environment...` + reset);
+      process.stdout.write("\r" + brandOrange + `  [${spinner[i % spinner.length]}] Initializing OMEG4MON ROUTER CLI environment...` + reset);
       await sleep(60);
     }
-    process.stdout.write("\r" + brandOrange + "  [OK] X Router CLI environment initialized.       \n" + reset);
+    process.stdout.write("\r" + brandOrange + "  [OK] OMEG4MON ROUTER CLI environment initialized.       \n" + reset);
   }
 
   console.log("\n" + brandOrange + line + reset);
-  console.log(`  ${boldWhite}X ROUTER INSTALLED SUCCESSFULLY${reset}`);
+  console.log(`  ${boldWhite}OMEG4MON ROUTER INSTALLED SUCCESSFULLY${reset}`);
   console.log(brandOrange + line + reset);
   console.log("\n  To start the server and open the web dashboard, run:");
-  console.log(`     ${cyan}xrouter${reset}   ${dim}(or ${cyan}xrouter-ai${dim})${reset}`);
+  console.log(`     ${cyan}omeg4mon-router${reset}   ${dim}(or ${cyan}omeg4mon-router${dim})${reset}`);
   console.log("\n  Available CLI commands:");
-  console.log(`     ${amber}xrouter --port 8080${reset}      Start on custom port`);
-  console.log(`     ${amber}xrouter --help${reset}           Show all available options`);
-  console.log(`     ${amber}xrouter status${reset}           Check running instances`);
+  console.log(`     ${amber}omeg4mon-router --port 8080${reset}      Start on custom port`);
+  console.log(`     ${amber}omeg4mon-router --help${reset}           Show all available options`);
+  console.log(`     ${amber}omeg4mon-router status${reset}           Check running instances`);
   console.log("\n  Documentation & Repository:");
-  console.log(`     ${dim}https://github.com/johsua092-ui/x-router${reset}`);
+  console.log(`     ${dim}https://github.com/omeg4monx/router-gateway${reset}`);
   console.log(brandOrange + line + reset + "\n");
 }
 

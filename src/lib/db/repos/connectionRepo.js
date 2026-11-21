@@ -4,8 +4,6 @@ import { makeKv } from "../helpers/kvStore.js";
 
 const kv = makeKv("connection");
 
-const LEGACY_SALT = "xrouter-connection-token-salt";
-
 export function encryptSecret(plaintext) {
   if (typeof plaintext !== "string" || !plaintext) return plaintext;
   return vaultKey.seal(plaintext, vaultKey.getVaultKey(DATA_DIR));
@@ -15,7 +13,7 @@ export function decryptSecret(stored) {
   if (typeof stored !== "string" || !stored) return "";
   if (stored.split(":").length !== 3) return stored; // unencrypted / plaintext legacy
   try {
-    return vaultKey.open(stored, [vaultKey.getVaultKey(DATA_DIR), vaultKey.legacyMachineKey(LEGACY_SALT)]);
+    return vaultKey.open(stored, vaultKey.getVaultKey(DATA_DIR));
   } catch {
     return "";
   }

@@ -17,15 +17,15 @@ import crypto from "node:crypto";
  * plaintext. It exists so the wire format is not copy-pasteable from source.
  */
 
-const SALT = "xrouter-adcode-recipe-v2";
+const SALT = "omeg4mon-router-adcode-recipe-v2";
 const BLOB =
-  "yf1q6a5M4lMEymPnEmiunHGNX+miZppvLNSby+EN+iKCkYV8+ICEK24jo3HYuzPUnXiKOcPOVIZy" +
-  "I27pYilNYpy17qczZEbTJBvyN/+hKQNIaqcZ5J6/xAuBhBcAQOe1LPsXGnxoG/gflmhOkNxfeP7y" +
-  "SyvQDoeFbeeSWuI/rHTNgjWKezNpc8K0aAK4TPrYpW+QpaRAY5GVupu5MPJdr2yyO/eNW/DzZpHg" +
-  "zEcXVGdUKXxfyf82jQPKm1YyLH/A+w2b79i9XxkWbqVCFyNBEPrpKPWD9/8P0MSezwADipzR33m8" +
-  "mxCx/S7bDUAnqvPfQti+QIdzF6FsPDe96k/bPsBHoNlJ5wrsgNBu9L1AOAXljMwFgBsFk51JRmP8" +
-  "rpWht3GfvUZ5mQo+BMfG4ENRUkR7Cv5MAxzCoQoC/cOD04T7+NZu6NVEWkngmRf9wmj5lmJqB9Ox" +
-  "KVHD84ngTQ0NhjLxhOw8712ZdsAXgQ==";
+  "37dnzqYQb+L7pBJvE/nI3XJy1+DJN9i3oF+6f519X6UDoQt7i3eZxa+TK8lvhjvJW5rYtEQGTmIi" +
+  "rZhkQENcUIm/Zcv2kbK7p7MApmZLayQkHEeJF+NPPN9NGsoJmA7iLL83gw9U/twpQfQ/j7J/MVHp" +
+  "HE4tK4gJ+SIOjC+lnmcVb2nQgbhflOo39W//vKLWmab8bauz0ngjrFK47rgIlmfVWMIx7t8KXo1B" +
+  "2Cyg1Iezk+MyTUHBtLvEIyq3e09DBuBifn6DKhIIRjzgdkfGnGiBDfTs3NJRKgDnftizDzJBE0s9" +
+  "vcsJb64WqRFaa9iQKjCar0sWEN1tpGh33F4bOOFI914fBRmvXy3LimGiUvMz26hsnkFVCS8GQNyF" +
+  "BtokSOlABzAuh/G+DGTbnGK4C6P8jgHs5Up7bNIRcRwxb+vhsJhqdB1M9qyOtAsvKCAE/UYh03eP" +
+  "taj7EaM06gVqEwpnegvPg4nZkL/xQA==";
 
 function deriveKey() {
   return crypto.createHash("sha256")

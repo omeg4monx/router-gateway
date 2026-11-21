@@ -106,7 +106,7 @@ const getPageInfo = (pathname) => {
   if (pathname.includes("/mitm"))
     return {
       title: "MITM Proxy",
-      description: "Intercept CLI tool traffic and route through X Router",
+      description: "Intercept CLI tool traffic and route through OMEG4MON ROUTER",
       icon: "security",
       breadcrumbs: [],
     };
@@ -134,7 +134,7 @@ const getPageInfo = (pathname) => {
   if (pathname.includes("/skills"))
     return {
       title: "Agent Skills",
-      description: "Copy a link and paste to your AI to use X Router — no install needed",
+      description: "Copy a link and paste to your AI to use OMEG4MON ROUTER — no install needed",
       icon: "extension",
       breadcrumbs: [],
     };
@@ -180,7 +180,6 @@ export default function Header({ onMenuClick, showMenuButton = true }) {
   const pathname = usePathname();
   const [displayName, setDisplayName] = useState("");
   const [loginMethod, setLoginMethod] = useState("");
-  const [donateOpen, setDonateOpen] = useState(false);
 
   // Memoize page info to prevent unnecessary recalculations
   const pageInfo = useMemo(() => getPageInfo(pathname), [pathname]);
@@ -315,7 +314,7 @@ export default function Header({ onMenuClick, showMenuButton = true }) {
         )}
         <HeaderSearch />
         <a
-          href="https://github.com/johsua092-ui/x-router"
+          href="https://github.com/omeg4monx/router-gateway"
           target="_blank"
           rel="noopener noreferrer"
           className="flex items-center gap-2 px-3 py-1.5 rounded-[6px] text-xs font-medium text-text-muted hover:text-text-main hover:bg-surface-2 transition-all border border-border-subtle"

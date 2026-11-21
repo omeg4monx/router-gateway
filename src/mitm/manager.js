@@ -63,7 +63,7 @@ function resolveBundledServerPath() {
 }
 
 // Copy bundled server.js into DATA_DIR so MITM doesn't lock node_modules
-// (prevents EBUSY on `npm i -g xrouter@latest` while MITM is running).
+// (prevents EBUSY on `npm i -g omeg4mon-router@latest` while MITM is running).
 function ensureRuntimeServer(bundledPath) {
   try {
     if (!bundledPath || !fs.existsSync(bundledPath)) return bundledPath;
@@ -95,7 +95,6 @@ function ensureRuntimeServer(bundledPath) {
 
 const SERVER_PATH = ensureRuntimeServer(resolveBundledServerPath());
 const vaultKey = require("../lib/vault/vaultKey.cjs");
-const LEGACY_SALT = "xrouter-mitm-pwd";
 
 function getProcessUsingPort443() {
   try {
@@ -159,7 +158,7 @@ function decryptPassword(stored) {
   const [ivHex, tagHex, dataHex] = String(stored || "").split(":");
   if (!ivHex || !tagHex || !dataHex) return null;
   try {
-    return vaultKey.open(stored, [vaultKey.getVaultKey(DATA_DIR), vaultKey.legacyMachineKey(LEGACY_SALT)]);
+    return vaultKey.open(stored, vaultKey.getVaultKey(DATA_DIR));
   } catch {
     return null;
   }
@@ -560,7 +559,7 @@ async function startServer(apiKey, sudoPassword, forceKillPort443 = false) {
     log(`[MITM] server.js missing at ${effectiveServerPath} → recopying`);
     effectiveServerPath = ensureRuntimeServer(resolveBundledServerPath());
     if (!effectiveServerPath || !fs.existsSync(/*turbopackIgnore: true*/ effectiveServerPath)) {
-      throw new Error(`MITM server.js not found at ${effectiveServerPath}. Reinstall xrouter.`);
+      throw new Error(`MITM server.js not found at ${effectiveServerPath}. Reinstall omeg4mon-router.`);
     }
   }
   const mitmRouterBase = await resolveMitmRouterBaseUrl();

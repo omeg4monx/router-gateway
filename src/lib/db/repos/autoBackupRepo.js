@@ -9,8 +9,6 @@ import { makeKv } from "../helpers/kvStore.js";
 
 const kv = makeKv("autoBackup");
 
-const LEGACY_SALT = "xrouter-backup-token-salt";
-
 export function encryptSecret(plaintext) {
   if (typeof plaintext !== "string" || !plaintext) return plaintext;
   return vaultKey.seal(plaintext, vaultKey.getVaultKey(DATA_DIR));
@@ -21,7 +19,7 @@ export function decryptSecret(stored) {
   const [ivHex, tagHex, dataHex] = stored.split(":");
   if (!ivHex || !tagHex || !dataHex) return stored; // pre-encryption plaintext value
   try {
-    return vaultKey.open(stored, [vaultKey.getVaultKey(DATA_DIR), vaultKey.legacyMachineKey(LEGACY_SALT)]);
+    return vaultKey.open(stored, vaultKey.getVaultKey(DATA_DIR));
   } catch {
     return ""; // unknown key / tampered value
   }

@@ -214,7 +214,7 @@ function Wordmark() {
       >
         X
       </span>
-      <span className="text-[13px] font-semibold tracking-[0.14em] text-text-main">X ROUTER</span>
+      <span className="text-[13px] font-semibold tracking-[0.14em] text-text-main">OMEG4MON ROUTER</span>
     </div>
   );
 }
@@ -545,7 +545,7 @@ export default async function SharePage({ params }) {
         </Section>
 
         <footer className="mt-8 flex flex-wrap items-center justify-between gap-2 border-t border-border pt-4 text-[11px] text-text-muted">
-          <span>Powered by X Router</span>
+          <span>Powered by OMEG4MON ROUTER</span>
           <span>Figures are read from this instance&apos;s own records.</span>
         </footer>
       </div>

@@ -2,31 +2,30 @@ import pkg from "../../../package.json" with { type: "json" };
 
 // App configuration
 export const APP_CONFIG = {
-  name: "X Router",
+  name: "OMEG4MON ROUTER",
   description: "AI Infrastructure Management",
   version: pkg.version,
 };
 
 // GitHub configuration
 export const GITHUB_CONFIG = {
-  changelogUrl: "https://raw.githubusercontent.com/johsua092-ui/xrouter/refs/heads/main/CHANGELOG.md",
-  donateUrl: "https://xrouter.com/api/donate",
-  repoUrl: "https://github.com/johsua092-ui/xrouter",
-  apiRepo: "johsua092-ui/xrouter", // update checks compare the running checkout with this
+  changelogUrl: "https://raw.githubusercontent.com/omeg4monx/router-gateway/refs/heads/main/CHANGELOG.md",
+  repoUrl: "https://github.com/omeg4monx/router-gateway",
+  apiRepo: "omeg4monx/router-gateway", // update checks compare the running checkout with this
   branch: "main",
 };
 
 // Post-login thank-you dialog: shown once per login, skippable forever.
 export const WELCOME_CONFIG = {
-  shownKey: "xrouter:welcomeAfterLogin",
-  hideKey: "xrouter:welcomeNeverShow",
+  shownKey: "omeg4mon-router:welcomeAfterLogin",
+  hideKey: "omeg4mon-router:welcomeNeverShow",
 };
 
 // Updater configuration
 export const UPDATER_CONFIG = {
-  npmPackageName: "github:johsua092-ui/x-router",
-  installCmd: "npm i -g github:johsua092-ui/x-router",
-  installCmdLatest: "npm i -g github:johsua092-ui/x-router --prefer-online",
+  npmPackageName: "github:omeg4monx/router-gateway",
+  installCmd: "npm i -g github:omeg4monx/router-gateway",
+  installCmdLatest: "npm i -g github:omeg4monx/router-gateway --prefer-online",
   shutdownCountdownSec: 3,
   exitDelayMs: 500,
   statusPort: 20129,

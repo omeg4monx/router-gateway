@@ -45,15 +45,15 @@ describe("grokBuildConfig", () => {
     const result = applyGrokBuildConfig(BASE_CONFIG, APPLY_INPUT);
     const parsed = parseGrokBuildConfig(result);
 
-    expect(parsed.default).toBe("xrouter");
+    expect(parsed.default).toBe("omeg4mon-router");
     expect(parsed.model).toMatchObject({
       model: "cx/gpt-5.6-sol",
       base_url: "http://127.0.0.1:20128/v1",
       context_window: 400000,
     });
     expect(parsed.subagentMappings).toMatchObject({
-      "general-purpose": "xrouter-general-purpose",
-      explore: "xrouter-explore",
+      "general-purpose": "omeg4mon-router-general-purpose",
+      explore: "omeg4mon-router-explore",
       plan: "grok-4.5",
     });
     expect(parsed.subagentModels["general-purpose"]).toMatchObject({
@@ -88,10 +88,10 @@ describe("grokBuildConfig", () => {
       },
     });
 
-    expect(result.match(/^\[model\.xrouter\]$/gm)).toHaveLength(1);
-    expect(result.match(/^\[model\.xrouter-general-purpose\]$/gm)).toHaveLength(1);
-    expect(result.match(/^\[model\.xrouter-explore\]$/gm)).toHaveLength(1);
-    expect(result.match(/^# xrouter-prev-subagent-explore/gm)).toHaveLength(1);
+    expect(result.match(/^\[model\.omeg4mon-router\]$/gm)).toHaveLength(1);
+    expect(result.match(/^\[model\.omeg4mon-router-general-purpose\]$/gm)).toHaveLength(1);
+    expect(result.match(/^\[model\.omeg4mon-router-explore\]$/gm)).toHaveLength(1);
+    expect(result.match(/^# omeg4mon-router-prev-subagent-explore/gm)).toHaveLength(1);
     expect(parseGrokBuildConfig(result).model).toMatchObject({
       model: "cc/claude-opus-4.8",
       context_window: 1000000,
@@ -115,8 +115,8 @@ describe("grokBuildConfig", () => {
     const parsed = parseGrokBuildConfig(result);
     expect(parsed.subagentMappings.explore).toBe("grok-build");
     expect(parsed.subagentModels.explore).toBeNull();
-    expect(result).not.toContain("[model.xrouter-explore]");
-    expect(parsed.subagentMappings["general-purpose"]).toBe("xrouter-general-purpose");
+    expect(result).not.toContain("[model.omeg4mon-router-explore]");
+    expect(parsed.subagentMappings["general-purpose"]).toBe("omeg4mon-router-general-purpose");
   });
 
   it("reset restores previous default and all previous subagent mappings", () => {
@@ -131,8 +131,8 @@ describe("grokBuildConfig", () => {
       explore: "grok-build",
       plan: "grok-4.5",
     });
-    expect(reset).not.toContain("[model.xrouter-");
-    expect(reset).not.toContain("xrouter-prev-");
+    expect(reset).not.toContain("[model.omeg4mon-router-");
+    expect(reset).not.toContain("omeg4mon-router-prev-");
     expect(reset).toContain("[mcp_servers.example]");
   });
 
@@ -146,7 +146,7 @@ describe("grokBuildConfig", () => {
     });
     const reset = resetGrokBuildConfig(applied);
 
-    expect(parseGrokBuildConfig(applied).subagentMappings.plan).toBe("xrouter-plan");
+    expect(parseGrokBuildConfig(applied).subagentMappings.plan).toBe("omeg4mon-router-plan");
     expect(parseGrokBuildConfig(reset).subagentMappings.plan).toBeNull();
     expect(reset).not.toContain("[subagents.models]");
     expect(reset).toContain("[mcp_servers.x]");
@@ -163,14 +163,14 @@ describe("grokBuildConfig", () => {
 
     const parsed = parseGrokBuildConfig(updatedMainOnly);
     expect(parsed.model.model).toBe("gemini/gemini-3.1-pro");
-    expect(parsed.subagentMappings.explore).toBe("xrouter-explore");
+    expect(parsed.subagentMappings.explore).toBe("omeg4mon-router-explore");
     expect(parsed.subagentModels.explore.model).toBe("gemini/gemini-3-flash");
   });
 
   it("returns stable slot names only for supported subagent types", () => {
-    expect(getGrokSubagentSlot("general-purpose")).toBe("xrouter-general-purpose");
-    expect(getGrokSubagentSlot("explore")).toBe("xrouter-explore");
-    expect(getGrokSubagentSlot("plan")).toBe("xrouter-plan");
+    expect(getGrokSubagentSlot("general-purpose")).toBe("omeg4mon-router-general-purpose");
+    expect(getGrokSubagentSlot("explore")).toBe("omeg4mon-router-explore");
+    expect(getGrokSubagentSlot("plan")).toBe("omeg4mon-router-plan");
     expect(getGrokSubagentSlot("unknown")).toBeNull();
   });
 });

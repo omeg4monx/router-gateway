@@ -73,10 +73,10 @@ const readConfig = async () => {
   }
 };
 
-// Check if config has X Router settings
-const hasXRouterConfig = (config) => {
+// Check if config has OMEG4MON ROUTER settings
+const hasOmeg4monRouterConfig = (config) => {
   if (!config) return false;
-  return config.includes("model_provider = \"xrouter\"") || config.includes("[model_providers.xrouter]");
+  return /(?:model_provider\s*=\s*"omeg4mon-router"|\[model_providers\.omeg4mon-router\])/.test(config);
 };
 
 // GET - Check codex CLI and read current settings
@@ -97,7 +97,7 @@ export async function GET() {
     return NextResponse.json({
       installed: true,
       config,
-      hasXRouter: hasXRouterConfig(config),
+      hasOmeg4monRouter: hasOmeg4monRouterConfig(config),
       configPath: getCodexConfigPath(),
     });
   } catch (error) {
@@ -106,7 +106,7 @@ export async function GET() {
   }
 }
 
-// POST - Update X Router settings (merge with existing config)
+// POST - Update OMEG4MON ROUTER settings (merge with existing config)
 export async function POST(request) {
   try {
     const { baseUrl, apiKey, model, subagentModel } = await request.json();
@@ -128,16 +128,16 @@ export async function POST(request) {
       parsed = parsedToWritable(parseTOML(existingConfig));
     } catch { /* No existing config */ }
 
-    // Update only X Router related fields (api_key goes to auth.json, not config.toml)
+    // Update only OMEG4MON ROUTER related fields (api_key goes to auth.json, not config.toml)
     parsed.model = model;
-    parsed.model_provider = "xrouter";
+    parsed.model_provider = "omeg4mon-router";
 
-    // Update or create xrouter provider section (no api_key - Codex reads from auth.json)
+    // Update or create omeg4mon-router provider section (no api_key - Codex reads from auth.json)
     // Ensure /v1 suffix is added only once
     const normalizedBaseUrl = baseUrl.endsWith("/v1") ? baseUrl : `${baseUrl}/v1`;
     // Custom providers ignore auth.json - the key must travel as a static header
-    setNestedSection(parsed, "model_providers.xrouter", {
-      name: "X Router",
+    setNestedSection(parsed, "model_providers.omeg4mon-router", {
+      name: "OMEG4MON ROUTER",
       base_url: normalizedBaseUrl,
       wire_api: "responses",
       http_headers: { Authorization: `Bearer ${apiKey}` },
@@ -162,7 +162,7 @@ export async function POST(request) {
   }
 }
 
-// DELETE - Remove X Router settings only (keep other settings)
+// DELETE - Remove OMEG4MON ROUTER settings only (keep other settings)
 export async function DELETE() {
   try {
     const configPath = getCodexConfigPath();
@@ -182,14 +182,14 @@ export async function DELETE() {
       throw error;
     }
 
-    // Remove X Router related root fields only if they point to xrouter
-    if (parsed.model_provider === "xrouter") {
+    // Remove OMEG4MON ROUTER related root fields only if they point to omeg4mon-router
+    if (parsed.model_provider === "omeg4mon-router") {
       delete parsed.model;
       delete parsed.model_provider;
     }
 
-    // Remove xrouter provider section
-    deleteNestedSection(parsed, "model_providers.xrouter");
+    // Remove omeg4mon-router provider section
+    deleteNestedSection(parsed, "model_providers.omeg4mon-router");
 
     // Remove subagent configuration (both the current key and the legacy role form)
     deleteNestedSection(parsed, "agents.default_subagent_model");
@@ -217,7 +217,7 @@ export async function DELETE() {
 
     return NextResponse.json({
       success: true,
-      message: "X Router settings removed successfully",
+      message: "OMEG4MON ROUTER settings removed successfully",
     });
   } catch (error) {
     console.log("Error resetting codex settings:", error);

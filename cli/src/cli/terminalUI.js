@@ -67,14 +67,14 @@ async function startTerminalUI(port) {
   // Configure API client
   api.configure({ port });
 
-  const basePath = ["X Router"];
+  const basePath = ["OMEG4MON ROUTER"];
 
   // Prime header cache before first render
   await refreshHeaderBg(port);
 
   // Main menu
   await showMenuWithBack({
-    title: "📡 X Router Terminal UI",
+    title: "📡 OMEG4MON ROUTER Terminal UI",
     breadcrumb: basePath,
     headerContent: () => getHeader(port),
     items: [

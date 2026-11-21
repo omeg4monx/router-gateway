@@ -12,9 +12,9 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
-	"github.com/johsua092-ui/xrouter/internal/config"
-	"github.com/johsua092-ui/xrouter/internal/connection"
-	"github.com/johsua092-ui/xrouter/internal/database"
+	"github.com/omeg4monx/router-gateway/internal/config"
+	"github.com/omeg4monx/router-gateway/internal/connection"
+	"github.com/omeg4monx/router-gateway/internal/database"
 )
 
 type Gateway struct {
@@ -188,13 +188,13 @@ func (g *Gateway) handleChatCompletions(w http.ResponseWriter, r *http.Request) 
 		"id":      "chatcmpl-" + fmt.Sprintf("%d", time.Now().UnixNano()),
 		"object":  "chat.completion",
 		"created": time.Now().Unix(),
-		"model":   "xrouter-go",
+		"model":   "omeg4mon-router-go",
 		"choices": []map[string]interface{}{
 			{
 				"index": 0,
 				"message": map[string]interface{}{
 					"role":    "assistant",
-					"content": "X Router Golang Engine ready.",
+					"content": "OMEG4MON ROUTER Golang Engine ready.",
 				},
 				"finish_reason": "stop",
 			},

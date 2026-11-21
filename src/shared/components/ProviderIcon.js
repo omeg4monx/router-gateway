@@ -65,7 +65,7 @@ export default function ProviderIcon({
       }}
       loading="eager"
       onError={() => {
-        const m = effectiveSrc.match(/^\/providers\/([^/]+)\.png$/i);
+        const m = effectiveSrc.match(/^\/providers\/([^/?]+)\.png(?:\?.*)?$/i);
         if (m) markProviderIconMissing(m[1]);
         if (providerId) markProviderIconMissing(providerId);
         setErrored(true);

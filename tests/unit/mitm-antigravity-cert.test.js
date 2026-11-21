@@ -69,7 +69,7 @@ describe("finding 2 — one DATA_DIR resolver, all platforms", () => {
 
   it("mitmAliasCache no longer reads process.env.DATA_DIR raw", () => {
     // Raw reads bypassed the Windows guard and pointed the alias cache at
-    // D:\var\lib\xrouter while the dashboard used %APPDATA%.
+    // D:\var\lib\omeg4mon-router while the dashboard used %APPDATA%.
     expect(ALIAS_CACHE).not.toMatch(/process\.env\.DATA_DIR/);
     expect(ALIAS_CACHE).toMatch(/import \{ DATA_DIR \} from "\.\/dataDir\.js"/);
   });

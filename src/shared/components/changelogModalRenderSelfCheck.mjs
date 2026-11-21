@@ -136,7 +136,7 @@ const BOTH = { serenhope: "<p>SEREN_BODY</p>", decolua: "<p>DECO_BODY</p>" };
 
 run("the modal renders both contributor tabs when both loaded", () => {
   const tree = renderWith(BOTH, "serenhope");
-  assert.ok(tree.includes("X Router Go"), "fork tab present");
+  assert.ok(tree.includes("OMEG4MON ROUTER Go"), "fork tab present");
   assert.ok(tree.includes("Upstream"), "upstream tab present");
   assert.ok(tree.includes("Change Log"), "title present");
 });
@@ -162,7 +162,7 @@ run("a selection pointing at an empty source falls back to what loaded", () => {
 run("with neither changelog the modal says so instead of showing a blank panel", () => {
   const tree = renderWith({ serenhope: "", decolua: "" }, "serenhope");
   assert.ok(tree.includes("No changelog available."), "empty state message");
-  assert.no(tree.includes("X Router Go"), "no tabs");
+  assert.no(tree.includes("OMEG4MON ROUTER Go"), "no tabs");
 });
 
 run("a closed modal renders nothing", () => {

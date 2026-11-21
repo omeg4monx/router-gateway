@@ -194,10 +194,10 @@ export default function CodexToolCard({ tool, isExpanded, onToggle, baseUrl, api
     setApplying(true);
     setMessage(null);
     try {
-      // Use sk_xrouter for localhost if no key, otherwise use selected key
+      // Use sk_omeg4mon_router for localhost if no key, otherwise use selected key
       const keyToUse = (selectedApiKey && selectedApiKey.trim())
         ? selectedApiKey
-        : (!cloudEnabled ? "sk_xrouter" : selectedApiKey);
+        : (!cloudEnabled ? "sk_omeg4mon_router" : selectedApiKey);
 
       const res = await fetch("/api/cli-tools/codex-settings", {
         method: "POST",
@@ -258,20 +258,20 @@ export default function CodexToolCard({ tool, isExpanded, onToggle, baseUrl, api
   const getManualConfigs = () => {
     const keyToUse = (selectedApiKey && selectedApiKey.trim())
       ? selectedApiKey
-      : (!cloudEnabled ? "sk_xrouter" : "<API_KEY_FROM_DASHBOARD>");
+      : (!cloudEnabled ? "sk_omeg4mon_router" : "<API_KEY_FROM_DASHBOARD>");
 
     const effectiveSubagentModel = subagentModel || selectedModel;
 
-    const configContent = `# X Router Configuration for Codex CLI
+    const configContent = `# OMEG4MON ROUTER Configuration for Codex CLI
 model = "${selectedModel}"
-model_provider = "xrouter"
+model_provider = "omeg4mon-router"
 
-[model_providers.xrouter]
-name = "X Router"
+[model_providers.omeg4mon-router]
+name = "OMEG4MON ROUTER"
 base_url = "${getEffectiveBaseUrl()}"
 wire_api = "responses"
 
-[model_providers.xrouter.http_headers]
+[model_providers.omeg4mon-router.http_headers]
 Authorization = "Bearer ${keyToUse}"
 
 [agents]
@@ -322,7 +322,7 @@ default_subagent_model = "${effectiveSubagentModel}"
                   <span className="material-symbols-outlined text-warning">warning</span>
                   <div className="flex-1">
                     <p className="font-medium text-warning">Codex CLI not detected locally</p>
-                    <p className="text-sm text-text-muted">Manual configuration is still available if xrouter is deployed on a remote server.</p>
+                    <p className="text-sm text-text-muted">Manual configuration is still available if omeg4mon-router is deployed on a remote server.</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2 pl-9">

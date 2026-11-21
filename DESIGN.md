@@ -1,10 +1,10 @@
-# X Router — Design Direction
+# OMEG4MON ROUTER — Design Direction
 
 Direction ini berasal dari pemilik produk (joshz), ditulis apa adanya. Ini **bukan** panduan gaya buatan agen: warna, logo, dan password default adalah keputusan pemilik.
 
 ## Identity
 
-- **Produk:** X Router, gateway LLM (OpenAI + Anthropic compatible) yang di-host sendiri.
+- **Produk:** OMEG4MON ROUTER, gateway LLM (OpenAI + Anthropic compatible) yang di-host sendiri.
 - **Karakter:** tool infrastruktur yang hangat, bukan dashboard korporat dingin. Tegas, presisi, tapi tidak steril.
 - **Motif identitas:** **garis ember** — aturan gradient oranye tipis (`from-transparent via-primary to-transparent`) yang berulang sebagai pemisah dan aksen brand. Satu gesture, dipakai konsisten.
 - **Logo:** caduceus (tongkat Hermes). Keputusan pemilik, jangan diganti.

@@ -1,9 +1,17 @@
 # v0.1.0 (2026-11-21)
 
+### Breaking — Complete OMEG4MON ROUTER rebrand
+
+- Every remaining `xrouter` reference in code, UI and scripts is gone, **including backward compatibility**. Existing installs start fresh: `~/.xrouter` / `%APPDATA%\xrouter` / `xrouter-data` volumes, `XROUTER_VAULT_KEY`, credentials sealed with the old machine-id keys, and `xrouter` provider entries in Codex/OpenCode/Grok/Droid configs are no longer read or migrated.
+- Default dashboard password is now `omeg4mon123` (`INITIAL_PASSWORD` still overrides it).
+- Docker volume default is `omeg4mon-router-data`; install.sh has no default cloud URL.
+- Removed links to third-party `xrouter` hosts (donate endpoint and the unused donate modal, claim-page fallback domain, VS Code extension docs link). The Apple Silicon tray binary is now fetched from this repo's `tray-binaries` release (sha256 still pinned; publish it with `tray-binaries.yml`).
+- ADCode recipe re-encrypted under the new salt.
+
 ### Security — Low-severity fixes
 
-- **CLI** (`xrouter-ai`) binds `127.0.0.1` by default; use `--host 0.0.0.0` for LAN access. `openBrowser` (CLI + tray) uses `execFile` with an argv instead of a shell string.
-- **Password**: setting the dashboard password for the first time requires the current initial password (`INITIAL_PASSWORD`, else the default); previously only an empty value or `xrouter123` was accepted.
+- **CLI** (`omeg4mon-router`) binds `127.0.0.1` by default; use `--host 0.0.0.0` for LAN access. `openBrowser` (CLI + tray) uses `execFile` with an argv instead of a shell string.
+- **Password**: setting the dashboard password for the first time requires the current initial password (`INITIAL_PASSWORD`, else the default); previously only an empty value or the built-in default was accepted.
 - **Headroom proxy** never forwards cookies, `Authorization`/`x-api-key`, or custom-server `x-9r-*` headers (the peer token let the container forge trusted-peer headers).
 - **Voucher claim**: the "local" bypass of the Cloudflare-only gate uses the stamped socket address instead of the `Host` header; dropped the hardcoded third-party fallback domain.
 - `/api/settings/env` reports secrets as set/unset only (no leading/trailing characters).
@@ -18,14 +26,14 @@
 - **Tunnel**: the third-party `abc-tunnel.us` short-link worker is opt-in via `TUNNEL_WORKER_URL` (its registration is unauthenticated, so anyone seeing a public URL could re-point it); default is the direct trycloudflare URL. `shortId` uses `crypto.randomInt`. cloudflared is pinned to 2026.11.1 and every download is SHA-256 checked.
 - **Combo / account fallback**: request-scoped 400/406/422 (and other unmatched 4xx) are returned instead of walking the whole combo; rate-limit, quota, credit and account-scoped statuses still fall through.
 - **SAML**: requires a configured base URL (Settings `baseUrl` or `BASE_URL`); forwarded-host headers are ignored; `InResponseTo` is checked on the signature-verified response.
-- **Updater**: no default to the unrelated `xrouter` npm package; status server CORS is limited to loopback origins; only processes running from this install's app dir or DATA_DIR are killed.
+- **Updater**: no default to the unrelated `omeg4mon-router` npm package; status server CORS is limited to loopback origins; only processes running from this install's app dir or DATA_DIR are killed.
 
 ### Security — High-severity fixes
 
 - `/api/models/test` is no longer public (anonymous callers could spend provider quota via the server's own credentials).
 - Local-only routes (tunnel, Tailscale, MCP, headroom, auto-import) need a real session, CLI token or a local request; `requireLogin=false` no longer opens them remotely. `dev:bun` binds `127.0.0.1`.
 - Telegram: webhook requires the `X-Telegram-Bot-Api-Secret-Token` registered by `set_webhook` and a configured `userId`, and runs commands in-process; `/api/connection/telegram/command` needs a dashboard session; the bot token is never returned to the browser. **Re-register the webhook once from the dashboard.**
-- Credential encryption uses a random `DATA_DIR/vault.key` (or `XROUTER_VAULT_KEY`) instead of the machine id; values sealed with the old key stay readable and are re-sealed on their next write.
+- Credential encryption uses a random `DATA_DIR/vault.key` (or `OMEG4MON_ROUTER_VAULT_KEY`) instead of the machine id; values sealed with the old key stay readable and are re-sealed on their next write.
 - MITM verifies upstream TLS, listens on `127.0.0.1:443`, and writes the root CA key `0600`.
 - Go core: binds `127.0.0.1` by default (`HOST` to override), rejects foreign `Origin`, masks the bot token, requires the bot token (not just a user id) for commands and Telegram's secret header for its webhook.
 
@@ -76,7 +84,7 @@ Opening `/login` (or any dashboard page) after a server rebuild hung forever on 
   A hard reload fetched the same dead HTML, so the page never finished booting.
 - **Root cause.** Not browser cache and not code: the production process had been running
   since the previous day with its working directory
-  `/root/xrouter/.next/standalone (deleted)`. Every `npm run build` replaces `.next/`
+  `/root/omeg4mon-router/.next/standalone (deleted)`. Every `npm run build` replaces `.next/`
   in-place, so the running server kept serving HTML from the *deleted* build in memory while
   the chunk files it referenced no longer existed on disk. The HTML was a ghost: 10/10
   chunks it referenced were missing from disk.
@@ -201,13 +209,13 @@ tls: failed to verify certificate: x509: certificate signed by unknown authority
 ```
 
 - **Symptom.** The Antigravity OAuth token exchange died on TLS verification even though the
-  X Router Root CA was trusted — and the same error class had been reported for
+  OMEG4MON ROUTER Root CA was trusted — and the same error class had been reported for
   `cloudcode-pa.googleapis.com` in the previous fix.
 - **Root cause.** `oauth2.googleapis.com` is **not** a MITM target (`mitmToolHosts.js` only
   redirects the `cloudcode-pa` pair), but the MITM-bypass list in `proxyFetch.js` covered only
   the chat hosts. With MITM DNS writing `127.0.0.1` entries into the hosts file, any fetch
   whose host was missing from the bypass list resolved to the local interceptor and was
-  answered with the X Router Root CA — which the Go OAuth client rejects. The chat hosts were
+  answered with the OMEG4MON ROUTER Root CA — which the Go OAuth client rejects. The chat hosts were
   protected; the auth endpoints were not.
 - **Fix.** Added the Google auth endpoints to `MITM_BYPASS_HOSTS`:
   `oauth2.googleapis.com`, `accounts.google.com`, `www.googleapis.com`,
@@ -246,9 +254,9 @@ defects combined to produce it, and a fourth was found while fixing the third.
 - **Symptom 2 — the dashboard showed "cert not trusted" while MITM served a cert from a
   different directory entirely.**
 - **Root cause 2.** `src/lib/dataDir.js` rejects Unix-style `DATA_DIR` values on Windows
-  (`/var/lib/xrouter` → `%APPDATA%\xrouter`). `src/mitm/paths.js` had no such guard, so with a
-  Linux-targeted `.env` the dashboard read `%APPDATA%\xrouter\mitm` while the MITM server
-  created and served certs from `D:\var\lib\xrouter\mitm`. The UI status could never match
+  (`/var/lib/omeg4mon-router` → `%APPDATA%\omeg4mon-router`). `src/mitm/paths.js` had no such guard, so with a
+  Linux-targeted `.env` the dashboard read `%APPDATA%\omeg4mon-router\mitm` while the MITM server
+  created and served certs from `D:\var\lib\omeg4mon-router\mitm`. The UI status could never match
   the cert in use.
 - **Fix.** `paths.js` now applies the identical guard and fallback wording. A third offender
   found during the fix: `src/lib/mitmAliasCache.js` read `process.env.DATA_DIR` raw, bypassing
@@ -258,7 +266,7 @@ defects combined to produce it, and a fourth was found while fixing the third.
 - **Symptom 3 — "Trust Certificate" in the dashboard returned HTTP 403 on Windows even when
   the user was happy to approve a UAC prompt.**
 - **Root cause 3.** The route checked `checkPrivilege()` before the `action === "trust-cert"`
-  branch, so a non-admin X Router returned 403 and the UAC path in `winElevated.js`
+  branch, so a non-admin OMEG4MON ROUTER returned 403 and the UAC path in `winElevated.js`
   (`Start-Process -Verb RunAs`) never ran. The certificate was therefore never installed
   automatically.
 - **Fix.** The admin gate is skipped only for `win32 && action === "trust-cert"`, letting the
@@ -425,7 +433,7 @@ route.
 ### Fixed — OpenCode local daemon leaked a process per request, pinning every core at 100% CPU
 
 - **Symptom.** With "Use Local Service Daemon" enabled, `htop` showed dozens of
-  `/usr/local/bin/opencode serve --port 0 --print-logs` processes for a single XRouter
+  `/usr/local/bin/opencode serve --port 0 --print-logs` processes for a single OMEG4MON ROUTER
   instance. 24 live daemons at ~175 MB each consumed 7.6 GB of 7.75 GB RAM, load average
   climbed past 15 on a 4-core box, and CPU stayed pinned at 100% until the processes were
   killed by hand.
@@ -466,8 +474,8 @@ route.
 - **Symptom.** Opening `/dashboard` showed a white page frozen on `Loading...` forever.
   No crash, no error page — the HTML shell loaded, the app never booted. First reported
   as "layar freeze warna putih", which is exactly what it looks like from the browser.
-- **Root cause.** The production process serves `.next/standalone/` (`xrouter.service`
-  sets `WorkingDirectory=/root/xrouter`, and `custom-server.js` prefers
+- **Root cause.** The production process serves `.next/standalone/` (`omeg4mon-router.service`
+  sets `WorkingDirectory=/root/omeg4mon-router`, and `custom-server.js` prefers
   `server.js`/`.next/standalone/server.js`). A fresh `next build` regenerates
   `.next/static/chunks/*` under `.next/`, but Next does **not** copy the client bundle
   into the standalone tree — that has always been a manual copy step
@@ -1468,7 +1476,7 @@ routing, translation or persistence paths is touched.
   - Added explicit regex-aligned error rules for `FreeUsageLimitError`, `free usage limit reached`, and `AI_APICallError` in `open-sse/config/errorConfig.js` to trigger automatic routing failover to the next connection instead of surfacing generic runtime errors.
 
 - **Documentation & Distribution Cleanup**:
-  - Deprecated and removed global NPM package instructions (`npm install -g xrouter-ai`, `npx xrouter-ai`) and badges from `README.md` to align with the repository's native Git & Go Core distribution model.
+  - Deprecated and removed global NPM package instructions (`npm install -g omeg4mon-router`, `npx omeg4mon-router`) and badges from `README.md` to align with the repository's native Git & Go Core distribution model.
 
 - **Port Complete Magpie OpenCode Specification**:
   - Upgraded OpenCode fingerprint tool definitions to full 5 core tools (`edit`, `glob`, `grep`, `read`, `shell`) with exact upstream schemas.
@@ -1709,12 +1717,12 @@ routing, translation or persistence paths is touched.
   - Ensured compliance with upstream ZCode gateway content inspection on `/api/v1/zcode-plan/anthropic/v1/messages`.
 
 - **Fix Standalone Preloaded wreq-js Instance & Zero-Import ZCode TLS Impersonation**:
-  - Preloaded `wreq-js` instance into `globalThis.__xrouter_wreq__` in both `custom-server.js` and standalone `server.js` before Next.js server initialization.
-  - Prioritized `globalThis.__xrouter_wreq__` directly in `zcodeTlsClient.js` and `opencodeTlsClient.js`, bypassing webpack chunk dynamic import isolation completely (`Cannot find package 'wreq-js'`).
+  - Preloaded `wreq-js` instance into `globalThis.__omeg4monRouter_wreq__` in both `custom-server.js` and standalone `server.js` before Next.js server initialization.
+  - Prioritized `globalThis.__omeg4monRouter_wreq__` directly in `zcodeTlsClient.js` and `opencodeTlsClient.js`, bypassing webpack chunk dynamic import isolation completely (`Cannot find package 'wreq-js'`).
   - Cleaned up entrypoint require hook injection in `scripts/copy-standalone-assets.mjs`.
 - **Fix Standalone Webpack Scope wreq-js Native Loader & 3012 WAF Bypass**:
   - Resolved `eval("require")` reference failure in Webpack standalone chunk scope where `require` was not in lexical scope, leading to `wreq-js unavailable` and failing open to native fetch.
-  - Implemented global require bootstrap hook (`globalThis.__xrouter_native_require__`) initialized at entrypoint (`custom-server.js` and standalone `server.js`).
+  - Implemented global require bootstrap hook (`globalThis.__omeg4monRouter_native_require__`) initialized at entrypoint (`custom-server.js` and standalone `server.js`).
   - Added multi-tier resolution using `process.getBuiltinModule("module")`, dynamic `Function` constructor require/import completely invisible to Webpack AST analysis, candidate `package.json` resolution, and direct `.cjs` file resolution.
   - Hardened both `zcodeTlsClient.js` and `opencodeTlsClient.js` against standalone Next.js bundling quirks.
 - **Fix Standalone & CLI wreq-js Native Loader & 3012 WAF Bypass**:
@@ -1927,7 +1935,7 @@ routing, translation or persistence paths is touched.
   - Fixed MoonshotAI Compatible cards displaying "OpenAI Compatible" subtitle; now correctly labeled as "MoonshotAI Compatible".
   - Dedicated custom Moonshot vector badge loaded for all Moonshot/Kimi compatible endpoints.
 - **Official Default Password Update**:
-  - Changed default instance password from `synapse123` to `xrouter123` across Go runtime, Next.js dashboard guard, settings routes, and login screens.
+  - Changed default instance password from `synapse123` to the router-branded default across Go runtime, Next.js dashboard guard, settings routes, and login screens.
 - **Provider Cleanup**:
   - Completely purged deprecated and broken `hoplite` provider registry, executor, OAuth flow, and token refresh logic.
 - **OpenCode Hardened Fingerprint & TLS Impersonation**:
@@ -1940,7 +1948,7 @@ routing, translation or persistence paths is touched.
 - **Upstream Decolua Integration (23-26 Oct)**:
   - Integrated upstream core fixes across Claude adaptive thinking (Haiku 5.5), DeepSeek model routing (`deepseek-flash`), Kimi K3.1 Pro cataloging, Copilot model catalog updates, Monaco 0.57.0 upgrade, and SQLite null-byte sanitization.
 - **Official Version Bump v0.0.4**:
-  - Upgraded core X Router engine and global CLI to version 0.0.4.
+  - Upgraded core OMEG4MON ROUTER engine and global CLI to version 0.0.4.
 - **Dedicated Custom Compatible Provider SVGs**:
   - Replaced generic icon fallbacks with dedicated vector SVG marks for Custom OpenAI Compatible, Anthropic Compatible, and Moonshot Compatible provider cards.
   - Implemented automatic Light/Dark mode contrast adaptation for custom SVG icons.
@@ -1987,7 +1995,7 @@ routing, translation or persistence paths is touched.
 - **Live Git SHA Priority in Update Check**:
   - Prioritized `readGitRevision()` over baked-in `process.env.APP_REVISION` in `updateCheck.js` so running instances immediately reflect local working copy commits without false 1-commit-behind notices.
 - **Changelog Fallback Search Path**:
-  - Enhanced `/api/changelog` to search across `/root/xrouter`, `/root/xrouter-remake`, and process cwd so changelog notes always render properly and never display "Nothing to report".
+  - Enhanced `/api/changelog` to search across `/root/omeg4mon-router`, `/root/omeg4mon-router-remake`, and process cwd so changelog notes always render properly and never display "Nothing to report".
 - **Network IP Banner Print Resolution**:
   - Fixed Next.js bootstrap logger interception in `custom-server.js` to iterate all arguments rather than just `args[0]`, ensuring `- Network:` output replaces `0.0.0.0` with the actual public/LAN IP (`${lanIp}`) during `npm start`.
 - **Theme-Bound Button & Form Controls**:
@@ -2037,15 +2045,15 @@ routing, translation or persistence paths is touched.
   - Bound arrow strokes and center hub fill to `var(--color-brand-500, url(#xr-logo-gradient))` with absolute hex color stops `#E25539`/`#EB6446` in the definition.
   - Fixes mobile WebKit / Chromium bug where dynamic variables inside `<stop>` tags failed to resolve and caused the logo vector to render invisible.
 - **Logo Permanence & SVG Visibility**:
-  - Restored static container fill and distinct vector coloring in `LogoMark` with `#18191C` background and `#26282D` stroke, guaranteeing the X Router arrow logo never turns blank or transparent on mobile or light mode.
+  - Restored static container fill and distinct vector coloring in `LogoMark` with `#18191C` background and `#26282D` stroke, guaranteeing the OMEG4MON ROUTER arrow logo never turns blank or transparent on mobile or light mode.
 - **Palette Performance Optimization**:
   - Debounced real-time custom palette drag updates using `requestAnimationFrame`, eliminating UI lag while sliding colors.
   - Removed heavy CSS hue-rotate filters on SVG images in favor of direct CSS variable stroke fills.
 - **Mobile Drawer Theme & Logo Visibility**:
   - Restored `HeaderMenu` (Theme Palette & System controls) to the mobile drawer footer so the theme button is always visible whether the drawer is open or closed.
-  - Enhanced inline SVG rendering in `LogoMark` with fallback fills and explicit stroke mappings to ensure the X Router logo mark renders crisp on all mobile screens.
-- **X Router Custom Studio Palette Renamed & Touch Fix**:
-  - Rebranded color picker header to **X Router Custom Studio Palette** and replaced icon with `palette`.
+  - Enhanced inline SVG rendering in `LogoMark` with fallback fills and explicit stroke mappings to ensure the OMEG4MON ROUTER logo mark renders crisp on all mobile screens.
+- **OMEG4MON ROUTER Custom Studio Palette Renamed & Touch Fix**:
+  - Rebranded color picker header to **OMEG4MON ROUTER Custom Studio Palette** and replaced icon with `palette`.
   - Switched interaction to Pointer Events with `setPointerCapture` and `touch-action: none` to fix unclickable/frozen color picker on mobile and desktop browsers.
 - **Photoshop-Style Custom Palette Studio**:
   - Upgraded Custom Palette into a full Photoshop-style color picker featuring a 2D Saturation/Brightness spectrum canvas, rainbow Hue slider, live Swatch comparison, RGB/HSB telemetry breakdown, and Hex input.
@@ -2099,10 +2107,10 @@ routing, translation or persistence paths is touched.
 
 ## Features & Improvements
 - **Theme Accent Responsive Logo & Active States**:
-  - Dynamically tint X Router logo/favicon using CSS `--logo-filter` matching chosen palette (Emerald Green, Electric Blue, Violet, Rose, Cyan, or Ember).
+  - Dynamically tint OMEG4MON ROUTER logo/favicon using CSS `--logo-filter` matching chosen palette (Emerald Green, Electric Blue, Violet, Rose, Cyan, or Ember).
   - Synchronized navigation icons and text color across LeftRail and MobileNav drawer to cleanly adapt to Light Mode and selected accent palettes.
 - **Embedded OpenCode Protocol Engine (Zero-Install / In-Memory)**:
-  - Fully embedded the OpenCode client protocol, session minting, and canonical tool fingerprinting directly into X Router's native executor.
+  - Fully embedded the OpenCode client protocol, session minting, and canonical tool fingerprinting directly into OMEG4MON ROUTER's native executor.
   - Zero external CLI installation required, zero idle RAM footprint, and keeps the Golang binary under 3.8 MB while remaining 100% cross-platform on Linux and Windows.
 - **ADCode Full Auth Flow (Modal & Backend)**:
   - Added dedicated `AdcodeAuthModal` component supporting 3 authentication methods: Sign In, Daftar Akun, and Token Import.
@@ -2131,7 +2139,7 @@ routing, translation or persistence paths is touched.
   - Prevented HTTP 502 crashes on proxy pool connection drops by gracefully falling back to direct requests when proxies hang.
 - **Console Log Noise Cleanup**:
   - Stripped redundant `%s: %s` profiling statements and `console.time` leaks from dashboard guards.
-- **Git Revision Resolution Across Working Dirs**: Updated `readGitRevision()` to look for `.git` in both process cwd and `/root/xrouter` repository root so update checks accurately report local git commit status.
+- **Git Revision Resolution Across Working Dirs**: Updated `readGitRevision()` to look for `.git` in both process cwd and `/root/omeg4mon-router` repository root so update checks accurately report local git commit status.
 - **Update Banner Z-Index Elevation**: Wrapped `UpdateBanner` in a dedicated `relative z-40` container in `DashboardLayout.js` so update alerts always render on top of tab bars and sticky navigation.
 - **Theme Modes & Custom Accent Palettes**:
   - Added official **Light Mode** support alongside Dark and Ember.
@@ -2155,4 +2163,4 @@ routing, translation or persistence paths is touched.
 # v0.0.1 (2026-10-20)
 
 ## Initial Release
-- **X Router Go Core Engine**: Initial Go-based gateway architecture with SQLite persistent storage, API key authentication, and high-performance streaming proxy.
+- **OMEG4MON ROUTER Go Core Engine**: Initial Go-based gateway architecture with SQLite persistent storage, API key authentication, and high-performance streaming proxy.

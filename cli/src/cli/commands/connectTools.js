@@ -1,5 +1,5 @@
 /**
- * Per-tool config writers for `xrouter connect`. File layout and keys mirror
+ * Per-tool config writers for `omeg4mon-router connect`. File layout and keys mirror
  * the dashboard routes in src/app/api/cli-tools/<tool>-settings/route.js so a
  * tool configured here looks identical to one applied from the dashboard.
  *
@@ -36,10 +36,10 @@ function rewriteFile(file, content) {
   fs.writeFileSync(file, content, { mode: SECRET_MODE });
 }
 
-// One-time backup of the user's pre-xrouter file, then write.
+// One-time backup of the user's pre-omeg4mon-router file, then write.
 function writeFile(file, content) {
   fs.mkdirSync(path.dirname(file), { recursive: true });
-  const backup = `${file}.bak-xrouter`;
+  const backup = `${file}.bak-omeg4mon-router`;
   if (fs.existsSync(file) && !fs.existsSync(backup)) {
     fs.copyFileSync(file, backup);
     fs.chmodSync(backup, SECRET_MODE);
@@ -103,11 +103,11 @@ const codex = {
     let cfg = {};
     try { cfg = parseTOML(fs.readFileSync(file, "utf8")) || {}; } catch (err) { if (err.code !== "ENOENT") throw err; }
     cfg.model = model;
-    cfg.model_provider = "xrouter";
+    cfg.model_provider = "omeg4mon-router";
     cfg.model_providers = cfg.model_providers || {};
     // Custom providers ignore auth.json — key must travel as a static header.
-    cfg.model_providers["xrouter"] = {
-      name: "X Router",
+    cfg.model_providers["omeg4mon-router"] = {
+      name: "OMEG4MON ROUTER",
       base_url: v1(baseUrl),
       wire_api: "responses",
       http_headers: { Authorization: `Bearer ${apiKey}` },
@@ -123,8 +123,8 @@ const codex = {
     const file = codexPath();
     let cfg;
     try { cfg = parseTOML(fs.readFileSync(file, "utf8")) || {}; } catch (err) { if (err.code === "ENOENT") return []; throw err; }
-    if (cfg.model_provider === "xrouter") { delete cfg.model; delete cfg.model_provider; }
-    if (cfg.model_providers) delete cfg.model_providers["xrouter"];
+    if (cfg.model_provider === "omeg4mon-router") { delete cfg.model; delete cfg.model_provider; }
+    if (cfg.model_providers) delete cfg.model_providers["omeg4mon-router"];
     if (cfg.agents) { delete cfg.agents.default_subagent_model; delete cfg.agents.subagent; }
     for (const k of ["model_providers", "agents"]) {
       if (cfg[k] && Object.keys(cfg[k]).length === 0) delete cfg[k];
@@ -145,17 +145,17 @@ const opencode = {
     const file = opencodePath();
     const cfg = readJson(file) || {};
     cfg.provider = cfg.provider || {};
-    const p = cfg.provider["xrouter"] || { npm: "@ai-sdk/openai-compatible", options: {}, models: {} };
+    const p = cfg.provider["omeg4mon-router"] || { npm: "@ai-sdk/openai-compatible", options: {}, models: {} };
     p.options = { ...p.options, baseURL: v1(baseUrl), apiKey };
     p.models = p.models || {};
     p.models[model] = { name: model, modalities: { input: ["text", "image"], output: ["text"] } };
-    cfg.provider["xrouter"] = p;
-    cfg.model = `xrouter/${model}`;
+    cfg.provider["omeg4mon-router"] = p;
+    cfg.model = `omeg4mon-router/${model}`;
     cfg.agent = cfg.agent || {};
     cfg.agent.explorer = {
       description: "Fast explorer subagent for codebase exploration",
       mode: "subagent",
-      model: `xrouter/${model}`,
+      model: `omeg4mon-router/${model}`,
     };
     writeJson(file, cfg);
     return [file];
@@ -164,9 +164,9 @@ const opencode = {
     const file = opencodePath();
     const cfg = readJson(file);
     if (!cfg) return [];
-    if (cfg.provider) delete cfg.provider["xrouter"];
-    if (cfg.model?.startsWith("xrouter/")) delete cfg.model;
-    if (cfg.agent?.explorer?.model?.startsWith("xrouter/")) {
+    if (cfg.provider) delete cfg.provider["omeg4mon-router"];
+    if (cfg.model?.startsWith("omeg4mon-router/")) delete cfg.model;
+    if (cfg.agent?.explorer?.model?.startsWith("omeg4mon-router/")) {
       delete cfg.agent.explorer;
       if (Object.keys(cfg.agent).length === 0) delete cfg.agent;
     }
@@ -177,7 +177,7 @@ const opencode = {
 
 // ── Factory Droid ───────────────────────────────────────────────────────────
 const droidPath = () => path.join(home(), ".factory", "settings.json");
-const isDroid9r = (m) => m.id?.startsWith("custom:X Router");
+const isDroid9r = (m) => /^custom:(?:omeg4mon-router|9Router)-\d+$/.test(m.id ?? "");
 
 const droid = {
   id: "droid",
@@ -190,7 +190,7 @@ const droid = {
     cfg.customModels = [
       {
         model,
-        id: "custom:X Router-0",
+        id: "custom:omeg4mon-router-0",
         index: 0,
         baseUrl: v1(baseUrl),
         apiKey,
@@ -229,7 +229,7 @@ const crush = {
     const file = crushPath();
     const cfg = readJson(file) || {};
     cfg.providers = cfg.providers || {};
-    cfg.providers["xrouter"] = {
+    cfg.providers["omeg4mon-router"] = {
       type: "openai-compat",
       base_url: v1(baseUrl),
       api_key: apiKey,
@@ -241,8 +241,8 @@ const crush = {
   async reset() {
     const file = crushPath();
     const cfg = readJson(file);
-    if (!cfg?.providers?.["xrouter"]) return [];
-    delete cfg.providers["xrouter"];
+    if (!cfg?.providers?.["omeg4mon-router"]) return [];
+    delete cfg.providers["omeg4mon-router"];
     if (Object.keys(cfg.providers).length === 0) delete cfg.providers;
     rewriteFile(file, JSON.stringify(cfg, null, 2));
     return [file];
@@ -268,7 +268,7 @@ const kilo = {
     const auth = readJson(file);
     if (!auth) return [];
     delete auth["openai-compatible"];
-    delete auth["xrouter"];
+    delete auth["omeg4mon-router"];
     rewriteFile(file, JSON.stringify(auth, null, 2));
     return [file];
   },

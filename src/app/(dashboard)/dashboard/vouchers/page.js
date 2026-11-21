@@ -185,9 +185,7 @@ export default function VouchersPage() {
     setTimeout(() => setCopyFeedback(""), 2000);
   };
 
-  const publicClaimUrl = typeof window !== "undefined"
-    ? `${window.location.origin}/claim`
-    : "https://xrouter.consoleapi.qzz.io/claim";
+  const publicClaimUrl = typeof window !== "undefined" ? `${window.location.origin}/claim` : "/claim";
 
   return (
     <div className="flex min-w-0 flex-col gap-4">
@@ -601,7 +599,7 @@ export default function VouchersPage() {
                 <div className="text-center py-4 text-text-muted text-xs font-mono">Scanning installed models...</div>
               ) : catalogModels.length === 0 ? (
                 <div className="text-center py-4 space-y-1">
-                  <p className="text-xs font-mono text-text-muted">No installed provider connections found in X Router.</p>
+                  <p className="text-xs font-mono text-text-muted">No installed provider connections found in OMEG4MON ROUTER.</p>
                   <p className="text-[11px] text-[#777]">Connect an upstream provider in the Providers page to populate models here, or select Allow All Models (*).</p>
                 </div>
               ) : filteredModels.length === 0 ? (

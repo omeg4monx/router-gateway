@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/johsua092-ui/xrouter/internal/database"
+	"github.com/omeg4monx/router-gateway/internal/database"
 )
 
 var startTime = time.Now()
@@ -71,7 +71,7 @@ func HandleCommand(rawCmd, requestUserId, requestToken string, db *database.DB) 
 
 	switch cmd {
 	case "start", "help":
-		return "⚡ *X Router Go Core Controller*\n" +
+		return "⚡ *OMEG4MON ROUTER Go Core Controller*\n" +
 			"High-Performance Go Engine · Control Panel\n\n" +
 			"*Available Commands:*\n" +
 			"• `/status` - Live system health, uptime & metrics\n" +
@@ -82,7 +82,7 @@ func HandleCommand(rawCmd, requestUserId, requestToken string, db *database.DB) 
 			"• `/help` - Show this command list", nil
 
 	case "ping":
-		return fmt.Sprintf("🏓 Pong! X Router Go Core is active (Uptime: %s)", formatUptime(time.Since(startTime))), nil
+		return fmt.Sprintf("🏓 Pong! OMEG4MON ROUTER Go Core is active (Uptime: %s)", formatUptime(time.Since(startTime))), nil
 
 	case "status":
 		activeConns, totalConns, _ := db.GetActiveConnectionCount()
@@ -92,7 +92,7 @@ func HandleCommand(rawCmd, requestUserId, requestToken string, db *database.DB) 
 		runtime.ReadMemStats(&mem)
 		allocMb := float64(mem.Alloc) / (1024 * 1024)
 
-		return fmt.Sprintf(`📊 *X Router Go Telemetry*
+		return fmt.Sprintf(`📊 *OMEG4MON ROUTER Go Telemetry*
 • *Engine:* `+"`Golang %s`"+`
 • *Uptime:* %s
 • *Memory Allocated:* %.2f MB
@@ -171,7 +171,7 @@ func HandleWebhook(w http.ResponseWriter, r *http.Request, db *database.DB) {
 	}
 
 	if fmt.Sprintf("%d", fromId) != allowed && fmt.Sprintf("%d", chatId) != allowed {
-		sendTelegramMessage(cfg.BotToken, chatId, "⛔ *Akses Ditolak*\nAnda tidak memiliki otorisasi untuk mengontrol X Router ini.")
+		sendTelegramMessage(cfg.BotToken, chatId, "⛔ *Akses Ditolak*\nAnda tidak memiliki otorisasi untuk mengontrol OMEG4MON ROUTER ini.")
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(`{"ok":true,"authorized":false}`))
 		return

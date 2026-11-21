@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# X Router — High-Performance Multi-Tenant AI Gateway Installer
-# https://github.com/johsua092-ui/x-router
+# OMEG4MON ROUTER — High-Performance Multi-Tenant AI Gateway Installer
+# https://github.com/omeg4monx/router-gateway
 # ==============================================================================
 
 set -e
@@ -14,15 +14,7 @@ RED='\033[0;31m'
 NC='\033[0m' # No Color
 BOLD='\033[1m'
 
-echo -e "${CYAN}${BOLD}"
-echo "  __  __   ____   ____   _   _  _____  ______  ____  "
-echo "  \ \/ /  |  _ \ / __ \ | | | ||_   _||  ____||  _ \ "
-echo "   \  /   | |_) | |  | || | | |  | |  | |__   | |_) |"
-echo "   /  \   |  _ <| |  | || | | |  | |  |  __|  |  _ < "
-echo "  /_/\_\  |_| \_\\ \__/ /| |_| |  | |  | |____ |_| \_\\"
-echo "                   \____/  \___/   |_|  |______||_|   "
-echo -e "${NC}"
-echo -e "${GREEN}${BOLD}Welcome to X Router Production Installer & Setup Wizard${NC}\n"
+echo -e "${GREEN}${BOLD}Welcome to OMEG4MON ROUTER Production Installer & Setup Wizard${NC}\n"
 
 # Helper for generating cryptographically secure hex strings
 generate_random_hex() {
@@ -41,14 +33,14 @@ PASSWORD=""
 JWT_SECRET=""
 MACHINE_SALT=""
 API_KEY_SECRET=""
-DATA_DIR="/var/lib/xrouter"
-SERVICE_NAME="xrouter"
+DATA_DIR="/var/lib/omeg4mon-router"
+SERVICE_NAME="omeg4mon-router"
 NON_INTERACTIVE=false
 
 # Deployment & URL Configuration
 DEPLOY_MODE="local"
 BASE_URL=""
-CLOUD_URL="https://xrouter.com"
+CLOUD_URL=""
 
 # Server & Feature Toggles
 NODE_ENV="production"
@@ -83,9 +75,9 @@ while [[ "$#" -gt 0 ]]; do
             echo "  --jwt-secret <secret>         JWT session secret (or 'auto')"
             echo "  --salt <salt>                 Machine ID salt (or 'auto')"
             echo "  --api-key-secret <secret>     API key hash secret (or 'auto')"
-            echo "  --data-dir <path>             Database directory (default: /var/lib/xrouter)"
+            echo "  --data-dir <path>             Database directory (default: /var/lib/omeg4mon-router)"
             echo "  --base-url <url>              Custom Base URL (e.g. https://your-domain.com)"
-            echo "  --cloud-url <url>             Cloud URL (default: https://xrouter.com)"
+            echo "  --cloud-url <url>             Cloud URL (default: none)"
             echo "  --node-env <env>              Node environment: production | development"
             echo "  --enable-request-logs <b/val> Enable request logs (true/false, default: false)"
             echo "  --observability <b/val>       Enable telemetry/observability (true/false, default: true)"
@@ -107,7 +99,7 @@ fi
 
 # Interactive Prompts
 if [ "$NON_INTERACTIVE" = false ]; then
-    echo -e "${YELLOW}Please configure your X Router instance:${NC}\n"
+    echo -e "${YELLOW}Please configure your OMEG4MON ROUTER instance:${NC}\n"
 
     read -p "Port to run on [${PORT}]: " INPUT_PORT
     PORT="${INPUT_PORT:-$PORT}"
@@ -121,7 +113,7 @@ if [ "$NON_INTERACTIVE" = false ]; then
     echo "2) Public / Custom Domain (e.g. https://your-domain.com or http://IP:${PORT})"
     read -p "Select deployment mode [1]: " INPUT_DEPLOY_CHOICE
     if [ "$INPUT_DEPLOY_CHOICE" = "2" ]; then
-        read -p "Enter public BASE_URL (e.g. https://xrouter.example.com): " INPUT_BASE_URL
+        read -p "Enter public BASE_URL (e.g. https://omeg4mon-router.example.com): " INPUT_BASE_URL
         BASE_URL="${INPUT_BASE_URL:-}"
     fi
 
@@ -199,7 +191,7 @@ echo -e "\n${CYAN}Generating .env configuration...${NC}"
 # Write .env file
 ENV_FILE=".env"
 cat <<EOF > "$ENV_FILE"
-# X Router environment configuration
+# OMEG4MON ROUTER environment configuration
 # Generated at $(date -u +"%Y-%m-%dT%H:%M:%SZ") via install.sh
 
 # Authentication & Security
@@ -251,7 +243,7 @@ if [ "$IS_ROOT" = true ] && command -v systemctl >/dev/null 2>&1; then
 
     cat <<EOF > "/etc/systemd/system/${SERVICE_NAME}.service"
 [Unit]
-Description=X Router High-Performance Multi-Tenant AI Gateway
+Description=OMEG4MON ROUTER High-Performance Multi-Tenant AI Gateway
 After=network.target
 
 [Service]
@@ -275,7 +267,7 @@ EOF
 fi
 
 echo -e "\n${GREEN}${BOLD}================================================================${NC}"
-echo -e "${GREEN}${BOLD}              X ROUTER SETUP COMPLETE! 🎉                      ${NC}"
+echo -e "${GREEN}${BOLD}              OMEG4MON ROUTER SETUP COMPLETE! 🎉                      ${NC}"
 echo -e "${GREEN}${BOLD}================================================================${NC}"
 echo -e "Dashboard URL   : ${BOLD}${BASE_URL}/dashboard${NC}"
 echo -e "API Base URL    : ${BOLD}${BASE_URL}/v1${NC}"

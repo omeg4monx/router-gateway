@@ -95,7 +95,7 @@ ProviderNode.propTypes = {
   data: PropTypes.object.isRequired,
 };
 
-// Center X Router node — pulse/glow on card only (no expanding rings)
+// Center OMEG4MON ROUTER node — pulse/glow on card only (no expanding rings)
 function RouterNode({ data }) {
   const powering = (data.activeCount || 0) > 0;
   return (
@@ -113,14 +113,14 @@ function RouterNode({ data }) {
 
       <img
         src="/favicon.svg"
-        alt="X Router"
+        alt="OMEG4MON ROUTER"
         className={`w-6 h-6 mr-2 ${powering ? "topology-router-icon" : ""}`}
         style={{ filter: "var(--logo-filter, none)" }}
         loading="lazy"
         decoding="async"
       />
       <span className={`text-sm font-bold ${powering ? "topology-router-label text-warning" : "text-primary"}`}>
-        X Router
+        OMEG4MON ROUTER
       </span>
       {data.activeCount > 0 && (
         <span className="ml-2 px-1.5 py-0.5 rounded-full bg-warning-solid text-black text-xs font-bold topology-router-badge">

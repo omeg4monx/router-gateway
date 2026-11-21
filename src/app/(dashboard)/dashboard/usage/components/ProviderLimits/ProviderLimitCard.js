@@ -65,7 +65,7 @@ export default function ProviderLimitCard({
             style={{ backgroundColor: `${providerColor}15` }}
           >
             <ProviderIcon
-              src={`/providers/${provider}.png`}
+              providerId={provider}
               alt={provider || "Provider"}
               size={40}
               className="object-contain rounded-lg"

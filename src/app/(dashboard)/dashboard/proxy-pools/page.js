@@ -1376,7 +1376,7 @@ export default function ProxyPoolsPage() {
       >
         <div className="flex flex-col gap-4">
           <div className="rounded-lg bg-surface-2 p-3 border border-border text-xs text-text-muted">
-            Paste your <code className="text-primary font-mono font-medium">vmess://</code>, <code className="text-primary font-mono font-medium">vless://</code>, <code className="text-primary font-mono font-medium">trojan://</code>, or <code className="text-primary font-mono font-medium">ss://</code> link. XRouter will auto-route through this tunnel via an internal proxy.
+            Paste your <code className="text-primary font-mono font-medium">vmess://</code>, <code className="text-primary font-mono font-medium">vless://</code>, <code className="text-primary font-mono font-medium">trojan://</code>, or <code className="text-primary font-mono font-medium">ss://</code> link. OMEG4MON ROUTER will auto-route through this tunnel via an internal proxy.
           </div>
 
           {v2rayStatus?.running && (
