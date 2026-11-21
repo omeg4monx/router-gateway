@@ -1,5 +1,13 @@
 # v0.1.0 (2026-11-21)
 
+### Security — Medium-severity fixes
+
+- **Proxy egress fails closed**: a configured proxy is never bypassed for a direct connection (connection errors, MITM-DNS bypass, OpenCode free-tier 403 replay, mimo login, Cursor HTTP/2). Requests that previously "worked" by silently going direct now fail and rotate.
+- **Tunnel**: the third-party `abc-tunnel.us` short-link worker is opt-in via `TUNNEL_WORKER_URL` (its registration is unauthenticated, so anyone seeing a public URL could re-point it); default is the direct trycloudflare URL. `shortId` uses `crypto.randomInt`. cloudflared is pinned to 2026.11.1 and every download is SHA-256 checked.
+- **Combo / account fallback**: request-scoped 400/406/422 (and other unmatched 4xx) are returned instead of walking the whole combo; rate-limit, quota, credit and account-scoped statuses still fall through.
+- **SAML**: requires a configured base URL (Settings `baseUrl` or `BASE_URL`); forwarded-host headers are ignored; `InResponseTo` is checked on the signature-verified response.
+- **Updater**: no default to the unrelated `xrouter` npm package; status server CORS is limited to loopback origins; only processes running from this install's app dir or DATA_DIR are killed.
+
 ### Security — High-severity fixes
 
 - `/api/models/test` is no longer public (anonymous callers could spend provider quota via the server's own credentials).
