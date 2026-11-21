@@ -53,19 +53,26 @@ describe("Antigravity-Shield Native Protections", () => {
   describe("Pillar 3: Canonical Project ID & Legacy Project Sanitization", () => {
     const ag = new AntigravityExecutor();
 
-    it("generates canonical Google format cloudaicompanion-proj-* instead of random adjective-noun", () => {
+    it("generates canonical aicode-consumers project ID", () => {
       const pid = ag.generateProjectId({ connectionId: "conn-12345" });
-      expect(pid).toMatch(/^cloudaicompanion-proj-[0-9a-f]{16}$/);
-      expect(pid).not.toMatch(/^(useful|bright|swift|calm|bold)-/);
+      expect(pid).toBe("aicode-consumers");
     });
 
-    it("sanitizes legacy random fake project IDs during transformRequest", () => {
+    it("sanitizes legacy fake project IDs during transformRequest", () => {
       const out = ag.transformRequest("gemini-2.5-flash", {
         request: { contents: [{ role: "user", parts: [{ text: "ping" }] }] }
       }, true, { connectionId: "conn-12345", projectId: "useful-spark-a1b2c" });
 
-      expect(out.project).toMatch(/^cloudaicompanion-proj-[0-9a-f]{16}$/);
+      expect(out.project).toBe("aicode-consumers");
       expect(out.project).not.toBe("useful-spark-a1b2c");
+    });
+
+    it("sanitizes legacy hashed cloudaicompanion-proj IDs to canonical", () => {
+      const out = ag.transformRequest("gemini-2.5-flash", {
+        request: { contents: [{ role: "user", parts: [{ text: "ping" }] }] }
+      }, true, { connectionId: "conn-12345", projectId: "cloudaicompanion-proj-deadbeef01234567" });
+
+      expect(out.project).toBe("aicode-consumers");
     });
 
     it("preserves authentic provisioned project IDs", () => {
@@ -78,15 +85,20 @@ describe("Antigravity-Shield Native Protections", () => {
     });
   });
 
-  describe("Pillar 4: Staged Multi-Host Failover on 403 & Error Classification", () => {
+  describe("Pillar 4: No 403 Retry & Error Classification", () => {
     const ag = new AntigravityExecutor();
 
-    it("allows fallback from daily staging endpoint (urlIndex 0) to production endpoint (urlIndex 1) on 403", () => {
-      expect(ag.shouldRetry(403, 0)).toBe(true);
+    it("vetoes any 403 retry (no staging->production 403 failover)", () => {
+      expect(ag.shouldRetry(403, 0)).toBe(false);
+      expect(ag.shouldRetry(403, 1)).toBe(false);
     });
 
-    it("vetoes further retry when production endpoint (urlIndex 1) also returns 403", () => {
-      expect(ag.shouldRetry(403, 1)).toBe(false);
+    it("classifies TOS violations into a terminal error with appeal link", () => {
+      const parsed = ag.parseError({ status: 403 }, JSON.stringify({
+        error: { message: "TOS_VIOLATION: account disabled" }
+      }));
+      expect(parsed.code).toBe("TOS_VIOLATION");
+      expect(parsed.message).toContain("https://forms.gle/hGzM9MEUv2azZsrb9");
     });
 
     it("classifies Google quota exhaustion returned as 403 into QUOTA_EXHAUSTED cooldown", () => {

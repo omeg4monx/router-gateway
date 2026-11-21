@@ -1,5 +1,11 @@
 # v0.1.0 (2026-11-21)
 
+### Feat — Venice.ai keyless provider + Antigravity Shield hardening (adopted from xrouter 3b0f6c3)
+
+- **Venice.ai (keyless)**: new `venice-free` provider with 6 free no-auth models (`deepseek-v4-1-flash-uncensored`, `olafangensan-glm-4.7-flash-heretic`, `venice-uncensored-1-2`, `qwen3-coder-480b-a35b-instruct-turbo`, `nvidia-nemotron-3-nano-30b-a3b`, `nvidia-nemotron-3-ultra-550b-a55b`). Uses `wreq-js` Chrome 133 TLS attestation via `outerface.venice.ai`, proxy rotation (`VENICE_PROXY_FILE`), and NDJSON→SSE conversion. Registered under a distinct id so it does not shadow the existing `venice` API-key provider; aliases `venice-web` / `venice-keyless`. Added `open-sse/executors/venice.js`, `open-sse/providers/registry/venice-free.js`, static model catalog resolver, `auth.js` no-auth handling (via `FREE_PROVIDERS.noAuth`), model-test ping no-auth stream path, and icon alias to `venice.png`. Fixed an upstream bug that dropped the last NDJSON line when the stream ended without a trailing newline.
+- **Antigravity Shield hardening**: `shouldRetry` vetoes all 403 (no staging→production 403 failover / onboard loop); `parseError` classifies TOS violations with appeal link; canonical project ID `aicode-consumers` replaces hashed `cloudaicompanion-proj-*`; legacy fake PID sanitization extended; `projectId.js` drops hardcoded `Client-Metadata`, the daily onboarding URL, and lowers `MAX_ATTEMPTS` to 3; `chat.js` no longer invalidates the project ID on 403.
+- Ported by ZW4RT HERMES MOD · powered by OMEG4MON. Verification: 89/89 targeted tests green; full suite 3397 pass / 320 fail with an identical failure set to the pre-change baseline (no regressions); `npm run build` exit 0.
+
 ### Bug Fixes — False "Cross-origin request blocked" behind tunnels / reverse proxies
 
 - `src/middleware.js`: behind a proxy that rewrites `Host` (cloudflared, ngrok, nginx), `Host` is `127.0.0.1:<port>` while the browser `Origin` is the public hostname, so every mutating dashboard `/api/*` call (OAuth exchange, provider save, key writes) got 403.

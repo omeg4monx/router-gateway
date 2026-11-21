@@ -28,6 +28,12 @@ const ICON_ALIASES = {
   freepi: "freepi.svg",
   fp: "freepi.svg",
   "free-pi": "freepi.svg",
+  // Keyless Venice webchat shares the existing venice.png asset
+  // (port of xrouter 3b0f6c3).
+  "venice-free": "venice",
+  "venice-web": "venice",
+  "venice-keyless": "venice",
+  "venice-ai": "venice",
 };
 
 const TYPE_PREFIX_ALIASES = {

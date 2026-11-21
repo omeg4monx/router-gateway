@@ -175,7 +175,11 @@ export async function pingModelByKind(model, kind, baseUrl = `http://127.0.0.1:$
     String(model).startsWith("opencode/") ||
     String(model).startsWith("oc/") ||
     String(model).startsWith("opencode-zen/") ||
-    String(model).startsWith("ovh/");
+    String(model).startsWith("ovh/") ||
+    // Keyless Venice.ai webchat models stream via the project-internal
+    // passthrough executor (port of xrouter 3b0f6c3).
+    String(model).startsWith("venice-free/") ||
+    String(model).startsWith("venice-web/");
   const res = await fetch(`${baseUrl}/api/v1/chat/completions`, {
     method: "POST",
     headers,

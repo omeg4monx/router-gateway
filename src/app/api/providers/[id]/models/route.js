@@ -384,6 +384,13 @@ const PROVIDER_MODELS_CONFIG = {
       models: getStaticProviderModels("ovh"),
     }),
   },
+  // Keyless Venice.ai webchat — static catalog, no remote /models call
+  // (port of xrouter 3b0f6c3).
+  "venice-free": {
+    customResolver: async () => ({
+      models: getStaticProviderModels("venice-free"),
+    }),
+  },
   zed: {
     customResolver: async (connection) => {
       try {

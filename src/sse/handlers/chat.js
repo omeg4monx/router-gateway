@@ -31,7 +31,7 @@ import { deriveConversationKey, clearAffinity } from "../services/conversationAf
 import { recordCircuitSuccess } from "../services/circuitBreaker.js";
 import * as log from "../utils/logger.js";
 import { updateProviderCredentials, checkAndRefreshToken } from "../services/tokenRefresh.js";
-import { getProjectIdForConnection, invalidateProjectId } from "open-sse/services/projectId.js";
+import { getProjectIdForConnection } from "open-sse/services/projectId.js";
 import { stripModelContextMarker } from "open-sse/utils/modelMarkers.js";
 import { isValidModel } from "open-sse/config/providerModels.js";
 import { resolveTokenmaxxingOrder } from "../services/tokenmaxxing.js";
@@ -626,9 +626,9 @@ async function handleSingleModelChat(body, modelStr, clientRawRequest = null, re
         return result.response;
       }
 
-      if (provider === "antigravity" && result.status === 403) {
-        invalidateProjectId(credentials.connectionId);
-      }
+      // Antigravity Shield hardening (xrouter 3b0f6c3): do NOT invalidate the
+      // project ID on 403 — that re-triggers onboardUser and loops. 403 is now
+      // terminal (shouldRetry vetoes it) and TOS is classified by parseError.
       log.warn("FALLBACK", `⇄ ACC:${credentials.connectionName} UNAVAILABLE (${result.status}) → NEXT ACCOUNT`);
       excludeConnectionIds.add(credentials.connectionId);
       if (conversationKey) clearAffinity(provider, conversationKey);

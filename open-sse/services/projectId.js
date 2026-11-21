@@ -10,7 +10,6 @@
 import { CLOUD_CODE_API, LOAD_CODE_ASSIST_HEADERS, ANTIGRAVITY_LOAD_CODE_ASSIST_HEADERS, LOAD_CODE_ASSIST_METADATA } from "../config/appConstants.js";
 import { ANTIGRAVITY_IDE_VERSION } from "../providers/shared.js";
 import { getVirtualDeviceProfile } from "./virtualDevice.js";
-import crypto from "crypto";
 
 // ─── Cache ────────────────────────────────────────────────────────────────────
 // connectionId -> { projectId: string, fetchedAt: number }
@@ -110,14 +109,14 @@ export async function getProjectIdForConnection(connectionId, accessToken, provi
                 projectIdCache.set(connectionId, {projectId, fetchedAt: Date.now()});
                 return projectId;
             }
-            // Canonical Antigravity fallback project format (Antigravity-Shield parity)
-            const fallbackPid = `cloudaicompanion-proj-${crypto.createHash("sha256").update(connectionId || "default").digest("hex").slice(0, 16)}`;
+            // Antigravity Shield hardening: canonical consumer project, no random fake IDs.
+            const fallbackPid = "aicode-consumers";
             projectIdCache.set(connectionId, {projectId: fallbackPid, fetchedAt: Date.now()});
             console.warn("[ProjectId] provisioned canonical project ID for connection", connectionId.slice(0, 8), fallbackPid);
             return fallbackPid;
         } catch (error) {
             console.warn(`[ProjectId] Error provisioning project ID on Google server: ${error.message}`);
-            const fallbackPid = `cloudaicompanion-proj-${crypto.createHash("sha256").update(connectionId || "default").digest("hex").slice(0, 16)}`;
+            const fallbackPid = "aicode-consumers";
             return fallbackPid;
         } finally {
             pendingFetches.delete(connectionId);
@@ -266,22 +265,11 @@ async function onboardUser(accessToken, tierID, externalSignal, endpoints, provi
     const headers = {
         ...baseHeaders,
         "Authorization": `Bearer ${accessToken}`,
-        ...(provider === "antigravity" ? {
-            "Client-Metadata": JSON.stringify({
-                ideType: "ANTIGRAVITY",
-                ideName: "antigravity",
-                platform: "PLATFORM_UNSPECIFIED",
-                pluginType: "GEMINI",
-                ideVersion: ANTIGRAVITY_IDE_VERSION,
-                machineId: device.machineId,
-            }),
-        } : {}),
     };
-    const MAX_ATTEMPTS = Number(process.env.ONBOARD_MAX_ATTEMPTS) || 6;
+    const MAX_ATTEMPTS = Number(process.env.ONBOARD_MAX_ATTEMPTS) || 3;
     const BASE_RETRY_DELAY_MS = 2_000;
 
     const targetUrls = [
-        "https://daily-cloudcode-pa.googleapis.com/v1internal:onboardUser",
         "https://cloudcode-pa.googleapis.com/v1internal:onboardUser",
     ];
 
