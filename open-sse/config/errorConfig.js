@@ -116,13 +116,9 @@ export const ERROR_RULES = [
   { status: 404, cooldownMs: COOLDOWN.long },
   { status: 429, backoff: true },
 
-  // --- Client mistakes, checked last so any signal above still wins ---
-  // A rejected request says nothing about account health: locking here hides a
-  // working credential behind a cooldown and makes the client retry blindly.
-  // `lock: false` keeps the combo chain rotating while skipping account penalty.
-  { status: 400, lock: false },
-  { status: 406, lock: false },
-  { status: 422, lock: false },
+  // Client mistakes (400/406/422 with no matching text above) are deliberately not
+  // listed: checkFallbackError returns them to the caller without locking the account
+  // or advancing the combo, since every candidate would reject the same request.
 ];
 
 // Backward compat: COOLDOWN_MS object (used by index.js re-export)
