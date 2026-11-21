@@ -1,41 +1,61 @@
 # Docker
 
-Run 9Router in a container. Published image: [`decolua/9router`](https://hub.docker.com/r/decolua/9router) — multi-platform `linux/amd64` + `linux/arm64`.
+Run OMEG4MON ROUTER in a container. CI publishes a multi-platform image (`linux/amd64` and `linux/arm64`) to GHCR at `ghcr.io/omeg4monx/router-gateway`. You can also build the image yourself from this repository.
 
 ---
 
 # 👤 For Users
 
-## Quick start
+## Quick start (Docker Compose)
+
+```bash
+cp .env.example .env        # set JWT_SECRET and INITIAL_PASSWORD
+docker compose up -d
+```
+
+This starts two services:
+- **`omeg4mon-router`** on port `20128`, with data in the `omeg4mon-router-data` volume.
+- **Headroom** on `127.0.0.1:8787`.
+
+Open http://localhost:20128/dashboard.
+
+`./start.sh` does the same for a single container. It rebuilds the image and replaces any running `omeg4mon-router` container.
+
+## Quick start (docker run)
 
 ```bash
 docker run -d \
   -p 20128:20128 \
-  -v "$HOME/.9router:/app/data" \
-  -e DATA_DIR=/app/data \
-  --name 9router \
-  decolua/9router:latest
+  -v omeg4mon-router-data:/app/data \
+  --env-file .env \
+  --name omeg4mon-router \
+  ghcr.io/omeg4monx/router-gateway:latest
 ```
 
-App listens on port `20128`. Open: http://localhost:20128
+The app listens on port `20128` inside the container (`HOSTNAME=0.0.0.0`).
+
+To keep it reachable only from the host, publish the port on loopback: `-p 127.0.0.1:20128:20128`.
 
 ## Manage container
 
 ```bash
-docker logs -f 9router        # view logs
-docker stop 9router           # stop
-docker start 9router          # start again
-docker rm -f 9router          # remove
+docker logs -f omeg4mon-router        # view logs
+docker stop omeg4mon-router           # stop
+docker start omeg4mon-router          # start again
+docker rm -f omeg4mon-router          # remove (the data volume is kept)
 ```
 
 ## Data persistence
 
+The image sets `DATA_DIR=/app/data`. Mount a volume or host directory there:
+
 ```bash
--v "$HOME/.9router:/app/data" \
--e DATA_DIR=/app/data
+-v omeg4mon-router-data:/app/data
+# or a host path:
+-v "$HOME/.omeg4mon-router:/app/data"
 ```
 
-Without `DATA_DIR`, the app falls back to `~/.9router/` (macOS/Linux) or `%APPDATA%\9router\` (Windows). In the container, `DATA_DIR=/app/data` makes the bind mount work.
+Outside a container, the default `DATA_DIR` is `~/.omeg4mon-router/` on macOS and Linux, and `%APPDATA%\omeg4mon-router\` on Windows.
 
 Data layout under `$DATA_DIR/`:
 
@@ -43,39 +63,46 @@ Data layout under `$DATA_DIR/`:
 $DATA_DIR/
 ├── db/
 │   ├── data.sqlite       # main SQLite database
-│   └── backups/          # auto backups
+│   └── backups/          # safety backups taken before schema changes
+├── vault.key             # at-rest key for stored credentials (keep with backups)
+├── jwt-secret            # session signing key when JWT_SECRET is unset
 └── ...                   # certs, logs, runtime configs
 ```
 
-Host path: `$HOME/.9router/db/data.sqlite`
-Container path: `/app/data/db/data.sqlite`
+Back up `vault.key` together with `data.sqlite`. Without it, stored provider credentials cannot be decrypted. Instead of the file, you can supply the key through `OMEG4MON_ROUTER_VAULT_KEY`.
+
+The entrypoint fixes ownership of the data directory, then drops privileges and runs the server as the `node` user.
 
 ## Optional env vars
 
 ```bash
 docker run -d \
   -p 20128:20128 \
-  -v "$HOME/.9router:/app/data" \
-  -e DATA_DIR=/app/data \
-  -e PORT=20128 \
-  -e HOSTNAME=0.0.0.0 \
+  -v omeg4mon-router-data:/app/data \
+  -e JWT_SECRET=<long-random-secret> \
+  -e INITIAL_PASSWORD=<strong-password> \
+  -e OMEG4MON_ROUTER_VAULT_KEY=<long-random-secret> \
   -e DEBUG=true \
-  --name 9router \
-  decolua/9router:latest
+  --name omeg4mon-router \
+  ghcr.io/omeg4monx/router-gateway:latest
 ```
+
+`.env.example` documents every variable.
+
+Without `INITIAL_PASSWORD`, the first-login password is `omeg4mon123`. It is accepted only from trusted networks (loopback, LAN, Docker bridge, Tailscale).
 
 ## Optional Headroom sidecar
 
-The 9Router image does not bundle Python or Headroom. To use Headroom in Docker, run it as a separate service and point 9Router at that proxy:
+The image does not bundle Python or Headroom. `docker-compose.yml` already runs Headroom as a separate service and points OMEG4MON ROUTER at it:
 
 ```yaml
 services:
-  9router:
-    image: decolua/9router:latest
+  omeg4mon-router:
+    image: ghcr.io/omeg4monx/router-gateway:latest
     ports:
       - "20128:20128"
     volumes:
-      - "$HOME/.9router:/app/data"
+      - omeg4mon-router-data:/app/data
     environment:
       DATA_DIR: /app/data
       HEADROOM_URL: http://headroom:8787
@@ -85,40 +112,43 @@ services:
   headroom:
     image: ghcr.io/chopratejas/headroom:latest
     ports:
-      - "8787:8787"
+      - "127.0.0.1:8787:8787"
+
+volumes:
+  omeg4mon-router-data:
 ```
 
-In the dashboard, open `Endpoint` → `Token Saver` → `Headroom`, confirm the URL is `http://headroom:8787`, recheck status, then enable Headroom.
+To enable it:
+1. In the dashboard, open `Endpoint` → `Token Saver` → `Headroom`.
+2. Confirm the URL is `http://headroom:8787`.
+3. Recheck the status, then enable Headroom.
 
-If Headroom runs on the Docker host instead of as a sidecar, use `http://host.docker.internal:8787` on macOS/Windows. On Linux, add `--add-host=host.docker.internal:host-gateway` or the equivalent compose `extra_hosts` entry.
+If Headroom runs on the Docker host instead of as a sidecar:
+- On macOS and Windows, use `http://host.docker.internal:8787`.
+- On Linux, add `--add-host=host.docker.internal:host-gateway`, or the equivalent compose `extra_hosts` entry.
 
 ## Update to latest
 
 ```bash
-docker pull decolua/9router:latest
-docker rm -f 9router
-# re-run the quick start command
+docker pull ghcr.io/omeg4monx/router-gateway:latest
+docker rm -f omeg4mon-router
+# re-run the quick start command; the data volume is reused
 ```
 
-To pin a specific version instead of following `latest`, use a numbered image tag:
-
-```bash
-docker pull decolua/9router:0.5.81
-```
+To pin a specific version, use a numbered tag (`ghcr.io/omeg4monx/router-gateway:X.Y.Z`). For an immutable deployment, pin the digest instead (`ghcr.io/omeg4monx/router-gateway@sha256:<digest>`).
 
 ---
 
 # 🛠 For Developers
 
-## Build image locally (test)
+## Build image locally
 
 ```bash
-docker build -t 9router .
+docker build -t omeg4mon-router .
 
 docker run --rm -p 20128:20128 \
-  -v "$HOME/.9router:/app/data" \
-  -e DATA_DIR=/app/data \
-  9router
+  -v omeg4mon-router-data:/app/data \
+  omeg4mon-router
 ```
 
 The Dockerfile uses the official Alpine and npm registries by default. Regional mirrors can be supplied when needed:
@@ -127,61 +157,32 @@ The Dockerfile uses the official Alpine and npm registries by default. Regional 
 docker build \
   --build-arg ALPINE_MIRROR=mirrors.aliyun.com \
   --build-arg NPM_REGISTRY=https://registry.npmmirror.com/ \
-  -t 9router .
+  -t omeg4mon-router .
 ```
 
-## Publish (automatic via CI)
+`Dockerfile.go` builds the experimental Go core. That core is not feature-complete and is not used by `docker-compose.yml`.
 
-Push a Docker-safe semver git tag `vX.Y.Z` (or a prerelease such as `vX.Y.Z-rc.1`) → GitHub Actions builds `linux/amd64` and `linux/arm64` on native runners, health-checks each platform image, verifies the resulting manifest and `/api/health`, then publishes:
+## Publish (CI)
 
-- `ghcr.io/decolua/9router:X.Y.Z` + `:latest`
-- `decolua/9router:X.Y.Z` + `:latest`
+`.github/workflows/docker-publish.yml` is tag-driven. Pushing a semver git tag `vX.Y.Z` (or a prerelease such as `vX.Y.Z-rc.1`) runs this sequence:
 
-The `v` prefix is used only for the git tag; image tags omit it. A stable tag push promotes `latest`, but a prerelease tag such as `vX.Y.Z-rc.1` publishes only its numbered image by default. Prereleases require an explicit manual `promote_latest` opt-in. Promotion happens only after both native platform builds, both platform health checks, manifest inspection, and the resolved-manifest smoke test succeed. A failed or timed-out platform build therefore cannot move `latest`.
-
-The workflow rejects SemVer build metadata such as `v1.2.3+build.7` because the `+` form is not a valid Docker image tag. The git tag and both `package.json` versions must match exactly.
+1. Builds `linux/amd64` and `linux/arm64` on native runners.
+2. Health-checks each platform image with `/api/health`.
+3. Assembles and verifies the multi-platform manifest.
+4. Publishes `ghcr.io/omeg4monx/router-gateway:X.Y.Z`. A stable tag also moves `:latest`.
 
 ```bash
-# Use scripts/release.js (recommended)
-node scripts/release.js "Release title" "Notes"
-
-# Or manually
-git tag v0.5.81 && git push origin v0.5.81
+git tag vX.Y.Z && git push origin vX.Y.Z
 ```
 
-To republish an existing tag, run the `Build and Push Docker Image` workflow manually and provide the exact tag, for example `v0.5.81`, in the `release_tag` input. Manual runs publish the numbered tag but leave `latest` unchanged by default:
+**Tag rules:**
+- The git tag and both `package.json` versions must match exactly.
+- SemVer build metadata (`v1.2.3+build.7`) is rejected, because `+` is not valid in a Docker tag.
+- Prereleases publish only their numbered tag, unless `promote_latest` is enabled on a manual run.
 
-```text
-release_tag:     v0.5.81
-promote_latest:  false
-```
+**Republishing an existing tag:** run the workflow manually and set `release_tag`. `promote_latest` is an explicit opt-in for moving `latest`, for example during a rollback.
 
-The `promote_latest` checkbox is an explicit opt-in for changing `latest`. Use it when a deliberate rollback or recovery should make that version the current default:
-
-```text
-release_tag:     v0.5.75
-promote_latest:  true
-```
-
-Numbered image tags are mutable because a republish can replace their manifest. For a deployment that must be immutable, pin the image digest instead:
-
-```bash
-docker pull decolua/9router@sha256:<verified-digest>
-```
-
-The release workflow runs `/api/health` on each native `amd64` and `arm64` platform image before it uploads the digest artifact or assembles the multi-platform manifest. It then runs a second health check against the resolved version manifest before any requested `latest` promotion.
-
-During recovery, the selected tag remains the application source while the Dockerfile from the workflow revision is used, so an older tag can be rebuilt with the current publishing fixes.
-
-The workflow is tag-driven. Creating a git tag does not automatically create a GitHub Release, so the Releases page and the published package/image tags can be at different versions unless a maintainer creates a release separately.
-
-The upstream repository needs these repository secrets for Docker Hub publishing:
-
-- `DOCKERHUB_USERNAME`
-- `DOCKERHUB_TOKEN`
-
-GHCR publishing uses the workflow's `GITHUB_TOKEN` with package write permission. Forks can publish to their own GHCR namespace, but Docker Hub publication is restricted to the upstream `decolua/9router` repository.
-
-The optional repository variables `ALPINE_MIRROR` and `NPM_REGISTRY` can override the default package mirrors used by the CI Docker build.
-
-Workflow: `.github/workflows/docker-publish.yml`
+**Publishing:**
+- GHCR uses the workflow's `GITHUB_TOKEN` with package write permission.
+- The workflow publishes to Docker Hub only for the upstream repository it was inherited from, so this repository publishes to GHCR only.
+- The optional repository variables `ALPINE_MIRROR` and `NPM_REGISTRY` override the package mirrors used in CI builds.
