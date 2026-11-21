@@ -1,5 +1,17 @@
 # v0.1.0 (2026-11-21)
 
+### Security — Low-severity fixes
+
+- **CLI** (`xrouter-ai`) binds `127.0.0.1` by default; use `--host 0.0.0.0` for LAN access. `openBrowser` (CLI + tray) uses `execFile` with an argv instead of a shell string.
+- **Password**: setting the dashboard password for the first time requires the current initial password (`INITIAL_PASSWORD`, else the default); previously only an empty value or `xrouter123` was accepted.
+- **Headroom proxy** never forwards cookies, `Authorization`/`x-api-key`, or custom-server `x-9r-*` headers (the peer token let the container forge trusted-peer headers).
+- **Voucher claim**: the "local" bypass of the Cloudflare-only gate uses the stamped socket address instead of the `Host` header; dropped the hardcoded third-party fallback domain.
+- `/api/settings/env` reports secrets as set/unset only (no leading/trailing characters).
+- chatCore reports the post-refresh retry's real status instead of the stale 401/403; tool-call fallback keeps `providerOverrides`.
+- Removed the unused `telegramBotService.js`/`.cjs` (fail-open auth, default-password login, spoofed `x-forwarded-for`, hardcoded host IP).
+- Go core: `/api/auth/status` no longer claims an admin session; teams PATCH/DELETE routes registered correctly; Telegram `sendMessage` has a timeout, closes the body and never logs the token-bearing URL.
+- Resolved conflict markers left in `.gitignore`; fixed a vacuous fail-closed test.
+
 ### Security — Medium-severity fixes
 
 - **Proxy egress fails closed**: a configured proxy is never bypassed for a direct connection (connection errors, MITM-DNS bypass, OpenCode free-tier 403 replay, mimo login, Cursor HTTP/2). Requests that previously "worked" by silently going direct now fail and rotate.
