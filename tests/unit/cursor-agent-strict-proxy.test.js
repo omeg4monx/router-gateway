@@ -78,7 +78,7 @@ describe("Cursor AgentService strict-proxy policy guard", () => {
     expect(connect).not.toHaveBeenCalled();
   });
 
-  it("non-strict proxy options keep today's direct h2 behavior", async () => {
+  it("fails closed for non-strict proxy options too (no direct h2 fallback)", async () => {
     const executor = new CursorExecutor();
     const { connect } = stubSession(executor);
     await expect(runAgent(executor, {
@@ -86,8 +86,8 @@ describe("Cursor AgentService strict-proxy policy guard", () => {
       proxyPoolId: "pool-1",
       connectionProxyEnabled: true,
       connectionProxyUrl: "http://127.0.0.1:9",
-    })).resolves.toBeTruthy();
-    expect(connect).toHaveBeenCalledTimes(1);
+    })).rejects.toThrow(/strict proxy/u);
+    expect(connect).not.toHaveBeenCalled();
   });
 
   it("no proxy options at all keeps the direct h2 path", async () => {

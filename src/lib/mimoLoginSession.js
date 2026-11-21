@@ -498,22 +498,11 @@ async function socksFetch(url, init, proxyUrl) {
 async function loginFetch(url, init, sessionProxyUrl = null) {
   if (!sessionProxyUrl) return fetch(url, init); // direct — no agent machinery needed
   const proxyOptions = { enabled: true, url: sessionProxyUrl };
-  try {
-    if (/^socks/i.test(sessionProxyUrl)) return await socksFetch(url, init, sessionProxyUrl);
-    if (!_pafPromise) {
-      _pafPromise = import("../../open-sse/utils/proxyFetch.js")
-        .then((m) => m.proxyAwareFetch)
-        .catch((e) => {
-          console.log(`${new Date().toISOString().slice(11,23)} [mimo-login] proxyAwareFetch unavailable (runtime?), direct only:`, e?.message || e);
-          return null;
-        });
-    }
-    const paf = await _pafPromise;
-    if (paf) return await paf(url, init, proxyOptions);
-  } catch (e) {
-    console.log(`${new Date().toISOString().slice(11,23)} [mimo-login] proxied fetch failed, falling back to direct:`, e?.message || e);
-  }
-  return fetch(url, init);
+  if (/^socks/i.test(sessionProxyUrl)) return socksFetch(url, init, sessionProxyUrl);
+  if (!_pafPromise) _pafPromise = import("../../open-sse/utils/proxyFetch.js").then((m) => m.proxyAwareFetch);
+  // No direct fallback: a session pinned to a proxy must never leak the host IP.
+  const paf = await _pafPromise;
+  return paf(url, init, proxyOptions);
 }
 
 /** Public alias — start/status routes share the same egress path. */

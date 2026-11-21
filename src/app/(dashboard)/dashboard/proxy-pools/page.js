@@ -1706,7 +1706,7 @@ export default function ProxyPoolsPage() {
           <div className="flex flex-col gap-3 rounded-lg border border-border/50 p-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="font-medium text-sm">Strict Proxy</p>
-              <p className="text-xs text-text-muted">Fail request if proxy is unreachable instead of falling back to direct.</p>
+              <p className="text-xs text-text-muted">Treat proxy gateway errors (502/504/524) as failures so the request rotates. Requests never fall back to a direct connection.</p>
             </div>
             <Toggle
               checked={formData.strictProxy === true}

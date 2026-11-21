@@ -248,14 +248,11 @@ export function encodeKvClientMessage(kvId, resultField, resultPayload, metadata
 }
 
 // The AgentService h2 path bypasses proxyAwareFetch (Node http2 duplex, no
-// dispatcher), so the strict-proxy guarantee that proxyFetch enforces for
-// regular fetch never applies here. Until h2 proxying lands (see #3276),
-// honor just the policy side: when a proxy is intended AND strict AND cannot
-// be resolved for this request, fail closed instead of silently opening a
-// direct socket that exposes the host's real IP — the exact leak strict mode
-// exists to prevent (#4333). Non-strict callers keep today's direct behavior.
+// dispatcher), so it cannot carry a proxy. Until h2 proxying lands (see #3276),
+// any request that intends a proxy fails closed instead of silently opening a
+// direct socket that exposes the host's real IP (#4333) — strict or not, the
+// same no-direct-fallback rule proxyFetch enforces.
 const proxyIntentFailed = (proxyOptions) => {
-  if (proxyOptions?.strictProxy !== true) return false;
   const proxyIntended = Boolean(
     proxyOptions?.proxyPoolId
     || proxyOptions?.enabled === true
@@ -642,7 +639,7 @@ export class CursorExecutor extends BaseExecutor {
     // real IP on a direct socket (see proxyIntentFailed above).
     if (proxyIntentFailed(proxyOptions)) {
       throw new Error(
-        "Cursor AgentService requires a strict proxy that this HTTP/2 transport cannot honor; refusing to open a direct connection"
+        "Cursor AgentService cannot carry the configured proxy over HTTP/2 (strict proxy policy: no direct fallback); refusing to open a direct connection"
       );
     }
 
