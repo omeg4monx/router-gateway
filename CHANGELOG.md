@@ -1,5 +1,14 @@
 # v0.1.0 (2026-11-21)
 
+### Security — High-severity fixes
+
+- `/api/models/test` is no longer public (anonymous callers could spend provider quota via the server's own credentials).
+- Local-only routes (tunnel, Tailscale, MCP, headroom, auto-import) need a real session, CLI token or a local request; `requireLogin=false` no longer opens them remotely. `dev:bun` binds `127.0.0.1`.
+- Telegram: webhook requires the `X-Telegram-Bot-Api-Secret-Token` registered by `set_webhook` and a configured `userId`, and runs commands in-process; `/api/connection/telegram/command` needs a dashboard session; the bot token is never returned to the browser. **Re-register the webhook once from the dashboard.**
+- Credential encryption uses a random `DATA_DIR/vault.key` (or `XROUTER_VAULT_KEY`) instead of the machine id; values sealed with the old key stay readable and are re-sealed on their next write.
+- MITM verifies upstream TLS, listens on `127.0.0.1:443`, and writes the root CA key `0600`.
+- Go core: binds `127.0.0.1` by default (`HOST` to override), rejects foreign `Origin`, masks the bot token, requires the bot token (not just a user id) for commands and Telegram's secret header for its webhook.
+
 ### Features & Fixes — FreePI Provider, Nous OAuth Test & Circuit Breaker Model Isolation
 
 - **FreePI provider & dynamic free badge**:
