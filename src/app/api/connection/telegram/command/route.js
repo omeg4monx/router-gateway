@@ -20,35 +20,14 @@ function formatUptime(seconds) {
 }
 
 /**
- * Command dispatcher for Telegram Bot / external controllers
- * Supports both JSON response and pre-formatted Telegram Markdown text.
+ * Command dispatcher for the Telegram bot and the dashboard simulator.
+ * Auth: dashboardGuard requires a dashboard session or CLI token over HTTP; the
+ * webhook calls this handler in-process after verifying Telegram's secret header.
  */
 export async function POST(request) {
   try {
-    const config = await getConnectionConfig();
-    const tgConfig = config.telegram || {};
-
-    const authHeader = request.headers.get("authorization");
-    const bearerToken = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
-
+    const tgConfig = (await getConnectionConfig()).telegram || {};
     const body = await request.json().catch(() => ({}));
-    const requestToken = body.token || bearerToken;
-    const requestUserId = body.userId ? String(body.userId).trim() : null;
-
-    // Security Verification:
-    // If telegram bot integration is configured, require either matching bot token or matching userId
-    if (tgConfig.botToken) {
-      const tokenMatches = requestToken && requestToken === tgConfig.botToken;
-      const userMatches = tgConfig.userId && requestUserId === String(tgConfig.userId).trim();
-
-      // If caller provides neither a valid token nor an authorized userId, reject!
-      if (!tokenMatches && !userMatches) {
-        return NextResponse.json(
-          { error: "Unauthorized: Invalid token or user ID" },
-          { status: 401 }
-        );
-      }
-    }
 
     const rawCommand = (body.command || body.text || "/status").trim();
     const parts = rawCommand.split(/\s+/);
