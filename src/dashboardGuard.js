@@ -36,7 +36,6 @@ const PUBLIC_API_PATHS = [
   "/api/settings/require-login",
   "/api/vouchers/claim",
   "/api/connection/telegram/webhook",
-  "/api/connection/telegram/command",
   // Exact match only. The entry below is compared with a trailing-slash prefix
   // rule, so listing "/api/models" here would publish every /api/models/* child
   // (catalog, custom, disabled, alias, availability, catalog-sync) to anonymous
@@ -44,7 +43,6 @@ const PUBLIC_API_PATHS = [
   // per-provider custom models and disabled lists, so a bare prefix here hands
   // the whole inventory to anyone who can reach the host.
   "/api/models",
-  "/api/models/test",
   "/api/model",
   "/api/usage",
 ];
@@ -300,8 +298,9 @@ async function canAccessPublicLlmApi(request) {
 
 async function canAccessLocalOnlyRoute(request) {
   if (await hasValidCliToken(request)) return true;
-  // Authenticated session (valid token or requireLogin=false) can access tunnel/management routes
-  if (await isAuthenticated(request)) return true;
+  // A real dashboard session only: requireLogin=false must not hand remote callers
+  // the tunnel/MCP/spawn routes below.
+  if (await hasValidToken(request)) return true;
   // Browser on host: loopback Host + Origin (blocks tunnel/CSRF)
   if (isLocalRequest(request)) return true;
   return false;

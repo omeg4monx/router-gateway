@@ -24,7 +24,7 @@
     "start:go": "./bin/xrouter",
     "postbuild": "node scripts/copy-standalone-assets.mjs",
     "postbuild:bun": "node scripts/copy-standalone-assets.mjs",
-    "dev:bun": "bun --bun next dev --port 20127",
+    "dev:bun": "bun --bun next dev --port 20127 --hostname 127.0.0.1",
     "build:bun": "bun --bun next build",
     "start:bun": "bun ./.next/standalone/custom-server.js",
     "cli:pack": "npm --prefix cli run pack:cli",
