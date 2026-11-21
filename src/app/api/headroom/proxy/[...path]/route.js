@@ -16,7 +16,9 @@ const HOP_BY_HOP_HEADERS = new Set([
 ]);
 
 const DASHBOARD_PREFIX = "/api/headroom/proxy";
-const LOOPBACK_HOSTS = new Set(["localhost", "127.0.0.1", "::1"]);
+// Never forwarded: dashboard credentials, and the custom-server peer stamp
+// (x-9r-peer-token would let the Headroom container forge trusted peer headers).
+const STRIPPED_HEADERS = new Set(["cookie", "authorization", "x-api-key"]);
 
 async function getTargetBase() {
   const settings = await getSettings();
@@ -35,17 +37,15 @@ function buildTargetUrl(base, path, search) {
   return target;
 }
 
-function forwardedHeaders(request, target) {
+function forwardedHeaders(request) {
   const headers = new Headers(request.headers);
-  for (const header of headers.keys()) {
-    if (HOP_BY_HOP_HEADERS.has(header.toLowerCase())) headers.delete(header);
+  for (const header of [...headers.keys()]) {
+    const name = header.toLowerCase();
+    if (HOP_BY_HOP_HEADERS.has(name) || STRIPPED_HEADERS.has(name) || name.startsWith("x-9r-")) {
+      headers.delete(header);
+    }
   }
   headers.delete("host");
-  // Never leak viewer credentials to a non-loopback Headroom host
-  if (!LOOPBACK_HOSTS.has(target.hostname.replace(/^\[|\]$/g, "").toLowerCase())) {
-    headers.delete("cookie");
-    headers.delete("authorization");
-  }
   return headers;
 }
 
@@ -67,7 +67,7 @@ async function proxy(request, { params }) {
 
     const response = await fetch(target, {
       method,
-      headers: forwardedHeaders(request, target),
+      headers: forwardedHeaders(request),
       body: hasBody ? request.body : undefined,
       duplex: hasBody ? "half" : undefined,
       redirect: "manual",
