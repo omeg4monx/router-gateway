@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -49,7 +50,7 @@ func main() {
 	gw := gateway.New(cfg, db)
 
 	server := &http.Server{
-		Addr:         ":" + cfg.Port,
+		Addr:         net.JoinHostPort(cfg.Host, cfg.Port),
 		Handler:      gw,
 		ReadTimeout:  15 * time.Second,
 		WriteTimeout: 0, // 0 for streaming SSE
@@ -57,7 +58,7 @@ func main() {
 	}
 
 	go func() {
-		log.Printf("[XRouter] Server listening on http://0.0.0.0:%s", cfg.Port)
+		log.Printf("[XRouter] Server listening on http://%s", server.Addr)
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("[XRouter FATAL] ListenAndServe failed: %v", err)
 		}

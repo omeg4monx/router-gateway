@@ -6,6 +6,7 @@ import (
 )
 
 type Config struct {
+	Host            string
 	Port            string
 	DataDir         string
 	DBPath          string
@@ -18,6 +19,12 @@ func Load() *Config {
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
+	}
+
+	// Loopback by default: this server has no auth; set HOST=0.0.0.0 only behind one.
+	host := os.Getenv("HOST")
+	if host == "" {
+		host = "127.0.0.1"
 	}
 
 	dataDir := os.Getenv("DATA_DIR")
@@ -48,6 +55,7 @@ func Load() *Config {
 	}
 
 	return &Config{
+		Host:            host,
 		Port:            port,
 		DataDir:         dataDir,
 		DBPath:          dbPath,

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"runtime"
@@ -11,7 +12,6 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
-	"github.com/go-chi/cors"
 	"github.com/johsua092-ui/xrouter/internal/config"
 	"github.com/johsua092-ui/xrouter/internal/connection"
 	"github.com/johsua092-ui/xrouter/internal/database"
@@ -31,13 +31,9 @@ func New(cfg *config.Config, db *database.DB) *Gateway {
 	mux.Use(middleware.RealIP)
 	mux.Use(middleware.Logger)
 	mux.Use(middleware.Recoverer)
-	mux.Use(cors.Handler(cors.Options{
-		AllowedOrigins:   []string{"*"},
-		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		AllowedHeaders:   []string{"*"},
-		AllowCredentials: true,
-		MaxAge:           300,
-	}))
+	// No CORS: browsers on other origins must not drive this unauthenticated server.
+	// Rejecting foreign Origin headers also blocks CSRF-style simple POSTs and DNS rebinding.
+	mux.Use(rejectForeignOrigin)
 
 	g := &Gateway{
 		cfg: cfg,
@@ -220,7 +216,7 @@ func (g *Gateway) handleGetConnection(w http.ResponseWriter, r *http.Request) {
 	jsonResponse(w, http.StatusOK, map[string]interface{}{
 		"success": true,
 		"data": map[string]interface{}{
-			"telegram": cfg,
+			"telegram": maskedTelegram(cfg),
 			"system": map[string]interface{}{
 				"version":       g.cfg.Version,
 				"engine":        "golang",
@@ -274,7 +270,7 @@ func (g *Gateway) handlePostConnection(w http.ResponseWriter, r *http.Request) {
 
 	jsonResponse(w, http.StatusOK, map[string]interface{}{
 		"success": true,
-		"data":    cfg,
+		"data":    maskedTelegram(cfg),
 	})
 }
 
@@ -334,8 +330,49 @@ func (g *Gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (g *Gateway) Start() error {
-	addr := ":" + g.cfg.Port
-	return http.ListenAndServe(addr, g.mux)
+	return http.ListenAndServe(net.JoinHostPort(g.cfg.Host, g.cfg.Port), g.mux)
+}
+
+// maskedTelegram strips secrets before a config leaves the process.
+func maskedTelegram(cfg *database.TelegramConfig) map[string]interface{} {
+	masked := ""
+	if n := len(cfg.BotToken); n > 10 {
+		masked = cfg.BotToken[:4] + "••••••••" + cfg.BotToken[n-4:]
+	} else if n > 0 {
+		masked = "••••••••••"
+	}
+	return map[string]interface{}{
+		"enabled":        cfg.Enabled,
+		"userId":         cfg.UserID,
+		"webhookUrl":     cfg.WebhookURL,
+		"status":         cfg.Status,
+		"botUsername":    cfg.BotUsername,
+		"botId":          cfg.BotID,
+		"lastTestedAt":   cfg.LastTestedAt,
+		"botTokenMasked": masked,
+		"hasToken":       cfg.BotToken != "",
+	}
+}
+
+func rejectForeignOrigin(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if origin := r.Header.Get("Origin"); origin != "" {
+			u, err := url.Parse(origin)
+			if err != nil || !isLoopbackHost(u.Hostname()) {
+				jsonResponse(w, http.StatusForbidden, map[string]interface{}{"error": "cross-origin request rejected"})
+				return
+			}
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+func isLoopbackHost(h string) bool {
+	if h == "localhost" {
+		return true
+	}
+	ip := net.ParseIP(h)
+	return ip != nil && ip.IsLoopback()
 }
 
 func jsonResponse(w http.ResponseWriter, status int, data interface{}) {
