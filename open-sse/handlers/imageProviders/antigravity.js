@@ -1,0 +1,124 @@
+// Antigravity image adapter - delegates to the executor for correct request
+// envelope (project, model, requestType, sessionId) and auth headers.
+import { nowSec, sizeToAspectRatio } from "./_base.js";
+import { getExecutor } from "../../executors/index.js";
+
+// Convert image input (data URI or raw base64) to Gemini inlineData part
+function resolveImageInput(input) {
+  if (!input || typeof input !== "string") return null;
+  // data:image/png;base64,... format
+  const dataUriMatch = input.match(/^data:(image\/[^;]+);base64,(.+)$/);
+  if (dataUriMatch) {
+    return { inlineData: { mimeType: dataUriMatch[1], data: dataUriMatch[2] } };
+  }
+  // Raw base64 string (assume PNG)
+  if (/^[A-Za-z0-9+/]/.test(input) && input.length > 100 && !input.startsWith("http")) {
+    return { inlineData: { mimeType: "image/png", data: input } };
+  }
+  return null;
+}
+
+export default {
+  // Delegate to executor instead of building URL/headers/body manually
+  useExecutor: true,
+
+  // Stubs - required by imageGenerationCore interface but unused with useExecutor
+  buildUrl: () => "",
+  buildHeaders: () => ({}),
+  buildBody: () => ({}),
+
+  async executeViaExecutor(model, body, credentials, log, proxyOptions = null) {
+    const executor = getExecutor("antigravity");
+    if (!executor) throw new Error("Antigravity executor not found");
+
+    // Ensure we use an image model for image generation
+    const isImageModel = (m) => /image|imagen|image-generation/i.test(m || "");
+    let targetModel = isImageModel(model) ? model : "gemini-3.1-flash-image";
+
+    // If body.size is provided, resolve aspect ratio and append to model
+    if (body.size && typeof body.size === "string") {
+      const ratio = sizeToAspectRatio(body.size);
+      const suffix = ratio.replace(":", "x");
+      if (!targetModel.includes(suffix)) {
+        targetModel = `${targetModel}-${suffix}`;
+      }
+    }
+
+    // Build parts: text prompt + optional input image for editing
+    const parts = [{ text: body.prompt }];
+    const imageInput = body.image || (Array.isArray(body.images) && body.images[0]);
+    if (imageInput) {
+      const inlineData = resolveImageInput(imageInput);
+      if (inlineData) parts.unshift(inlineData);
+    }
+
+    const chatBody = {
+      contents: [{ role: "user", parts }],
+    };
+
+    let result = await executor.execute({
+      model: targetModel,
+      body: chatBody,
+      stream: false,
+      credentials,
+      log,
+      proxyOptions,
+    });
+
+    if (
+      !result.response.ok &&
+      (result.response.status === 401 || result.response.status === 403) &&
+      credentials?.refreshToken
+    ) {
+      try {
+        const newCreds = await executor.refreshCredentials(credentials, log, proxyOptions);
+        if (newCreds?.accessToken) {
+          Object.assign(credentials, newCreds);
+          result = await executor.execute({
+            model: targetModel,
+            body: chatBody,
+            stream: false,
+            credentials,
+            log,
+            proxyOptions,
+          });
+        }
+      } catch {}
+    }
+
+    if (!result.response.ok) {
+      const text = await result.response.text();
+      const err = new Error(text || `HTTP ${result.response.status}`);
+      err.status = result.response.status;
+      try {
+        const json = JSON.parse(text);
+        const details = json.error?.details || [];
+        for (const d of details) {
+          const resetTimeStr = d.metadata?.quotaResetTimeStamp;
+          if (resetTimeStr) {
+            const ms = new Date(resetTimeStr).getTime();
+            if (ms > Date.now()) {
+              err.resetsAtMs = ms;
+              break;
+            }
+          }
+        }
+      } catch {}
+      throw err;
+    }
+
+    return result.response.json();
+  },
+
+  normalize: (responseBody, prompt) => {
+    const candidates = responseBody.candidates || responseBody.response?.candidates || [];
+    const parts = candidates[0]?.content?.parts || [];
+    const images = parts.filter((p) => p.inlineData?.data).map((p) => ({
+      b64_json: p.inlineData.data,
+    }));
+    return {
+      created: nowSec(),
+      data: images.length > 0 ? images : [{ b64_json: "", revised_prompt: prompt }],
+    };
+  },
+};

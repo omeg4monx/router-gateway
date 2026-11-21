@@ -1,0 +1,873 @@
+import {
+  isOpencodeServiceAlive,
+  getDaemonForProxy,
+  executeServiceStream,
+  resolveClientWorkingDirectory,
+} from "../services/opencodeServiceBridge.js";
+import crypto from "crypto";
+import { BaseExecutor } from "./base.js";
+import { FORMATS } from "../translator/formats.js";
+import { PROVIDERS } from "../config/providers.js";
+import { MEMORY_CONFIG } from "../config/runtimeConfig.js";
+import { getThinkingLevels } from "../providers/thinkingLevels.js";
+import { injectReasoningContent } from "../utils/reasoningContentInjector.js";
+import { resolveSessionId } from "../utils/sessionManager.js";
+import { isMuseSparkModel } from "../providers/models/helpers.js";
+import { applyFingerprintTools } from "../utils/opencodeFingerprint.js";
+import { opencodeTlsFetch } from "../services/opencodeTlsClient.js";
+import { getOpencodeUa } from "../services/opencodeVersion.js";
+import { ANTHROPIC_API_VERSION } from "../providers/shared.js";
+import {
+  normalizeResponsesInput,
+  clampResponsesCallId,
+  coerceResponsesArguments,
+  coerceResponsesOutput,
+} from "../translator/formats/responsesApi.js";
+
+// OpenCode v2 UA shape: opencode/<channel>/<version>/<client>. Upstream rejects
+// the v1 "opencode/1.18.x" form with 403 FreeTierError since 2026-10-14. The
+// version comes from OpenCode's own updater (services/opencodeVersion.js) so it
+// never ages out; 2.2.5 is only the cold-start floor.
+const OPENCODE_CLIENT = "cli";
+const MAX_SESSION_LENGTH = 256;
+const MAX_TOOL_NAME_LEN = 128;
+const SESSION_HEADER = "x-opencode-session";
+const SESSION_FIELD = "_opencodeSession";
+export function generateRequestId(timestamp = Date.now()) {
+  // Mirrors generateSessionId's shape with the msg_ prefix upstream expects.
+  // A bare crypto.randomUUID() (36 chars, hyphenated) is not the canonical id
+  // format and gets rejected the same way a non-canonical session id does.
+  return `msg_${descendingTimeHex(timestamp, 1)}${unstableRandom()}`;
+}
+
+export const OPENCODE_SESSION_RE = /^ses_[0-9a-f]{12}[0-9A-Za-z]{14}$/;
+const BASE62_CHARS = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+
+// Free-lane load shedding: total attempts (first try + retries) and backoff.
+// Live bursts last ~20 s (a request that kept failing for 8 s succeeded at 19 s),
+// so the schedule below covers 800+1600+2400+3200+4000*3 = ~20 s.
+const OPENCODE_OVERLOAD_ATTEMPTS = 8;
+const OPENCODE_OVERLOAD_BASE_MS = 800;
+const OPENCODE_OVERLOAD_MAX_MS = 4000;
+const OPENCODE_OVERLOAD_RE = /overloaded/i;
+
+/**
+ * Classify a gated free-lane rejection:
+ * - "overload": transient 429 load shedding, worth retrying.
+ * - "session":  any other 429 (FreeUsageLimitError) or 403, which can mean the
+ *               session id itself is spent or flagged.
+ * - null:       anything else.
+ */
+async function classifyRejection(response) {
+  const status = response?.status;
+  if (status !== 429 && status !== 403) return null;
+  if (status === 403) return "session";
+  try {
+    // The body is the response stream; clone it so a non-retryable 429 is still
+    // delivered intact to the caller.
+    return OPENCODE_OVERLOAD_RE.test(await response.clone().text()) ? "overload" : "session";
+  } catch {
+    return "session";
+  }
+}
+
+function sleep(ms, signal) {
+  return new Promise((resolve) => {
+    if (signal?.aborted) return resolve();
+    const onAbort = () => { clearTimeout(timer); resolve(); };
+    const timer = setTimeout(() => { signal?.removeEventListener?.("abort", onAbort); resolve(); }, ms);
+    signal?.addEventListener?.("abort", onAbort, { once: true });
+  });
+}
+
+export function hasValidOpencodeVersion(ua) {
+  const m = String(ua || "").match(/^opencode\/[a-z0-9-]+\/(\d+)\.\d+\.\d+\/[a-z0-9-]+$/i);
+  return !!m && parseInt(m[1], 10) >= 2;
+}
+// Models served by /inference/v1/responses; every other model stays on /chat/completions.
+const RESPONSES_MODELS = new Set([
+  "muse-spark-1.2-contributor-free",
+  "muse-spark-1.3-contributor-free",
+]);
+const MESSAGES_MODELS = new Set(["union-alpha"]);
+
+let lastTimestamp = 0;
+let counter = 0;
+
+function unstableRandom() {
+  const bytes = crypto.randomBytes(14);
+  let randomPart = "";
+  for (let i = 0; i < 14; i++) {
+    randomPart += BASE62_CHARS[bytes[i] % 62];
+  }
+  return randomPart;
+}
+
+// Session prefix = 12 hex of ~(timeMs * 0x1000 + counter), low 48 bits, like the CLI.
+// Upstream decodes it and rejects a non-small counter with 403 FreeTierError
+// (live probes: counter 0–16 pass, >=100 fail), so the counter must stay real.
+const SESSION_PREFIX_MASK = (1n << 48n) - 1n;
+
+// Burst pacing from opencode-cc: space request starts out by at least 400ms
+// to prevent rapid bursts from immediately triggering Cloudflare 429 rate limiters.
+let opencodeStartGate = Promise.resolve();
+let opencodeLastStartAt = 0;
+const MIN_START_GAP_MS = 400;
+
+function paceOpencodeStart() {
+  const slot = opencodeStartGate.then(async () => {
+    const wait = opencodeLastStartAt + MIN_START_GAP_MS - Date.now();
+    if (wait > 0 && wait <= 1000) {
+      await new Promise((r) => setTimeout(r, wait));
+    }
+    opencodeLastStartAt = Date.now();
+  });
+  opencodeStartGate = slot.catch(() => {});
+  return slot;
+}
+
+function descendingTimeHex(time, counterValue) {
+  return (~(BigInt(time) * 0x1000n + BigInt(counterValue)) & SESSION_PREFIX_MASK)
+    .toString(16)
+    .padStart(12, "0");
+}
+
+// Generates a fresh 40-hex git-commit-shaped project ID (the free tier ledges quota
+// per project ID, so rotating project IDs prevents hitting static account rate limits).
+export function generateRandomProjectId() {
+  return crypto.randomBytes(20).toString("hex");
+}
+
+export function generateSessionId(timestamp = Date.now()) {
+  if (timestamp !== lastTimestamp) {
+    lastTimestamp = timestamp;
+    counter = 0;
+  }
+  counter = (counter + 1) & 0x0F;
+  return `ses_${descendingTimeHex(timestamp, counter)}${unstableRandom()}`;
+}
+
+// Upstream decodes the prefix timestamp and refuses sessions whose time is in
+// the future or older than the free-tier window (live probes 2026-10-26: a
+// Date.now() session passed 10/10 while digest-derived ones passed 1/10). A
+// digest is uniform over 2^36 ms, so most translated ids were refused even
+// though their shape matched. Mint with the current time and memoize per
+// conversation so a conversation keeps one stable, valid session.
+const translatedOpencodeSessions = new Map();
+const MAX_TRANSLATED_SESSIONS = 5000;
+const translatedSessionCleanup = setInterval(() => {
+  const now = Date.now();
+  for (const [key, entry] of translatedOpencodeSessions) {
+    if (now - entry.lastUsed > MEMORY_CONFIG.sessionTtlMs) {
+      translatedOpencodeSessions.delete(key);
+    }
+  }
+}, MEMORY_CONFIG.sessionCleanupIntervalMs);
+if (translatedSessionCleanup.unref) translatedSessionCleanup.unref();
+
+export function translateSessionId(sessionId, clientTool = "") {
+  if (typeof sessionId === "string" && OPENCODE_SESSION_RE.test(sessionId.trim())) {
+    return sessionId.trim();
+  }
+  const key = `${clientTool || "generic"}\0${sessionId || ""}`;
+  const existing = translatedOpencodeSessions.get(key);
+  if (existing) {
+    existing.lastUsed = Date.now();
+    return existing.sessionId;
+  }
+  const translated = `ses_${descendingTimeHex(Date.now(), 1)}${unstableRandom()}`;
+  if (translatedOpencodeSessions.size >= MAX_TRANSLATED_SESSIONS) {
+    translatedOpencodeSessions.delete(translatedOpencodeSessions.keys().next().value);
+  }
+  translatedOpencodeSessions.set(key, { sessionId: translated, lastUsed: Date.now() });
+  return translated;
+}
+
+function normalizeSession(value) {
+  if (typeof value !== "string") return null;
+  const normalized = value.trim();
+  if (!normalized || normalized.length > MAX_SESSION_LENGTH) return null;
+  return normalized;
+}
+
+function nativeSession(headers) {
+  if (!headers || typeof headers !== "object") return null;
+  for (const [key, value] of Object.entries(headers)) {
+    if (key.toLowerCase() === SESSION_HEADER) {
+      const normalized = normalizeSession(value);
+      if (normalized && OPENCODE_SESSION_RE.test(normalized)) return normalized;
+    }
+  }
+  return null;
+}
+
+// Upstream free-tier quota is accounted per session. Minting a fresh
+// x-opencode-session on every request burns through it and surfaces as
+// 429 FreeUsageLimitError with growing reset-after delays, while the real
+// CLI reuses one long-lived canonical session per conversation. Mirror
+// that: one stable canonical session per downstream identity, evicted
+// after MEMORY_CONFIG.sessionTtlMs like the other session stores.
+const stableOpencodeSessions = new Map();
+const MAX_STABLE_SESSIONS = 1000;
+const stableSessionCleanup = setInterval(() => {
+  const now = Date.now();
+  for (const [key, entry] of stableOpencodeSessions) {
+    if (now - entry.lastUsed > MEMORY_CONFIG.sessionTtlMs) {
+      stableOpencodeSessions.delete(key);
+    }
+  }
+}, MEMORY_CONFIG.sessionCleanupIntervalMs);
+if (stableSessionCleanup.unref) stableSessionCleanup.unref();
+
+// Satu sesi kanonik per PERCAKAPAN, bukan per credential. Provider free-lane
+// memakai `Bearer public` tanpa connectionId, jadi identityKey lama jatuh ke
+// satu nilai global ("opencode:default") dan SEMUA percakapan berbagi satu
+// sesi: kuota per-sesi upstream tercampur dan tidak ada isolasi percakapan.
+// Cakupan diturunkan dari awalan percakapan (system + pesan user pertama),
+// sehingga tetap sama saat riwayat bertambah dan berbeda untuk percakapan lain.
+export function conversationScope(body) {
+  try {
+    const arr = Array.isArray(body?.messages)
+      ? body.messages
+      : Array.isArray(body?.input)
+        ? body.input
+        : null;
+    if (!arr || arr.length === 0) return null;
+    const textOf = (msg) => {
+      const c = msg?.content;
+      if (typeof c === "string") return c;
+      if (Array.isArray(c)) return c.map((part) => (typeof part === "string" ? part : part?.text || "")).join("");
+      return "";
+    };
+    // Hanya awalan percakapan (system + pesan user PERTAMA). Jawaban assistant
+    // tidak ikut: begitu ia muncul di riwayat, scope akan berubah dan sesi pindah
+    // di tengah percakapan — justru mematikan cache prefix yang mau dijaga.
+    let system = "";
+    if (typeof body?.system === "string") {
+      system += `${body.system}\n`;
+    } else if (Array.isArray(body?.system)) {
+      system += `${body.system.map((s) => (typeof s === "string" ? s : s?.text || "")).join("")}\n`;
+    }
+
+    let firstUser = "";
+    for (const msg of arr) {
+      const role = msg?.role;
+      if (role === "system" || role === "developer") system += `${textOf(msg)}\n`;
+      else if (role === "user" && !firstUser) {
+        firstUser = textOf(msg);
+        break;
+      }
+    }
+    const seed = [system.slice(0, 4000), firstUser.slice(0, 4000)].join("\u0001").trim();
+    if (!seed.replace(/\u0001/g, "").trim()) return null;
+    return crypto.createHash("sha256").update(seed).digest("hex").slice(0, 24);
+  } catch {
+    return null;
+  }
+}
+
+// Generic chat apps all map to clientTool null; fall back to the raw
+// User-Agent so each downstream app keeps its own session/quota pool.
+function clientIdentity(clientTool, headers) {
+  const named = String(clientTool || "").trim();
+  if (named) return named;
+  const ua = String(headers?.["user-agent"] || headers?.["User-Agent"] || "");
+  return ua ? crypto.createHash("sha256").update(ua).digest("hex").slice(0, 16) : "";
+}
+
+// Include downstream client identity AND conversation scope:
+// - Downstream client isolates different tools/apps sharing one connection
+// - Conversation scope isolates distinct conversations on the same pooled connection
+export function identityKey(credentials, clientToolOrScope = "", scope = null) {
+  const raw = credentials?.rawHeaders || {};
+  let client = "";
+  let conv = scope;
+
+  // Support both (credentials, client, scope) and legacy (credentials, convScope)
+  if (clientToolOrScope && typeof clientToolOrScope === "string" && /^[0-9a-f]{24}$/.test(clientToolOrScope) && scope === null) {
+    conv = clientToolOrScope;
+    client = clientIdentity("", raw) || "generic";
+  } else {
+    client = clientIdentity(clientToolOrScope, raw) || "generic";
+  }
+
+  const suffix = conv ? `:conv:${conv}` : "";
+  const connectionId = credentials?.connectionId || credentials?.id;
+  if (connectionId) return `opencode:conn:${String(connectionId).slice(0, 128)}:${client}${suffix}`;
+  const auth = raw.authorization || raw.Authorization || raw["x-api-key"] || raw["X-Api-Key"] || "";
+  if (auth) {
+    const digest = crypto.createHash("sha256").update(String(auth)).digest("hex").slice(0, 32);
+    return `opencode:auth:${digest}:${client}${suffix}`;
+  }
+  return `opencode:default:${client}${suffix}`;
+}
+
+export function stableSessionId(credentials, clientToolOrScope = "", scope = null) {
+  const key = identityKey(credentials, clientToolOrScope, scope);
+  const existing = stableOpencodeSessions.get(key);
+  if (existing) {
+    existing.lastUsed = Date.now();
+    stableOpencodeSessions.delete(key);
+    stableOpencodeSessions.set(key, existing);
+    return existing.sessionId;
+  }
+  const sessionId = generateSessionId();
+  if (stableOpencodeSessions.size >= MAX_STABLE_SESSIONS) {
+    stableOpencodeSessions.delete(stableOpencodeSessions.keys().next().value);
+  }
+  stableOpencodeSessions.set(key, { sessionId, lastUsed: Date.now() });
+  return sessionId;
+}
+
+// The memoized sessions above are never refreshed on failure, so once upstream
+// spends or flags one, every later request reuses it and fails the same way
+// until restart (#5559). Drop the rejected id so the next request mints a fresh
+// one. Match by value, not identity key: a concurrent request may already have
+// minted a replacement, which must survive.
+export function forgetOpencodeSession(sessionId) {
+  if (!sessionId) return false;
+  let removed = false;
+  for (const store of [stableOpencodeSessions, translatedOpencodeSessions]) {
+    for (const [key, entry] of store) {
+      if (entry.sessionId === sessionId) {
+        store.delete(key);
+        removed = true;
+      }
+    }
+  }
+  return removed;
+}
+
+function bodyHasSessionHints(body) {
+  try {
+    if (!body || typeof body !== "object") return false;
+    if (typeof body.session_id === "string" && body.session_id.trim()) return true;
+    if (typeof body.conversation_id === "string" && body.conversation_id.trim()) return true;
+    if (typeof body.prompt_cache_key === "string" && body.prompt_cache_key.trim()) return true;
+    if (body.metadata && typeof body.metadata.user_id === "string" && body.metadata.user_id.trim()) return true;
+    if (body.request && body.request.sessionId != null && String(body.request.sessionId) !== "") return true;
+    const arr = Array.isArray(body.messages)
+      ? body.messages
+      : Array.isArray(body.input)
+        ? body.input
+        : null;
+    if (arr) {
+      let assistantText = "";
+      for (const msg of arr) {
+        if (msg?.role === "assistant") {
+          const content = msg.content;
+          if (typeof content === "string") assistantText += content;
+          else if (Array.isArray(content)) {
+            for (const part of content) assistantText += part?.text || part?.output || "";
+          }
+          if (assistantText.length >= 50) return true;
+        }
+      }
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+// Strip the thinking suffix "model(level)" so registry lookups hit the base id.
+function baseModelId(model) {
+  return String(model || "").replace(/\([^()]+\)\s*$/, "").trim();
+}
+
+function isResponsesModel(model) {
+  const base = baseModelId(model);
+  return RESPONSES_MODELS.has(base) || isMuseSparkModel(base);
+}
+
+function isMessagesModel(model) {
+  return MESSAGES_MODELS.has(baseModelId(model));
+}
+
+export function resolveOpencodeSession(body, credentials, providerSessionId, clientTool) {
+  const headers = credentials?.rawHeaders || {};
+  const native = nativeSession(headers);
+  if (native) return native;
+
+  // Generic chat apps all map to clientTool null; fall back to the raw
+  // User-Agent so each downstream app keeps its own session/quota pool.
+  const client = clientIdentity(clientTool, headers);
+  const convScope = conversationScope(body);
+
+  let incoming = null;
+  for (const [key, value] of Object.entries(headers)) {
+    if (key.toLowerCase() === SESSION_HEADER) {
+      incoming = normalizeSession(value);
+      break;
+    }
+  }
+
+  const hinted = incoming || normalizeSession(providerSessionId);
+  if (hinted) {
+    const effectiveHint = convScope ? `${hinted}:conv:${convScope}` : hinted;
+    return translateSessionId(effectiveHint, client);
+  }
+
+  if (credentials?.connectionId || bodyHasSessionHints(body)) {
+    let viaManager = null;
+    try {
+      viaManager = resolveSessionId({
+        headers,
+        body,
+        connectionId: credentials?.connectionId,
+        scope: "opencode",
+      });
+    } catch {
+      viaManager = null;
+    }
+    if (viaManager) {
+      const effectiveManager = convScope ? `${viaManager}:conv:${convScope}` : viaManager;
+      return translateSessionId(effectiveManager, client);
+    }
+  }
+
+  return stableSessionId(credentials, client, convScope);
+}
+
+function normalizeResponsesTools(body) {
+  if (!Array.isArray(body.tools)) return;
+  const validNames = new Set();
+  body.tools = body.tools.filter((tool) => {
+    if (!tool || typeof tool !== "object" || Array.isArray(tool)) return false;
+    const fn = tool.function && typeof tool.function === "object" && !Array.isArray(tool.function) ? tool.function : null;
+    const rawName = typeof tool.name === "string" ? tool.name : (typeof fn?.name === "string" ? fn.name : "");
+    const name = rawName.trim();
+    if (!name) return false;
+    const description = typeof tool.description === "string" ? tool.description : (typeof fn?.description === "string" ? fn.description : "");
+    let parameters = (tool.parameters && typeof tool.parameters === "object" && !Array.isArray(tool.parameters))
+      ? tool.parameters
+      : (fn?.parameters && typeof fn.parameters === "object" && !Array.isArray(fn.parameters) ? fn.parameters : { type: "object", properties: {} });
+    if (parameters.type === "object" && !parameters.properties) parameters = { ...parameters, properties: {} };
+    for (const k of Object.keys(tool)) delete tool[k];
+    tool.type = "function";
+    tool.name = name.slice(0, MAX_TOOL_NAME_LEN);
+    if (description) tool.description = description;
+    tool.parameters = parameters;
+    validNames.add(tool.name);
+    return true;
+  });
+  if (body.tool_choice && typeof body.tool_choice === "object" && !Array.isArray(body.tool_choice)) {
+    if (body.tool_choice.type === "function") {
+      const n = typeof body.tool_choice.name === "string" ? body.tool_choice.name.trim() : "";
+      if (!n || !validNames.has(n)) delete body.tool_choice;
+    }
+  }
+}
+
+function sanitizeResponsesItems(body) {
+  if (!Array.isArray(body.input)) return;
+  body.input = body.input.filter((item) => {
+    if (!item || typeof item !== "object" || Array.isArray(item)) return true;
+    // Strip prior-turn reasoning items: OpenCode Free uses public/pooled credentials
+    // (`Bearer public`) routing to an upstream OpenAI/Console account pool.
+    // OpenAI Responses API strictly enforces that reasoning `encrypted_content`
+    // can only be decrypted by the exact caller/account that issued it; sending it
+    // across different accounts or rotating proxy relays triggers:
+    // [invalid_request_error] reasoning `encrypted_content` was not issued to this caller (400).
+    // Furthermore, under stateless mode (store=false), omitting encrypted_content
+    // causes OpenAI to reject the referenced reasoning item as "not found or was deleted".
+    // Dropping prior reasoning items allows multi-turn conversations and tool-calling
+    // loops to succeed cleanly.
+    if (item.type === "reasoning") return false;
+    delete item.encrypted_content;
+    delete item.reasoning_encrypted_content;
+    if (item.type === "function_call") {
+      if (!item.name || typeof item.name !== "string" || item.name.trim() === "") return false;
+      item.name = item.name.trim().slice(0, MAX_TOOL_NAME_LEN);
+      item.call_id = clampResponsesCallId(item.call_id);
+      item.arguments = coerceResponsesArguments(item.arguments);
+      return true;
+    }
+    if (item.type === "function_call_output") {
+      item.call_id = clampResponsesCallId(item.call_id);
+      item.output = coerceResponsesOutput(item.output);
+      return true;
+    }
+    return true;
+  });
+}
+
+function normalizeOpencodeReasoning(model, body) {
+  const current = body.reasoning;
+  const currentReasoning = current && typeof current === "object" && !Array.isArray(current)
+    ? current
+    : null;
+  const requestedEffort = typeof body.reasoning_effort === "string"
+    ? body.reasoning_effort
+    : currentReasoning?.effort;
+  if (typeof requestedEffort !== "string") return;
+
+  const cleanModel = baseModelId(model || body.model);
+  const supportedLevels = getThinkingLevels("opencode", cleanModel);
+  let effort = requestedEffort.toLowerCase().trim();
+  if ((effort === "max" || effort === "ultra") && supportedLevels?.length && !supportedLevels.includes(effort)) {
+    if (effort === "ultra" && supportedLevels.includes("max")) effort = "max";
+    else if (supportedLevels.includes("xhigh")) effort = "xhigh";
+  }
+
+  body.reasoning = { ...currentReasoning, effort };
+  if (!body.reasoning.summary) body.reasoning.summary = "auto";
+  delete body.reasoning_effort;
+}
+
+// Chat Completions lane: the free backend validates reasoning_effort against the
+// plain OpenAI enum (none|minimal|low|medium|high|xhigh|max) and answers 400
+// "Invalid option" for anything else — including "auto", which adaptive thinking
+// (Claude Code's thinking:{type:"adaptive"}) arrives as. Omitting the field lets
+// the upstream pick its own default, which is what adaptive means; same rationale
+// as the Responses path above, which rejects "unknown variant `auto`".
+function dropAdaptiveReasoningEffort(body) {
+  if (!body || typeof body !== "object") return;
+  if (body.reasoning_effort === "auto") delete body.reasoning_effort;
+  if (body.reasoning_effort === "xhigh" || body.reasoning_effort === "max") {
+    body.reasoning_effort = "high";
+  }
+}
+
+function textFromServiceContent(content) {
+  if (typeof content === "string") return content;
+  if (!Array.isArray(content)) return content == null ? "" : String(content);
+  return content.map((part) => {
+    if (typeof part === "string") return part;
+    if (typeof part?.text === "string") return part.text;
+    if (typeof part?.value === "string") return part.value;
+    return "";
+  }).filter(Boolean).join("\n");
+}
+
+function responsesInputToServiceMessages(input, instructions) {
+  const messages = [];
+  const systemText = textFromServiceContent(instructions);
+  if (systemText) messages.push({ role: "system", content: systemText });
+  if (!Array.isArray(input)) return messages;
+
+  for (const item of input) {
+    if (!item || typeof item !== "object" || Array.isArray(item)) continue;
+    if (item.type === "message") {
+      messages.push({
+        role: item.role || "user",
+        content: textFromServiceContent(item.content),
+      });
+    } else if (item.type === "function_call") {
+      messages.push({
+        role: "assistant",
+        content: null,
+        tool_calls: [{
+          id: item.call_id || item.id,
+          type: "function",
+          function: {
+            name: item.name,
+            arguments: typeof item.arguments === "string" ? item.arguments : JSON.stringify(item.arguments || {}),
+          },
+        }],
+      });
+    } else if (item.type === "function_call_output") {
+      messages.push({
+        role: "tool",
+        tool_call_id: item.call_id || item.id,
+        content: serializeServiceOutput(item.output),
+      });
+    }
+  }
+  return messages;
+}
+
+function serializeServiceOutput(output) {
+  if (typeof output === "string") return output;
+  if (output == null) return "";
+  try { return JSON.stringify(output); } catch { return String(output); }
+}
+
+function prepareServiceMessages(body) {
+  if (Array.isArray(body?.messages) && body.messages.length > 0) {
+    return body.messages;
+  }
+  if (Array.isArray(body?.input)) {
+    return responsesInputToServiceMessages(body.input, body.instructions);
+  }
+  if (typeof body?.prompt === "string" && body.prompt.trim()) {
+    return [{ role: "user", content: body.prompt }];
+  }
+  if (typeof body?.input === "string" && body.input.trim()) {
+    return [{ role: "user", content: body.input }];
+  }
+  return [];
+}
+
+function prepareServiceToolChoice(toolChoice) {
+  if (typeof toolChoice === "string") return toolChoice;
+  if (!toolChoice || typeof toolChoice !== "object" || Array.isArray(toolChoice)) return undefined;
+  if (typeof toolChoice.mode === "string") return toolChoice.mode;
+  if (toolChoice.type === "function" && toolChoice.function?.name) {
+    return { type: "function", function: { name: toolChoice.function.name } };
+  }
+  return undefined;
+}
+
+export class OpenCodeExecutor extends BaseExecutor {
+  constructor() {
+    super("opencode", PROVIDERS.opencode);
+  }
+
+  prepareRequestCredentials({ body, credentials, providerSessionId, clientTool } = {}) {
+    const sourceCredentials = credentials || {};
+    const session = resolveOpencodeSession(body, sourceCredentials, providerSessionId, clientTool);
+
+    return {
+      ...sourceCredentials,
+      [SESSION_FIELD]: session,
+    };
+  }
+
+  transformRequest(model, body, stream, credentials) {
+    if (body && typeof body === "object" && model && !body.model) body.model = model;
+    // Zen rejects non-streaming requests on free models with 403 FreeTierError;
+    // always stream upstream and let the handler layer aggregate for non-stream clients.
+    if (body && typeof body === "object") body.stream = true;
+    if (isResponsesModel(model || body?.model) && body && typeof body === "object") {
+      // ponytail: chỉ model đã xác nhận auto-only; mở allowlist khi có bằng chứng.
+      if ("tool_choice" in body && body.tool_choice !== "auto"
+        && this.config.quirks?.forceAutoToolChoiceModels?.includes(baseModelId(model))) {
+        body.tool_choice = "auto";
+      }
+      const normalized = normalizeResponsesInput(body.input);
+      if (normalized) body.input = normalized;
+      if (!Array.isArray(body.input) || body.input.length === 0) {
+        body.input = [{ type: "message", role: "user", content: [{ type: "input_text", text: "..." }] }];
+      }
+      // Responses API names the output cap max_output_tokens and takes thinking
+      // as reasoning:{effort,summary} — normalize the Chat fields at this boundary.
+      if (body.max_output_tokens === undefined) {
+        if (body.max_completion_tokens !== undefined) body.max_output_tokens = body.max_completion_tokens;
+        else if (body.max_tokens !== undefined) body.max_output_tokens = body.max_tokens;
+      }
+      delete body.max_tokens;
+      delete body.max_completion_tokens;
+      normalizeOpencodeReasoning(model, body);
+      body.stream = true;
+      body.store = false;
+      normalizeResponsesTools(body);
+      sanitizeResponsesItems(body);
+      // Free-tier fingerprint tools are required even when an agent client
+      // already supplied tools. ZCode/Claude Code requests normally have
+      // non-empty tool arrays; skipping cloaking here triggers 403 FreeTierError.
+      applyFingerprintTools(body, true);
+    } else if (body && typeof body === "object") {
+      dropAdaptiveReasoningEffort(body);
+      applyFingerprintTools(body, false, { claude: isMessagesModel(model || body?.model) });
+    }
+    return injectReasoningContent({ provider: this.provider, model, body });
+  }
+
+  // The free gate keys on the TLS ClientHello, so a native Node fetch is refused
+  // no matter how faithful the body is. Route through the impersonating client.
+  // proxyAwareFetch forwards `directFetch` even when a proxy is set so the
+  // same TLS fingerprint rides the pool (wreq-js `proxy` option). Fail-open:
+  // without wreq-js the request still goes out on native fetch instead of
+  // erroring here.
+  async execute(args) {
+    const { model, body, credentials, signal, proxyOptions } = args;
+    const apiKey = credentials?.apiKey || credentials?.accessToken || credentials?.providerSpecificData?.apiKey;
+    const isPublicAuth = !apiKey || apiKey === "public" || apiKey === "Bearer public";
+    const hasExplicitApiKey = !isPublicAuth;
+    const isTestEnv = process.env.NODE_ENV === "test" || Boolean(process.env.VITEST);
+    const proxyUrl = (proxyOptions?.connectionProxyEnabled && proxyOptions?.connectionProxyUrl)
+      ? proxyOptions.connectionProxyUrl
+      : (credentials?.providerSpecificData?.connectionProxyEnabled && credentials?.providerSpecificData?.connectionProxyUrl)
+        ? credentials.providerSpecificData.connectionProxyUrl
+        : "";
+    const proxyNoProxy = proxyOptions?.connectionNoProxy
+      || credentials?.providerSpecificData?.connectionNoProxy
+      || "";
+
+    const useServiceDaemon = credentials?.providerSpecificData?.useServiceDaemon !== false;
+
+    // Dual-Mode Architecture:
+    // Prefer the local OpenCode daemon when it is actually reachable. A missing
+    // or crashed daemon used to 502 the whole free lane; fall through to the
+    // TLS HTTP path instead so the request still reaches opencode.ai.
+    if (!isTestEnv && !hasExplicitApiKey && useServiceDaemon) {
+      const daemon = await getDaemonForProxy(proxyUrl, { noProxy: proxyNoProxy, apiKey });
+      const isAlive = await isOpencodeServiceAlive(daemon);
+
+      if (isAlive) {
+        try {
+          const directory = resolveClientWorkingDirectory(credentials, body, body?.messages);
+          const timeStr = new Date().toLocaleTimeString("en-GB");
+          console.log(`[${timeStr}] [BRIDGE] OPENCODE | ${model} | daemon=${daemon?.url || "127.0.0.1"}`);
+
+          const messages = prepareServiceMessages(body);
+          const serviceResponse = await executeServiceStream({
+            model,
+            body,
+            messages,
+            tools: body?.tools || [],
+            toolChoice: prepareServiceToolChoice(body?.tool_choice),
+            credentials: this.prepareRequestCredentials({ body, credentials }),
+            proxyUrl,
+            proxyNoProxy,
+            signal,
+          });
+          const session = credentials?.[SESSION_FIELD] || resolveOpencodeSession(body, credentials);
+          return {
+            response: serviceResponse,
+            url: "http://127.0.0.1/api/session/prompt",
+            headers: {
+              "Content-Type": "text/event-stream",
+              "x-opencode-session": session,
+            },
+            transformedBody: body,
+            responseFormat: FORMATS.OPENAI,
+          };
+        } catch (daemonErr) {
+          const timeStr = new Date().toLocaleTimeString("en-GB");
+          console.warn(`[${timeStr}] [BRIDGE] OPENCODE daemon stream failed (${daemonErr?.message || daemonErr}) — falling back to TLS HTTP`);
+        }
+      }
+      const timeStr = new Date().toLocaleTimeString("en-GB");
+      console.log(`[${timeStr}] [BRIDGE] OPENCODE daemon unreachable — falling back to TLS HTTP`);
+    }
+
+    const timeStr = new Date().toLocaleTimeString("en-GB");
+    console.log(`[${timeStr}] [DIRECT] OPENCODE | ${model}`);
+
+    const preparedCredentials = this.prepareRequestCredentials(args);
+    const effectiveProxyOptions = proxyOptions || (credentials?.providerSpecificData?.connectionProxyEnabled && credentials?.providerSpecificData?.connectionProxyUrl
+      ? {
+          connectionProxyEnabled: true,
+          connectionProxyUrl: credentials.providerSpecificData.connectionProxyUrl,
+          connectionNoProxy: credentials.providerSpecificData.connectionNoProxy || "",
+        }
+      : null);
+
+    const run = () => super.execute({
+      ...args,
+      proxyOptions: effectiveProxyOptions,
+      credentials: preparedCredentials,
+      directFetch: async (url, options, extra) => {
+        await paceOpencodeStart();
+        return opencodeTlsFetch(url, {
+          method: options.method,
+          headers: options.headers,
+          body: options.body,
+        }, {
+          signal: options.signal,
+          // BaseExecutor forwards its `proxyOptions` (null when no proxy is
+          // configured) as the third argument, so a parameter default never
+          // fires here. Normalise before reading.
+          proxy: extra?.proxyUrl || options.proxyUrl || proxyUrl,
+          timeoutMs: args.stream ? 0 : undefined,
+        });
+      },
+      directFetchProxy: true,
+    });
+
+    // The free lane sheds load with 429 "The inference service is overloaded.
+    // Please try again later." even after the request passes the TLS gate, and
+    // the OpenCode CLI retries it. Match that behaviour here: inspect a clone of
+    // the body (a stream, so never read the original), retry transient overloads
+    // with backoff, and hand back every other response untouched.
+    for (let attempt = 1; ; attempt++) {
+      const result = await run();
+      const rejection = await classifyRejection(result?.response);
+      if (rejection === "session") {
+        // A client-supplied native session is not ours to replace; this only
+        // drops ids we minted, so the next request starts on a fresh one.
+        if (forgetOpencodeSession(credentials[SESSION_FIELD])) {
+          args.log?.debug?.("SESSION", `OpenCode ${result.response.status}: dropped cached session, next request re-mints`);
+        }
+        return result;
+      }
+      // A disconnected client should not keep the retry loop (and the free lane)
+      // busy for another ~20 s.
+      if (rejection !== "overload" || attempt >= OPENCODE_OVERLOAD_ATTEMPTS || args.signal?.aborted) {
+        return result;
+      }
+      // Release the discarded 429 instead of leaving its stream half-read.
+      result.response.body?.cancel?.().catch?.(() => {});
+      args.log?.debug?.("RETRY", `OpenCode free lane overloaded, retry ${attempt}/${OPENCODE_OVERLOAD_ATTEMPTS - 1}`);
+      const backoff = Math.min(OPENCODE_OVERLOAD_BASE_MS * attempt, OPENCODE_OVERLOAD_MAX_MS);
+      await sleep(backoff + Math.random() * 250, args.signal);
+      // Aborted mid-backoff: surface it the way a disconnect during the fetch does.
+      if (args.signal?.aborted) throw new DOMException("The operation was aborted.", "AbortError");
+    }
+  }
+
+  // Free tier moved from /zen/v1 to /inference/v1 (OpenCode v2); /zen/v1 now
+  // answers every free request with 403 FreeTierError.
+  buildUrl(model) {
+    const base = this.config.baseUrl;
+    if (isResponsesModel(model)) return `${base}/inference/openai/v1/responses`;
+    if (isMessagesModel(model)) return `${base}/inference/openai/v1/messages`;
+    return `${base}/inference/openai/v1/chat/completions`;
+  }
+
+  buildHeaders(credentials, stream = true, url = "") {
+    const raw = credentials?.rawHeaders || {};
+    const lower = {};
+    for (const [k, v] of Object.entries(raw)) lower[k.toLowerCase()] = v;
+
+    const downstreamUa = lower["user-agent"] || "";
+    const isOpencodeDownstream = hasValidOpencodeVersion(downstreamUa);
+
+    const session = credentials?.[SESSION_FIELD] || this.prepareRequestCredentials({ credentials })[SESSION_FIELD];
+
+    const traceId = crypto.randomBytes(16).toString("hex");
+    const spanId = crypto.randomBytes(8).toString("hex");
+    const parentSpanId = crypto.randomBytes(8).toString("hex");
+
+    // Mirrors the v2 CLI / Magpie specification. Upstream needs x-opencode-session-id next to
+    // x-opencode-session, and rejects any x-opencode-request (v1 only) with 403.
+    const headers = {
+      "Content-Type": "application/json",
+      "Authorization": "Bearer public",
+      "User-Agent": isOpencodeDownstream ? downstreamUa : getOpencodeUa(),
+      "b3": `${traceId}-${spanId}-1-${parentSpanId}`,
+      "traceparent": `00-${traceId}-${spanId}-01`,
+      "x-opencode-client": lower["x-opencode-client"] || OPENCODE_CLIENT,
+      "x-opencode-session": session,
+      "x-opencode-session-id": session,
+      "x-session-affinity": session,
+      "x-session-id": session,
+      "x-opencode-project": lower["x-opencode-project"] || generateRandomProjectId(),
+      "Accept": stream ? "text/event-stream" : "*/*",
+    };
+    if (url.endsWith("/messages")) headers["anthropic-version"] = ANTHROPIC_API_VERSION;
+    return headers;
+  }
+
+  // Parse OpenCode FreeUsageLimitError / rate-limiting headers to extract resetsAtMs
+  parseError(response, bodyText) {
+    if (response.status === 429 && bodyText) {
+      try {
+        const json = JSON.parse(bodyText);
+        const err = json?.error;
+        const now = Date.now();
+        let resetsAtMs = null;
+        if (typeof err?.resets_at === "number" && err.resets_at > 0) {
+          const ms = err.resets_at * 1000;
+          if (ms > now) resetsAtMs = ms;
+        }
+        if (!resetsAtMs && typeof err?.resets_in_seconds === "number" && err.resets_in_seconds > 0) {
+          resetsAtMs = now + err.resets_in_seconds * 1000;
+        }
+        const retryHeader = response.headers?.get?.("retry-after");
+        if (!resetsAtMs && retryHeader) {
+          const sec = Number.parseInt(retryHeader, 10);
+          if (Number.isFinite(sec) && sec > 0) {
+            resetsAtMs = now + sec * 1000;
+          }
+        }
+        if (resetsAtMs) {
+          return { status: 429, message: err?.message || bodyText, resetsAtMs };
+        }
+      } catch {}
+    }
+    return super.parseError(response, bodyText);
+  }
+}
