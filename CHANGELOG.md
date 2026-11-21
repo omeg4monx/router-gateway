@@ -1,5 +1,12 @@
 # v0.1.0 (2026-11-21)
 
+### Bug Fixes — False "Cross-origin request blocked" behind tunnels / reverse proxies
+
+- `src/middleware.js`: behind a proxy that rewrites `Host` (cloudflared, ngrok, nginx), `Host` is `127.0.0.1:<port>` while the browser `Origin` is the public hostname, so every mutating dashboard `/api/*` call (OAuth exchange, provider save, key writes) got 403.
+  - `Sec-Fetch-Site: same-origin | none` is now accepted as browser-attested proof before the host comparison. `same-site` is **not** trusted on its own (a sibling subdomain is same-site) and still goes through the Origin check; `cross-site` stays blocked even with a spoofed Origin.
+  - Fallback for clients without `Sec-Fetch-Site`: the Origin may also match any entry of a comma-separated `x-forwarded-host` chain or the host of `BASE_URL` / `PUBLIC_BASE_URL` / `NEXT_PUBLIC_BASE_URL` / `APP_URL` / `SITE_URL` / `NEXTAUTH_URL` (malformed values ignored).
+  - Regression suite `tests/unit/middleware-origin-gate.test.js` (11 cases). Ported from xrouter `3b54099`.
+
 ### Breaking — Complete OMEG4MON ROUTER rebrand
 
 - Every remaining `xrouter` reference in code, UI and scripts is gone, **including backward compatibility**. Existing installs start fresh: `~/.xrouter` / `%APPDATA%\xrouter` / `xrouter-data` volumes, `XROUTER_VAULT_KEY`, credentials sealed with the old machine-id keys, and `xrouter` provider entries in Codex/OpenCode/Grok/Droid configs are no longer read or migrated.
