@@ -71,10 +71,8 @@ func (g *Gateway) registerRoutes() {
 	g.mux.Route("/admin/v1/teams", func(r chi.Router) {
 		r.Get("/", g.handleGetTeams)
 		r.Post("/", g.handleCreateTeam)
-		r.Route("/{id}", func(sr chi.Router) {
-			r.Patch("/{id}", g.handleUpdateTeam)
-			r.Delete("/{id}", g.handleDeleteTeam)
-		})
+		r.Patch("/{id}", g.handleUpdateTeam)
+		r.Delete("/{id}", g.handleDeleteTeam)
 	})
 }
 
@@ -156,13 +154,11 @@ func (g *Gateway) handleTestProxy(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// The Go core has no login; never claim an authenticated admin session.
 func (g *Gateway) handleAuthStatus(w http.ResponseWriter, r *http.Request) {
 	jsonResponse(w, http.StatusOK, map[string]interface{}{
-		"authenticated": true,
-		"role":          "admin",
-		"requireLogin":  false,
-		"displayName":   "Admin (Go Core)",
-		"homePath":      "/dashboard",
+		"authenticated": false,
+		"engine":        "golang",
 	})
 }
 

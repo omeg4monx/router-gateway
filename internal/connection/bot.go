@@ -5,6 +5,7 @@ import (
 	"crypto/subtle"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"runtime"
 	"strings"
@@ -186,6 +187,8 @@ func HandleWebhook(w http.ResponseWriter, r *http.Request, db *database.DB) {
 	w.Write([]byte(`{"ok":true}`))
 }
 
+var telegramClient = &http.Client{Timeout: 10 * time.Second}
+
 func sendTelegramMessage(botToken string, chatId int64, text string) {
 	payload := map[string]interface{}{
 		"chat_id":    chatId,
@@ -194,7 +197,16 @@ func sendTelegramMessage(botToken string, chatId int64, text string) {
 	}
 	bodyBytes, _ := json.Marshal(payload)
 	url := fmt.Sprintf("https://api.telegram.org/bot%s/sendMessage", botToken)
-	http.Post(url, "application/json", bytes.NewBuffer(bodyBytes))
+	resp, err := telegramClient.Post(url, "application/json", bytes.NewBuffer(bodyBytes))
+	if err != nil {
+		// err embeds the URL, which carries the bot token: log only that it failed.
+		log.Printf("[Telegram] sendMessage failed (network error)")
+		return
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		log.Printf("[Telegram] sendMessage failed: HTTP %d", resp.StatusCode)
+	}
 }
 
 func TestBotToken(botToken string) (map[string]interface{}, error) {
