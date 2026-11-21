@@ -94,8 +94,8 @@ function ensureRuntimeServer(bundledPath) {
 }
 
 const SERVER_PATH = ensureRuntimeServer(resolveBundledServerPath());
-const ENCRYPT_ALGO = "aes-256-gcm";
-const ENCRYPT_SALT = "xrouter-mitm-pwd";
+const vaultKey = require("../lib/vault/vaultKey.cjs");
+const LEGACY_SALT = "xrouter-mitm-pwd";
 
 function getProcessUsingPort443() {
   try {
@@ -151,33 +151,15 @@ function killProcess(pid, force = false, sudoPassword = null) {
   }
 }
 
-function deriveKey() {
-  try {
-    const { machineIdSync } = require("node-machine-id");
-    const raw = machineIdSync();
-    return crypto.createHash("sha256").update(raw + ENCRYPT_SALT).digest();
-  } catch {
-    return crypto.createHash("sha256").update(ENCRYPT_SALT).digest();
-  }
-}
-
 function encryptPassword(plaintext) {
-  const key = deriveKey();
-  const iv = crypto.randomBytes(12);
-  const cipher = crypto.createCipheriv(ENCRYPT_ALGO, key, iv);
-  const encrypted = Buffer.concat([cipher.update(plaintext, "utf8"), cipher.final()]);
-  const tag = cipher.getAuthTag();
-  return `${iv.toString("hex")}:${tag.toString("hex")}:${encrypted.toString("hex")}`;
+  return vaultKey.seal(plaintext, vaultKey.getVaultKey(DATA_DIR));
 }
 
 function decryptPassword(stored) {
+  const [ivHex, tagHex, dataHex] = String(stored || "").split(":");
+  if (!ivHex || !tagHex || !dataHex) return null;
   try {
-    const [ivHex, tagHex, dataHex] = stored.split(":");
-    if (!ivHex || !tagHex || !dataHex) return null;
-    const key = deriveKey();
-    const decipher = crypto.createDecipheriv(ENCRYPT_ALGO, key, Buffer.from(ivHex, "hex"));
-    decipher.setAuthTag(Buffer.from(tagHex, "hex"));
-    return decipher.update(Buffer.from(dataHex, "hex")) + decipher.final("utf8");
+    return vaultKey.open(stored, [vaultKey.getVaultKey(DATA_DIR), vaultKey.legacyMachineKey(LEGACY_SALT)]);
   } catch {
     return null;
   }
