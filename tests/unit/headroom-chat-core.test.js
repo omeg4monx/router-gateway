@@ -251,7 +251,10 @@ describe("handleChatCore Headroom diagnostics", () => {
     );
   });
 
-  it("bypasses token savers when requested by the client", async () => {
+  it.each([
+    "x-omeg4mon-router-token-saver",
+    "x-9router-token-saver", // legacy name, kept for back-compat
+  ])("bypasses token savers when requested by the client via %s", async (header) => {
     const log = { debug: vi.fn(), info: vi.fn(), warn: vi.fn() };
     const pxpipeTransform = vi.fn();
     const messages = [{ role: "user", content: "Write polished prose." }];
@@ -281,7 +284,7 @@ describe("handleChatCore Headroom diagnostics", () => {
         body: {},
         headers: {
           accept: "application/json",
-          "x-omeg4mon-router-token-saver": "off",
+          [header]: "off",
         },
       },
     });

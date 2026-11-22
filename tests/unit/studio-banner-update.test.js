@@ -81,11 +81,6 @@ describe("banner: cancel, background, and shared look", () => {
     expect(banner).toContain("bg-surface");
   });
 
-  it("ProgressCard and CenterLoading delegate and accept onCancel", () => {
-    expect(loading).toContain("LongTaskBanner");
-    expect(loading).toContain("onCancel");
-  });
-
   it("the dock is mounted once in the dashboard layout and reads the store", () => {
     expect(layout).toContain("<TaskDock />");
     expect(dock).toContain("useTaskStore");

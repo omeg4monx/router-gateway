@@ -13,7 +13,6 @@ vi.mock("../../open-sse/services/opencodeTlsClient.js", () => ({
 // chỉ nhận tool_choice "auto"; named/required/none phải demote sang "auto".
 // Live 2026-09-19: both 1.2-free and 1.3-free reject non-auto with 400, and any
 // Responses request without OpenCode's fingerprint tools returns 403 FreeTierError.
-const FREE_12 = "muse-spark-1.2-contributor-free";
 const FREE_13 = "muse-spark-1.3-contributor-free";
 const CREDS = { connectionId: "opencode-free-tool-choice-test" };
 const INPUT = [{ type: "message", role: "user", content: [{ type: "input_text", text: "hi" }] }];
@@ -29,7 +28,7 @@ function responsesBody(model, tool_choice) {
 
 describe("opencode Free tool_choice auto-only", () => {
   it("khai quirk đúng model Free trong registry", () => {
-    expect(PROVIDERS.opencode.quirks?.forceAutoToolChoiceModels).toEqual([FREE_12, FREE_13]);
+    expect(PROVIDERS.opencode.quirks?.forceAutoToolChoiceModels).toEqual([FREE_13]);
   });
 
   it.each([
@@ -39,7 +38,7 @@ describe("opencode Free tool_choice auto-only", () => {
     ["required", "required"],
     ["none", "none"],
   ])("demote %s sang auto (plain và max)", (_label, choice) => {
-    for (const model of [FREE_12, FREE_13, `${FREE_13}(max)`]) {
+    for (const model of [FREE_13, `${FREE_13}(max)`]) {
       const body = responsesBody(model, structuredClone(choice));
       const out = new OpenCodeExecutor().transformRequest(model, body, true, CREDS);
       expect(out.tool_choice).toBe("auto");

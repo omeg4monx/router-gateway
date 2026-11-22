@@ -2,7 +2,6 @@ import { defineConfig } from "vitest/config";
 import { resolve } from "path";
 import os from "node:os";
 import { fileURLToPath } from "url";
-import { QUARANTINED_TESTS } from "./quarantine.js";
 
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
 
@@ -24,14 +23,7 @@ export default defineConfig({
     // .next/standalone/ is the same trap: it holds a build-time copy of the test
     // tree that goes stale the moment the source tests are edited, so a green
     // source run reports doubled failures against the frozen copy.
-    exclude: [
-      "**/node_modules/**",
-      "**/.claude/**",
-      "**/dist/**",
-      "**/.next/**",
-      // CI only: pre-existing failures under triage, see quarantine.js.
-      ...(process.env.CI ? QUARANTINED_TESTS.map((file) => `**/${file}`) : []),
-    ],
+    exclude: ["**/node_modules/**", "**/.claude/**", "**/dist/**", "**/.next/**"],
     // Allow many it.concurrent cases (real provider smoke runs ~50 providers in parallel)
     maxConcurrency: 60,
     // Suppress noisy console output from handlers under test

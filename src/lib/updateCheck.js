@@ -133,11 +133,15 @@ async function fetchRemoteHead() {
 // Newest entry of the repository changelog: the version this build should move to,
 // with a short preview of what it contains.
 async function fetchRemoteRelease() {
-  if (cache.remoteRelease !== undefined) return cache.remoteRelease;
+  if (cache.remoteRelease !== undefined && Date.now() - (cache.remoteReleaseAt || 0) < CHECK_TTL_MS) return cache.remoteRelease;
   const text = await fetchText(GITHUB_CONFIG.changelogUrl);
-  if (!text) return null;
+  if (!text) {
+    cache.remoteReleaseAt = 0; // don't pin a stale answer after a failed fetch
+    return null;
+  }
   const release = parseChangelogRelease(text);
   cache.remoteRelease = release;
+  cache.remoteReleaseAt = Date.now();
   return release;
 }
 

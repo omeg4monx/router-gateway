@@ -40,9 +40,7 @@ npx vitest run unit/capabilities.test.js   # single file (path relative to tests
 ```
 > The committed `tests/package.json` `test` script hardcodes Unix paths (`NODE_PATH=/tmp/node_modules …`) — a shared-install workaround from upstream. On Windows (or anywhere), ignore it and use the `npx vitest` form above; `vitest.config.js` resolves the `open-sse`/`@/` aliases from the repo root regardless of where vitest lives.
 >
-> **The suite is NOT expected to be all-green on a plain checkout.** ~938 pass, ~64 fail. Judge regressions with `tests/__baseline__/verify-no-regression.mjs`, not a raw run. Expected red:
-> - 16 catalogued in `tests/__baseline__/known-fails.txt` (rtk, translator-request-normalization, …).
-> - `unit/xai-oauth-service.test.js` times out (5s) when the xAI endpoint-discovery fetch isn't reachable/mocked.
+> **The suite is expected to be all-green.** CI (`.github/workflows/test.yml`) runs it on every push and PR from the repo root: `tests/node_modules/.bin/vitest run --config tests/vitest.config.js`. Always pass that config: it points `DATA_DIR` at a temp dir, and a run without it writes fixtures into the real `~/.omeg4mon-router`. A new failure is a regression; `tests/__baseline__/known-fails.txt` is empty.
 > - `real/*.real.test.js` make live provider calls — need credentials, skip otherwise.
 - `*.real.test.js` under `tests/translator/real/` make live provider calls — skip unless credentials are set.
 - Regression baselines: `tests/__baseline__/verify-*.mjs` compare against committed snapshots (providers, aliases, OAuth URLs). Run these after touching provider registry / alias logic.
