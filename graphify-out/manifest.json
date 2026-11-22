@@ -478,5 +478,35 @@
     "seen": 1795375775.244241,
     "ast_hash": "63113811f843a4354b48ba70283e79e9",
     "semantic_hash": ""
+  },
+  "contracts/openapi/modules/auth.yaml": {
+    "mtime": 1795376318.2658036,
+    "seen": 1795376384.8056164,
+    "ast_hash": "58f30e0ad2068fdbf423daf248774c42",
+    "semantic_hash": ""
+  },
+  "internal/modules/auth/cookie.go": {
+    "mtime": 1795376352.1162434,
+    "seen": 1795376384.8057506,
+    "ast_hash": "c66ccfabec00201c700a4d19a076b7eb",
+    "semantic_hash": ""
+  },
+  "internal/modules/auth/handlers.go": {
+    "mtime": 1795376317.0928755,
+    "seen": 1795376384.805752,
+    "ast_hash": "d86ca1f7911660ddcf92754db328783e",
+    "semantic_hash": ""
+  },
+  "internal/modules/auth/module.go": {
+    "mtime": 1795376315.643869,
+    "seen": 1795376384.805753,
+    "ast_hash": "6831895fd37a1d75afde21a359b4217e",
+    "semantic_hash": ""
+  },
+  "internal/modules/auth/module_test.go": {
+    "mtime": 1795376362.9273837,
+    "seen": 1795376384.8057542,
+    "ast_hash": "d9e7c3ef8e9399357c615203c82fcb12",
+    "semantic_hash": ""
   }
 }
