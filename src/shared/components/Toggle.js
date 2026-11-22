@@ -9,6 +9,8 @@ export default function Toggle({
   onChange,
   label,
   description,
+  ariaLabel,
+  title,
   disabled = false,
   size = "md",
   className,
@@ -35,6 +37,8 @@ export default function Toggle({
         type="button"
         role="switch"
         aria-checked={checked}
+        aria-label={ariaLabel || label || title}
+        title={title}
         disabled={disabled}
         onClick={handleClick}
         className={cn(
