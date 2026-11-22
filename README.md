@@ -32,9 +32,9 @@ Local AI routing gateway with a web dashboard. It exposes one OpenAI- and Anthro
 
 ## Requirements
 
-- Node.js `22.23.4` for source builds (see `.nvmrc`). The CLI accepts Node ≥ 18.
+- Node.js `26.13.1` for source builds (see `.nvmrc`). The CLI accepts Node ≥ 18.
 - npm `11.20.0` for locked installs (the commands below select it). Bun still works via `dev:bun`, `build:bun`, and `start:bun`.
-- Optional: Docker, Go `1.26.0` for the experimental Go core.
+- Optional: Docker, Go `1.27.4` for the experimental Go core.
 
 ---
 
