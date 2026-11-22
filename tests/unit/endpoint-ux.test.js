@@ -229,3 +229,26 @@ describe("KeyFormModal and KeySnippetModal UX contracts", () => {
     expect(src).toContain("footer={");
   });
 });
+
+describe("GatewayConsole UX contracts", () => {
+  it("renders inline StatusAlert for tunnel and tailscale statuses and 1-click auth gate recovery", () => {
+    const src = readRel("src/app/(dashboard)/dashboard/endpoint/components/GatewayConsole.js");
+    expect(src).toContain("StatusAlert");
+    expect(src).toContain("tunnel.status");
+    expect(src).toContain("tailscale.status");
+    expect(src).toContain("Enable Auth & Continue");
+    expect(src).toContain("onEnableAuthAndTunnel");
+  });
+
+  it("synchronizes OpenAI/Claude URLs with safe Local fallback, smooth accordion snippets, and admin gating", () => {
+    const src = readRel("src/app/(dashboard)/dashboard/endpoint/components/GatewayConsole.js");
+    expect(src).toContain("localOrigin");
+    expect(src).toContain("Showing Local URL");
+    expect(src).toContain("accordion-grid");
+    expect(src).toContain("generateEndpointSnippet");
+    expect(src).toContain('"openai"');
+    expect(src).toContain('"anthropic"');
+    expect(src).toContain("!isApiKeyUser");
+    expect(src).toContain("Require API Key Authentication");
+  });
+});
