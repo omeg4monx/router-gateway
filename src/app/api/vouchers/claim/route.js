@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { audit } from "@/lib/auth/auditLog";
 import { claimVoucher, getVoucherByCode, getActiveBansosVoucher } from "@/lib/localDb";
 import { getClientIp } from "@/lib/auth/loginLimiter";
+import { hasTrustedPeerHeaders } from "@/lib/auth/trustedPeer";
 import { isLocalRequest } from "@/dashboardGuard";
 import { isKnownProxyIp } from "@/lib/security/proxyIpBlocker";
 import {
@@ -23,10 +24,11 @@ clearAllLockouts();
 export async function GET(request) {
   try {
     // Edge Proxy Gate: Enforce Cloudflare Edge for all external public traffic
-    // custom-server strips cf-ray unless the socket is loopback (cloudflared); "local"
-    // comes from the stamped socket address, never from the spoofable Host header.
+    // custom-server strips cf-ray unless the socket is loopback (cloudflared), so the
+    // header only counts when the wrapper vouched for the request; "local" comes from
+    // the stamped socket address, never from the spoofable Host header.
     const isLocal = isLocalRequest(request);
-    const cfRay = request.headers.get("cf-ray");
+    const cfRay = hasTrustedPeerHeaders(request) ? request.headers.get("cf-ray") : null;
     if (!isLocal && !cfRay) {
       return NextResponse.json(
         { error: "Direct IP connection prohibited. Requests must route through Cloudflare Edge proxy." },
@@ -139,7 +141,7 @@ export async function GET(request) {
 export async function POST(request) {
   // Edge Proxy Gate: Enforce Cloudflare Edge for all external public traffic
   const isLocal = isLocalRequest(request);
-  const cfRay = request.headers.get("cf-ray");
+  const cfRay = hasTrustedPeerHeaders(request) ? request.headers.get("cf-ray") : null;
   if (!isLocal && !cfRay) {
     return NextResponse.json(
       { error: "Direct IP connection prohibited. Requests must route through Cloudflare Edge proxy." },
