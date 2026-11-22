@@ -4,8 +4,8 @@ import { getProviderIconSrc } from "@/shared/utils/providerIcon";
 
 /**
  * Page identity for the shell chrome: title, one-line description, icon and
- * breadcrumbs. Extracted from Header so both the top rail and the page heading
- * band read the same source of truth — one place to add a new route.
+ * breadcrumbs. Single source of truth for the page heading band — one place
+ * to add a new route.
  */
 export function getPageInfo(pathname) {
   if (!pathname) return { title: "", description: "", breadcrumbs: [] };

@@ -88,8 +88,8 @@ describe("notification feed", () => {
     expect(scan).toMatch(/catch[\s\S]{0,400}return/);
   });
 
-  it("is mounted in the header with an unread badge", () => {
-    expect(read("src/shared/components/Header.js")).toContain("NotificationBell");
+  it("is mounted in the page heading with an unread badge", () => {
+    expect(read("src/shared/components/PageHeading.js")).toContain("NotificationBell");
     expect(bell).toMatch(/unread/i);
   });
 

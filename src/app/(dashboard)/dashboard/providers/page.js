@@ -25,7 +25,6 @@ import {
 import Link from "next/link";
 import { getErrorCode, getRelativeTime } from "@/shared/utils";
 import { useNotificationStore } from "@/store/notificationStore";
-import { useHeaderSearchStore } from "@/store/headerSearchStore";
 import ModelAvailabilityBadge from "./components/ModelAvailabilityBadge";
 import AddCompatibleModal from "./components/AddCompatibleModal";
 import { STATUS_FILTER_OPTIONS, matchesStatusFilter } from "./utils";
@@ -121,17 +120,9 @@ export default function ProvidersPage() {
   const notify = useNotificationStore();
   const [localSearch, setLocalSearch] = useState("");
   const [categoryTab, setCategoryTab] = useState("all");
-  const searchQuery = useHeaderSearchStore((s) => s.query);
-  const registerSearch = useHeaderSearchStore((s) => s.register);
-  const unregisterSearch = useHeaderSearchStore((s) => s.unregister);
-
-  useEffect(() => {
-    registerSearch("Search providers...");
-    return () => unregisterSearch();
-  }, [registerSearch, unregisterSearch]);
 
   const matchSearch = (name, id) => {
-    const q = (localSearch || searchQuery || "").trim().toLowerCase();
+    const q = localSearch.trim().toLowerCase();
     if (!q) return true;
     if (!name && !id) return false;
     return (name && name.toLowerCase().includes(q)) || (id && id.toLowerCase().includes(q));
@@ -385,7 +376,7 @@ export default function ProvidersPage() {
       if (ca !== cb) return ca - cb;
       return (a.name || "").localeCompare(b.name || "");
     });
-  const isApikeySearching = !!searchQuery.trim() || statusFilter !== "all";
+  const isApikeySearching = !!localSearch.trim() || statusFilter !== "all";
   const visibleApikeyEntries =
     isApikeySearching || showAllApikey
       ? apikeyEntries
