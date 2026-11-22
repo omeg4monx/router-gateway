@@ -18,6 +18,7 @@ import {
   resolveDefaultSnippetModel,
   countWhitelistEntries,
   validateCustomInterval,
+  toDateTimeLocalValue,
 } from "@/app/(dashboard)/dashboard/endpoint/endpointUtils";
 import { generateEndpointSnippet } from "@/app/(dashboard)/dashboard/endpoint/endpointSnippets";
 
@@ -299,5 +300,37 @@ describe("EndpointPageClient integration and bug-fix contracts", () => {
     expect(src).toContain("statusFilter");
     expect(src).not.toContain("shown only once");
     expect(src).toContain("Copy cURL");
+  });
+
+  it("handles patchSettings null failures explicitly without swallowing errors", () => {
+    const src = readRel("src/app/(dashboard)/dashboard/endpoint/EndpointPageClient.js");
+    expect(src).toMatch(/if\s*\(!updated\)/);
+  });
+
+  it("guards KeyFormModal onClose while ModelSelectModal is open and waits for authLoaded before rendering controls", () => {
+    const src = readRel("src/app/(dashboard)/dashboard/endpoint/EndpointPageClient.js");
+    expect(src).toMatch(/if\s*\(!showModelPicker\)\s*closeFormModal\(\)/);
+    expect(src).toContain("authLoaded");
+    expect(src).toMatch(/if\s*\(loading\s*\|\|\s*!authLoaded\)/);
+  });
+
+  it("elevates ApiKeyCard stacking context when overflow menu is open", () => {
+    const src = readRel("src/app/(dashboard)/dashboard/endpoint/components/ApiKeyCard.js");
+    expect(src).toMatch(/menuOpen\s*&&\s*"z-30"/);
+  });
+
+  it("converts UTC ISO timestamps to local wall-clock datetime-local values without timezone shift", () => {
+    const iso = "2026-11-25T12:00:00.000Z";
+    const expectedDate = new Date(iso);
+    const pad = (n) => String(n).padStart(2, "0");
+    const expectedLocal = `${expectedDate.getFullYear()}-${pad(expectedDate.getMonth() + 1)}-${pad(expectedDate.getDate())}T${pad(expectedDate.getHours())}:${pad(expectedDate.getMinutes())}`;
+    expect(toDateTimeLocalValue(iso)).toBe(expectedLocal);
+    expect(toDateTimeLocalValue("2026-11-25T14:30")).toBe("2026-11-25T14:30");
+    expect(toDateTimeLocalValue("invalid-date")).toBe("");
+    expect(toDateTimeLocalValue("")).toBe("");
+
+    const modalSrc = readRel("src/app/(dashboard)/dashboard/endpoint/components/KeyFormModal.js");
+    expect(modalSrc).toContain("toDateTimeLocalValue");
+    expect(modalSrc).toContain('from "../endpointUtils"');
   });
 });

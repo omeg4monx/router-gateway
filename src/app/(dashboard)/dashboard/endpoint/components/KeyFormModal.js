@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import PropTypes from "prop-types";
 import { Modal, Button, Input, Select, Toggle, SegmentedControl } from "@/shared/components";
 import { cn } from "@/shared/utils/cn";
-import { RESET_INTERVAL_OPTIONS, validateCustomInterval } from "../endpointUtils";
+import { RESET_INTERVAL_OPTIONS, validateCustomInterval, toDateTimeLocalValue } from "../endpointUtils";
 
 const PRESET_RESET_VALUES = new Set(["never", "1h", "5h", "1d", "7d", "14d", "30d"]);
 
@@ -31,15 +31,6 @@ export const EMPTY_PERMISSIONS = {
 };
 
 const PERMISSIONS_LOCKED_REASON = "Locked. Sign in with the dashboard password to change permissions.";
-
-function toDateTimeLocalValue(raw) {
-  if (!raw || typeof raw !== "string") return "";
-  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(raw)) return raw.slice(0, 16);
-  const d = new Date(raw);
-  if (Number.isNaN(d.getTime())) return "";
-  const pad = (n) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
 
 function parseModelsList(str) {
   if (!str || str.trim() === "*" || str.trim() === "") return [];

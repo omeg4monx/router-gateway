@@ -137,3 +137,19 @@ export function validateCustomInterval(val) {
   }
   return null;
 }
+
+export function toDateTimeLocalValue(raw) {
+  if (!raw || typeof raw !== "string") return "";
+  const trimmed = raw.trim();
+  if (!trimmed) return "";
+  // Preserve already-naive datetime-local strings as-is, but convert any
+  // timestamp with an explicit timezone (Z or +/-HH:MM) into local wall-clock time.
+  const hasTimezone = /(?:[Zz]|[+-]\d{2}:?\d{2})$/.test(trimmed);
+  if (!hasTimezone && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(trimmed)) {
+    return trimmed.slice(0, 16);
+  }
+  const d = new Date(trimmed);
+  if (Number.isNaN(d.getTime())) return "";
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}

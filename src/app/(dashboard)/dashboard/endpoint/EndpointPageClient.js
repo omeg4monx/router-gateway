@@ -85,6 +85,7 @@ export default function APIPageClient({ machineId }) {
   const [requireApiKey, setRequireApiKey] = useState(false);
   const [tunnelDashboardAccess, setTunnelDashboardAccess] = useState(false);
   const [authStatus, setAuthStatus] = useState(null);
+  const [authLoaded, setAuthLoaded] = useState(false);
 
   const isApiKeyUser = authStatus?.role === "apikey";
   const sessionApiKey = authStatus?.apiKey || null;
@@ -308,9 +309,12 @@ export default function APIPageClient({ machineId }) {
 
   useEffect(() => {
     fetch("/api/auth/status")
-      .then((res) => res.json())
-      .then((data) => setAuthStatus(data))
-      .catch(() => {});
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data) setAuthStatus(data);
+      })
+      .catch(() => {})
+      .finally(() => setAuthLoaded(true));
   }, []);
 
   useEffect(() => {
@@ -402,12 +406,14 @@ export default function APIPageClient({ machineId }) {
   const handleTunnelDashboardAccess = async (value) => {
     try {
       const updated = await useSettingsStore.getState().patchSettings({ tunnelDashboardAccess: value });
-      if (updated) {
-        setTunnelDashboardAccess(value);
-        useNotificationStore
-          .getState()
-          .success(value ? "Dashboard access over tunnel enabled." : "Dashboard access over tunnel disabled.");
+      if (!updated) {
+        useNotificationStore.getState().error("Failed to update tunnel dashboard access setting.");
+        return;
       }
+      setTunnelDashboardAccess(value);
+      useNotificationStore
+        .getState()
+        .success(value ? "Dashboard access over tunnel enabled." : "Dashboard access over tunnel disabled.");
     } catch {
       useNotificationStore.getState().error("Failed to update tunnel dashboard access setting.");
     }
@@ -416,14 +422,16 @@ export default function APIPageClient({ machineId }) {
   const handleRequireApiKey = async (value) => {
     try {
       const updated = await useSettingsStore.getState().patchSettings({ requireApiKey: value });
-      if (updated) {
-        setRequireApiKey(value);
-        if (value) setTunnelAuthGateWarning(false);
-        useNotificationStore
-          .getState()
-          .success(value ? "API key authentication is now required." : "API key authentication disabled.");
-        return true;
+      if (!updated) {
+        useNotificationStore.getState().error("Failed to update API key authentication setting.");
+        return false;
       }
+      setRequireApiKey(value);
+      if (value) setTunnelAuthGateWarning(false);
+      useNotificationStore
+        .getState()
+        .success(value ? "API key authentication is now required." : "API key authentication disabled.");
+      return true;
     } catch {
       useNotificationStore.getState().error("Failed to update API key authentication setting.");
     }
@@ -1159,7 +1167,7 @@ export default function APIPageClient({ machineId }) {
     [modelAliases, activeProviders]
   );
 
-  if (loading) {
+  if (loading || !authLoaded) {
     return (
       <div className="flex flex-col gap-5 max-w-full" data-machine-id={machineId}>
         <div className="flex items-center justify-between gap-4">
@@ -1499,7 +1507,9 @@ export default function APIPageClient({ machineId }) {
         selectedModelsValue={formAllowedModels}
         onSelectedModelsChange={setFormAllowedModels}
         onSubmit={handleFormSubmit}
-        onClose={closeFormModal}
+        onClose={() => {
+          if (!showModelPicker) closeFormModal();
+        }}
       />
 
       {/* Created Key Confirmation Modal */}
@@ -1571,7 +1581,14 @@ export default function APIPageClient({ machineId }) {
       {showModelPicker && (
         <ModelSelectModal
           isOpen={showModelPicker}
-          onClose={() => setShowModelPicker(false)}
+          onClose={() => {
+            setShowModelPicker(false);
+            if (formModal.open && typeof document !== "undefined") {
+              requestAnimationFrame(() => {
+                document.body.style.overflow = "hidden";
+              });
+            }
+          }}
           onSelect={handleSelectModelForPicker}
           onDeselect={handleDeselectModelForPicker}
           activeProviders={activeProviders}

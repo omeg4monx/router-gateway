@@ -112,6 +112,7 @@ export default function ApiKeyCard({
     <article
       className={cn(
         "group relative rounded-xl border p-4 transition-colors duration-150",
+        menuOpen && "z-30",
         isDisabled || isExpired
           ? "border-border-subtle bg-surface-2/60 opacity-85"
           : "border-border bg-surface hover:border-primary/40"
