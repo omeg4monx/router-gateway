@@ -3,6 +3,7 @@
   "version": "0.2.0",
   "description": "OMEG4MON ROUTER web dashboard",
   "private": true,
+  "packageManager": "bun@1.4.5",
   "contributors": [
     {
       "name": "Bayu (BvsshXyz)",
@@ -14,22 +15,19 @@
     }
   ],
   "scripts": {
-    "dev": "cross-env NEXT_DIST_DIR=.next-dev next dev --port 20128 --hostname 127.0.0.1",
-    "dev:webpack": "cross-env NEXT_DIST_DIR=.next-dev next dev --port 20128 --hostname 127.0.0.1",
-    "build": "next build --webpack",
+    "dev": "cross-env NEXT_DIST_DIR=.next-dev node node_modules/next/dist/bin/next dev --port 20128 --hostname 127.0.0.1",
+    "dev:webpack": "cross-env NEXT_DIST_DIR=.next-dev node node_modules/next/dist/bin/next dev --port 20128 --hostname 127.0.0.1",
+    "build": "node node_modules/next/dist/bin/next build --webpack",
     "build:go": "node scripts/build-bridge.mjs",
     "build:go:raw": "go build -trimpath -ldflags=\"-s -w\" -o bin/omeg4mon-router ./cmd/omeg4mon-router && (which upx >/dev/null 2>&1 && upx --best --lzma bin/omeg4mon-router || true)",
     "start": "node --expose-gc --max-old-space-size=512 custom-server.js",
     "start:all": "node scripts/start-bridge.mjs",
     "start:go": "./bin/omeg4mon-router",
     "postbuild": "node scripts/copy-standalone-assets.mjs",
-    "postbuild:bun": "node scripts/copy-standalone-assets.mjs",
-    "dev:bun": "bun --bun next dev --port 20127 --hostname 127.0.0.1",
-    "build:bun": "bun --bun next build",
-    "start:bun": "bun ./.next/standalone/custom-server.js",
     "cli:pack": "npm --prefix cli run pack:cli",
     "cli:publish": "npm --prefix cli run publish:cli",
-    "build:fresh": "node scripts/cleanBuild.mjs && npm run build"
+    "build:fresh": "node scripts/cleanBuild.mjs && bun run build",
+    "test": "node tests/node_modules/vitest/vitest.mjs run --config tests/vitest.config.js"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

@@ -5,8 +5,8 @@
   "type": "module",
   "description": "Unit tests for omeg4mon-router embeddings endpoint",
   "scripts": {
-    "test": "vitest run --reporter=verbose",
-    "test:watch": "vitest --reporter=verbose"
+    "test": "cd .. && bun run test --reporter=verbose",
+    "test:watch": "cd .. && node tests/node_modules/vitest/vitest.mjs --config tests/vitest.config.js --reporter=verbose"
   },
   "devDependencies": {
     "vitest": "^4.0.0"

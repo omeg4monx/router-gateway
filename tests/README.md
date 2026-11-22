@@ -4,24 +4,20 @@ Unit tests for the `/v1/embeddings` endpoint implementation.
 
 ## Setup
 
-Install test dependencies from the `tests/` directory:
+From the repository root, install the app and test dependencies using the pinned Bun version in `package.json` and the Node version in `.nvmrc`:
 
 ```bash
-cd tests/ && npm install
+bun install --frozen-lockfile
+(cd tests && bun install --frozen-lockfile)
 ```
 
 ## Running Tests
 
-From the `tests/` directory:
+Run from the repository root:
 
 ```bash
-npm test
-```
-
-Or run vitest directly with npx:
-
-```bash
-npx vitest run --reporter=verbose --config ./vitest.config.js
+RUN_REAL=0 bun run test
+bun run test tests/unit/embeddingsCore.test.js
 ```
 
 ## Test Files
