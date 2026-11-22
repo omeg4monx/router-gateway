@@ -10,11 +10,9 @@ export const QUARANTINED_TESTS = [
   "unit/cursor-agent-proto.test.js",
   "unit/executor-const-guard.test.js",
   "unit/headroom-chat-core.test.js",
-  "unit/import-job-poll-token.test.js",
   "unit/kimi-usage.test.js",
   "unit/loading-banner.test.js",
   "unit/mimo-free.live.test.js",
-  "unit/model-select-deactivated-provider.test.js",
   "unit/monaco-version.test.js",
   "unit/opencode-free-tool-choice.test.js",
   "unit/perplexity-web.test.js",
@@ -23,6 +21,5 @@ export const QUARANTINED_TESTS = [
   "unit/theme-security-log.test.js",
   "unit/ui-icons-and-changelog.test.js",
   "unit/update-banner-anim.test.js",
-  "unit/use-model-caps-alias-fallback.test.js",
   "unit/windsurf-executor.test.js",
 ];

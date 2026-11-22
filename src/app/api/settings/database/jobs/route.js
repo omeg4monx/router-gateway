@@ -39,7 +39,7 @@ export async function POST(request) {
       );
     }
 
-    return NextResponse.json({ jobId: job.jobId, status: job.status }, { status: 202 });
+    return NextResponse.json({ jobId: job.jobId, status: job.status, pollToken: job.pollToken }, { status: 202 });
   } catch (error) {
     console.log("Error starting database import job:", error);
     return NextResponse.json(

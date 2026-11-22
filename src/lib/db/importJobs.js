@@ -74,7 +74,6 @@ async function runImportJob(jobId) {
       currentSection: "done",
     };
     current.payload = null;
-    current.pollTokenHash = null;
 
     try {
       const { getSettings } = await import("./repos/settingsRepo.js");
@@ -102,7 +101,6 @@ async function runImportJob(jobId) {
     current.error = err?.message || "Failed to import database";
     current.message = "Import failed";
     current.payload = null;
-    current.pollTokenHash = null;
     touch(current);
   } finally {
     scheduleResultCleanup(jobId);

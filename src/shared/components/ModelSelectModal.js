@@ -169,6 +169,7 @@ export default function ModelSelectModal({
     }
     return map;
   }, [activeProviders]);
+  const deactivatedProviderIds = useMemo(() => getDeactivatedProviderIds(activeProviders), [activeProviders]);
   const cursorConnectionIds = liveConnectionIdsByProvider.cursor;
   const clineConnectionIds = liveConnectionIdsByProvider.cline;
   const clinepassConnectionIds = liveConnectionIdsByProvider.clinepass;
@@ -319,7 +320,7 @@ export default function ModelSelectModal({
     const providerIdsToShow = new Set([
       ...activeConnectionIds,  // Only connected providers
       ...noAuthIds,            // No-auth providers (kind-filtered)
-    ]);
+    ].filter((id) => !deactivatedProviderIds.has(id)));
 
     // Sort by PROVIDER_ORDER
     const sortedProviderIds = [...providerIdsToShow].sort((a, b) => {
@@ -544,6 +545,10 @@ export default function ModelSelectModal({
     );
     const ungroupedCustom = customModels.filter((m) => {
       if (groupedModelIds.has(m.id)) return false;
+      // Custom models under a provider whose connections are all disabled stay hidden.
+      const alias = m.providerAlias;
+      const live = !deactivatedProviderIds.has(alias);
+      if (!live) return false;
       // Only surface models that pass the scope filter when it is active.
       if (allowedModelPatterns) {
         return matchesModelScope(allowedModelPatterns, `${m.providerAlias}/${m.id}`, m.id)
@@ -650,7 +655,7 @@ export default function ModelSelectModal({
       });
     }
     return groups;
-  }, [filteredActiveProviders, modelAliases, allProviders, providerNodes, customModels, disabledModels, kindFilter, activeProviders, cursorModels, clineModels, clinepassModels, studioModels, showStudioTargets, allowedModelPatterns]);
+  }, [filteredActiveProviders, modelAliases, allProviders, providerNodes, customModels, disabledModels, kindFilter, activeProviders, deactivatedProviderIds, cursorModels, clineModels, clinepassModels, studioModels, showStudioTargets, allowedModelPatterns]);
 
   const searchQueryParsed = useMemo(() => parseSearchQuery(searchQuery), [searchQuery]);
 
