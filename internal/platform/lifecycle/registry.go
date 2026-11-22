@@ -53,14 +53,25 @@ type Module interface {
 	Stop(ctx context.Context) error
 }
 
+type registryState int
+
+const (
+	stateIdle registryState = iota
+	stateStarting
+	stateRunning
+	stateStopping
+)
+
 // Registry tracks registered modules, filters disabled optional modules,
 // validates the dependency graph, and drives ordered lifecycle transitions.
 type Registry struct {
-	mu         sync.Mutex
-	disabled   map[string]bool
-	registered map[string]bool
-	modules    map[string]Module
-	started    []Module
+	lifecycleMu sync.Mutex
+	mu          sync.Mutex
+	state       registryState
+	disabled    map[string]bool
+	registered  map[string]bool
+	modules     map[string]Module
+	started     []Module
 }
 
 // NewRegistry creates a Registry initialized with a normalized defensive copy
@@ -99,6 +110,10 @@ func (r *Registry) Register(m Module) error {
 
 	r.mu.Lock()
 	defer r.mu.Unlock()
+
+	if r.state != stateIdle {
+		return ErrAlreadyStarted
+	}
 
 	if r.registered[name] {
 		return fmt.Errorf("%w: %q", ErrDuplicateModule, name)
@@ -257,55 +272,75 @@ func (r *Registry) MountAll(mounts RouteMounts) error {
 	return nil
 }
 
-// StartAll starts all active modules in topological order. If module i fails
-// to start, StartAll automatically invokes Stop on already-started modules
-// i-1..0 in reverse order before returning the joined error.
+// StartAll starts all active modules in topological order. If ctx is already
+// cancelled before starting a module or if module i fails to start, StartAll
+// automatically invokes Stop on already-started modules i-1..0 in reverse order
+// with a fresh bounded rollback context before returning the joined error.
 func (r *Registry) StartAll(ctx context.Context) error {
 	if ctx == nil {
 		ctx = context.Background()
 	}
 
-	r.mu.Lock()
-	defer r.mu.Unlock()
+	r.lifecycleMu.Lock()
+	defer r.lifecycleMu.Unlock()
 
-	if len(r.started) > 0 {
+	r.mu.Lock()
+	if r.state != stateIdle {
+		r.mu.Unlock()
 		return ErrAlreadyStarted
 	}
-
 	ordered, err := r.orderedLocked()
 	if err != nil {
+		r.mu.Unlock()
+		return err
+	}
+	r.state = stateStarting
+	r.mu.Unlock()
+
+	rollback := func(startErr error, started []Module) error {
+		errs := []error{startErr}
+
+		rollbackCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), rollbackStopTimeout)
+		defer cancel()
+
+		for i := len(started) - 1; i >= 0; i-- {
+			prev := started[i]
+			if stopErr := prev.Stop(rollbackCtx); stopErr != nil {
+				errs = append(errs, fmt.Errorf("rollback stop module %q: %w", normalizeName(prev.Name()), stopErr))
+			}
+		}
+
+		r.mu.Lock()
+		r.started = nil
+		r.state = stateIdle
+		r.mu.Unlock()
+
+		return errors.Join(errs...)
+	}
+
+	if err := ctx.Err(); err != nil {
+		r.mu.Lock()
+		r.state = stateIdle
+		r.mu.Unlock()
 		return err
 	}
 
 	started := make([]Module, 0, len(ordered))
 	for _, mod := range ordered {
 		name := normalizeName(mod.Name())
+		if err := ctx.Err(); err != nil {
+			return rollback(fmt.Errorf("start module %q: %w", name, err), started)
+		}
 		if err := mod.Start(ctx); err != nil {
-			errs := []error{fmt.Errorf("start module %q: %w", name, err)}
-
-			rollbackCtx := ctx
-			var cancel context.CancelFunc
-			if rollbackCtx.Err() != nil {
-				rollbackCtx, cancel = context.WithTimeout(context.WithoutCancel(ctx), rollbackStopTimeout)
-			}
-
-			for i := len(started) - 1; i >= 0; i-- {
-				prev := started[i]
-				if stopErr := prev.Stop(rollbackCtx); stopErr != nil {
-					errs = append(errs, fmt.Errorf("rollback stop module %q: %w", normalizeName(prev.Name()), stopErr))
-				}
-			}
-			if cancel != nil {
-				cancel()
-			}
-
-			r.started = nil
-			return errors.Join(errs...)
+			return rollback(fmt.Errorf("start module %q: %w", name, err), started)
 		}
 		started = append(started, mod)
 	}
 
+	r.mu.Lock()
 	r.started = started
+	r.state = stateRunning
+	r.mu.Unlock()
 	return nil
 }
 
@@ -316,15 +351,18 @@ func (r *Registry) StopAll(ctx context.Context) error {
 		ctx = context.Background()
 	}
 
-	r.mu.Lock()
-	defer r.mu.Unlock()
+	r.lifecycleMu.Lock()
+	defer r.lifecycleMu.Unlock()
 
-	if len(r.started) == 0 {
+	r.mu.Lock()
+	if r.state == stateIdle {
+		r.mu.Unlock()
 		return nil
 	}
-
 	started := r.started
 	r.started = nil
+	r.state = stateStopping
+	r.mu.Unlock()
 
 	var errs []error
 	for i := len(started) - 1; i >= 0; i-- {
@@ -333,6 +371,10 @@ func (r *Registry) StopAll(ctx context.Context) error {
 			errs = append(errs, fmt.Errorf("stop module %q: %w", normalizeName(mod.Name()), err))
 		}
 	}
+
+	r.mu.Lock()
+	r.state = stateIdle
+	r.mu.Unlock()
 
 	return errors.Join(errs...)
 }

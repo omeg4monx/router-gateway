@@ -11,6 +11,7 @@ import (
 	"sync"
 	"testing"
 	"testing/fstest"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 
@@ -583,4 +584,307 @@ func TestRegistryMountAllMountsInDependencyOrder(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("Gateway /v1/models status = %d, want 200", rec.Code)
 	}
+}
+
+func TestRegistryCallbacksCanInspectRegistryWithoutDeadlock(t *testing.T) {
+	reg := lifecycle.NewRegistry(nil)
+
+	startEntered := make(chan struct{})
+	releaseStart := make(chan struct{})
+	stopEntered := make(chan struct{})
+	releaseStop := make(chan struct{})
+
+	var (
+		startNames []string
+		stopNames  []string
+	)
+
+	if err := reg.Register(&stubModule{
+		name: "alpha",
+		startFn: func(_ context.Context) error {
+			close(startEntered)
+			<-releaseStart
+			startNames = reg.ActiveNames()
+			if _, err := reg.Ordered(); err != nil {
+				return err
+			}
+			return nil
+		},
+		stopFn: func(_ context.Context) error {
+			close(stopEntered)
+			<-releaseStop
+			stopNames = reg.ActiveNames()
+			if _, err := reg.Ordered(); err != nil {
+				return err
+			}
+			return nil
+		},
+	}); err != nil {
+		t.Fatalf("register alpha: %v", err)
+	}
+
+	// Verify concurrent ActiveNames() does not block while StartAll is in flight,
+	// and calling ActiveNames()/Ordered() from inside Start() does not deadlock.
+	startDone := make(chan error, 1)
+	go func() {
+		startDone <- reg.StartAll(context.Background())
+	}()
+
+	select {
+	case <-startEntered:
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for alpha.Start to begin")
+	}
+
+	concurrentNamesDone := make(chan []string, 1)
+	go func() {
+		concurrentNamesDone <- reg.ActiveNames()
+	}()
+
+	select {
+	case names := <-concurrentNamesDone:
+		if !reflect.DeepEqual(names, []string{"alpha"}) {
+			t.Fatalf("concurrent ActiveNames() = %v, want [alpha]", names)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("ActiveNames() blocked while StartAll was running (mutex held across Start callback)")
+	}
+
+	close(releaseStart)
+
+	select {
+	case err := <-startDone:
+		if err != nil {
+			t.Fatalf("StartAll() error: %v", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("StartAll() deadlocked when Start callback called ActiveNames/Ordered")
+	}
+
+	if !reflect.DeepEqual(startNames, []string{"alpha"}) {
+		t.Fatalf("ActiveNames() inside Start = %v, want [alpha]", startNames)
+	}
+
+	// Verify the same non-blocking behavior during StopAll.
+	stopDone := make(chan error, 1)
+	go func() {
+		stopDone <- reg.StopAll(context.Background())
+	}()
+
+	select {
+	case <-stopEntered:
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for alpha.Stop to begin")
+	}
+
+	concurrentStopNamesDone := make(chan []string, 1)
+	go func() {
+		concurrentStopNamesDone <- reg.ActiveNames()
+	}()
+
+	select {
+	case names := <-concurrentStopNamesDone:
+		if !reflect.DeepEqual(names, []string{"alpha"}) {
+			t.Fatalf("concurrent ActiveNames() during StopAll = %v, want [alpha]", names)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("ActiveNames() blocked while StopAll was running (mutex held across Stop callback)")
+	}
+
+	close(releaseStop)
+
+	select {
+	case err := <-stopDone:
+		if err != nil {
+			t.Fatalf("StopAll() error: %v", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("StopAll() deadlocked when Stop callback called ActiveNames/Ordered")
+	}
+
+	if !reflect.DeepEqual(stopNames, []string{"alpha"}) {
+		t.Fatalf("ActiveNames() inside Stop = %v, want [alpha]", stopNames)
+	}
+}
+
+func TestRegistryStartAllChecksContextBetweenModulesAndUsesFreshRollbackDeadline(t *testing.T) {
+	t.Run("cancelled context between modules skips next module and rolls back", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
+		var (
+			bCalled      bool
+			aRolledBack  bool
+			rollbackErr  error
+		)
+
+		reg := lifecycle.NewRegistry(nil)
+		if err := reg.Register(&stubModule{
+			name: "a",
+			startFn: func(_ context.Context) error {
+				// Cancel context right before returning success so ctx is already
+				// cancelled before StartAll moves on to module b.
+				cancel()
+				return nil
+			},
+			stopFn: func(sctx context.Context) error {
+				aRolledBack = true
+				rollbackErr = sctx.Err()
+				return nil
+			},
+		}); err != nil {
+			t.Fatalf("register a: %v", err)
+		}
+		if err := reg.Register(&stubModule{
+			name: "b",
+			deps: []string{"a"},
+			startFn: func(_ context.Context) error {
+				bCalled = true
+				return nil
+			},
+		}); err != nil {
+			t.Fatalf("register b: %v", err)
+		}
+
+		err := reg.StartAll(ctx)
+		if !errors.Is(err, context.Canceled) {
+			t.Fatalf("StartAll() err = %v, want context.Canceled", err)
+		}
+		if bCalled {
+			t.Fatal("module b.Start must not be called when ctx is already cancelled")
+		}
+		if !aRolledBack {
+			t.Fatal("module a must be rolled back when ctx cancels before module b")
+		}
+		if rollbackErr != nil {
+			t.Fatalf("rollback context was already cancelled: %v", rollbackErr)
+		}
+	})
+
+	t.Run("nearly-expired parent deadline does not expire mid-rollback", func(t *testing.T) {
+		errBoom := errors.New("b start failed")
+
+		ctx, cancel := context.WithTimeout(context.Background(), 40*time.Millisecond)
+		defer cancel()
+
+		var (
+			rollbackCtxErrAfterSleep error
+			rollbackHasDeadline      bool
+		)
+
+		reg := lifecycle.NewRegistry(nil)
+		if err := reg.Register(&stubModule{
+			name: "a",
+			stopFn: func(sctx context.Context) error {
+				_, rollbackHasDeadline = sctx.Deadline()
+				// Sleep past the parent's 40ms deadline; rollback's fresh timeout
+				// must remain valid throughout cleanup.
+				time.Sleep(50 * time.Millisecond)
+				rollbackCtxErrAfterSleep = sctx.Err()
+				return nil
+			},
+		}); err != nil {
+			t.Fatalf("register a: %v", err)
+		}
+		if err := reg.Register(&stubModule{
+			name: "b",
+			deps: []string{"a"},
+			startFn: func(_ context.Context) error {
+				// Fail while parent ctx still has ~25ms remaining (not yet expired).
+				time.Sleep(15 * time.Millisecond)
+				return errBoom
+			},
+		}); err != nil {
+			t.Fatalf("register b: %v", err)
+		}
+
+		err := reg.StartAll(ctx)
+		if !errors.Is(err, errBoom) {
+			t.Fatalf("StartAll() err = %v, want errBoom", err)
+		}
+		if !rollbackHasDeadline {
+			t.Fatal("expected rollback context to have a bounded timeout deadline")
+		}
+		if rollbackCtxErrAfterSleep != nil {
+			t.Fatalf("rollback context expired mid-rollback: %v", rollbackCtxErrAfterSleep)
+		}
+	})
+}
+
+func TestRegistryRejectsRegisterAndDoubleStartOnceStarted(t *testing.T) {
+	t.Run("with active modules", func(t *testing.T) {
+		reg := lifecycle.NewRegistry(nil)
+
+		var registerInsideStartErr error
+		if err := reg.Register(&stubModule{
+			name: "a",
+			startFn: func(_ context.Context) error {
+				registerInsideStartErr = reg.Register(&stubModule{name: "late_in_start"})
+				return nil
+			},
+		}); err != nil {
+			t.Fatalf("register a: %v", err)
+		}
+
+		ctx := context.Background()
+		if err := reg.StartAll(ctx); err != nil {
+			t.Fatalf("StartAll() error: %v", err)
+		}
+		if !errors.Is(registerInsideStartErr, lifecycle.ErrAlreadyStarted) {
+			t.Fatalf("Register inside Start err = %v, want ErrAlreadyStarted", registerInsideStartErr)
+		}
+
+		if err := reg.Register(&stubModule{name: "b"}); !errors.Is(err, lifecycle.ErrAlreadyStarted) {
+			t.Fatalf("Register after StartAll err = %v, want ErrAlreadyStarted", err)
+		}
+		if got := reg.ActiveNames(); !reflect.DeepEqual(got, []string{"a"}) {
+			t.Fatalf("ActiveNames() mutated after rejected Register: got %v, want [a]", got)
+		}
+
+		if err := reg.StartAll(ctx); !errors.Is(err, lifecycle.ErrAlreadyStarted) {
+			t.Fatalf("second StartAll() err = %v, want ErrAlreadyStarted", err)
+		}
+
+		if err := reg.StopAll(ctx); err != nil {
+			t.Fatalf("StopAll() error: %v", err)
+		}
+
+		// After StopAll resets state to idle, Register and StartAll work again.
+		if err := reg.Register(&stubModule{name: "b", deps: []string{"a"}}); err != nil {
+			t.Fatalf("Register after StopAll error: %v", err)
+		}
+		if err := reg.StartAll(ctx); err != nil {
+			t.Fatalf("StartAll after StopAll error: %v", err)
+		}
+		if err := reg.StopAll(ctx); err != nil {
+			t.Fatalf("second StopAll error: %v", err)
+		}
+	})
+
+	t.Run("with zero active modules", func(t *testing.T) {
+		reg := lifecycle.NewRegistry(map[string]bool{"mitm": true})
+		if err := reg.Register(&stubModule{name: "mitm"}); err != nil {
+			t.Fatalf("register disabled mitm: %v", err)
+		}
+
+		ctx := context.Background()
+		if err := reg.StartAll(ctx); err != nil {
+			t.Fatalf("StartAll() with zero active modules error: %v", err)
+		}
+
+		if err := reg.StartAll(ctx); !errors.Is(err, lifecycle.ErrAlreadyStarted) {
+			t.Fatalf("second StartAll() with zero active modules err = %v, want ErrAlreadyStarted", err)
+		}
+		if err := reg.Register(&stubModule{name: "late"}); !errors.Is(err, lifecycle.ErrAlreadyStarted) {
+			t.Fatalf("Register after StartAll (zero active modules) err = %v, want ErrAlreadyStarted", err)
+		}
+
+		if err := reg.StopAll(ctx); err != nil {
+			t.Fatalf("StopAll() error: %v", err)
+		}
+
+		if err := reg.Register(&stubModule{name: "late"}); err != nil {
+			t.Fatalf("Register after StopAll error: %v", err)
+		}
+	})
 }
