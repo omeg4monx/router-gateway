@@ -1,0 +1,355 @@
+"use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useEffect, type ReactNode } from "react";
+import {
+  Activity,
+  Cpu,
+  KeyRound,
+  Layers,
+  LogIn,
+  Menu,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Server,
+  ShieldCheck,
+  SlidersHorizontal,
+  X,
+} from "lucide-react";
+import { cn } from "@/shared/lib/utils";
+import { useUIStore } from "@/shared/store/uiStore";
+import { Badge } from "./badge";
+import { Button } from "./button";
+import { CaduceusLogo } from "./CaduceusLogo";
+import { EmberRule } from "./EmberRule";
+import { ThemeToggle } from "./ThemeToggle";
+
+interface AppShellProps {
+  children: ReactNode;
+}
+
+interface ActiveNavItem {
+  label: string;
+  href: string;
+  icon: typeof Activity;
+}
+
+interface PlannedNavItem {
+  label: string;
+  icon: typeof Activity;
+  phase: string;
+}
+
+const ACTIVE_NAV_ITEMS: ActiveNavItem[] = [
+  { label: "System Overview", href: "/dashboard/", icon: Activity },
+];
+
+const PLANNED_NAV_ITEMS: PlannedNavItem[] = [
+  { label: "Providers", icon: Server, phase: "Wave 1" },
+  { label: "Models & Routing", icon: Layers, phase: "Wave 1" },
+  { label: "API Keys", icon: KeyRound, phase: "Wave 1" },
+  { label: "Usage & Telemetry", icon: Cpu, phase: "Wave 1" },
+  { label: "Settings", icon: SlidersHorizontal, phase: "Wave 1" },
+];
+
+const ACCESS_NAV_ITEMS: ActiveNavItem[] = [
+  { label: "Sign In", href: "/login/", icon: LogIn },
+  { label: "Initialization", href: "/init/", icon: ShieldCheck },
+];
+
+function normalizeRoute(path: string): string {
+  return path.endsWith("/") ? path : `${path}/`;
+}
+
+export function AppShell({ children }: AppShellProps) {
+  const pathname = usePathname();
+  const mobileNavOpen = useUIStore((state) => state.mobileNavOpen);
+  const setMobileNavOpen = useUIStore((state) => state.setMobileNavOpen);
+  const closeMobileNav = useUIStore((state) => state.closeMobileNav);
+  const sidebarCollapsed = useUIStore((state) => state.sidebarCollapsed);
+  const toggleSidebarCollapsed = useUIStore(
+    (state) => state.toggleSidebarCollapsed,
+  );
+
+  useEffect(() => {
+    if (!mobileNavOpen) {
+      return;
+    }
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        closeMobileNav();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [mobileNavOpen, closeMobileNav]);
+
+  const normalizedPathname = normalizeRoute(pathname);
+
+  const renderSidebar = (compact: boolean) => (
+    <div className="flex h-full flex-col bg-[var(--bg-surface)] text-[var(--text-primary)]">
+      <div
+        className={cn(
+          "flex h-16 items-center justify-between",
+          compact ? "justify-center px-3" : "px-5",
+        )}
+      >
+        <Link
+          href="/dashboard/"
+          className="flex items-center gap-3 rounded-sm"
+          onClick={closeMobileNav}
+          aria-label="OMEG4MON ROUTER Dashboard"
+        >
+          <CaduceusLogo size={26} decorative />
+          {!compact ? (
+            <div className="flex flex-col leading-tight">
+              <span className="text-sm font-semibold tracking-wider text-[var(--text-primary)]">
+                OMEG4MON
+              </span>
+              <span className="font-mono text-[11px] tracking-widest text-[var(--text-muted)]">
+                ROUTER
+              </span>
+            </div>
+          ) : null}
+        </Link>
+        {!compact ? (
+          <Button
+            type="button"
+            variant="secondary"
+            size="icon"
+            onClick={closeMobileNav}
+            className="h-8 w-8 lg:hidden"
+            aria-label="Close navigation menu"
+          >
+            <X className="h-4 w-4" aria-hidden="true" />
+          </Button>
+        ) : null}
+      </div>
+
+      <EmberRule />
+
+      <nav
+        className="flex-1 overflow-y-auto px-3 py-5"
+        aria-label="Control plane navigation"
+      >
+        <div className="space-y-1">
+          {!compact ? (
+            <p className="px-2.5 pb-1.5 text-[11px] font-medium uppercase tracking-wider text-[var(--text-muted)]">
+              Monitor
+            </p>
+          ) : null}
+          {ACTIVE_NAV_ITEMS.map((item) => {
+            const Icon = item.icon;
+            const isActive = normalizedPathname === normalizeRoute(item.href);
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={closeMobileNav}
+                title={compact ? item.label : undefined}
+                className={cn(
+                  "flex items-center rounded-md border px-2.5 py-2 text-sm font-medium transition-colors",
+                  compact ? "justify-center" : "justify-between",
+                  isActive
+                    ? "border-[#E56A4A] bg-[var(--bg-surface-raised)] text-[var(--text-primary)]"
+                    : "border-transparent text-[var(--text-secondary)] hover:border-[var(--border-subtle)] hover:bg-[var(--bg-surface-raised)] hover:text-[var(--text-primary)]",
+                )}
+                aria-current={isActive ? "page" : undefined}
+              >
+                <span className="flex items-center gap-2.5">
+                  <Icon
+                    className={cn(
+                      "h-4 w-4 shrink-0",
+                      isActive
+                        ? "text-[#E56A4A]"
+                        : "text-[var(--text-muted)]",
+                    )}
+                    aria-hidden="true"
+                  />
+                  {!compact ? <span>{item.label}</span> : null}
+                </span>
+              </Link>
+            );
+          })}
+        </div>
+
+        <div className="mt-6 space-y-1">
+          {!compact ? (
+            <p className="px-2.5 pb-1.5 text-[11px] font-medium uppercase tracking-wider text-[var(--text-muted)]">
+              Control Plane Modules
+            </p>
+          ) : null}
+          {PLANNED_NAV_ITEMS.map((item) => {
+            const Icon = item.icon;
+            return (
+              <div
+                key={item.label}
+                title={compact ? `${item.label} (${item.phase})` : undefined}
+                className={cn(
+                  "flex cursor-default items-center rounded-md border border-transparent px-2.5 py-2 text-sm text-[var(--text-muted)]",
+                  compact ? "justify-center" : "justify-between",
+                )}
+              >
+                <span className="flex items-center gap-2.5">
+                  <Icon
+                    className="h-4 w-4 shrink-0 opacity-75"
+                    aria-hidden="true"
+                  />
+                  {!compact ? <span>{item.label}</span> : null}
+                </span>
+                {!compact ? <Badge variant="secondary">{item.phase}</Badge> : null}
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="mt-6 space-y-1">
+          {!compact ? (
+            <p className="px-2.5 pb-1.5 text-[11px] font-medium uppercase tracking-wider text-[var(--text-muted)]">
+              Access
+            </p>
+          ) : null}
+          {ACCESS_NAV_ITEMS.map((item) => {
+            const Icon = item.icon;
+            const isActive = normalizedPathname === normalizeRoute(item.href);
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={closeMobileNav}
+                title={compact ? item.label : undefined}
+                aria-current={isActive ? "page" : undefined}
+                className={cn(
+                  "flex items-center gap-2.5 rounded-md border px-2.5 py-2 text-sm font-medium transition-colors",
+                  compact ? "justify-center" : "",
+                  isActive
+                    ? "border-[#E56A4A] bg-[var(--bg-surface-raised)] text-[var(--text-primary)]"
+                    : "border-transparent text-[var(--text-secondary)] hover:border-[var(--border-subtle)] hover:bg-[var(--bg-surface-raised)] hover:text-[var(--text-primary)]",
+                )}
+              >
+                <Icon
+                  className="h-4 w-4 shrink-0 text-[var(--text-muted)]"
+                  aria-hidden="true"
+                />
+                {!compact ? <span>{item.label}</span> : null}
+              </Link>
+            );
+          })}
+        </div>
+      </nav>
+
+      <div
+        className={cn(
+          "border-t border-[var(--border-subtle)] py-3.5",
+          compact ? "px-2 text-center" : "px-5",
+        )}
+      >
+        <div
+          className={cn(
+            "flex items-center font-mono text-xs text-[var(--text-muted)]",
+            compact ? "justify-center" : "justify-between",
+          )}
+        >
+          {compact ? (
+            <span className="text-[var(--text-secondary)]">W0</span>
+          ) : (
+            <>
+              <span>KERNEL</span>
+              <span className="text-[var(--text-secondary)]">WAVE 0</span>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="flex min-h-screen bg-[var(--bg-canvas)] text-[var(--text-primary)]">
+      {/* Desktop sidebar */}
+      <aside
+        className={cn(
+          "hidden shrink-0 border-r border-[var(--border-subtle)] transition-[width] lg:block",
+          sidebarCollapsed ? "w-[72px]" : "w-64",
+        )}
+      >
+        <div className="sticky top-0 h-screen">
+          {renderSidebar(sidebarCollapsed)}
+        </div>
+      </aside>
+
+      {/* Mobile navigation drawer (solid opaque surface) */}
+      {mobileNavOpen ? (
+        <div
+          className="fixed inset-0 z-40 flex lg:hidden"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Navigation"
+        >
+          <div className="w-72 max-w-[85vw] border-r border-[var(--border-strong)] bg-[var(--bg-surface)] shadow-xl">
+            {renderSidebar(false)}
+          </div>
+          <button
+            type="button"
+            className="flex-1 bg-[var(--bg-canvas)]"
+            aria-label="Dismiss navigation menu"
+            onClick={closeMobileNav}
+          />
+        </div>
+      ) : null}
+
+      {/* Main content area */}
+      <div className="flex min-w-0 flex-1 flex-col">
+        <header className="sticky top-0 z-20 bg-[var(--bg-surface)]">
+          <div className="flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
+            <div className="flex items-center gap-3">
+              <Button
+                type="button"
+                variant="secondary"
+                size="icon"
+                onClick={() => setMobileNavOpen(true)}
+                className="lg:hidden"
+                aria-label="Open navigation menu"
+              >
+                <Menu className="h-4 w-4" aria-hidden="true" />
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                size="icon"
+                onClick={toggleSidebarCollapsed}
+                className="hidden lg:inline-flex"
+                aria-label={
+                  sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"
+                }
+              >
+                {sidebarCollapsed ? (
+                  <PanelLeftOpen className="h-4 w-4" aria-hidden="true" />
+                ) : (
+                  <PanelLeftClose className="h-4 w-4" aria-hidden="true" />
+                )}
+              </Button>
+              <div>
+                <p className="font-mono text-[11px] uppercase tracking-widest text-[var(--text-muted)]">
+                  Control Plane
+                </p>
+                <h1 className="text-base font-semibold tracking-tight text-[var(--text-primary)]">
+                  Gateway Monitor
+                </h1>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2.5">
+              <ThemeToggle />
+            </div>
+          </div>
+          <EmberRule />
+        </header>
+
+        <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:px-6 lg:px-8">
+          {children}
+        </main>
+      </div>
+    </div>
+  );
+}
