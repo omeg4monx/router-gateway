@@ -483,3 +483,72 @@ describe("providers-ux Task 6: ProvidersPage orchestrator & DashboardLayout head
     expect(src).toMatch(/refreshProviders|fetchData/);
   });
 });
+
+describe("providers-ux Final Review fixes (RED -> GREEN)", () => {
+  it("labels API-key FREE_TIER_PROVIDERS (e.g. openrouter, gemini) as API Key, not OAuth 2.0", () => {
+    const entries = buildProviderEntries([], [], NOW);
+    const openrouter = entries.find((e) => e.id === "openrouter");
+    const gemini = entries.find((e) => e.id === "gemini");
+    expect(openrouter).toBeDefined();
+    expect(openrouter.cardAuthType).toBe("apikey");
+    expect(openrouter.typeLabel).toBe("API Key");
+    expect(
+      matchesProviderSearch("api key", {
+        name: openrouter.info.name,
+        id: openrouter.id,
+        typeLabel: openrouter.typeLabel,
+        category: openrouter.category,
+      }),
+    ).toBe(true);
+    expect(
+      matchesProviderSearch("oauth", {
+        name: openrouter.info.name,
+        id: openrouter.id,
+        typeLabel: openrouter.typeLabel,
+        category: openrouter.category,
+      }),
+    ).toBe(false);
+    if (gemini) {
+      expect(gemini.cardAuthType).toBe("apikey");
+      expect(gemini.typeLabel).toBe("API Key");
+    }
+  });
+
+  it("uses WCAG AA bg-danger-solid on active Errors pill in ProvidersToolbar", () => {
+    const src = readSrc(
+      "src/app/(dashboard)/dashboard/providers/components/ProvidersToolbar.js",
+    );
+    expect(src).toContain("bg-danger-solid");
+    expect(src).not.toContain("bg-danger text-white");
+  });
+
+  it("anchors header popovers left on mobile and right on sm+ to prevent viewport clipping", () => {
+    const badgeSrc = readSrc(
+      "src/app/(dashboard)/dashboard/providers/components/ModelAvailabilityBadge.js",
+    );
+    const headerSrc = readSrc(
+      "src/app/(dashboard)/dashboard/providers/components/ProvidersHeader.js",
+    );
+    expect(badgeSrc).toContain("left-0 sm:left-auto sm:right-0");
+    expect(headerSrc).toContain("left-0 sm:left-auto sm:right-0");
+  });
+
+  it("avoids nesting interactive buttons inside Link in ProviderCard and provides aria-label on Toggle", () => {
+    const toggleSrc = readSrc("src/shared/components/Toggle.js");
+    const cardSrc = readSrc(
+      "src/app/(dashboard)/dashboard/providers/components/ProviderCard.js",
+    );
+    expect(toggleSrc).toContain("aria-label");
+    expect(cardSrc).toContain("after:inset-0");
+    expect(cardSrc).toContain("relative z-10");
+    expect(cardSrc).toContain("ariaLabel=");
+  });
+
+  it("resets categoryTab to all when activating a global Fleet Telemetry filter", () => {
+    const pageSrc = readSrc("src/app/(dashboard)/dashboard/providers/page.js");
+    expect(pageSrc).toContain("handleSelectTelemetryFilter");
+    expect(pageSrc).toMatch(
+      /handleSelectTelemetryFilter[\s\S]*setCategoryTab\("all"\)/,
+    );
+  });
+});

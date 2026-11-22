@@ -137,7 +137,7 @@ export default function ModelAvailabilityBadge({ onCooldownCleared }) {
         <div
           role="dialog"
           aria-label="Model availability status"
-          className="absolute top-full right-0 mt-2 w-80 max-w-[calc(100vw-2rem)] rounded-xl border border-border shell-popover popover-in z-50 overflow-hidden"
+          className="absolute top-full left-0 sm:left-auto sm:right-0 mt-2 w-80 max-w-[calc(100vw-2rem)] rounded-xl border border-border shell-popover popover-in z-50 overflow-hidden"
         >
           <div className="flex items-center justify-between px-3.5 py-2.5 border-b border-border-subtle bg-surface-2/60">
             <div className="flex items-center gap-2">

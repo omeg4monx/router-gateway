@@ -111,7 +111,7 @@ export default function ProvidersToolbar({
                   "inline-flex items-center gap-1.5 h-7.5 px-2.5 rounded-lg text-xs font-medium whitespace-nowrap border transition-colors shrink-0 cursor-pointer",
                   active
                     ? pill.value === "error"
-                      ? "bg-danger text-white border-danger shadow-xs"
+                      ? "bg-danger-solid text-white border-danger-solid shadow-xs"
                       : "bg-primary text-white border-primary shadow-xs"
                     : isErrorAttention
                       ? "bg-danger/8 border-danger/30 text-danger hover:bg-danger/15"

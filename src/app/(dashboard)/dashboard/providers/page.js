@@ -266,6 +266,13 @@ export default function ProvidersPage() {
     setCategoryTab("all");
   };
 
+  const handleSelectTelemetryFilter = (nextStatus) => {
+    setStatusFilter(nextStatus);
+    if (nextStatus !== "all") {
+      setCategoryTab("all");
+    }
+  };
+
   const handleToggleProvider = async (entry, newActive) => {
     const providerId = entry.id;
     if (togglingProviders.has(providerId)) return;
@@ -689,7 +696,7 @@ export default function ProvidersPage() {
       <ProvidersHeader
         telemetry={telemetry}
         statusFilter={statusFilter}
-        onSelectStatusFilter={setStatusFilter}
+        onSelectStatusFilter={handleSelectTelemetryFilter}
         activeAllCount={activeAllCount}
         testingState={testingState}
         onTestAll={() => handleBatchTest("all", null, "All Active")}

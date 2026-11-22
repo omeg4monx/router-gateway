@@ -98,167 +98,168 @@ export default function ProviderCard({
   const canQuickTest = total > 0 && !allDisabled && Boolean(onQuickTest);
 
   return (
-    <Link
-      href={`/dashboard/providers/${providerId}`}
-      className="group min-w-0 block h-full focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 rounded-xl"
+    <div
+      className={cn(
+        "group relative flex flex-col justify-between h-full min-w-0 p-4 rounded-xl border bg-surface transition-all duration-150 overflow-hidden shadow-[var(--shadow-soft)] focus-within:ring-2 focus-within:ring-primary/40",
+        allDisabled
+          ? "opacity-65 border-border-subtle bg-surface-2/60 hover:opacity-85"
+          : hasError
+            ? "border-danger/35 hover:border-danger/60 hover:bg-surface-2/60"
+            : "border-border hover:border-primary/45 hover:bg-surface-2/60",
+      )}
     >
-      <div
+      {/* Subtle top hairline accent for active or errored providers */}
+      <span
         className={cn(
-          "relative flex flex-col justify-between h-full p-4 rounded-xl border bg-surface transition-all duration-150 overflow-hidden shadow-[var(--shadow-soft)]",
-          allDisabled
-            ? "opacity-65 border-border-subtle bg-surface-2/60 hover:opacity-85"
-            : hasError
-              ? "border-danger/35 hover:border-danger/60 hover:bg-surface-2/60"
-              : "border-border hover:border-primary/45 hover:bg-surface-2/60",
+          "absolute top-0 inset-x-0 h-[2px] transition-colors pointer-events-none",
+          hasError
+            ? "bg-danger"
+            : isActiveHealthy
+              ? "bg-primary"
+              : "bg-transparent group-hover:bg-border",
         )}
-      >
-        {/* Subtle top hairline accent for active or errored providers */}
-        <span
-          className={cn(
-            "absolute top-0 inset-x-0 h-[2px] transition-colors",
-            hasError
-              ? "bg-danger"
-              : isActiveHealthy
-                ? "bg-primary"
-                : "bg-transparent group-hover:bg-border",
-          )}
-          aria-hidden="true"
-        />
+        aria-hidden="true"
+      />
 
-        {/* Top row: Icon + Name + Protocol + Quick Controls */}
-        <div className="flex items-start justify-between gap-2.5 min-w-0">
-          <div className="flex items-center gap-3 min-w-0">
-            <div
-              className="size-10 shrink-0 rounded-xl border bg-surface-2 dark:bg-[#1a1a20] flex items-center justify-center p-1.5 transition-transform duration-150 group-hover:scale-[1.03]"
-              style={{
-                borderColor:
-                  isCompatible || isAnthropicCompatible
-                    ? "color-mix(in srgb, var(--color-primary) 40%, transparent)"
-                    : provider.color
-                      ? `${provider.color}45`
-                      : undefined,
-              }}
-            >
-              <ProviderIcon
-                src={getIconPath()}
-                alt={provider.name}
-                size={28}
-                className="object-contain max-w-[28px] max-h-[28px]"
-                fallbackText={
-                  provider.textIcon ||
-                  (provider.id || providerId).slice(0, 2).toUpperCase()
-                }
-                fallbackColor={provider.color}
-              />
-            </div>
-
-            <div className="min-w-0">
-              <h3 className="truncate font-semibold text-sm text-text-main group-hover:text-primary transition-colors">
-                {provider.name}
-              </h3>
-              <span className="text-[10px] font-mono uppercase tracking-wider text-text-muted mt-0.5 block truncate">
-                {typeLabel}
-              </span>
-            </div>
+      {/* Top row: Icon + Name + Protocol + Quick Controls */}
+      <div className="flex items-start justify-between gap-2.5 min-w-0">
+        <div className="flex items-center gap-3 min-w-0">
+          <div
+            className="size-10 shrink-0 rounded-xl border bg-surface-2 dark:bg-[#1a1a20] flex items-center justify-center p-1.5 transition-transform duration-150 group-hover:scale-[1.03]"
+            style={{
+              borderColor:
+                isCompatible || isAnthropicCompatible
+                  ? "color-mix(in srgb, var(--color-primary) 40%, transparent)"
+                  : provider.color
+                    ? `${provider.color}45`
+                    : undefined,
+            }}
+          >
+            <ProviderIcon
+              src={getIconPath()}
+              alt={provider.name}
+              size={28}
+              className="object-contain max-w-[28px] max-h-[28px]"
+              fallbackText={
+                provider.textIcon ||
+                (provider.id || providerId).slice(0, 2).toUpperCase()
+              }
+              fallbackColor={provider.color}
+            />
           </div>
 
-          {total > 0 && (
-            <div className="flex items-center gap-1.5 shrink-0">
-              {canQuickTest && (
-                <button
-                  type="button"
-                  disabled={disableQuickTest}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    onQuickTest(entry);
-                  }}
-                  title={`Test ${provider.name} connections`}
-                  aria-label={`Test ${provider.name} connections`}
-                  className={cn(
-                    "size-7 rounded-lg border flex items-center justify-center transition-colors cursor-pointer",
-                    isTesting
-                      ? "bg-primary/15 border-primary/40 text-primary"
-                      : "bg-surface-2/80 border-border text-text-muted hover:text-primary hover:border-primary/40 hover:bg-primary/8",
-                    disableQuickTest && !isTesting && "opacity-45 cursor-not-allowed",
-                  )}
-                >
-                  <span
-                    className={cn(
-                      "material-symbols-outlined text-[15px]",
-                      isTesting && "animate-spin",
-                    )}
-                  >
-                    {isTesting ? "progress_activity" : "play_arrow"}
-                  </span>
-                </button>
-              )}
+          <div className="min-w-0">
+            <h3 className="truncate font-semibold text-sm text-text-main group-hover:text-primary transition-colors">
+              <Link
+                href={`/dashboard/providers/${providerId}`}
+                className="focus:outline-none after:absolute after:inset-0 after:z-0"
+              >
+                {provider.name}
+              </Link>
+            </h3>
+            <span className="text-[10px] font-mono uppercase tracking-wider text-text-muted mt-0.5 block truncate">
+              {typeLabel}
+            </span>
+          </div>
+        </div>
 
-              <div
-                className="shrink-0"
-                title={allDisabled ? "Enable provider" : "Disable provider"}
+        {total > 0 && (
+          <div className="relative z-10 flex items-center gap-1.5 shrink-0">
+            {canQuickTest && (
+              <button
+                type="button"
+                disabled={disableQuickTest}
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
+                  onQuickTest(entry);
                 }}
+                title={`Test ${provider.name} connections`}
+                aria-label={`Test ${provider.name} connections`}
+                className={cn(
+                  "size-7 rounded-lg border flex items-center justify-center transition-colors cursor-pointer",
+                  isTesting
+                    ? "bg-primary/15 border-primary/40 text-primary"
+                    : "bg-surface-2/80 border-border text-text-muted hover:text-primary hover:border-primary/40 hover:bg-primary/8",
+                  disableQuickTest && !isTesting && "opacity-45 cursor-not-allowed",
+                )}
               >
-                <Toggle
-                  size="sm"
-                  checked={!allDisabled}
-                  disabled={isToggling}
-                  onChange={(nextActive) => {
-                    if (!isToggling && onToggle) onToggle(entry, nextActive);
-                  }}
-                />
-              </div>
+                <span
+                  className={cn(
+                    "material-symbols-outlined text-[15px]",
+                    isTesting && "animate-spin",
+                  )}
+                >
+                  {isTesting ? "progress_activity" : "play_arrow"}
+                </span>
+              </button>
+            )}
+
+            <div
+              className="shrink-0"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+              }}
+            >
+              <Toggle
+                size="sm"
+                checked={!allDisabled}
+                disabled={isToggling}
+                ariaLabel={`${allDisabled ? "Enable" : "Disable"} ${provider.name}`}
+                title={allDisabled ? "Enable provider" : "Disable provider"}
+                onChange={(nextActive) => {
+                  if (!isToggling && onToggle) onToggle(entry, nextActive);
+                }}
+              />
             </div>
+          </div>
+        )}
+      </div>
+
+      {/* Bottom row: Status + Arrow */}
+      <div className="mt-3.5 pt-2.5 border-t border-border-subtle flex items-center justify-between gap-2 text-xs">
+        <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
+          {allDisabled ? (
+            <Badge variant="default" size="sm">
+              <span className="flex items-center gap-1">
+                <span className="material-symbols-outlined text-[12px]">
+                  pause_circle
+                </span>
+                Disabled
+              </span>
+            </Badge>
+          ) : isNoAuth && total === 0 ? (
+            <Badge
+              variant={provider.statusBadge?.variant || "success"}
+              size="sm"
+              dot
+            >
+              {provider.statusBadge?.label || "Ready"}
+            </Badge>
+          ) : (
+            <>
+              {renderStatusDisplay({
+                connected,
+                error,
+                errorCode,
+                total,
+                isCustom,
+              })}
+              {errorTime && hasError && (
+                <span className="text-text-muted text-[10px] font-mono">
+                  {errorTime}
+                </span>
+              )}
+            </>
           )}
         </div>
 
-        {/* Bottom row: Status + Arrow */}
-        <div className="mt-3.5 pt-2.5 border-t border-border-subtle flex items-center justify-between gap-2 text-xs">
-          <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
-            {allDisabled ? (
-              <Badge variant="default" size="sm">
-                <span className="flex items-center gap-1">
-                  <span className="material-symbols-outlined text-[12px]">
-                    pause_circle
-                  </span>
-                  Disabled
-                </span>
-              </Badge>
-            ) : isNoAuth && total === 0 ? (
-              <Badge
-                variant={provider.statusBadge?.variant || "success"}
-                size="sm"
-                dot
-              >
-                {provider.statusBadge?.label || "Ready"}
-              </Badge>
-            ) : (
-              <>
-                {renderStatusDisplay({
-                  connected,
-                  error,
-                  errorCode,
-                  total,
-                  isCustom,
-                })}
-                {errorTime && hasError && (
-                  <span className="text-text-muted text-[10px] font-mono">
-                    {errorTime}
-                  </span>
-                )}
-              </>
-            )}
-          </div>
-
-          <span className="material-symbols-outlined text-[15px] text-text-muted opacity-40 group-hover:opacity-100 group-hover:text-primary group-hover:translate-x-0.5 transition-all shrink-0">
-            arrow_forward
-          </span>
-        </div>
+        <span className="material-symbols-outlined text-[15px] text-text-muted opacity-40 group-hover:opacity-100 group-hover:text-primary group-hover:translate-x-0.5 transition-all shrink-0">
+          arrow_forward
+        </span>
       </div>
-    </Link>
+    </div>
   );
 }
 

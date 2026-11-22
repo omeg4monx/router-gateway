@@ -124,7 +124,7 @@ export default function ProvidersHeader({
               <div
                 role="menu"
                 aria-label="Add custom compatible provider"
-                className="absolute right-0 top-full mt-1.5 w-60 rounded-xl border border-border shell-popover popover-in p-1.5 z-50"
+                className="absolute left-0 sm:left-auto sm:right-0 top-full mt-1.5 w-60 max-w-[calc(100vw-2rem)] rounded-xl border border-border shell-popover popover-in p-1.5 z-50"
               >
                 {CUSTOM_PROTOCOL_OPTIONS.map((opt) => (
                   <button

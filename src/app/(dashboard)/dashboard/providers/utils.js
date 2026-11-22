@@ -306,9 +306,10 @@ export function buildProviderEntries(providerNodes = [], connections = [], nowMs
   for (const [key, info] of Object.entries(FREE_TIER_PROVIDERS)) {
     if (info.hidden || !(info.serviceKinds ?? ["llm"]).includes("llm")) continue;
     const authTypes = resolveProviderAuthTypes(info, key);
-    const cardAuthType = Array.isArray(authTypes)
-      ? (authTypes[0] ?? "apikey")
-      : authTypes;
+    const supportsOAuth = Array.isArray(info.authModes)
+      ? info.authModes.includes("oauth")
+      : info.authType === "oauth";
+    const cardAuthType = supportsOAuth ? "oauth" : "apikey";
     entries.push({
       id: key,
       info,
