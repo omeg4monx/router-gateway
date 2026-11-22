@@ -6,6 +6,11 @@
     "dev": "next dev --port 20127 --hostname 127.0.0.1",
     "build": "NEXT_OUTPUT_EXPORT=true next build",
     "typecheck": "next typegen && tsc --noEmit",
+    "lint": "biome lint .",
+    "format": "biome format --write .",
+    "format:check": "biome format .",
+    "check": "biome check .",
+    "check:fix": "biome check --write .",
     "gen:api": "openapi-typescript ../contracts/openapi/openapi.yaml -o src/shared/api/schema.d.ts",
     "test": "bun test"
   },
@@ -28,6 +33,7 @@
     "zustand": "^5.1.0"
   },
   "devDependencies": {
+    "@biomejs/biome": "2.6.8",
     "@tailwindcss/postcss": "^4.1.7",
     "@types/bun": "^1.2.13",
     "@types/node": "^22.15.21",

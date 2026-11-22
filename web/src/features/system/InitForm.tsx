@@ -1,11 +1,11 @@
 "use client";
 
+import { zodResolver } from "@hookform/resolvers/zod";
+import { AlertCircle, CheckCircle2, Eye, EyeOff, Lock } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { AlertCircle, CheckCircle2, Eye, EyeOff, Lock } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/shared/ui/alert";
 import { Button } from "@/shared/ui/button";
 import { Card } from "@/shared/ui/card";
@@ -14,11 +14,11 @@ import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
 import { useInitializeSystem, useInitStatus } from "./hooks";
 import {
+  type InitPasswordValues,
   initPasswordSchema,
   MAX_PASSWORD_BYTES,
   MIN_PASSWORD_RUNES,
   validateInitPassword,
-  type InitPasswordValues,
 } from "./password";
 
 export function InitForm() {
@@ -96,8 +96,7 @@ export function InitForm() {
               Router Already Initialized
             </h2>
             <p className="mt-1 text-sm text-[var(--text-secondary)]">
-              The administrator password has already been provisioned for this
-              instance.
+              The administrator password has already been provisioned for this instance.
             </p>
           </div>
         </div>
@@ -133,8 +132,8 @@ export function InitForm() {
           Set Administrator Password
         </h2>
         <p className="mt-1.5 text-sm text-[var(--text-secondary)]">
-          This credential secures control plane operations and is hashed locally
-          in SQLite via bcrypt.
+          This credential secures control plane operations and is hashed locally in SQLite via
+          bcrypt.
         </p>
 
         <EmberRule className="my-5" />
@@ -210,23 +209,17 @@ export function InitForm() {
           <ul className="space-y-1.5 rounded-md border border-[var(--border-subtle)] bg-[var(--bg-canvas)] px-3.5 py-3 text-xs">
             <li
               className={`flex items-center justify-between font-mono ${
-                validation.meetsMinLength
-                  ? "text-[var(--status-ok)]"
-                  : "text-[var(--text-muted)]"
+                validation.meetsMinLength ? "text-[var(--status-ok)]" : "text-[var(--text-muted)]"
               }`}
             >
               <span>At least {MIN_PASSWORD_RUNES} characters</span>
               <span className="tabular-nums">
-                {validation.meetsMinLength
-                  ? "OK"
-                  : `${validation.runeCount}/${MIN_PASSWORD_RUNES}`}
+                {validation.meetsMinLength ? "OK" : `${validation.runeCount}/${MIN_PASSWORD_RUNES}`}
               </span>
             </li>
             <li
               className={`flex items-center justify-between font-mono ${
-                validation.withinMaxBytes
-                  ? "text-[var(--status-ok)]"
-                  : "text-[var(--status-error)]"
+                validation.withinMaxBytes ? "text-[var(--status-ok)]" : "text-[var(--status-error)]"
               }`}
             >
               <span>Maximum {MAX_PASSWORD_BYTES} UTF-8 bytes</span>
@@ -236,9 +229,7 @@ export function InitForm() {
             </li>
             <li
               className={`flex items-center justify-between font-mono ${
-                validation.passwordsMatch
-                  ? "text-[var(--status-ok)]"
-                  : "text-[var(--text-muted)]"
+                validation.passwordsMatch ? "text-[var(--status-ok)]" : "text-[var(--text-muted)]"
               }`}
             >
               <span>Confirmation matches</span>
@@ -248,14 +239,8 @@ export function InitForm() {
         </div>
 
         <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <Button
-            type="submit"
-            disabled={initializeMutation.isPending}
-            className="px-5"
-          >
-            {initializeMutation.isPending
-              ? "Initializing..."
-              : "Initialize Router"}
+          <Button type="submit" disabled={initializeMutation.isPending} className="px-5">
+            {initializeMutation.isPending ? "Initializing..." : "Initialize Router"}
           </Button>
 
           <Link

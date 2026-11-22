@@ -18,16 +18,12 @@ describe("extractErrorMessage", () => {
   });
 
   test("reads standard Error instances", () => {
-    expect(extractErrorMessage(new Error("Network unreachable"))).toBe(
-      "Network unreachable",
-    );
+    expect(extractErrorMessage(new Error("Network unreachable"))).toBe("Network unreachable");
   });
 
   test("reads non-empty string errors and plain message objects", () => {
     expect(extractErrorMessage("Gateway timeout")).toBe("Gateway timeout");
-    expect(extractErrorMessage({ message: "Validation failed" })).toBe(
-      "Validation failed",
-    );
+    expect(extractErrorMessage({ message: "Validation failed" })).toBe("Validation failed");
   });
 
   test("falls back cleanly for unknown or empty values", () => {

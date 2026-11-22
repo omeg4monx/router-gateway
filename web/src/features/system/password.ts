@@ -54,8 +54,7 @@ export function validateInitPassword(
   const byteLength = utf8ByteLength(password);
   const meetsMinLength = runeCount >= MIN_PASSWORD_RUNES;
   const withinMaxBytes = byteLength <= MAX_PASSWORD_BYTES;
-  const passwordsMatch =
-    confirmPassword.length > 0 && password === confirmPassword;
+  const passwordsMatch = confirmPassword.length > 0 && password === confirmPassword;
 
   let error: string | null = null;
   if (!meetsMinLength) {

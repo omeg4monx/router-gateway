@@ -60,9 +60,7 @@ describe("init password validation (Go utf8.RuneCountInString parity + Zod schem
       undefined,
       { fields: {}, shouldUseNativeValidation: false },
     );
-    expect(resolved.errors.password?.message).toBe(
-      "Password must not exceed 72 UTF-8 bytes.",
-    );
+    expect(resolved.errors.password?.message).toBe("Password must not exceed 72 UTF-8 bytes.");
   });
 
   test("rejects mismatched confirmation via zodResolver on confirmPassword field", async () => {
@@ -72,8 +70,6 @@ describe("init password validation (Go utf8.RuneCountInString parity + Zod schem
       undefined,
       { fields: {}, shouldUseNativeValidation: false },
     );
-    expect(resolved.errors.confirmPassword?.message).toBe(
-      "Password confirmation does not match.",
-    );
+    expect(resolved.errors.confirmPassword?.message).toBe("Password confirmation does not match.");
   });
 });

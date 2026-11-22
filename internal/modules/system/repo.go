@@ -29,7 +29,7 @@ func newRepository(database *db.DB) *repository {
 	return &repository{db: database}
 }
 
-func (r *repository) InitState(ctx context.Context) (initialized bool, requireLogin bool, err error) {
+func (r *repository) InitState(ctx context.Context) (initialized, requireLogin bool, err error) {
 	if r == nil || r.db == nil {
 		return false, true, errors.New("system: database is not initialized")
 	}

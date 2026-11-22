@@ -1,8 +1,5 @@
 "use client";
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useEffect, type ReactNode } from "react";
 import {
   Activity,
   Cpu,
@@ -17,6 +14,9 @@ import {
   SlidersHorizontal,
   X,
 } from "lucide-react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { type ReactNode, useEffect } from "react";
 import { cn } from "@/shared/lib/utils";
 import { useUIStore } from "@/shared/store/uiStore";
 import { Badge } from "./badge";
@@ -68,9 +68,7 @@ export function AppShell({ children }: AppShellProps) {
   const setMobileNavOpen = useUIStore((state) => state.setMobileNavOpen);
   const closeMobileNav = useUIStore((state) => state.closeMobileNav);
   const sidebarCollapsed = useUIStore((state) => state.sidebarCollapsed);
-  const toggleSidebarCollapsed = useUIStore(
-    (state) => state.toggleSidebarCollapsed,
-  );
+  const toggleSidebarCollapsed = useUIStore((state) => state.toggleSidebarCollapsed);
 
   useEffect(() => {
     if (!mobileNavOpen) {
@@ -129,10 +127,7 @@ export function AppShell({ children }: AppShellProps) {
 
       <EmberRule />
 
-      <nav
-        className="flex-1 overflow-y-auto px-3 py-5"
-        aria-label="Control plane navigation"
-      >
+      <nav className="flex-1 overflow-y-auto px-3 py-5" aria-label="Control plane navigation">
         <div className="space-y-1">
           {!compact ? (
             <p className="px-2.5 pb-1.5 text-[11px] font-medium uppercase tracking-wider text-[var(--text-muted)]">
@@ -161,9 +156,7 @@ export function AppShell({ children }: AppShellProps) {
                   <Icon
                     className={cn(
                       "h-4 w-4 shrink-0",
-                      isActive
-                        ? "text-[#E56A4A]"
-                        : "text-[var(--text-muted)]",
+                      isActive ? "text-[#E56A4A]" : "text-[var(--text-muted)]",
                     )}
                     aria-hidden="true"
                   />
@@ -192,10 +185,7 @@ export function AppShell({ children }: AppShellProps) {
                 )}
               >
                 <span className="flex items-center gap-2.5">
-                  <Icon
-                    className="h-4 w-4 shrink-0 opacity-75"
-                    aria-hidden="true"
-                  />
+                  <Icon className="h-4 w-4 shrink-0 opacity-75" aria-hidden="true" />
                   {!compact ? <span>{item.label}</span> : null}
                 </span>
                 {!compact ? <Badge variant="secondary">{item.phase}</Badge> : null}
@@ -228,10 +218,7 @@ export function AppShell({ children }: AppShellProps) {
                     : "border-transparent text-[var(--text-secondary)] hover:border-[var(--border-subtle)] hover:bg-[var(--bg-surface-raised)] hover:text-[var(--text-primary)]",
                 )}
               >
-                <Icon
-                  className="h-4 w-4 shrink-0 text-[var(--text-muted)]"
-                  aria-hidden="true"
-                />
+                <Icon className="h-4 w-4 shrink-0 text-[var(--text-muted)]" aria-hidden="true" />
                 {!compact ? <span>{item.label}</span> : null}
               </Link>
             );
@@ -273,9 +260,7 @@ export function AppShell({ children }: AppShellProps) {
           sidebarCollapsed ? "w-[72px]" : "w-64",
         )}
       >
-        <div className="sticky top-0 h-screen">
-          {renderSidebar(sidebarCollapsed)}
-        </div>
+        <div className="sticky top-0 h-screen">{renderSidebar(sidebarCollapsed)}</div>
       </aside>
 
       {/* Mobile navigation drawer (solid opaque surface) */}
@@ -319,9 +304,7 @@ export function AppShell({ children }: AppShellProps) {
                 size="icon"
                 onClick={toggleSidebarCollapsed}
                 className="hidden lg:inline-flex"
-                aria-label={
-                  sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"
-                }
+                aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
               >
                 {sidebarCollapsed ? (
                   <PanelLeftOpen className="h-4 w-4" aria-hidden="true" />

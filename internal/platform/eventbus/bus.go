@@ -55,7 +55,7 @@ func (b *Bus) Publish(topic string, payload any) {
 // Subscribe registers a buffered channel of size buf for events matching topic
 // and returns the receive-only channel along with an idempotent unsubscribe
 // function that removes the subscription and closes the channel.
-func (b *Bus) Subscribe(topic string, buf int) (<-chan Event, func()) {
+func (b *Bus) Subscribe(topic string, buf int) (events <-chan Event, unsubscribe func()) {
 	if buf < 0 {
 		buf = 0
 	}
@@ -72,7 +72,7 @@ func (b *Bus) Subscribe(topic string, buf int) (<-chan Event, func()) {
 	b.mu.Unlock()
 
 	var once sync.Once
-	unsubscribe := func() {
+	unsubscribe = func() {
 		once.Do(func() {
 			b.mu.Lock()
 			defer b.mu.Unlock()

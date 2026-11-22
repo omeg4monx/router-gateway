@@ -201,7 +201,10 @@ func (r *Registry) orderedLocked() ([]Module, error) {
 
 	ordered := make([]Module, 0, len(r.modules))
 	for ready.Len() > 0 {
-		curr := heap.Pop(ready).(string)
+		curr, ok := heap.Pop(ready).(string)
+		if !ok {
+			continue
+		}
 		ordered = append(ordered, r.modules[curr])
 
 		for _, next := range dependents[curr] {
@@ -273,7 +276,7 @@ func (r *Registry) MountAll(mounts RouteMounts) error {
 }
 
 // StartAll starts all active modules in topological order. If ctx is already
-// cancelled before starting a module or if module i fails to start, StartAll
+// canceled before starting a module or if module i fails to start, StartAll
 // automatically invokes Stop on already-started modules i-1..0 in reverse order
 // with a fresh bounded rollback context before returning the joined error.
 func (r *Registry) StartAll(ctx context.Context) error {
@@ -390,7 +393,9 @@ func (h nameMinHeap) Less(i, j int) bool { return h[i] < h[j] }
 func (h nameMinHeap) Swap(i, j int)      { h[i], h[j] = h[j], h[i] }
 
 func (h *nameMinHeap) Push(x any) {
-	*h = append(*h, x.(string))
+	if s, ok := x.(string); ok {
+		*h = append(*h, s)
+	}
 }
 
 func (h *nameMinHeap) Pop() any {

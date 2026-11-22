@@ -8,10 +8,28 @@ LDFLAGS := -s -w -X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.bui
 BINARY := bin/omeg4mon-router
 UI_DIST := cmd/omeg4mon-router/ui_dist
 
-.PHONY: codegen test build-web build dev cross-build clean
+.PHONY: codegen fmt fmt-check lint check test build-web build dev cross-build clean
 
 codegen:
 	cd web && bun run gen:api
+
+fmt:
+	golangci-lint fmt ./...
+	cd web && bun run check:fix
+
+fmt-check:
+	@unformatted=$$(gofmt -s -l cmd internal); \
+	if [ -n "$$unformatted" ]; then \
+		echo "Unformatted Go files:"; echo "$$unformatted"; exit 1; \
+	fi
+	golangci-lint fmt --diff ./...
+	cd web && bun run format:check
+
+lint:
+	golangci-lint run ./...
+	cd web && bun run check
+
+check: fmt-check lint test
 
 test:
 	go test -count=1 -race ./...

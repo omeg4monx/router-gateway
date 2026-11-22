@@ -1,6 +1,6 @@
-import type { Metadata } from "next";
 import { GeistMono } from "geist/font/mono";
 import { GeistSans } from "geist/font/sans";
+import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { QueryProvider } from "@/shared/api/QueryProvider";
 import "./globals.css";
@@ -25,6 +25,7 @@ export default function RootLayout({ children }: RootLayoutProps) {
       suppressHydrationWarning
     >
       <head>
+        {/* biome-ignore lint/security/noDangerouslySetInnerHtml: Static theme bootstrap script with zero user input to prevent FOUC */}
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
       </head>
       <body className="min-h-screen bg-[var(--bg-canvas)] font-sans text-[var(--text-primary)]">

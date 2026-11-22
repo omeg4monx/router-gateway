@@ -1,14 +1,14 @@
 "use client";
 
+import { AlertTriangle, RefreshCw } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
-import { AlertTriangle, RefreshCw } from "lucide-react";
 import { useInitStatus } from "@/features/system/hooks";
 import { Alert, AlertDescription, AlertTitle } from "@/shared/ui/alert";
 import { Button } from "@/shared/ui/button";
-import { Card } from "@/shared/ui/card";
 import { CaduceusLogo } from "@/shared/ui/CaduceusLogo";
+import { Card } from "@/shared/ui/card";
 import { EmberRule } from "@/shared/ui/EmberRule";
 
 export default function HomePage() {
@@ -35,9 +35,7 @@ export default function HomePage() {
             <p className="text-sm font-semibold tracking-wider text-[var(--text-primary)]">
               OMEG4MON ROUTER
             </p>
-            <p className="font-mono text-xs text-[var(--text-muted)]">
-              CONTROL PLANE BOOTSTRAP
-            </p>
+            <p className="font-mono text-xs text-[var(--text-muted)]">CONTROL PLANE BOOTSTRAP</p>
           </div>
         </div>
 
@@ -59,11 +57,7 @@ export default function HomePage() {
             </Alert>
 
             <div className="flex flex-wrap items-center gap-3">
-              <Button
-                type="button"
-                size="sm"
-                onClick={() => void initStatusQuery.refetch()}
-              >
+              <Button type="button" size="sm" onClick={() => void initStatusQuery.refetch()}>
                 <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
                 <span>Retry</span>
               </Button>
