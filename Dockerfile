@@ -35,6 +35,17 @@ COPY . ./
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
 
+# custom-server.js imports src/ and open-sse/ directly (auth guard, token refresh,
+# backups), outside Next's file tracing, so their packages never reach standalone.
+# jose/bcryptjs: dashboardGuard -> dashboardSession (without them every route 503s).
+# chalk/ora + ora's dependency tree: tokenRefresh -> oauth/services/xai -> oauth/utils/ui.
+RUN mkdir -p /runtime-modules && cd node_modules && cp -r \
+      jose bcryptjs chalk ora \
+      ansi-regex cli-cursor cli-spinners get-east-asian-width is-interactive \
+      is-unicode-supported log-symbols mimic-function onetime restore-cursor \
+      signal-exit stdin-discarder string-width strip-ansi yoctocolors \
+      /runtime-modules/
+
 FROM ${NODE_IMAGE} AS runner
 ARG ALPINE_MIRROR
 ARG APP_VERSION
@@ -69,6 +80,7 @@ COPY --from=builder /app/node_modules/node-machine-id ./node_modules/node-machin
 COPY --from=builder /app/node_modules/uuid ./node_modules/uuid
 COPY --from=builder /app/node_modules/undici ./node_modules/undici
 COPY --from=builder /app/node_modules/confbox ./node_modules/confbox
+COPY --from=builder /runtime-modules ./node_modules
 
 RUN mkdir -p /app/data && chown -R node:node /app && \
   mkdir -p /app/data-home && chown node:node /app/data-home && \
