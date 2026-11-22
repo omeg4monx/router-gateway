@@ -23,6 +23,27 @@ const PROBE_SIGNATURES = [
   { pattern: /authorization|x-api-key|cookie|passwd|password/gi, label: "Auth material probe" },
 ];
 
+/**
+ * Probe label for a request URL, or null. Checks the raw and the decoded URL so
+ * `%3Cscript` and `<script` both match. "Auth material probe" is left out: it
+ * describes header/detail content, and real routes (/api/auth/reset-password,
+ * /api/oauth/iflow/cookie) carry those words in their path.
+ */
+export function matchRequestProbe(url) {
+  const raw = String(url || "");
+  let decoded = raw;
+  try {
+    decoded = decodeURIComponent(raw);
+  } catch {}
+  const haystack = `${raw} ${decoded}`;
+  const probe = PROBE_SIGNATURES.find((sig) => {
+    if (sig.label === "Auth material probe") return false;
+    sig.pattern.lastIndex = 0;
+    return sig.pattern.test(haystack);
+  });
+  return probe ? probe.label : null;
+}
+
 function normalizeEvent(input = {}) {
   return {
     at: input.at || new Date().toISOString(),
@@ -59,15 +80,14 @@ function ensureTable(db) {
 export async function recordSecurityEvent(input) {
   const event = normalizeEvent(input);
 
-  // Auto-jail trigger on malicious probe detection
-  if (event.ip && event.ip !== "unknown" && event.ip !== "127.0.0.1" && !event.ip.startsWith("::ffff:127.0.0.1")) {
-    const classification = classify(event);
-    if (classification.category === "probe" || event.type?.includes("probe") || event.severity === "critical") {
-      try {
-        const { recordProbeViolation } = await import("@/lib/security/ipJail");
-        recordProbeViolation(event.ip, classification.label || event.type || "Malicious probe");
-      } catch {}
-    }
+  // Only probe events strike the auto-jail. Severity alone must not: jailIp()
+  // logs every jail as critical, which counted as a further strike and
+  // escalated the next jail; admin actions would have struck their own IP.
+  if (event.type.includes("probe") && event.ip !== "unknown" && event.ip !== "127.0.0.1" && !event.ip.startsWith("::ffff:127.0.0.1")) {
+    try {
+      const { recordProbeViolation } = await import("@/lib/security/ipJail");
+      recordProbeViolation(event.ip, event.detail || event.type);
+    } catch {}
   }
 
   try {

@@ -18,25 +18,35 @@ import { recordSecurityEvent } from "@/lib/db/repos/securityLogRepo.js";
 
 const JAIL_STATE_FILE = path.join(DATA_DIR, "ip-jail-state.json");
 
-// IP -> { jailedUntil: timestamp, reason: string, strikes: number, lastStrikeAt: timestamp }
-const jailedIps = new Map();
-// IP -> { count: number, firstSeenAt: timestamp }
-const failTracker = new Map();
-// IP -> { count: number, firstSeenAt: timestamp }
-const probeTracker = new Map();
+// One jail per process. custom-server.js imports this file as native ESM while
+// the Next bundle carries its own copy; module-level Maps would give each copy a
+// private jail (login failures counted in Next, the fast-path gate checking
+// custom-server's empty one). globalThis is shared by both.
+const shared =
+  globalThis.__omeg4monRouterIpJail ||
+  (globalThis.__omeg4monRouterIpJail = {
+    // IP -> { jailedUntil: timestamp, reason: string, strikes: number, jailedAt: timestamp }
+    jailedIps: loadPersistedJail(),
+    // IP -> { count: number, firstSeenAt: timestamp }
+    failTracker: new Map(),
+    // IP -> { count: number, firstSeenAt: timestamp }
+    probeTracker: new Map(),
+  });
+const { jailedIps, failTracker, probeTracker } = shared;
 
-// Load persisted state if exists
-try {
-  if (fs.existsSync(JAIL_STATE_FILE)) {
-    const raw = JSON.parse(fs.readFileSync(JAIL_STATE_FILE, "utf8"));
-    const now = Date.now();
-    for (const [ip, data] of Object.entries(raw || {})) {
-      if (data && data.jailedUntil > now) {
-        jailedIps.set(ip, data);
+function loadPersistedJail() {
+  const jailed = new Map();
+  try {
+    if (fs.existsSync(JAIL_STATE_FILE)) {
+      const raw = JSON.parse(fs.readFileSync(JAIL_STATE_FILE, "utf8"));
+      const now = Date.now();
+      for (const [ip, data] of Object.entries(raw || {})) {
+        if (data && data.jailedUntil > now) jailed.set(ip, data);
       }
     }
-  }
-} catch {}
+  } catch {}
+  return jailed;
+}
 
 function persistJailState() {
   try {

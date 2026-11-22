@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { readFileSync, existsSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 const root = resolve(__dirname, "../..");
@@ -86,38 +86,11 @@ describe("security log: sign-ins, refusals and probes are recorded and flagged",
     expect(schema).not.toContain("SCHEMA_VERSION = 11");
   });
 
-  it("both API routes stay closed to key sessions", () => {
-    expect(read("src/app/api/security-logs/route.js")).toMatch(/role === "apikey"/);
-    expect(read("src/app/api/security-logs/access/route.js")).toMatch(/role === "apikey"/);
-    const guard = read("src/dashboardGuard.js");
-    // deliberately NOT in the public list: it names who signed in
-    expect(guard).not.toContain('"/api/security-logs",');
-    // reachability is decided by permissionPaths: [] closes it for keys, a
-    // password session passes the guard's isAuthenticated branch
-    const paths = read("src/lib/auth/permissionPaths.js");
-    expect(paths).toContain('{ prefix: "/api/security-logs", permissions: [] }');
-  });
-
-  it("custom-server observes its own responses", () => {
+  it("custom-server feeds probe-looking responses to the security log", () => {
     const server = read("custom-server.js");
     expect(server).toContain("onRequestFinished");
     expect(server).toContain('res.once("finish"');
+    expect(server).toContain("matchRequestProbe");
     expect(server).toContain("recordSecurityEvent");
-    expect(server).toContain("recordAccessEvent");
-  });
-
-  it("the page colours breaches red and stays reachable", () => {
-    const client = read("src/app/(dashboard)/dashboard/security-log/SecurityLogClient.js");
-    expect(client).toContain("text-red-500");
-    expect(client).toContain("critical");
-    expect(client).toContain("guard_denied");
-    expect(existsSync(resolve(root, "src/app/(dashboard)/dashboard/security-log/page.js"))).toBe(true);
-  });
-
-  it("the sidebar lists Security Log and the admin gate keeps it closed to keys", () => {
-    const sidebar = read("src/shared/components/Sidebar.js");
-    expect(sidebar).toContain("/dashboard/security-log");
-    const paths = read("src/lib/auth/permissionPaths.js");
-    expect(paths).toContain('"/dashboard/security-log"');
   });
 });

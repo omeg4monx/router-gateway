@@ -15,23 +15,34 @@ import { recordSecurityEvent } from "@/lib/db/repos/securityLogRepo.js";
 const RESET_HINT = "Forgot password? Reset to default via OMEG4MON ROUTER CLI → Settings → Reset Password to Default.";
 const NO_STORE_HEADERS = { "Cache-Control": "no-store" };
 
+// Security-log vocabulary (securityLogRepo.classify keys off these types). The
+// file audit trail keeps its own dotted names. Severity stays below "critical":
+// a critical event strikes the IP in the auto-jail.
+const SEC_EVENTS = {
+  "login.locked": { type: "login_locked", severity: "warn", status: 429 },
+  "login.fail": { type: "login_failed", severity: "warn", status: 401 },
+  "login.ok": { type: "login_success", severity: "info", status: 200 },
+  "login.default_password.ok": { type: "login_default_password", severity: "warn", status: 200 },
+  "login.default_password": { type: "login_default_password", severity: "warn", status: 403 },
+  "login.apikey.fail": { type: "apikey_login_failed", severity: "warn", status: 401 },
+  "login.apikey.ok": { type: "apikey_login_success", severity: "info", status: 200 },
+};
+
 // Log to both file-based audit trail AND SQLite security events table.
 function secAudit(request, ip, event, extraDetail = {}) {
   audit(event, { ip, ...extraDetail });
-  try {
-    const severity = event.includes("fail") || event.includes("locked") ? "warning" : "info";
-    recordSecurityEvent({
-      type: event,
-      severity,
-      ip: ip || "unknown",
-      actor: extraDetail.method || extraDetail.keyId || "dashboard",
-      method: request?.method || "POST",
-      path: "/api/auth/login",
-      status: event.includes("ok") ? 200 : event.includes("locked") ? 429 : 401,
-      detail: JSON.stringify(extraDetail),
-      userAgent: request?.headers?.get?.("user-agent") || "",
-    });
-  } catch {}
+  const { type, severity, status } = SEC_EVENTS[event];
+  recordSecurityEvent({
+    type,
+    severity,
+    ip: ip || "unknown",
+    actor: extraDetail.method || extraDetail.keyId || "dashboard",
+    method: request?.method || "POST",
+    path: "/api/auth/login",
+    status,
+    detail: JSON.stringify(extraDetail),
+    userAgent: request?.headers?.get?.("user-agent") || "",
+  }).catch(() => {});
 }
 
 function isTunnelRequest(request, settings) {
@@ -78,11 +89,12 @@ export async function POST(request) {
 
       const keyObj = await getApiKeyByKey(keyStr);
       if (!keyObj) {
+        secAudit(request, ip, "login.apikey.fail", { ip, reason: "API key not found" });
         return NextResponse.json({ error: "API key not found" }, { status: 401 });
       }
 
       recordSuccess(ip);
-      secAudit(request, ip, "login.ok", { ip, method: "apikey", keyId: keyObj.id });
+      secAudit(request, ip, "login.apikey.ok", { ip, method: "apikey", keyId: keyObj.id });
       const cookieStore = await cookies();
       const permissions = normalizePermissions(keyObj.permissions);
       await setDashboardAuthCookie(cookieStore, request, {
@@ -161,7 +173,9 @@ export async function POST(request) {
 
       const cookieStore = await cookies();
       await setDashboardAuthCookie(cookieStore, request, { role: "admin" });
-      secAudit(request, ip, "login.ok", { ip, method: "admin" });
+      // Signed in on the published default password: the breach signal classify() flags.
+      const onPublishedDefault = !storedHash && !process.env.INITIAL_PASSWORD;
+      secAudit(request, ip, onPublishedDefault ? "login.default_password.ok" : "login.ok", { ip, method: "admin" });
 
       try {
         const { clearFailures } = await import("@/lib/security/ipJail");

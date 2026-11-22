@@ -114,6 +114,47 @@ function checkIsIpJailed(ip) {
   return false;
 }
 
+// Probe feed for the auto-jail: a refused or redirected response whose URL
+// carries a probe signature (/.env, ../, <script, union select) is written to
+// securityEvents, which strikes the IP in ipJail (3 in 5 min -> jailed).
+// Normal traffic costs one status check; only matching probes touch SQLite.
+let securityLogPromise = null;
+function getSecurityLogModule() {
+  if (!securityLogPromise) {
+    const modPath = [
+      path.join(__dirname, "src", "lib", "db", "repos", "securityLogRepo.js"),
+      path.join(__dirname, "..", "src", "lib", "db", "repos", "securityLogRepo.js"),
+    ].find((p) => fs.existsSync(p));
+    securityLogPromise = modPath ? import(pathToFileURL(modPath).href) : Promise.resolve(null);
+    // A failed load must not stay cached, or probes go unrecorded until restart.
+    securityLogPromise.catch(() => { securityLogPromise = null; });
+  }
+  return securityLogPromise;
+}
+
+function onRequestFinished(req, res, ip) {
+  if (res.statusCode < 300 || !ip) return;
+  const clean = String(ip).trim().replace(/^::ffff:/, "");
+  if (clean === "127.0.0.1" || clean === "::1" || clean === "localhost") return;
+  getSecurityLogModule()
+    .then((m) => {
+      const label = m && m.matchRequestProbe(req.url);
+      if (!label) return;
+      return m.recordSecurityEvent({
+        type: "request_probe",
+        severity: "critical",
+        ip: clean,
+        actor: "custom-server",
+        method: req.method,
+        path: req.url,
+        status: res.statusCode,
+        detail: label,
+        userAgent: req.headers["user-agent"] || "",
+      });
+    })
+    .catch((error) => console.error("[SecurityLog] probe record failed:", error && error.message));
+}
+
 function startBackgroundTokenRefreshFromCustomServer() {
   if (backgroundRefreshStarted) return;
   backgroundRefreshStarted = true;
@@ -400,6 +441,8 @@ http.createServer = (...args) => {
       denyService(res, 403, "Access denied: IP temporarily jailed due to repeated security violations.");
       return;
     }
+
+    res.once("finish", () => onRequestFinished(req, res, ip));
 
     // Auth gate ahead of Next; runAuthGuard resolves false when the request
     // may pass through, true when it already answered (401 or redirect).
