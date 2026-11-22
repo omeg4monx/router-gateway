@@ -92,6 +92,71 @@ export function toCreateComboRequest(values: CreateComboFormOutput): CreateCombo
   };
 }
 
+export interface TargetsFieldErrors {
+  itemMessages: Record<number, string>;
+  summaryMessage: string | null;
+}
+
+function isRecordWithMessage(value: unknown): value is { message?: unknown } {
+  return typeof value === "object" && value !== null;
+}
+
+export function extractTargetsFieldErrors(targetsError: unknown): TargetsFieldErrors {
+  const itemMessages: Record<number, string> = {};
+  let summaryMessage: string | null = null;
+
+  if (!targetsError || typeof targetsError !== "object") {
+    return { itemMessages, summaryMessage };
+  }
+
+  if (Array.isArray(targetsError)) {
+    targetsError.forEach((entry, index) => {
+      if (isRecordWithMessage(entry) && typeof entry.message === "string" && entry.message.trim()) {
+        itemMessages[index] = entry.message;
+      }
+    });
+    const rootEntry = (targetsError as { root?: unknown }).root;
+    if (
+      isRecordWithMessage(rootEntry) &&
+      typeof rootEntry.message === "string" &&
+      rootEntry.message.trim()
+    ) {
+      summaryMessage = rootEntry.message;
+    }
+  } else {
+    const record = targetsError as Record<string, unknown>;
+    if (typeof record.message === "string" && record.message.trim()) {
+      summaryMessage = record.message;
+    }
+    if (
+      isRecordWithMessage(record.root) &&
+      typeof record.root.message === "string" &&
+      record.root.message.trim()
+    ) {
+      summaryMessage = summaryMessage ?? record.root.message;
+    }
+    for (const [key, entry] of Object.entries(record)) {
+      if (
+        /^\d+$/.test(key) &&
+        isRecordWithMessage(entry) &&
+        typeof entry.message === "string" &&
+        entry.message.trim()
+      ) {
+        itemMessages[Number.parseInt(key, 10)] = entry.message;
+      }
+    }
+  }
+
+  if (!summaryMessage) {
+    const firstItemMsg = Object.values(itemMessages)[0];
+    if (firstItemMsg) {
+      summaryMessage = firstItemMsg;
+    }
+  }
+
+  return { itemMessages, summaryMessage };
+}
+
 export const upsertAliasSchema = z
   .object({
     alias: modelIdentifierSchema("Alias name"),

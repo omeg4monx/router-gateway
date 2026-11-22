@@ -58,6 +58,9 @@ import {
   type DisableModelFormInput,
   type DisableModelFormOutput,
   disableModelSchema,
+  extractTargetsFieldErrors,
+  MAX_MODEL_IDENTIFIER_RUNES,
+  MAX_TARGETS_COUNT,
   type ModelAlias,
   toCreateComboRequest,
   toDisableModelRequest,
@@ -354,7 +357,15 @@ export function ModelsRoutingConsole() {
       setTargetDraftError("Target model must not contain control whitespace.");
       return;
     }
+    if (Array.from(trimmed).length > MAX_MODEL_IDENTIFIER_RUNES) {
+      setTargetDraftError(`Target model must not exceed ${MAX_MODEL_IDENTIFIER_RUNES} characters.`);
+      return;
+    }
     const current = createComboForm.getValues("targets");
+    if (current.length >= MAX_TARGETS_COUNT) {
+      setTargetDraftError(`Targets must not exceed ${MAX_TARGETS_COUNT} items.`);
+      return;
+    }
     if (current.includes(trimmed)) {
       setTargetDraftError(`"${trimmed}" is already in the fallback order.`);
       return;
@@ -531,6 +542,7 @@ export function ModelsRoutingConsole() {
   const anyAliasBusy = busyAlias !== null;
   const anyDisabledBusy = busyDisabledModel !== null;
   const anyCooldownBusy = busyCooldownId !== null;
+  const targetsErrors = extractTargetsFieldErrors(createComboForm.formState.errors.targets);
 
   return (
     <div className="space-y-6">
@@ -862,61 +874,73 @@ export function ModelsRoutingConsole() {
                   </p>
                 ) : (
                   <ol className="space-y-1.5 pt-1">
-                    {watchedTargets.map((target, index) => (
-                      <li
-                        key={target}
-                        className="flex items-center justify-between gap-2 rounded border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-3 py-2"
-                      >
-                        <div className="flex min-w-0 items-center gap-2">
-                          <Badge variant="outline" className="tabular-nums">
-                            #{index + 1}
-                          </Badge>
-                          <span className="truncate font-mono text-xs text-[var(--text-primary)]">
-                            {target}
-                          </span>
-                        </div>
-                        <div className="flex shrink-0 items-center gap-1">
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon-sm"
-                            onClick={() => moveComboTarget(index, -1)}
-                            disabled={index === 0}
-                            aria-label={`Move ${target} up`}
-                          >
-                            <ArrowUp className="h-3.5 w-3.5" aria-hidden="true" />
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon-sm"
-                            onClick={() => moveComboTarget(index, 1)}
-                            disabled={index === watchedTargets.length - 1}
-                            aria-label={`Move ${target} down`}
-                          >
-                            <ArrowDown className="h-3.5 w-3.5" aria-hidden="true" />
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon-sm"
-                            onClick={() => removeComboTarget(index)}
-                            aria-label={`Remove ${target}`}
-                          >
-                            <X
-                              className="h-3.5 w-3.5 text-[var(--status-error)]"
-                              aria-hidden="true"
-                            />
-                          </Button>
-                        </div>
-                      </li>
-                    ))}
+                    {watchedTargets.map((target, index) => {
+                      const itemError = targetsErrors.itemMessages[index];
+                      return (
+                        <li
+                          key={target}
+                          className={`rounded border bg-[var(--bg-surface)] px-3 py-2 ${
+                            itemError
+                              ? "border-[var(--status-error-border)]"
+                              : "border-[var(--border-subtle)]"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex min-w-0 items-center gap-2">
+                              <Badge variant="outline" className="tabular-nums">
+                                #{index + 1}
+                              </Badge>
+                              <span className="truncate font-mono text-xs text-[var(--text-primary)]">
+                                {target}
+                              </span>
+                            </div>
+                            <div className="flex shrink-0 items-center gap-1">
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon-sm"
+                                onClick={() => moveComboTarget(index, -1)}
+                                disabled={index === 0}
+                                aria-label={`Move ${target} up`}
+                              >
+                                <ArrowUp className="h-3.5 w-3.5" aria-hidden="true" />
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon-sm"
+                                onClick={() => moveComboTarget(index, 1)}
+                                disabled={index === watchedTargets.length - 1}
+                                aria-label={`Move ${target} down`}
+                              >
+                                <ArrowDown className="h-3.5 w-3.5" aria-hidden="true" />
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon-sm"
+                                onClick={() => removeComboTarget(index)}
+                                aria-label={`Remove ${target}`}
+                              >
+                                <X
+                                  className="h-3.5 w-3.5 text-[var(--status-error)]"
+                                  aria-hidden="true"
+                                />
+                              </Button>
+                            </div>
+                          </div>
+                          {itemError ? (
+                            <p className="mt-1.5 text-xs text-[var(--status-error)]">{itemError}</p>
+                          ) : null}
+                        </li>
+                      );
+                    })}
                   </ol>
                 )}
 
-                {createComboForm.formState.errors.targets?.message ? (
+                {targetsErrors.summaryMessage ? (
                   <p className="text-xs text-[var(--status-error)]">
-                    {createComboForm.formState.errors.targets.message}
+                    {targetsErrors.summaryMessage}
                   </p>
                 ) : null}
               </div>

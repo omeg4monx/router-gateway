@@ -3,6 +3,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import {
   createComboSchema,
   disableModelSchema,
+  extractTargetsFieldErrors,
+  MAX_MODEL_IDENTIFIER_RUNES,
   toCreateComboRequest,
   toDisableModelRequest,
   toUpsertAliasRequest,
@@ -95,6 +97,56 @@ describe("createComboSchema", () => {
       targets: ["openai/gpt-4o", " self-combo "],
     });
     expect(selfReferential.success).toBe(false);
+  });
+
+  test("extractTargetsFieldErrors surfaces per-element zodResolver errors and array-level errors", async () => {
+    const resolver = zodResolver(createComboSchema);
+
+    const selfRefResolved = await resolver(
+      {
+        name: "self-combo",
+        description: "",
+        strategy: "ordered",
+        enabled: true,
+        targets: ["openai/gpt-4o", "self-combo"],
+      },
+      undefined,
+      { fields: {}, shouldUseNativeValidation: false },
+    );
+    const selfRefExtracted = extractTargetsFieldErrors(selfRefResolved.errors.targets);
+    expect(selfRefExtracted.itemMessages[1]).toContain("must not reference the combo name");
+    expect(selfRefExtracted.summaryMessage).toContain("must not reference the combo name");
+
+    const tooLongTarget = "x".repeat(MAX_MODEL_IDENTIFIER_RUNES + 1);
+    const tooLongResolved = await resolver(
+      {
+        name: "long-target-combo",
+        description: "",
+        strategy: "ordered",
+        enabled: true,
+        targets: [tooLongTarget],
+      },
+      undefined,
+      { fields: {}, shouldUseNativeValidation: false },
+    );
+    const tooLongExtracted = extractTargetsFieldErrors(tooLongResolved.errors.targets);
+    expect(tooLongExtracted.itemMessages[0]).toContain(`${MAX_MODEL_IDENTIFIER_RUNES} characters`);
+    expect(tooLongExtracted.summaryMessage).toContain(`${MAX_MODEL_IDENTIFIER_RUNES} characters`);
+
+    const emptyResolved = await resolver(
+      {
+        name: "empty-combo",
+        description: "",
+        strategy: "ordered",
+        enabled: true,
+        targets: [],
+      },
+      undefined,
+      { fields: {}, shouldUseNativeValidation: false },
+    );
+    const emptyExtracted = extractTargetsFieldErrors(emptyResolved.errors.targets);
+    expect(emptyExtracted.itemMessages).toEqual({});
+    expect(emptyExtracted.summaryMessage).toBe("Add at least one fallback target model.");
   });
 });
 
