@@ -1,3 +1,31 @@
+# v0.2.0 (2026-11-22)
+
+### Breaking — Omegamon theme system
+
+- **Light = Omegamon X-Antibody, Dark = Omegamon Zwart.** Light uses pearl-white surfaces, Garuru blue primary (`#0860A8`), Grey Sword gold secondary and red armor accent; dark uses obsidian/gunmetal surfaces, silver text, electric cyan primary (`#0EA8CF`) and a red core accent. New tokens: `secondary-*`, `accent-*`, `highlight`, `on-primary`. `accent` is now the red accent, no longer an alias of the brand color.
+- **Ember mode removed.** Only `dark` (default) and `light` remain. Stored `ember` themes (browser and `/api/theme`) migrate to `dark` on load.
+- **New default accent "Omegamon Default"** sets no inline overrides, so each mode's own palette applies. The old default `orange` migrates to it; Ember Orange stays available as a preset (id `ember`).
+- **Accent presets are mode-aware.** Each preset ships a light and a dark variant; text on a solid primary fill switches between white and obsidian (`--color-on-primary`). Custom colors pick whichever of the two reads better.
+
+### Accessibility
+
+- Text contrast passes WCAG AA (4.5:1, 3:1 for large text) on every dashboard route, the 74 provider pages, CLI tool and media-provider pages, and 44 modals/dropdowns in both modes. The only exceptions are decorative: provider logo initials, a `/` separator and one empty-state icon.
+- Landing page and basic chat no longer hardcode the old warm-dark palette, so light mode is readable there.
+- Success, warning and danger tokens retuned for their soft backgrounds; `text-text-muted/50-80` replaced by `text-subtle`/`text-muted`; Tailwind default colors in provider, prompt-injection, voucher and CLI tool views mapped to theme tokens.
+
+### Bug Fixes
+
+- **Combos:** auto context window is the smallest member's again (a request must fit whichever member serves it); a combo's own `contextWindow` still overrides it.
+- **Security:** only the instance owner may change the site-wide theme. `/api/theme` stays public for reads; anonymous writes get 401 and key sessions 403.
+- **Import jobs:** the creating request receives its poll token, which stays valid for the final poll.
+- **Model capabilities:** provider aliases (`ocg`, `cmc`) resolve; providers whose connections are all disabled are hidden in the model picker.
+- From the quarantine triage: stalled streams send an in-band error frame; `/messages`-only models use their own transport; codebuddy keeps a stable conversation id; opencode-zen free models no longer reuse the paid token; legacy custom rows no longer duplicate registry entries in `/api/models`; bulk key import no longer overwrites existing key names.
+- Token-saver opt-out header is `x-omeg4mon-router-token-saver` (`x-9router-token-saver` still works). The update check re-fetches the remote release after its TTL instead of caching it forever.
+
+### Tests
+
+- Test quarantine removed: CI runs the whole suite.
+
 # v0.1.0 (2026-11-21)
 
 ### Bug Fixes — Auth guard wrapper (`custom-server.js`)

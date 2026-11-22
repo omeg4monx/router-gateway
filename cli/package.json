@@ -1,6 +1,6 @@
 {
   "name": "omeg4mon-router",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "OMEG4MON ROUTER - High-Performance Multi-Tenant AI Gateway & Proxy",
   "repository": {
     "type": "git",
