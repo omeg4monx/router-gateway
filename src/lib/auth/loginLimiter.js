@@ -80,5 +80,7 @@ export function getClientIp(request) {
     const xff = request.headers.get("x-forwarded-for");
     if (xff) return xff.split(",")[0].trim();
   }
-  return "127.0.0.1";
+  // Unverified caller: one shared bucket, and never a loopback address that an
+  // API key ipWhitelist of 127.0.0.1 would accept.
+  return "unknown";
 }
