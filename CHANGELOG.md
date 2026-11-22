@@ -1,6 +1,6 @@
 # v0.2.0 (2026-11-22)
 
-> **Unreleased on `infra/foundation` (not part of v0.2.0):** locked npm installs for the app and tests, independent Next.js and Go CI checks, and a local workflow with isolated data paths. Deployment defaults are unchanged.
+> **Unreleased (rewrite foundation, not part of v0.2.0):** locked npm installs for the app and tests, independent Next.js and Go CI checks, and a local workflow with isolated data paths. For the experimental Go image, use `docker build -f Dockerfile.gateway .` instead of `-f Dockerfile.go`. Default deployments are unchanged.
 
 ### Breaking — Omegamon theme system
 

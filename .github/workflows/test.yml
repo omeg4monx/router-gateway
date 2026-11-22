@@ -57,15 +57,17 @@ jobs:
           go-version-file: go.mod
           cache-dependency-path: go.sum
 
+      - name: Download Go modules
+        run: go mod download
+
+      - name: Verify Go modules
+        run: go mod verify
+
       - name: Go tests
         run: go test -mod=readonly ./...
 
       - name: Build Go gateway
         run: go build -mod=readonly -o "$RUNNER_TEMP/omeg4mon-router" ./cmd/omeg4mon-router
-
-      # Verify cached module content after tests and build have fetched it.
-      - name: Verify Go modules
-        run: go mod verify
 
       - name: Check Go module files
         run: git diff --exit-code -- go.mod go.sum
