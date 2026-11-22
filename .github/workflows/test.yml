@@ -27,11 +27,10 @@ jobs:
           node-version-file: .nvmrc
           package-manager-cache: false
 
+      # Pin both installs to npm 11; npm 10 has failed to resolve the Vitest tree.
       - name: Install app deps
         run: npx --yes npm@11.20.0 ci
 
-      # npm 10 (bundled with Node 22) crashes resolving vitest 4's tree
-      # ("Cannot read properties of null (reading 'edgesOut')"); npm 11 does not.
       - name: Install test deps
         run: npx --yes npm@11.20.0 --prefix tests ci
 
