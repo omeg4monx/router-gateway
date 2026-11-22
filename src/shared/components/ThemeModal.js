@@ -10,23 +10,16 @@ const MODES = [
   {
     id: "dark",
     icon: "dark_mode",
-    label: "Dark",
-    desc: "Solid dark panels on a neutral warm base",
-    swatches: ["#1a1a1a", "#262626", "#303030", "#333333"],
-  },
-  {
-    id: "ember",
-    icon: "local_fire_department",
-    label: "Ember",
-    desc: "Warm charcoal panels with a brand accent tint",
-    swatches: ["#171310", "#201914", "#2b211a", "#33261d"],
+    label: "Dark · Omegamon Zwart",
+    desc: "Obsidian armor, gunmetal panels, electric cyan and red core",
+    swatches: ["#050608", "#101217", "#0891B2", "#FF2D3A"],
   },
   {
     id: "light",
     icon: "light_mode",
-    label: "Light",
-    desc: "Clean light panels on soft ivory background",
-    swatches: ["#FDFAF6", "#F7F3EE", "#ffffff", "#f4f4f5"],
+    label: "Light · Omegamon X-Antibody",
+    desc: "Pearl-white armor, Garuru blue, Grey Sword gold and red trim",
+    swatches: ["#F5F6F8", "#0A6FC2", "#E8A317", "#C8102E"],
   },
 ];
 
@@ -405,8 +398,8 @@ function PhotoshopColorPicker({ color, onChange, onApply, isActive }) {
 
 export default function ThemeModal({ isOpen, onClose }) {
   const theme = useThemeStore((state) => state.theme);
-  const accent = useThemeStore((state) => state.accent || "orange");
-  const customColor = useThemeStore((state) => state.customColor || "#E56A4A");
+  const accent = useThemeStore((state) => state.accent || "omegamon");
+  const customColor = useThemeStore((state) => state.customColor || "#0A6FC2");
   const setTheme = useThemeStore((state) => state.setTheme);
   const setAccent = useThemeStore((state) => state.setAccent);
   const setCustomColor = useThemeStore((state) => state.setCustomColor);
@@ -516,7 +509,7 @@ export default function ThemeModal({ isOpen, onClose }) {
                     active ? "border-primary bg-primary/10 shadow-sm" : "border-border-subtle hover:bg-surface-2"
                   )}
                 >
-                  <span className="h-4 w-4 rounded-full shrink-0 shadow-sm" style={{ backgroundColor: pal.primary }} />
+                  <span className="h-4 w-4 rounded-full shrink-0 shadow-sm" style={{ background: pal.swatch || pal.primary }} />
                   <span className={cn("text-xs font-medium truncate", active ? "text-primary" : "text-text-main")}>
                     {pal.label.split(" ")[1] || pal.label}
                   </span>

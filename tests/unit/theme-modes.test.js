@@ -1,10 +1,10 @@
 /**
- * Theme switching stays on the fork's three modes with no orphan classes.
+ * Theme switching stays on two modes with no orphan classes.
  *
- * Ember and Dark keep `.dark` on <html> (components render from dark-tuned
- * tokens); `.ember` adds the ember overrides; Light clears both. An unknown
- * persisted value must degrade to the ember default rather than a class
- * combination the CSS never defines, which would silently render a broken theme.
+ * Dark (Omegamon Zwart) puts `.dark` on <html>; Light (Omegamon X-Antibody)
+ * clears it. Unknown or legacy persisted values (the removed "ember" mode, the
+ * old "orange" default accent) must degrade to the defaults rather than a class
+ * or inline-override combination the CSS no longer defines.
  *
  * The suite runs in the node environment, so window/document/localStorage are
  * stubbed before the store module loads — zustand-persist reads localStorage at
@@ -14,20 +14,28 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
 let classes;
+let inlineProps;
+let mem;
 let store;
 
 function stubDom() {
   classes = new Set();
+  inlineProps = new Map();
   const classList = {
     add: (c) => classes.add(c),
     remove: (c) => classes.delete(c),
     toggle: (c, on) => (on ? classes.add(c) : classes.delete(c)),
     contains: (c) => classes.has(c),
   };
-  const mem = {};
   vi.stubGlobal("window", globalThis);
   vi.stubGlobal("document", {
-    documentElement: { classList, style: { setProperty: () => {} } },
+    documentElement: {
+      classList,
+      style: {
+        setProperty: (k, v) => inlineProps.set(k, v),
+        removeProperty: (k) => inlineProps.delete(k),
+      },
+    },
     querySelector: () => null,
   });
   vi.stubGlobal("localStorage", {
@@ -38,74 +46,99 @@ function stubDom() {
   vi.stubGlobal("fetch", vi.fn(async () => ({ ok: false })));
 }
 
+async function loadStore() {
+  vi.resetModules();
+  stubDom();
+  const mod = await import("../../src/store/themeStore.js");
+  store = mod.default;
+  return mod;
+}
+
 describe("theme mode contract", () => {
-  beforeEach(async () => {
-    vi.resetModules();
-    stubDom();
-    const mod = await import("../../src/store/themeStore.js");
-    store = mod.default;
-    globalThis.__THEME_IDS__ = mod.THEME_IDS;
+  beforeEach(() => {
+    mem = {};
   });
 
   afterEach(() => {
     vi.unstubAllGlobals();
   });
 
-  it("only knows Ember, Dark and Light", () => {
-    expect(globalThis.__THEME_IDS__).toEqual(["ember", "dark", "light"]);
+  it("only knows Dark and Light", async () => {
+    const mod = await loadStore();
+    expect(mod.THEME_IDS).toEqual(["dark", "light"]);
   });
 
-  it("applies ember as .dark.ember, dark as plain .dark, light as neither", () => {
-    const setTheme = store.getState().setTheme;
-
-    setTheme("ember");
-    expect(classes.has("dark")).toBe(true);
-    expect(classes.has("ember")).toBe(true);
+  it("applies dark as .dark and light as no class", async () => {
+    await loadStore();
+    const { setTheme } = store.getState();
 
     setTheme("dark");
     expect(classes.has("dark")).toBe(true);
-    expect(classes.has("ember")).toBe(false);
 
     setTheme("light");
     expect(classes.has("dark")).toBe(false);
-    expect(classes.has("ember")).toBe(false);
   });
 
-  it("degrades an unknown persisted value to the ember default", () => {
-    const setTheme = store.getState().setTheme;
-
-    setTheme("glass");
-    expect(store.getState().theme).toBe("ember");
-    expect(classes.has("ember")).toBe(true);
-    expect(classes.has("dark")).toBe(true);
-  });
-
-  it("cycles ember → dark → light → ember starting from the ember default", () => {
-    const { toggleTheme } = store.getState();
-
-    expect(store.getState().theme).toBe("ember");
-
-    toggleTheme();
+  it("degrades an unknown or removed mode to the dark default", async () => {
+    await loadStore();
+    store.getState().setTheme("ember");
     expect(store.getState().theme).toBe("dark");
+    expect(classes.has("dark")).toBe(true);
     expect(classes.has("ember")).toBe(false);
+  });
+
+  it("toggles dark ↔ light starting from the dark default", async () => {
+    await loadStore();
+    const { toggleTheme } = store.getState();
+    expect(store.getState().theme).toBe("dark");
 
     toggleTheme();
     expect(store.getState().theme).toBe("light");
     expect(classes.has("dark")).toBe(false);
 
     toggleTheme();
-    expect(store.getState().theme).toBe("ember");
-    expect(classes.has("ember")).toBe(true);
+    expect(store.getState().theme).toBe("dark");
+    expect(classes.has("dark")).toBe(true);
+  });
+
+  it("default Omegamon accent leaves the CSS palette in charge (no inline primary)", async () => {
+    await loadStore();
+    store.getState().setAccent("blue");
+    expect(inlineProps.get("--color-primary")).toBe("#2563EB");
+    expect(inlineProps.get("--color-on-primary")).toBe("#ffffff");
+
+    store.getState().setAccent("omegamon");
+    expect(inlineProps.has("--color-primary")).toBe(false);
+    expect(inlineProps.has("--color-brand-500")).toBe(false);
+    expect(inlineProps.has("--color-on-primary")).toBe(false);
+  });
+
+  it("migrates a persisted legacy ember/orange state on init", async () => {
+    const { THEME_CONFIG } = await import("../../src/shared/constants/config");
+    mem[THEME_CONFIG.storageKey] = JSON.stringify({
+      state: { theme: "ember", accent: "orange", customColor: "#E56A4A" },
+      version: 0,
+    });
+    await loadStore();
+    expect(store.getState().theme).toBe("ember"); // hydrated legacy value, pre-migration
+
+    await store.getState().initTheme();
+
+    expect(store.getState().theme).toBe("dark");
+    expect(store.getState().accent).toBe("omegamon");
+    expect(classes.has("dark")).toBe(true);
+    expect(inlineProps.has("--color-primary")).toBe(false);
   });
 
   it("re-applies the persisted mode on init (page reload path)", async () => {
-    store.getState().setTheme("ember");
+    await loadStore();
+    store.getState().setTheme("light");
+    store.getState().setTheme("dark");
 
     // Simulate reload: classes wiped, store hydrated from persistence.
     classes.clear();
     await store.getState().initTheme();
 
     expect(classes.has("dark")).toBe(true);
-    expect(classes.has("ember")).toBe(true);
   });
 });

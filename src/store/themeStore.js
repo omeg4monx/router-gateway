@@ -4,16 +4,30 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { THEME_CONFIG } from "@/shared/constants/config";
 
-export const THEME_IDS = ["ember", "dark", "light"];
+export const THEME_IDS = ["dark", "light"];
+const DEFAULT_THEME = "dark";
+const DEFAULT_ACCENT = "omegamon";
+const DEFAULT_CUSTOM_COLOR = "#0A6FC2";
 
+// Theme-native primaries; must match --color-brand-500 in globals.css (:root / .dark).
+const OMEGAMON_PRIMARY = { light: "#0A6FC2", dark: "#0891B2" };
+
+// "omegamon" sets no inline overrides, so the CSS palette of the active mode drives.
+// The rest are optional custom palettes layered over either mode.
 export const ACCENT_PALETTES = [
-  { id: "orange", label: "Ember Orange", primary: "#E56A4A", hover: "#c04a2c", filter: "none" },
+  { id: "omegamon", label: "Omegamon Default", swatch: `linear-gradient(135deg, ${OMEGAMON_PRIMARY.light} 50%, ${OMEGAMON_PRIMARY.dark} 50%)` },
+  { id: "ember", label: "Ember Orange", primary: "#E56A4A", hover: "#c04a2c", filter: "none" },
   { id: "blue", label: "Electric Blue", primary: "#2563EB", hover: "#1D4ED8", filter: "hue-rotate(195deg) saturate(1.8)" },
   { id: "emerald", label: "Emerald Green", primary: "#059669", hover: "#047857", filter: "hue-rotate(115deg) saturate(1.5)" },
   { id: "purple", label: "Violet Purple", primary: "#7C3AED", hover: "#6D28D9", filter: "hue-rotate(240deg) saturate(1.7)" },
   { id: "rose", label: "Ruby Rose", primary: "#E11D48", hover: "#BE123C", filter: "hue-rotate(330deg) saturate(1.6)" },
   { id: "cyan", label: "Cyber Cyan", primary: "#0891B2", hover: "#0E7490", filter: "hue-rotate(170deg) saturate(1.8)" },
 ];
+
+// Unknown/legacy values ("ember" mode, the old "orange" default accent) fall back to the defaults.
+const normalizeTheme = (theme) => (THEME_IDS.includes(theme) ? theme : DEFAULT_THEME);
+const normalizeAccent = (accent) =>
+  accent === "custom" || ACCENT_PALETTES.some((p) => p.id === accent) ? accent : DEFAULT_ACCENT;
 
 export function darkenColor(hex, percent = 15) {
   let num = parseInt(String(hex).replace("#", ""), 16);
@@ -48,44 +62,43 @@ export function hexToHueRotate(hex) {
 const useThemeStore = create(
   persist(
     (set, get) => ({
-      theme: "ember",
-      accent: "orange",
-      customColor: "#E56A4A",
+      theme: DEFAULT_THEME,
+      accent: DEFAULT_ACCENT,
+      customColor: DEFAULT_CUSTOM_COLOR,
 
       setTheme: (theme) => {
-        const id = THEME_IDS.includes(theme) ? theme : "ember";
+        const id = normalizeTheme(theme);
         set({ theme: id });
-        applyTheme(id, get().accent || "orange", get().customColor || "#E56A4A");
-        syncThemeToServer(id, get().accent || "orange", get().customColor || "#E56A4A");
+        applyTheme(id, get().accent, get().customColor);
+        syncThemeToServer(id, get().accent, get().customColor);
       },
 
       setAccent: (accent) => {
-        const isPreset = ACCENT_PALETTES.some((p) => p.id === accent);
-        const valid = isPreset || accent === "custom" ? accent : "orange";
+        const valid = normalizeAccent(accent);
         set({ accent: valid });
-        applyTheme(get().theme || "ember", valid, get().customColor || "#E56A4A");
-        syncThemeToServer(get().theme || "ember", valid, get().customColor || "#E56A4A");
+        applyTheme(get().theme, valid, get().customColor);
+        syncThemeToServer(get().theme, valid, get().customColor);
       },
 
       setCustomColor: (color) => {
         if (!color || typeof color !== "string") return;
         const normalized = color.startsWith("#") ? color : `#${color}`;
         set({ accent: "custom", customColor: normalized });
-        applyTheme(get().theme || "ember", "custom", normalized);
-        syncThemeToServer(get().theme || "ember", "custom", normalized);
+        applyTheme(get().theme, "custom", normalized);
+        syncThemeToServer(get().theme, "custom", normalized);
       },
 
       toggleTheme: () => {
-        const current = get().theme;
-        const next = current === "light" ? "ember" : current === "ember" ? "dark" : "light";
+        const next = get().theme === "light" ? "dark" : "light";
         set({ theme: next });
-        applyTheme(next, get().accent || "orange", get().customColor || "#E56A4A");
-        syncThemeToServer(next, get().accent || "orange", get().customColor || "#E56A4A");
+        applyTheme(next, get().accent, get().customColor);
+        syncThemeToServer(next, get().accent, get().customColor);
       },
 
       initTheme: async () => {
-        // Apply current client store immediately
-        applyTheme(get().theme || "ember", get().accent || "orange", get().customColor || "#E56A4A");
+        // Apply current client store immediately; normalizing migrates legacy persisted values.
+        set({ theme: normalizeTheme(get().theme), accent: normalizeAccent(get().accent) });
+        applyTheme(get().theme, get().accent, get().customColor);
 
         // Sync with global theme from server so public portals and new devices inherit instance theme
         try {
@@ -96,11 +109,11 @@ const useThemeStore = create(
               const hasClientLocal = typeof window !== "undefined" && localStorage.getItem(THEME_CONFIG.storageKey);
               if (!hasClientLocal || data.accent === "custom" || data.theme) {
                 set({
-                  theme: data.theme || get().theme,
-                  accent: data.accent || get().accent,
+                  theme: normalizeTheme(data.theme || get().theme),
+                  accent: normalizeAccent(data.accent || get().accent),
                   customColor: data.customColor || get().customColor,
                 });
-                applyTheme(data.theme || get().theme, data.accent || get().accent, data.customColor || get().customColor);
+                applyTheme(get().theme, get().accent, get().customColor);
               }
             }
           }
@@ -123,44 +136,43 @@ function syncThemeToServer(theme, accent, customColor) {
   }).catch(() => {});
 }
 
+// Pairs of [primary, hover] custom properties written inline by non-default accents.
+const ACCENT_PROPS = ["--color-brand-500", "--color-brand-600", "--color-primary", "--color-primary-hover", "--brand-500", "--brand-600"];
+const setAccentProps = (root, primary, hover) => {
+  ACCENT_PROPS.forEach((prop, i) => root.style.setProperty(prop, i % 2 ? hover : primary));
+  // Preset/custom accents were designed for white text on their fill.
+  root.style.setProperty("--color-on-primary", "#ffffff");
+};
+
 // Apply theme & accent palette to document
-function applyTheme(theme, accent = "orange", customColor = "#E56A4A") {
+function applyTheme(theme, accent = DEFAULT_ACCENT, customColor = DEFAULT_CUSTOM_COLOR) {
   if (typeof window === "undefined") return;
 
   const root = document.documentElement;
-  
-  if (theme === "light") {
-    root.classList.remove("dark");
-    root.classList.remove("ember");
-  } else {
-    root.classList.add("dark");
-    root.classList.toggle("ember", theme === "ember");
-  }
+  const mode = normalizeTheme(theme);
+  root.classList.toggle("dark", mode === "dark");
 
+  let primary;
   if (accent === "custom" && customColor) {
-    const hover = darkenColor(customColor, 15);
-    root.style.setProperty("--color-brand-500", customColor);
-    root.style.setProperty("--color-brand-600", hover);
-    root.style.setProperty("--color-primary", customColor);
-    root.style.setProperty("--color-primary-hover", hover);
-    root.style.setProperty("--brand-500", customColor);
-    root.style.setProperty("--brand-600", hover);
+    primary = customColor;
+    setAccentProps(root, customColor, darkenColor(customColor, 15));
     root.style.setProperty("--logo-filter", hexToHueRotate(customColor));
-    const metaThemeColor = document.querySelector('meta[name="theme-color"]');
-    if (metaThemeColor) metaThemeColor.setAttribute("content", customColor);
-    return;
+  } else {
+    const palette = ACCENT_PALETTES.find((p) => p.id === accent) || ACCENT_PALETTES[0];
+    if (palette.primary) {
+      primary = palette.primary;
+      setAccentProps(root, palette.primary, palette.hover);
+      root.style.setProperty("--logo-filter", palette.filter || "none");
+    } else {
+      // Theme-native palette: drop inline overrides so :root / .dark tokens apply.
+      primary = OMEGAMON_PRIMARY[mode];
+      [...ACCENT_PROPS, "--color-on-primary"].forEach((prop) => root.style.removeProperty(prop));
+      root.style.setProperty("--logo-filter", hexToHueRotate(primary));
+    }
   }
 
-  const palette = ACCENT_PALETTES.find((p) => p.id === accent) || ACCENT_PALETTES[0];
-  root.style.setProperty("--color-brand-500", palette.primary);
-  root.style.setProperty("--color-brand-600", palette.hover);
-  root.style.setProperty("--color-primary", palette.primary);
-  root.style.setProperty("--color-primary-hover", palette.hover);
-  root.style.setProperty("--brand-500", palette.primary);
-  root.style.setProperty("--brand-600", palette.hover);
-  root.style.setProperty("--logo-filter", palette.filter || "none");
   const metaThemeColor = document.querySelector('meta[name="theme-color"]');
-  if (metaThemeColor) metaThemeColor.setAttribute("content", palette.primary);
+  if (metaThemeColor) metaThemeColor.setAttribute("content", primary);
 }
 
 export default useThemeStore;

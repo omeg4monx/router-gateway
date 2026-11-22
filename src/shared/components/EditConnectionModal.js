@@ -462,7 +462,7 @@ export default function EditConnectionModal({ isOpen, connection, proxyPools, on
         />
 
         {isAzure && (
-          <div className="bg-sidebar/50 p-4 rounded-lg border border-accent/20">
+          <div className="bg-sidebar/50 p-4 rounded-lg border border-primary/20">
             <h3 className="font-semibold mb-3 text-sm">Azure OpenAI Configuration</h3>
             <div className="flex flex-col gap-3">
               <Input

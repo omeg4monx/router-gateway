@@ -40,7 +40,7 @@ function RailRow({ href, icon, label, active, open, onClick, badge = null }) {
       )}
       {open && badge}
       {active && (
-        <span className="absolute left-0 top-1/2 h-4 w-[2.5px] -translate-y-1/2 rounded-r bg-primary shadow-[0_0_8px_rgba(var(--color-primary-rgb,229,106,74),0.6)]" aria-hidden="true" />
+        <span className="absolute left-0 top-1/2 h-4 w-[2.5px] -translate-y-1/2 rounded-r bg-primary shadow-[0_0_8px_color-mix(in_srgb,var(--color-primary)_60%,transparent)]" aria-hidden="true" />
       )}
     </>
   );
@@ -110,7 +110,7 @@ function GroupRow({ icon, label, active, open, expanded, onClick }) {
         </>
       )}
       {active && (
-        <span className="absolute left-0 top-1/2 h-4 w-[2.5px] -translate-y-1/2 rounded-r bg-primary shadow-[0_0_8px_rgba(var(--color-primary-rgb,229,106,74),0.6)]" aria-hidden="true" />
+        <span className="absolute left-0 top-1/2 h-4 w-[2.5px] -translate-y-1/2 rounded-r bg-primary shadow-[0_0_8px_color-mix(in_srgb,var(--color-primary)_60%,transparent)]" aria-hidden="true" />
       )}
     </button>
   );

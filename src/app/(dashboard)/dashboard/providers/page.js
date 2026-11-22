@@ -959,7 +959,7 @@ function ProviderCard({
           className={cn(
             "absolute top-0 inset-x-0 h-[2px] transition-colors",
             connected > 0
-              ? "bg-primary shadow-[0_0_8px_rgba(var(--color-primary-rgb,229,106,74),0.6)]"
+              ? "bg-primary shadow-[0_0_8px_color-mix(in_srgb,var(--color-primary)_60%,transparent)]"
               : "bg-transparent group-hover:bg-border"
           )}
           aria-hidden="true"

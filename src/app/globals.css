@@ -29,47 +29,71 @@
 }
 
 /* ============================================================
-   OMEG4MON ROUTER palette — adopted from 9remote_private/web
-   Brand orange (dark) / soft coral (light), neutral warm bases
+   OMEG4MON ROUTER palette
+   Light = Omegamon X-Antibody: pearl-white armor, Garuru Cannon blue,
+           All Delete cyan, Grey Sword gold, red/black armor trim.
+   Dark  = Omegamon Zwart: obsidian armor, gunmetal plates, silver
+           trim, dark electric cyan energy, burning red eyes/core.
+   Contrast notes: white on --color-primary >= 4.5:1 (light) / 3.7:1
+   (dark, large/bold button text); text tokens >= 4.5:1 on bg/surface.
    ============================================================ */
 :root {
-  /* Brand scale (light) - centered on #E56A4A */
-  --color-brand-50: #fdf1ed;
-  --color-brand-100: #fadccf;
-  --color-brand-200: #f4b59c;
-  --color-brand-300: #ee8d6a;
-  --color-brand-400: #ea7855;
-  --color-brand-500: #E56A4A;
-  --color-brand-600: #c04a2c;
-  --color-brand-700: #a64027;
-  --color-brand-800: #7a2f1d;
-  --color-brand-900: #4d1e12;
+  /* Brand scale (light) - Garuru Cannon blue, centered on #0A6FC2 */
+  --color-brand-50: #eaf4fc;
+  --color-brand-100: #cfe5f7;
+  --color-brand-200: #9fcbef;
+  --color-brand-300: #67aae3;
+  --color-brand-400: #2f8ad6;
+  --color-brand-500: #0A6FC2;
+  --color-brand-600: #085a9e;
+  --color-brand-700: #07497f;
+  --color-brand-800: #06375f;
+  --color-brand-900: #04243f;
 
-  /* Primary (legacy alias for backward compat with existing components) */
+  /* Primary — Garuru Cannon blue */
   --color-primary: var(--color-brand-500);
   --color-primary-hover: var(--color-brand-600);
 
-  /* Surfaces & backgrounds (light) */
-  --color-bg: #FDFAF6;
-  --color-bg-alt: #F7F3EE;
+  /* Text/icon color on a solid primary fill (white on Garuru blue: 5.2:1) */
+  --color-on-primary: #ffffff;
+
+  /* Secondary — Grey Sword gold (fill carries dark text) */
+  --color-secondary: #E8A317;
+  --color-secondary-hover: #cc8a0a;
+  --color-secondary-bg: #fdf4e0;
+  --color-secondary-fg: #8a5200;
+  --color-secondary-border: #f0d49a;
+
+  /* Accent — red armor trim */
+  --color-accent: #C8102E;
+  --color-accent-hover: #a50d26;
+  --color-accent-bg: #fce8eb;
+  --color-accent-fg: #a50d26;
+  --color-accent-border: #f3b8c2;
+
+  /* Highlight — All Delete cyan (glows, focus halos, decorative only) */
+  --color-highlight: #00B8E6;
+
+  /* Surfaces & backgrounds (light) — pearl white armor */
+  --color-bg: #F5F6F8;
+  --color-bg-alt: #ECEEF2;
   --color-surface: #ffffff;
-  --color-surface-2: #f4f4f5;
-  --color-surface-3: #e7e7e9;
-  --color-sidebar: rgba(244, 241, 236, 0.85);
+  --color-surface-2: #eef1f5;
+  --color-surface-3: #e2e6ec;
+  --color-sidebar: rgba(236, 239, 243, 0.88);
 
-  /* Borders */
-  --color-border: #e5e7eb;
-  --color-border-subtle: #f1f1f3;
+  /* Borders — cool pearl seams */
+  --color-border: #d9dee6;
+  --color-border-subtle: #e8ebf0;
 
-  /* Text */
-  --color-text: #0a0a0a;
-  --color-text-main: #0a0a0a;
-  --color-text-muted: #6B7280;
-  --color-text-subtle: #757575;
+  /* Text — black armor plates */
+  --color-text: #0B0D12;
+  --color-text-main: #0B0D12;
+  --color-text-muted: #4a5260;
+  --color-text-subtle: #5f6775;
 
-  /* Status — tuned warm-neutral so status chips never fight the ember accent.
-     Each status ships as a triplet (solid / soft bg / readable fg / border) so
-     components stop hand-rolling opacity combos like bg-red-500/10. */
+  /* Status — each ships as a triplet (solid / soft bg / readable fg / border)
+     so components stop hand-rolling opacity combos like bg-red-500/10. */
   --color-danger: #c0342b;
   --color-danger-bg: #fdecea;
   --color-danger-fg: #a02a22;
@@ -85,10 +109,10 @@
   --color-warning-fg: #8a5500;
   --color-warning-border: #efd6ad;
 
-  --color-info: #1f6f9e;
-  --color-info-bg: #e8f2f8;
-  --color-info-fg: #175c85;
-  --color-info-border: #b6d5e6;
+  --color-info: #0e7490;
+  --color-info-bg: #e6f6fa;
+  --color-info-fg: #0b5e75;
+  --color-info-border: #b3e0ec;
 
   /* Solid fills that always carry white text (buttons) — same in both modes,
      so white-on-fill contrast is guaranteed regardless of theme. */
@@ -98,7 +122,7 @@
 
   /* Field = form control surface (inputs/selects/textareas) */
   --color-field: #ffffff;
-  --color-field-border: #e3ded7;
+  --color-field-border: #d3d9e2;
 
   /* Legacy alias names still referenced by upstream components. Kept as real
      tokens so `bg-bg-subtle`, `text-text-primary` etc. resolve instead of
@@ -112,56 +136,77 @@
   --color-border-hover: var(--color-brand-400);
   --color-text-primary: var(--color-text-main);
   --color-muted: var(--color-text-muted);
-  --color-info-solid: #1f6f9e;
+  --color-info-solid: #0e7490;
 
   /* Radius */
   --radius-brand: 10px;
   --radius-brand-lg: 14px;
 
   /* Shadows */
-  --shadow-soft: 0 1px 2px 0 rgba(0,0,0,0.04);
-  --shadow-warm: 0 1px 2px rgba(0,0,0,0.06), 0 0 0 1px rgba(229, 106, 74, 0.16);
-  --shadow-elevated: 0 12px 28px -4px rgba(60, 50, 45, 0.06);
+  --shadow-soft: 0 1px 2px 0 rgba(11, 13, 18, 0.05);
+  --shadow-warm: 0 1px 2px rgba(11, 13, 18, 0.06), 0 0 0 1px color-mix(in srgb, var(--color-primary) 18%, transparent);
+  --shadow-elevated: 0 12px 28px -4px rgba(30, 41, 59, 0.08);
   --shadow-elev:
-    inset 0 1px 0 0 rgba(255,255,255,0.8),
-    0 1px 2px rgba(15,23,42,0.04),
-    0 12px 36px -8px rgba(15,23,42,0.10);
-  --shadow-focus: 0 0 0 3px rgba(229,106,74,0.18);
+    inset 0 1px 0 0 rgba(255,255,255,0.85),
+    0 1px 2px rgba(15,23,42,0.05),
+    0 12px 36px -8px rgba(15,23,42,0.12);
+  --shadow-focus: 0 0 0 3px color-mix(in srgb, var(--color-primary) 22%, transparent);
 
   color-scheme: light;
 }
 
 .dark {
-  /* Brand scale (dark) - centered on #E56A4A, same as light for consistency */
-  --color-brand-50: #fdf1ed;
-  --color-brand-100: #fadccf;
-  --color-brand-200: #f4b59c;
-  --color-brand-300: #ee8d6a;
-  --color-brand-400: #ea7855;
-  --color-brand-500: #E56A4A;
-  --color-brand-600: #c04a2c;
-  --color-brand-700: #a64027;
-  --color-brand-800: #7a2f1d;
-  --color-brand-900: #4d1e12;
+  /* Brand scale (dark) - Zwart dark electric cyan, centered on #0891B2 */
+  --color-brand-50: #e6fafe;
+  --color-brand-100: #c2f1fa;
+  --color-brand-200: #8be3f3;
+  --color-brand-300: #4fd0ea;
+  --color-brand-400: #1bb5d6;
+  --color-brand-500: #0891B2;
+  --color-brand-600: #077590;
+  --color-brand-700: #065d73;
+  --color-brand-800: #054556;
+  --color-brand-900: #032d39;
 
-  --color-primary: #E56A4A;
-  --color-primary-hover: #b8442a;
+  --color-primary: var(--color-brand-500);
+  --color-primary-hover: var(--color-brand-600);
 
-  /* Surfaces (dark - near-black instrument panel) */
-  --color-bg: #050505;
-  --color-bg-alt: #0d0d0d;
-  --color-surface: #111111;
-  --color-surface-2: #1a1a1a;
-  --color-surface-3: #242424;
-  --color-sidebar: #0d0d0d;
+  /* Obsidian on electric cyan: 5.5:1 (white would be 3.7:1) */
+  --color-on-primary: #050608;
 
-  --color-border: #242424;
-  --color-border-subtle: #1a1a1a;
+  /* Secondary — silver trim (fill carries dark text) */
+  --color-secondary: #C0C6CF;
+  --color-secondary-hover: #d5dae1;
+  --color-secondary-bg: rgba(192, 198, 207, 0.12);
+  --color-secondary-fg: #d5dae1;
+  --color-secondary-border: rgba(192, 198, 207, 0.28);
 
-  --color-text: #ededed;
-  --color-text-main: #ededed;
-  --color-text-muted: #9ca3af;
-  --color-text-subtle: #808080;
+  /* Accent — burning red eyes / energy core */
+  --color-accent: #FF2D3A;
+  --color-accent-hover: #ff5a64;
+  --color-accent-bg: rgba(255, 45, 58, 0.14);
+  --color-accent-fg: #ff7a82;
+  --color-accent-border: rgba(255, 45, 58, 0.32);
+
+  /* Highlight — electric cyan glow */
+  --color-highlight: #22D3EE;
+
+  /* Surfaces (dark) — obsidian armor, gunmetal plates */
+  --color-bg: #050608;
+  --color-bg-alt: #0a0c10;
+  --color-surface: #101217;
+  --color-surface-2: #171a20;
+  --color-surface-3: #20242c;
+  --color-sidebar: #0a0c10;
+
+  --color-border: #262a33;
+  --color-border-subtle: #171a20;
+
+  /* Text — silver */
+  --color-text: #E6E9EE;
+  --color-text-main: #E6E9EE;
+  --color-text-muted: #a3aab6;
+  --color-text-subtle: #7e8592;
 
   --color-bg-base: var(--color-bg);
   --color-bg-secondary: var(--color-surface-2);
@@ -172,12 +217,12 @@
   --color-border-hover: var(--color-brand-400);
   --color-text-primary: var(--color-text-main);
   --color-muted: var(--color-text-muted);
-  --color-info-solid: #2b7fb0;
+  --color-info-solid: #0e7490;
 
-  --color-danger: #d9584d;
-  --color-danger-bg: rgba(217, 88, 77, 0.14);
-  --color-danger-fg: #f0948a;
-  --color-danger-border: rgba(217, 88, 77, 0.30);
+  --color-danger: #e5484d;
+  --color-danger-bg: rgba(229, 72, 77, 0.14);
+  --color-danger-fg: #f2959a;
+  --color-danger-border: rgba(229, 72, 77, 0.30);
 
   --color-success: #46a077;
   --color-success-bg: rgba(70, 160, 119, 0.14);
@@ -189,22 +234,22 @@
   --color-warning-fg: #e2b878;
   --color-warning-border: rgba(192, 138, 62, 0.30);
 
-  --color-info: #5b93bd;
-  --color-info-bg: rgba(91, 147, 189, 0.14);
-  --color-info-fg: #8fbde0;
-  --color-info-border: rgba(91, 147, 189, 0.30);
+  --color-info: #22a6c4;
+  --color-info-bg: rgba(34, 166, 196, 0.14);
+  --color-info-fg: #7fd6ea;
+  --color-info-border: rgba(34, 166, 196, 0.30);
 
-  --color-field: #0b0b0b;
-  --color-field-border: #262626;
+  --color-field: #0a0c10;
+  --color-field-border: #2a2f38;
 
-  --shadow-soft: 0 1px 2px 0 rgba(0,0,0,0.3);
-  --shadow-warm: 0 1px 2px rgba(0,0,0,0.4), 0 0 0 1px rgba(229, 106, 74, 0.22);
-  --shadow-elevated: 0 12px 28px -4px rgba(0, 0, 0, 0.45);
+  --shadow-soft: 0 1px 2px 0 rgba(0,0,0,0.35);
+  --shadow-warm: 0 1px 2px rgba(0,0,0,0.4), 0 0 0 1px color-mix(in srgb, var(--color-primary) 26%, transparent);
+  --shadow-elevated: 0 12px 28px -4px rgba(0, 0, 0, 0.5);
   --shadow-elev:
-    inset 0 1px 0 0 rgba(255,255,255,0.06),
-    0 1px 2px rgba(0,0,0,0.4),
-    0 16px 48px -8px rgba(0,0,0,0.55);
-  --shadow-focus: 0 0 0 3px rgba(229, 106, 74, 0.18);
+    inset 0 1px 0 0 rgba(192,198,207,0.06),
+    0 1px 2px rgba(0,0,0,0.45),
+    0 16px 48px -8px rgba(0,0,0,0.6);
+  --shadow-focus: 0 0 0 3px color-mix(in srgb, var(--color-primary) 30%, transparent);
 
   color-scheme: dark;
 }
@@ -255,7 +300,18 @@ select {
   --color-text-main: var(--color-text-main);
   --color-text-muted: var(--color-text-muted);
   --color-text-subtle: var(--color-text-subtle);
-  --color-accent: var(--color-brand-500);
+  --color-on-primary: var(--color-on-primary);
+  --color-secondary: var(--color-secondary);
+  --color-secondary-hover: var(--color-secondary-hover);
+  --color-secondary-bg: var(--color-secondary-bg);
+  --color-secondary-fg: var(--color-secondary-fg);
+  --color-secondary-border: var(--color-secondary-border);
+  --color-accent: var(--color-accent);
+  --color-accent-hover: var(--color-accent-hover);
+  --color-accent-bg: var(--color-accent-bg);
+  --color-accent-fg: var(--color-accent-fg);
+  --color-accent-border: var(--color-accent-border);
+  --color-highlight: var(--color-highlight);
   --color-danger: var(--color-danger);
   --color-danger-bg: var(--color-danger-bg);
   --color-danger-fg: var(--color-danger-fg);
@@ -289,18 +345,18 @@ select {
   --color-warning-solid: var(--color-warning-solid);
 
   /* Static fallbacks (explicit per-mode usage if needed) */
-  --color-bg-light: #FCFBF9;
-  --color-bg-dark: #1a1a1a;
+  --color-bg-light: #F5F6F8;
+  --color-bg-dark: #050608;
   --color-surface-light: #ffffff;
-  --color-surface-dark: #262626;
-  --color-sidebar-light: #F4F1EC;
-  --color-sidebar-dark: #1F1F1E;
-  --color-border-light: #e5e7eb;
-  --color-border-dark: #333333;
-  --color-text-main-light: #0a0a0a;
-  --color-text-main-dark: #ededed;
-  --color-text-muted-light: #6B7280;
-  --color-text-muted-dark: #9ca3af;
+  --color-surface-dark: #101217;
+  --color-sidebar-light: #ECEFF3;
+  --color-sidebar-dark: #0a0c10;
+  --color-border-light: #d9dee6;
+  --color-border-dark: #262a33;
+  --color-text-main-light: #0B0D12;
+  --color-text-main-dark: #E6E9EE;
+  --color-text-muted-light: #4a5260;
+  --color-text-muted-dark: #a3aab6;
 
   /* Radius */
   --radius-brand: var(--radius-brand);
@@ -329,12 +385,19 @@ body {
 
 /* Selection - brand-tinted */
 ::selection {
-  background-color: rgba(229, 106, 74, 0.25);
+  background-color: color-mix(in srgb, var(--color-primary) 22%, transparent);
   color: var(--color-primary);
 }
 .dark ::selection {
-  background-color: rgba(229, 106, 74, 0.3);
-  color: var(--color-brand-300);
+  background-color: color-mix(in srgb, var(--color-primary) 32%, transparent);
+  color: var(--color-brand-200);
+}
+
+/* Legacy solid primary fills hardcode `text-white`; route them through the
+   on-primary token so Zwart's bright cyan keeps readable (dark) text. Custom
+   accents set --color-on-primary back to white inline. */
+.dark :is(.bg-primary, .bg-brand-500).text-white {
+  color: var(--color-on-primary);
 }
 
 /* iOS keyboard accent */
@@ -360,19 +423,13 @@ input, textarea {
 /* Thin horizontal scrollbar - brand colored */
 .scroll-thin-x {
   scrollbar-width: thin;
-  scrollbar-color: rgba(229, 106, 74, 0.55) transparent;
-}
-.dark .scroll-thin-x {
-  scrollbar-color: rgba(229, 106, 74, 0.55) transparent;
+  scrollbar-color: color-mix(in srgb, var(--color-primary) 55%, transparent) transparent;
 }
 .scroll-thin-x::-webkit-scrollbar { height: 3px; }
 .scroll-thin-x::-webkit-scrollbar-track { background: transparent; }
 .scroll-thin-x::-webkit-scrollbar-thumb {
-  background: rgba(229, 106, 74, 0.55);
+  background: color-mix(in srgb, var(--color-primary) 55%, transparent);
   border-radius: 3px;
-}
-.dark .scroll-thin-x::-webkit-scrollbar-thumb {
-  background: rgba(229, 106, 74, 0.55);
 }
 
 /* Global thin mac-like scrollbars (overrides clunky Windows/Linux default) */
@@ -425,10 +482,10 @@ input, textarea {
 
 /* macOS Vibrancy */
 .bg-vibrancy {
-  background: #fbf7f4;
+  background: var(--color-bg);
 }
 .dark .bg-vibrancy {
-  background: #1b1613;
+  background: var(--color-bg-alt);
 }
 
 /* macOS Traffic Lights */
@@ -513,12 +570,12 @@ button:disabled,
 
 @keyframes border-glow {
   0%, 100% {
-    box-shadow: 0 0 5px rgba(229, 106, 74, 0.3), 0 0 10px rgba(229, 106, 74, 0.2);
-    border-color: rgba(229, 106, 74, 0.5);
+    box-shadow: 0 0 5px color-mix(in srgb, var(--color-primary) 30%, transparent), 0 0 10px color-mix(in srgb, var(--color-primary) 20%, transparent);
+    border-color: color-mix(in srgb, var(--color-primary) 50%, transparent);
   }
   50% {
-    box-shadow: 0 0 10px rgba(229, 106, 74, 0.5), 0 0 20px rgba(229, 106, 74, 0.3);
-    border-color: rgba(229, 106, 74, 0.8);
+    box-shadow: 0 0 10px color-mix(in srgb, var(--color-primary) 50%, transparent), 0 0 20px color-mix(in srgb, var(--color-primary) 30%, transparent);
+    border-color: color-mix(in srgb, var(--color-primary) 80%, transparent);
   }
 }
 .animate-border-glow { animation: border-glow 2s ease-in-out infinite; }
@@ -565,8 +622,8 @@ button:disabled,
   100% { transform: translateX(220%) skewX(-20deg); }
 }
 @keyframes ctaGlowPulse {
-  0%, 100% { box-shadow: 0 8px 24px -8px rgba(229, 106, 74, 0.45), 0 0 0 0 rgba(229, 106, 74, 0.5); }
-  50% { box-shadow: 0 12px 32px -8px rgba(229, 106, 74, 0.6), 0 0 0 8px rgba(229, 106, 74, 0); }
+  0%, 100% { box-shadow: 0 8px 24px -8px color-mix(in srgb, var(--color-primary) 45%, transparent), 0 0 0 0 color-mix(in srgb, var(--color-primary) 50%, transparent); }
+  50% { box-shadow: 0 12px 32px -8px color-mix(in srgb, var(--color-primary) 60%, transparent), 0 0 0 8px transparent; }
 }
 .btn-cta {
   position: relative;
@@ -592,13 +649,13 @@ button:disabled,
 .dot-grid-bg {
   background-color: var(--color-bg);
   background-image:
-    radial-gradient(circle at 15% 20%, rgba(229, 106, 74, 0.10) 0%, transparent 40%),
-    radial-gradient(circle at 85% 80%, rgba(229, 106, 74, 0.06) 0%, transparent 40%);
+    radial-gradient(circle at 15% 20%, color-mix(in srgb, var(--color-primary) 10%, transparent) 0%, transparent 40%),
+    radial-gradient(circle at 85% 80%, color-mix(in srgb, var(--color-secondary) 10%, transparent) 0%, transparent 40%);
 }
 .dark .dot-grid-bg {
   background-image:
-    radial-gradient(circle at 15% 20%, rgba(229, 106, 74, 0.18) 0%, transparent 40%),
-    radial-gradient(circle at 85% 80%, rgba(229, 106, 74, 0.10) 0%, transparent 40%);
+    radial-gradient(circle at 15% 20%, color-mix(in srgb, var(--color-primary) 18%, transparent) 0%, transparent 40%),
+    radial-gradient(circle at 85% 80%, color-mix(in srgb, var(--color-accent) 8%, transparent) 0%, transparent 40%);
 }
 
 /* Identity motif: the ember veil. A warm glow rising from the top edge, not a
@@ -772,44 +829,15 @@ button:disabled,
 }
 
 /* ============================================================
-   Ember theme — SOLID warm panels (no frosted/translucent surfaces)
-   Applied as `<html class="dark ember">` (default in OMEG4MON ROUTER).
-
-   Same explicit-colour approach as before: `@theme inline` bakes tokens into
-   utilities, so token overrides alone do not repaint `.bg-surface`.
+   Zwart body glow — dark electric cyan from the top edge, a faint
+   red core ember low-left. One veil per screen; solid panels on top.
    ============================================================ */
-.dark.ember,
-.dark.ember body {
-  background-color: #050505;
-}
-.dark.ember body {
+.dark body {
   background-image:
-    radial-gradient(46rem 30rem at 92% -4%, rgba(229, 106, 74, 0.10), transparent 62%),
-    radial-gradient(38rem 26rem at -6% 104%, rgba(229, 106, 74, 0.05), transparent 60%);
+    radial-gradient(46rem 30rem at 92% -4%, color-mix(in srgb, var(--color-primary) 10%, transparent), transparent 62%),
+    radial-gradient(38rem 26rem at -6% 104%, color-mix(in srgb, var(--color-accent) 5%, transparent), transparent 60%);
   background-attachment: fixed;
 }
-
-.dark.ember .bg-surface  { background-color: #0e0d0c !important; }
-.dark.ember .bg-surface-2 { background-color: #161412 !important; }
-.dark.ember .bg-surface-3 { background-color: #1f1b18 !important; }
-.dark.ember .bg-bg-alt   { background-color: #0a0908 !important; }
-.dark.ember .bg-bg       { background-color: #050505 !important; }
-
-/* Inputs: fully opaque field, near-black. */
-.dark.ember input,
-.dark.ember select,
-.dark.ember textarea {
-  background-color: #0b0b0b !important;
-  border-color: #262626 !important;
-}
-
-.dark.ember ::-webkit-scrollbar-thumb {
-  background: #26221f;
-}
-.dark.ember ::-webkit-scrollbar-thumb:hover {
-  background: #332d28;
-}
-
 
 /* ============================================================
    OMEG4MON ROUTER system layer — primitives shared by every screen.
@@ -881,7 +909,7 @@ button:disabled,
 }
 }
 
-/* Focus ring seragam oranye — keyboard nav kelihatan */
+/* Focus ring follows the active primary (Garuru blue / Zwart cyan) — keyboard nav stays visible */
 :focus-visible {
   outline: 2px solid var(--color-brand-500);
   outline-offset: 2px;
@@ -906,14 +934,6 @@ h1, h2, h3 {
 }
 [data-toast] {
   animation: toast-in 0.22s cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-/* Native select in Ember: solid field, warm border */
-.dark.ember select,
-.dark.ember input,
-.dark.ember textarea {
-  background-color: var(--color-field) !important;
-  border-color: var(--color-field-border) !important;
 }
 
 /* Modals and dialogs: solid surface matching OMEG4MON ROUTER design language */

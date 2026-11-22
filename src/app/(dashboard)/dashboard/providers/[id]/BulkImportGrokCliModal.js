@@ -236,7 +236,7 @@ export default function BulkImportGrokCliModal({ isOpen, onClose, onSuccess }) {
           className={`relative rounded border transition-colors ${
             isDragging
               ? "border-primary bg-primary/10 ring-2 ring-primary/30"
-              : "border-accent/30 bg-sidebar"
+              : "border-primary/30 bg-sidebar"
           }`}
         >
           <textarea
@@ -280,7 +280,7 @@ export default function BulkImportGrokCliModal({ isOpen, onClose, onSuccess }) {
               <span className="material-symbols-outlined text-[13px] align-[-2px] mr-1 text-danger" aria-hidden="true">cancel</span>{result.failed} {translate("failed")}
             </div>
             {failedItems.length > 0 && (
-              <ul className="rounded border border-accent/20 bg-sidebar/50 p-2 text-xs font-mono max-h-40 overflow-y-auto">
+              <ul className="rounded border border-primary/20 bg-sidebar/50 p-2 text-xs font-mono max-h-40 overflow-y-auto">
                 {failedItems.map((item) => (
                   <li key={item.index} className="text-danger">
                     [{item.index}] {item.error}

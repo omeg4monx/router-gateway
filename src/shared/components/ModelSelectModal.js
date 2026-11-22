@@ -910,7 +910,7 @@ export default function ModelSelectModal({
                       className={cn(
                         "group relative flex flex-col justify-between p-3 rounded-[6px] border text-left transition-all duration-150 cursor-pointer overflow-hidden",
                         isSelected
-                          ? "bg-surface-3 border-brand-500 text-text-main shadow-[0_0_0_1px_rgba(229,106,74,0.3)]"
+                          ? "bg-surface-3 border-brand-500 text-text-main shadow-[0_0_0_1px_color-mix(in_srgb,var(--color-primary)_30%,transparent)]"
                           : isAdded
                             ? "bg-surface-2 border-brand-500/60 text-text-main"
                             : "bg-surface border-border hover:border-brand-500/40 hover:bg-surface-2 text-text-main"
@@ -983,7 +983,7 @@ export default function ModelSelectModal({
                       className={cn(
                         "group relative flex flex-col justify-between p-3 rounded-[6px] border text-left transition-all duration-150 cursor-pointer overflow-hidden",
                         isSelected
-                          ? "bg-surface-3 border-brand-500 text-text-main shadow-[0_0_0_1px_rgba(229,106,74,0.3)]"
+                          ? "bg-surface-3 border-brand-500 text-text-main shadow-[0_0_0_1px_color-mix(in_srgb,var(--color-primary)_30%,transparent)]"
                           : isAdded
                             ? "bg-surface-2 border-brand-500/60 text-text-main"
                             : "bg-surface border-border hover:border-brand-500/40 hover:bg-surface-2 text-text-main"
@@ -1063,7 +1063,7 @@ export default function ModelSelectModal({
                           isPlaceholder
                             ? "border-dashed border-border text-text-muted hover:border-primary/50 hover:text-primary bg-surface italic"
                             : isSelected
-                              ? "bg-surface-3 border-brand-500 text-text-main shadow-[0_0_0_1px_rgba(229,106,74,0.3)]"
+                              ? "bg-surface-3 border-brand-500 text-text-main shadow-[0_0_0_1px_color-mix(in_srgb,var(--color-primary)_30%,transparent)]"
                               : isAdded
                                 ? "bg-surface-2 border-brand-500/60 text-text-main"
                                 : "bg-surface border-border hover:border-brand-500/40 hover:bg-surface-2 text-text-main"

@@ -6,11 +6,6 @@ const root = resolve(__dirname, "../..");
 const read = (p) => readFileSync(resolve(root, p), "utf8");
 
 describe("theme: the site-wide mode is a password-session setting", () => {
-  it("defaults the site to ember when the owner never picked one", () => {
-    const route = read("src/app/api/theme/route.js");
-    expect(route).toMatch(/theme:\s*"ember"/);
-  });
-
   it("GET /api/theme answers the theme record only and never leaks settings", () => {
     const route = read("src/app/api/theme/route.js");
     expect(route).toContain('getMeta("global_theme_settings"');

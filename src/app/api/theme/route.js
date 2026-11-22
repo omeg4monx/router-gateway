@@ -11,9 +11,9 @@ export async function GET() {
     if (!raw) {
       return NextResponse.json({
         ok: true,
-        theme: "ember",
-        accent: "orange",
-        customColor: "#E56A4A",
+        theme: "dark",
+        accent: "omegamon",
+        customColor: "#0A6FC2",
       });
     }
     const parsed = JSON.parse(raw);
@@ -21,9 +21,9 @@ export async function GET() {
   } catch (e) {
     return NextResponse.json({
       ok: false,
-      theme: "ember",
-      accent: "orange",
-      customColor: "#E56A4A",
+      theme: "dark",
+      accent: "omegamon",
+      customColor: "#0A6FC2",
     });
   }
 }
@@ -38,9 +38,9 @@ export async function POST(request) {
       return NextResponse.json({ ok: false, error: "Only the instance owner can change the site theme" }, { status: 403 });
     }
     const body = await request.json();
-    const theme = body.theme || "ember";
-    const accent = body.accent || "orange";
-    const customColor = body.customColor || "#E56A4A";
+    const theme = body.theme || "dark";
+    const accent = body.accent || "omegamon";
+    const customColor = body.customColor || "#0A6FC2";
 
     await setMeta("global_theme_settings", JSON.stringify({ theme, accent, customColor }));
     return NextResponse.json({ ok: true, theme, accent, customColor });
