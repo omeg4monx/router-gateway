@@ -7,11 +7,9 @@ import { useCopyToClipboard } from "@/shared/hooks/useCopyToClipboard";
 
 // Providers using the dynamic-port local callback proxy.
 // Browser OAuth: popup → auto callback → auto exchange → poll-status.
-// NOTE: xiaomi-mimo is deliberately NOT here. It authenticates through its own
-// account-session login (server-side cluster picker → passToken capture →
-// /api/oauth/xiaomi-mimo/login/*), surfaced by XiaomiMimoAuthModal. Adding it
-// here routed the flow through /register-session, which only implements
-// trae/windsurf/zed and rejected the request outright.
+// NOTE: xiaomi-mimo is deliberately NOT here: it connects through
+// XiaomiMimoAuthModal (local Desktop credential import). /register-session
+// only implements trae/windsurf/zed.
 const PROXY_OAUTH_PROVIDERS = new Set(["trae", "windsurf", "zed"]);
 
 // Providers offering a paste-token fallback (import-token flow).

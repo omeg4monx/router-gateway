@@ -192,7 +192,7 @@ export default function ProviderDetailPage() {
     providerId === "xai" ? "Grok Build OAuth"
     : providerId === "grok-cli" ? "Grok CLI Device Login"
     : providerId === "kimi" ? "Kimi Coding OAuth"
-    : providerId === "xiaomi-mimo" ? "MiMo Account Login"
+    : providerId === "xiaomi-mimo" ? "MiMo Desktop Import"
     : providerId === "adcode" ? "Connect ADCode Account"
     : "OAuth";
   const apiKeyConnectionLabel =
