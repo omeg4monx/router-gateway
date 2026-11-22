@@ -1,24 +1,27 @@
 "use client";
 
 /**
- * ModelAvailabilityBadge — compact inline status indicator
+ * ModelAvailabilityBadge — compact inline status indicator for Studio Header.
  *
- * Shows green when all models are operational, or amber/red when there are
- * issues, with a hover popover for details and cooldown clearing.
+ * Shows healthy state when all models are operational, or an amber issue pill
+ * when models are cooling down / unavailable, with a shell-popover for details
+ * and one-click cooldown clearing.
  */
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import PropTypes from "prop-types";
 import { Button } from "@/shared/components";
+import { cn } from "@/shared/utils/cn";
 import { useNotificationStore } from "@/store/notificationStore";
 
 const STATUS_CONFIG = {
-  available: { icon: "check_circle", color: "#22c55e", label: "Available" },
-  cooldown: { icon: "schedule", color: "#f59e0b", label: "Cooldown" },
-  unavailable: { icon: "error", color: "#ef4444", label: "Unavailable" },
-  unknown: { icon: "help", color: "#6b7280", label: "Unknown" },
+  available: { icon: "check_circle", color: "text-success", label: "Available" },
+  cooldown: { icon: "schedule", color: "text-warning", label: "Cooldown" },
+  unavailable: { icon: "error", color: "text-danger", label: "Unavailable" },
+  unknown: { icon: "help", color: "text-text-muted", label: "Unknown" },
 };
 
-export default function ModelAvailabilityBadge() {
+export default function ModelAvailabilityBadge({ onCooldownCleared }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState(false);
@@ -28,13 +31,13 @@ export default function ModelAvailabilityBadge() {
 
   const fetchStatus = useCallback(async () => {
     try {
-      const res = await fetch("/api/models/availability");
+      const res = await fetch("/api/models/availability", { cache: "no-store" });
       if (res.ok) {
         const json = await res.json();
         setData(json);
       }
     } catch {
-      // silent fail — will retry
+      // silent retry on next interval
     } finally {
       setLoading(false);
     }
@@ -42,17 +45,28 @@ export default function ModelAvailabilityBadge() {
 
   useEffect(() => {
     fetchStatus();
-    const interval = setInterval(fetchStatus, 30000);
+    const interval = setInterval(() => {
+      if (typeof document !== "undefined" && document.hidden) return;
+      fetchStatus();
+    }, 30000);
     return () => clearInterval(interval);
   }, [fetchStatus]);
 
-  // Close popover on outside click
+  // Close popover on outside click or Escape key
   useEffect(() => {
-    const handleClick = (e) => {
+    if (!expanded) return;
+    const handleMouseDown = (e) => {
       if (ref.current && !ref.current.contains(e.target)) setExpanded(false);
     };
-    if (expanded) document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") setExpanded(false);
+    };
+    document.addEventListener("mousedown", handleMouseDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handleMouseDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
   }, [expanded]);
 
   const handleClearCooldown = async (provider, model) => {
@@ -66,6 +80,9 @@ export default function ModelAvailabilityBadge() {
       if (res.ok) {
         notify.success(`Cooldown cleared for ${model}`);
         await fetchStatus();
+        if (onCooldownCleared) {
+          await onCooldownCleared();
+        }
       } else {
         notify.error("Failed to clear cooldown");
       }
@@ -79,10 +96,11 @@ export default function ModelAvailabilityBadge() {
   if (loading) return null;
 
   const models = data?.models || [];
-  const unavailableCount = data?.unavailableCount || models.filter((m) => m.status !== "available").length;
+  const unavailableCount =
+    data?.unavailableCount ??
+    models.filter((m) => m.status !== "available").length;
   const isHealthy = unavailableCount === 0;
 
-  // Group unhealthy models by provider
   const byProvider = {};
   models.forEach((m) => {
     if (m.status === "available") return;
@@ -93,78 +111,109 @@ export default function ModelAvailabilityBadge() {
 
   return (
     <div className="relative" ref={ref}>
-      {/* <button
-        onClick={() => setExpanded(!expanded)}
-        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${
+      <button
+        type="button"
+        onClick={() => setExpanded((v) => !v)}
+        aria-expanded={expanded}
+        aria-haspopup="dialog"
+        className={cn(
+          "inline-flex items-center gap-1.5 h-8 px-2.5 rounded-lg text-xs font-medium border transition-colors cursor-pointer whitespace-nowrap",
           isHealthy
-            ? "bg-success-bg border-success-border text-success hover:bg-success-bg"
-            : "bg-warning-bg border-warning-border text-warning hover:bg-warning-bg"
-        }`}
+            ? "bg-success-bg/70 border-success-border text-success hover:bg-success-bg"
+            : "bg-warning-bg/80 border-warning-border text-warning hover:bg-warning-bg",
+        )}
       >
-        <span className="material-symbols-outlined text-[14px]">
+        <span className="material-symbols-outlined text-[15px]">
           {isHealthy ? "verified" : "warning"}
         </span>
-        {isHealthy
-          ? "All models operational"
-          : `${unavailableCount} model${unavailableCount !== 1 ? "s" : ""} with issues`}
-      </button> */}
+        <span>
+          {isHealthy
+            ? "All models healthy"
+            : `${unavailableCount} model ${unavailableCount === 1 ? "issue" : "issues"}`}
+        </span>
+      </button>
 
       {expanded && (
-        <div className="absolute top-full right-0 mt-2 w-80 bg-surface border border-border rounded-[6px] shadow-[var(--shadow-elev)] z-50 overflow-hidden">
-          <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-bg">
+        <div
+          role="dialog"
+          aria-label="Model availability status"
+          className="absolute top-full right-0 mt-2 w-80 max-w-[calc(100vw-2rem)] rounded-xl border border-border shell-popover popover-in z-50 overflow-hidden"
+        >
+          <div className="flex items-center justify-between px-3.5 py-2.5 border-b border-border-subtle bg-surface-2/60">
             <div className="flex items-center gap-2">
               <span
-                className="material-symbols-outlined text-[16px]"
-                style={{ color: isHealthy ? "#22c55e" : "#f59e0b" }}
+                className={cn(
+                  "material-symbols-outlined text-[16px]",
+                  isHealthy ? "text-success" : "text-warning",
+                )}
               >
                 {isHealthy ? "verified" : "warning"}
               </span>
-              <span className="text-sm font-semibold text-text-main">Model Status</span>
+              <span className="text-xs font-semibold text-text-main">
+                Model Availability
+              </span>
             </div>
             <button
+              type="button"
               onClick={fetchStatus}
-              className="p-1 rounded-lg hover:bg-surface text-text-muted hover:text-text-main transition-colors"
-              title="Refresh"
+              className="p-1 rounded-lg hover:bg-surface text-text-muted hover:text-text-main transition-colors cursor-pointer"
+              title="Refresh model status"
+              aria-label="Refresh model status"
             >
-              <span className="material-symbols-outlined text-[14px]">refresh</span>
+              <span className="material-symbols-outlined text-[15px] block">
+                refresh
+              </span>
             </button>
           </div>
 
-          <div className="px-4 py-3 max-h-60 overflow-y-auto">
+          <div className="px-3.5 py-3 max-h-64 overflow-y-auto">
             {isHealthy ? (
-              <p className="text-sm text-text-muted text-center py-2">
-                All models are responding normally.
+              <p className="text-xs text-text-muted text-center py-2">
+                All models are responding normally with no active cooldowns.
               </p>
             ) : (
-              <div className="flex flex-col gap-2.5">
+              <div className="flex flex-col gap-3">
                 {Object.entries(byProvider).map(([provider, provModels]) => (
                   <div key={provider}>
-                    <p className="text-xs font-semibold text-text-main mb-1.5 capitalize">{provider}</p>
-                    <div className="flex flex-col gap-1">
+                    <p className="text-[11px] font-semibold uppercase tracking-wider text-text-muted mb-1.5">
+                      {provider}
+                    </p>
+                    <div className="flex flex-col gap-1.5">
                       {provModels.map((m) => {
-                        const status = STATUS_CONFIG[m.status] || STATUS_CONFIG.unknown;
-                        const isClearing = clearing === `${m.provider}:${m.model}`;
+                        const status =
+                          STATUS_CONFIG[m.status] || STATUS_CONFIG.unknown;
+                        const isClearing =
+                          clearing === `${m.provider}:${m.model}`;
                         return (
                           <div
-                            key={`${m.provider}-${m.model}`}
-                            className="flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-surface/30"
+                            key={`${m.provider}-${m.model}-${m.connectionId || ""}`}
+                            className="flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg border border-border-subtle bg-surface-2/60"
                           >
                             <div className="flex items-center gap-1.5 min-w-0">
                               <span
-                                className="material-symbols-outlined text-[14px] shrink-0"
-                                style={{ color: status.color }}
+                                className={cn(
+                                  "material-symbols-outlined text-[14px] shrink-0",
+                                  status.color,
+                                )}
                               >
                                 {status.icon}
                               </span>
-                              <span className="font-mono text-xs text-text-main truncate">{m.model}</span>
+                              <span
+                                className="font-mono text-xs text-text-main truncate"
+                                title={m.model}
+                              >
+                                {m.model}
+                              </span>
                             </div>
                             {m.status === "cooldown" && (
                               <Button
                                 size="sm"
                                 variant="ghost"
-                                onClick={() => handleClearCooldown(m.provider, m.model)}
+                                onClick={() =>
+                                  handleClearCooldown(m.provider, m.model)
+                                }
                                 disabled={isClearing}
-                                className="text-[10px] px-1.5! py-0.5! ml-2"
+                                className="text-[11px] h-6 px-2 shrink-0"
                               >
                                 {isClearing ? "..." : "Clear"}
                               </Button>
@@ -183,3 +232,7 @@ export default function ModelAvailabilityBadge() {
     </div>
   );
 }
+
+ModelAvailabilityBadge.propTypes = {
+  onCooldownCleared: PropTypes.func,
+};

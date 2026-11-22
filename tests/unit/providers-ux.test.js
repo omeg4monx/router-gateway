@@ -1,3 +1,5 @@
+import fs from "node:fs";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   STATUS_FILTER_OPTIONS,
@@ -356,5 +358,33 @@ describe("providers-ux Task 1: pure utilities", () => {
       },
     ]);
     expect(sorted.map((e) => e.id)).toEqual(["err", "ok", "idle"]);
+  });
+});
+
+const readSrc = (rel) =>
+  fs.readFileSync(path.join(process.cwd(), rel), "utf8");
+
+describe("providers-ux Task 2: AddCompatibleModal & ModelAvailabilityBadge", () => {
+  it("AddCompatibleModal uses sticky Modal footer, toasts on creation, and does not wipe baseUrl on apiType change", () => {
+    const src = readSrc(
+      "src/app/(dashboard)/dashboard/providers/components/AddCompatibleModal.js",
+    );
+    expect(src).toMatch(/<Modal[\s\S]*footer=/);
+    expect(src).toContain("useNotificationStore");
+    expect(src).not.toContain("config.hasApiType ? formData.apiType : isOpen");
+    expect(src).toMatch(/useEffect\([\s\S]*\[isOpen,\s*variant\]/);
+  });
+
+  it("ModelAvailabilityBadge renders an active trigger button, uses shell-popover, supports Escape, guards document.hidden, and invokes onCooldownCleared", () => {
+    const src = readSrc(
+      "src/app/(dashboard)/dashboard/providers/components/ModelAvailabilityBadge.js",
+    );
+    // Strip block comments to ensure trigger button is genuinely uncommented
+    const withoutBlockComments = src.replace(/\/\*[\s\S]*?\*\//g, "");
+    expect(withoutBlockComments).toMatch(/<button[\s\S]*setExpanded/);
+    expect(withoutBlockComments).toContain("shell-popover");
+    expect(withoutBlockComments).toContain("Escape");
+    expect(withoutBlockComments).toContain("document.hidden");
+    expect(withoutBlockComments).toContain("onCooldownCleared");
   });
 });
