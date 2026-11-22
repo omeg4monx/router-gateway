@@ -435,6 +435,17 @@ func TestSessionSignVerifyAndExpiry(t *testing.T) {
 		if _, err := signerB.Verify(token); !errors.Is(err, ErrInvalidSignature) {
 			t.Fatalf("Verify(wrong key) err = %v, want ErrInvalidSignature", err)
 		}
+
+		// Non-canonical trailing padding bits in base64url signature must be rejected.
+		last := parts[1][len(parts[1])-1]
+		alt := byte('B')
+		if last == 'B' {
+			alt = 'C'
+		}
+		nonCanonicalSig := parts[1][:len(parts[1])-1] + string(alt)
+		if _, err := signerA.Verify(parts[0] + "." + nonCanonicalSig); err == nil {
+			t.Fatal("Verify(non-canonical signature padding bits) succeeded, want error")
+		}
 	})
 
 	t.Run("negative TTL produces expired token error", func(t *testing.T) {

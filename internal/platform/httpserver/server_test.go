@@ -691,11 +691,17 @@ func TestServerStartAndGracefulShutdown(t *testing.T) {
 		t.Fatalf("server did not bind ephemeral port in time")
 	}
 
+	client := &http.Client{
+		Transport: &http.Transport{},
+	}
+	t.Cleanup(client.CloseIdleConnections)
+
 	// Verify /api/health serves live HTTP.
-	resp, err := http.Get("http://" + addr + "/api/health")
+	resp, err := client.Get("http://" + addr + "/api/health")
 	if err != nil {
 		t.Fatalf("GET /api/health: %v", err)
 	}
+	_, _ = io.Copy(io.Discard, resp.Body)
 	resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("GET /api/health: status = %d, want 200", resp.StatusCode)
@@ -705,7 +711,7 @@ func TestServerStartAndGracefulShutdown(t *testing.T) {
 	inflightRespCh := make(chan *http.Response, 1)
 	inflightErrCh := make(chan error, 1)
 	go func() {
-		r, err := http.Get("http://" + addr + "/api/inflight")
+		r, err := client.Get("http://" + addr + "/api/inflight")
 		if err != nil {
 			inflightErrCh <- err
 			return
@@ -730,6 +736,7 @@ func TestServerStartAndGracefulShutdown(t *testing.T) {
 	case err := <-inflightErrCh:
 		t.Fatalf("in-flight request failed during graceful shutdown: %v", err)
 	case r := <-inflightRespCh:
+		_, _ = io.Copy(io.Discard, r.Body)
 		r.Body.Close()
 		if r.StatusCode != http.StatusOK {
 			t.Fatalf("in-flight status = %d, want 200", r.StatusCode)

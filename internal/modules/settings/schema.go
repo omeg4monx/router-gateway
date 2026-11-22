@@ -252,22 +252,29 @@ func (d settingDefinition) validateRaw(raw json.RawMessage) (val any, canonicalJ
 				Message: fmt.Sprintf("setting %q must be a valid 64-bit integer", d.Key),
 			}
 		}
-		if d.Min != nil && n < *d.Min {
+		if (d.Min != nil && n < *d.Min) || (d.Max != nil && n > *d.Max) {
 			return nil, "", &ValidationError{
 				Code:    codeInvalidSettingValue,
-				Message: fmt.Sprintf("setting %q must be between %d and %d", d.Key, *d.Min, *d.Max),
-			}
-		}
-		if d.Max != nil && n > *d.Max {
-			return nil, "", &ValidationError{
-				Code:    codeInvalidSettingValue,
-				Message: fmt.Sprintf("setting %q must be between %d and %d", d.Key, *d.Min, *d.Max),
+				Message: d.integerRangeErrorMessage(),
 			}
 		}
 		return n, strconv.FormatInt(n, 10), nil
 
 	default:
 		return nil, "", fmt.Errorf("settings: unsupported type %q for %q", d.Type, d.Key)
+	}
+}
+
+func (d settingDefinition) integerRangeErrorMessage() string {
+	switch {
+	case d.Min != nil && d.Max != nil:
+		return fmt.Sprintf("setting %q must be between %d and %d", d.Key, *d.Min, *d.Max)
+	case d.Min != nil:
+		return fmt.Sprintf("setting %q must be at least %d", d.Key, *d.Min)
+	case d.Max != nil:
+		return fmt.Sprintf("setting %q must be at most %d", d.Key, *d.Max)
+	default:
+		return fmt.Sprintf("setting %q is out of range", d.Key)
 	}
 }
 

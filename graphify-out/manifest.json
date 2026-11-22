@@ -30,10 +30,10 @@
     "semantic_hash": "4fbcd8f21198e01e0ed6d64a540da11d"
   },
   "internal/platform/crypto/crypto_test.go": {
-    "mtime": 1795371333.0197804,
-    "seen": 1795371440.1263282,
-    "ast_hash": "b6a3a3790d5a77a3a18b48d0c87173a7",
-    "semantic_hash": "b6a3a3790d5a77a3a18b48d0c87173a7"
+    "mtime": 1795380620.2127042,
+    "seen": 1795380760.9415576,
+    "ast_hash": "9dd9816c25de6d98c1a83c3192da7a90",
+    "semantic_hash": ""
   },
   "internal/platform/crypto/password.go": {
     "mtime": 1795371333.0201561,
@@ -42,10 +42,10 @@
     "semantic_hash": "f45aefb70e7ba13774b44f3aa5f055cf"
   },
   "internal/platform/crypto/session.go": {
-    "mtime": 1795371333.0202641,
-    "seen": 1795371440.1263309,
-    "ast_hash": "e7a6504c17a5c2e5c00a2da6a2e7e1cc",
-    "semantic_hash": "e7a6504c17a5c2e5c00a2da6a2e7e1cc"
+    "mtime": 1795380088.9090214,
+    "seen": 1795380760.9415798,
+    "ast_hash": "91c7e654f4954438f48f8c71b2b0a87e",
+    "semantic_hash": ""
   },
   "internal/platform/crypto/vault.go": {
     "mtime": 1795371333.0202641,
@@ -108,10 +108,10 @@
     "semantic_hash": ""
   },
   "internal/platform/httpserver/server_test.go": {
-    "mtime": 1795371333.0223222,
-    "seen": 1795371440.1263537,
-    "ast_hash": "cc7019fa5b1fb246f8e1f673b9ef45b5",
-    "semantic_hash": "cc7019fa5b1fb246f8e1f673b9ef45b5"
+    "mtime": 1795380727.4382546,
+    "seen": 1795380760.9417892,
+    "ast_hash": "57ee433dd8959d4e93df22839631cb7e",
+    "semantic_hash": ""
   },
   "internal/platform/httpserver/static_ui.go": {
     "mtime": 1795371333.0223222,
@@ -354,8 +354,8 @@
     "semantic_hash": "bb80d375646eeb2d8c259c26500224b0"
   },
   "web/src/shared/api/schema.d.ts": {
-    "mtime": 1795379071.8048284,
-    "seen": 1795379117.9548407,
+    "mtime": 1795380753.6546338,
+    "seen": 1795380760.9426205,
     "ast_hash": "cf71bb48088bc3b5eeb525a3f122d4d5",
     "semantic_hash": ""
   },
@@ -534,9 +534,9 @@
     "semantic_hash": ""
   },
   "internal/modules/settings/schema.go": {
-    "mtime": 1795376889.0102155,
-    "seen": 1795376955.403691,
-    "ast_hash": "4440a3dfb471344ed7d7a45d02dfcdbb",
+    "mtime": 1795379988.054563,
+    "seen": 1795380760.9414465,
+    "ast_hash": "985220f54064cc42b35ea71f80cbb405",
     "semantic_hash": ""
   },
   "contracts/openapi/modules/keys.yaml": {
@@ -558,9 +558,9 @@
     "semantic_hash": ""
   },
   "internal/modules/keys/module_test.go": {
-    "mtime": 1795377731.9451623,
-    "seen": 1795377744.7549522,
-    "ast_hash": "fb053ac9b6f6c1465c324baf513d7451",
+    "mtime": 1795379983.407496,
+    "seen": 1795380760.94133,
+    "ast_hash": "4565ee0b78e5086ce32086fad1adb55f",
     "semantic_hash": ""
   },
   "internal/modules/keys/repo.go": {
@@ -618,9 +618,9 @@
     "semantic_hash": ""
   },
   "web/src/features/keys/KeysConsole.tsx": {
-    "mtime": 1795379435.4873033,
-    "seen": 1795379455.829383,
-    "ast_hash": "3188ff184a1b526b345441efecd90fe7",
+    "mtime": 1795379992.0786211,
+    "seen": 1795380760.9423254,
+    "ast_hash": "b828dacee73ba8a57ddbca087ae27707",
     "semantic_hash": ""
   },
   "web/src/features/keys/hooks.ts": {
@@ -654,15 +654,21 @@
     "semantic_hash": ""
   },
   "web/src/features/settings/schemas.test.ts": {
-    "mtime": 1795378835.5893073,
-    "seen": 1795379117.9546652,
-    "ast_hash": "f31f41ddb54cf28020db390fc8de63f3",
+    "mtime": 1795379966.4972513,
+    "seen": 1795380760.9424415,
+    "ast_hash": "75a5ade80f0b71ee8b18bc311323eb31",
     "semantic_hash": ""
   },
   "web/src/features/settings/schemas.ts": {
-    "mtime": 1795378886.064032,
-    "seen": 1795379117.9546673,
-    "ast_hash": "d85d65b32498b6543ab9d69ced192c37",
+    "mtime": 1795379992.067621,
+    "seen": 1795380760.942443,
+    "ast_hash": "f3b7041bbbffef1f1a7cc138a5c752f4",
+    "semantic_hash": ""
+  },
+  "internal/modules/settings/schema_test.go": {
+    "mtime": 1795379967.78927,
+    "seen": 1795380760.9414485,
+    "ast_hash": "58a2f4c6272d5f06f7e2951afd1137e1",
     "semantic_hash": ""
   }
 }

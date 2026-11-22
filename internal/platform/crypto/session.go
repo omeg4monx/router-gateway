@@ -89,7 +89,7 @@ func (s *SessionSigner) Verify(token string) (Claims, error) {
 		return Claims{}, ErrInvalidToken
 	}
 
-	sig, err := base64.RawURLEncoding.DecodeString(sigEncoded)
+	sig, err := base64.RawURLEncoding.Strict().DecodeString(sigEncoded)
 	if err != nil || len(sig) != sha256.Size {
 		return Claims{}, ErrInvalidToken
 	}
@@ -99,7 +99,7 @@ func (s *SessionSigner) Verify(token string) (Claims, error) {
 		return Claims{}, ErrInvalidSignature
 	}
 
-	payloadJSON, err := base64.RawURLEncoding.DecodeString(payloadEncoded)
+	payloadJSON, err := base64.RawURLEncoding.Strict().DecodeString(payloadEncoded)
 	if err != nil {
 		return Claims{}, ErrInvalidToken
 	}

@@ -616,7 +616,7 @@ func TestKeysExpirationAndValidationErrors(t *testing.T) {
 	}
 
 	// A cached key whose expires_at passes in wall-clock time must also fail with ErrKeyExpired.
-	soonExpiry := time.Now().UTC().Add(40 * time.Millisecond).Format(time.RFC3339Nano)
+	soonExpiry := time.Now().UTC().Add(250 * time.Millisecond).Format(time.RFC3339Nano)
 	soonRec := h.doJSON(t, http.MethodPost, "/api/keys", `{
 		"name": "short-lived-key",
 		"expires_at": "`+soonExpiry+`"
@@ -631,7 +631,7 @@ func TestKeysExpirationAndValidationErrors(t *testing.T) {
 	if _, err := h.mod.ValidateKey(ctx, soonKey.Secret); err != nil {
 		t.Fatalf("ValidateKey before short expiry: %v", err)
 	}
-	time.Sleep(60 * time.Millisecond)
+	time.Sleep(300 * time.Millisecond)
 	if _, err := h.mod.ValidateKey(ctx, soonKey.Secret); !errors.Is(err, keys.ErrKeyExpired) {
 		t.Fatalf("ValidateKey after cached wall-clock expiry err = %v, want ErrKeyExpired", err)
 	}

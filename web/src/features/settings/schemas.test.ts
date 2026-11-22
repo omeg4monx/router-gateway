@@ -92,6 +92,26 @@ describe("settingsFormSchema", () => {
     ).toBe(false);
   });
 
+  test("enforces reason max length of 512 runes", () => {
+    // 512 surrogate-pair runes = 1024 UTF-16 code units, valid under 512-rune limit
+    const maxRunes = "🚀".repeat(512);
+    expect(
+      settingsFormSchema.safeParse({
+        ...DEFAULT_SETTINGS_FORM_VALUES,
+        reason: maxRunes,
+      }).success,
+    ).toBe(true);
+
+    // 513 runes exceeds limit
+    const overRunes = "🚀".repeat(513);
+    expect(
+      settingsFormSchema.safeParse({
+        ...DEFAULT_SETTINGS_FORM_VALUES,
+        reason: overRunes,
+      }).success,
+    ).toBe(false);
+  });
+
   test("hydrates form values from API settings items and builds minimal patch payload", () => {
     const apiItems = [
       {

@@ -36,7 +36,9 @@ export const settingsFormSchema = z.object({
     .min(5, "Default timeout must be between 5 and 600 seconds.")
     .max(600, "Default timeout must be between 5 and 600 seconds."),
   allow_response_chain_fallback: z.boolean(),
-  reason: z.string().max(256, "Change reason must not exceed 256 characters."),
+  reason: z
+    .string()
+    .refine((v) => Array.from(v).length <= 512, "Change reason must not exceed 512 characters."),
 });
 
 export type SettingsFormValues = z.infer<typeof settingsFormSchema>;
