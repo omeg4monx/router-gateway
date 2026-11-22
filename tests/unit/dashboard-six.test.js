@@ -27,7 +27,6 @@ const FILES = {
   endpointPage: "src/app/(dashboard)/dashboard/endpoint/EndpointPageClient.js",
   requestDetailsTab: "src/app/(dashboard)/dashboard/usage/components/RequestDetailsTab.js",
   guard: "src/dashboardGuard.js",
-  sidebar: "src/shared/components/Sidebar.js",
 };
 
 describe("request detail payload", () => {

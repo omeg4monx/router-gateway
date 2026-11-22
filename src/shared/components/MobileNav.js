@@ -1,21 +1,21 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import PropTypes from "prop-types";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/shared/utils/cn";
 import { APP_CONFIG } from "@/shared/constants/config";
 import { useNavigation } from "@/shared/hooks/useNavigation";
-import { MEDIA_ITEMS } from "@/shared/constants/navigation";
+import { MEDIA_ITEMS, COMBINED_WEB_ITEM, CORE_ROUTING_HREFS } from "@/shared/constants/navigation";
 import HeaderMenu from "@/shared/components/HeaderMenu";
 import ThemeModal from "@/shared/components/ThemeModal";
 import NotificationBell from "@/shared/components/NotificationBell";
 import LogoMark from "@/shared/components/LogoMark";
 
-/* Mobile navigation: a floating launcher in the bottom-left corner opens a
-   full-height sheet. Nothing is docked to the top edge — the rail's mobile
-   counterpart is an overlay, not a bar. */
+/* Mobile navigation: a top bar with a MENU button that opens a full-height
+   sheet from the right. The sheet is a modal dialog: focus moves into it, Tab
+   stays inside, and closing returns focus to the MENU button. */
 
 function Section({ label, children }) {
   return (
@@ -65,9 +65,22 @@ Row.propTypes = {
 export default function MobileNav() {
   const [open, setOpen] = useState(false);
   const [themeModalOpen, setThemeModalOpen] = useState(false);
+  const panelRef = useRef(null);
+  const menuButtonRef = useRef(null);
   const pathname = usePathname();
-  const { navItems, workshopItems, debugItems, systemItems, canOpenMedia, hasMediaNew, isApiKeyUser, isActive } =
-    useNavigation();
+  const {
+    navItems,
+    workshopItems,
+    debugItems,
+    systemItems,
+    canOpenMedia,
+    showSystemGroup,
+    hasMediaNew,
+    isApiKeyUser,
+    isActive,
+  } = useNavigation();
+  const coreRouting = navItems.filter((i) => CORE_ROUTING_HREFS.includes(i.href));
+  const operations = navItems.filter((i) => !CORE_ROUTING_HREFS.includes(i.href));
 
   useEffect(() => {
     setOpen(false);
@@ -75,9 +88,31 @@ export default function MobileNav() {
 
   useEffect(() => {
     if (!open) return;
-    const onEsc = (e) => e.key === "Escape" && setOpen(false);
-    document.addEventListener("keydown", onEsc);
-    return () => document.removeEventListener("keydown", onEsc);
+    const panel = panelRef.current;
+    const opener = menuButtonRef.current;
+    panel?.querySelector("a[href], button")?.focus();
+    const onKeyDown = (e) => {
+      if (e.key === "Escape") {
+        setOpen(false);
+        return;
+      }
+      if (e.key !== "Tab" || !panel) return;
+      const focusable = panel.querySelectorAll("a[href], button:not([disabled])");
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      opener?.focus();
+    };
   }, [open]);
 
   const handleLogout = async () => {
@@ -113,8 +148,11 @@ export default function MobileNav() {
         <div className="flex items-center gap-2">
           <NotificationBell />
           <button
+            ref={menuButtonRef}
             type="button"
             onClick={() => setOpen(true)}
+            aria-haspopup="dialog"
+            aria-expanded={open}
             aria-label="Open navigation menu"
             className="flex h-8 items-center gap-1.5 rounded-[5px] border border-brand-500/40 bg-surface-2 px-3 text-text-main hover:border-brand-500 hover:bg-surface-3 transition-colors cursor-pointer shadow-xs active:scale-95"
           >
@@ -132,7 +170,13 @@ export default function MobileNav() {
             onClick={() => setOpen(false)}
             className="absolute inset-0 bg-black/70"
           />
-          <div className="slide-in-right absolute right-0 top-0 flex h-full w-[min(86vw,330px)] flex-col border-l border-border bg-surface">
+          <div
+            ref={panelRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Navigation menu"
+            className="slide-in-right absolute right-0 top-0 flex h-full w-[min(86vw,330px)] flex-col border-l border-border bg-surface"
+          >
             <div className="flex h-14 shrink-0 items-center gap-2.5 border-b border-border-subtle px-3">
               <span className="relative flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-[8px] border border-primary/40 bg-surface-2 p-1 shadow-xs">
                 <LogoMark className="size-full" />
@@ -155,16 +199,19 @@ export default function MobileNav() {
               </button>
             </div>
 
-            <div className="min-h-0 flex-1 overflow-y-auto px-1.5 py-2 custom-scrollbar">
-              <Section>
-                {navItems.map((item) => (
-                  <Row
-                    key={item.href}
-                    href={item.href}
-                    icon={item.icon}
-                    label={item.label}
-                    active={isActive(item.href)}
-                  />
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-1.5 py-2 custom-scrollbar">
+              {coreRouting.length > 0 && (
+                <Section label="Routing">
+                  {coreRouting.map((item) => (
+                    <Row key={item.href} href={item.href} icon={item.icon} label={item.label} active={isActive(item.href)} />
+                  ))}
+                </Section>
+              )}
+
+              {(operations.length > 0 || !isApiKeyUser) && (
+              <Section label="Operations">
+                {operations.map((item) => (
+                  <Row key={item.href} href={item.href} icon={item.icon} label={item.label} active={isActive(item.href)} />
                 ))}
                 {!isApiKeyUser && (
                   <Row
@@ -175,58 +222,43 @@ export default function MobileNav() {
                   />
                 )}
               </Section>
+              )}
 
               {workshopItems.length > 0 && (
-                <Section label="Feature+">
+                <Section label="Features">
                   {workshopItems.map((item) => (
-                    <Row
-                      key={item.href}
-                      href={item.href}
-                      icon={item.icon}
-                      label={item.label}
-                      active={isActive(item.href)}
-                    />
+                    <Row key={item.href} href={item.href} icon={item.icon} label={item.label} active={isActive(item.href)} />
                   ))}
                 </Section>
               )}
 
-              <Section label="System">
-                {canOpenMedia &&
-                  MEDIA_ITEMS.map((item) => (
-                    <Row
-                      key={item.href}
-                      href={item.href}
-                      icon={item.icon}
-                      label={item.label}
-                      active={pathname.startsWith(item.href)}
-                      badge={
-                        item.href === "/dashboard/media-providers/web" && hasMediaNew ? (
-                          <span className="rounded-[3px] bg-brand-500/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-primary">
-                            Baru
-                          </span>
-                        ) : null
-                      }
-                    />
+              {showSystemGroup && (
+                <Section label="System">
+                  {canOpenMedia &&
+                    MEDIA_ITEMS.map((item) => (
+                      <Row
+                        key={item.href}
+                        href={item.href}
+                        icon={item.icon}
+                        label={item.label}
+                        active={isActive(item.href)}
+                        badge={
+                          item.href === COMBINED_WEB_ITEM.href && hasMediaNew ? (
+                            <span className="rounded-[3px] bg-brand-500/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-primary">
+                              New
+                            </span>
+                          ) : null
+                        }
+                      />
+                    ))}
+                  {systemItems.map((item) => (
+                    <Row key={item.href} href={item.href} icon={item.icon} label={item.label} active={isActive(item.href)} />
                   ))}
-                {systemItems.map((item) => (
-                  <Row
-                    key={item.href}
-                    href={item.href}
-                    icon={item.icon}
-                    label={item.label}
-                    active={isActive(item.href)}
-                  />
-                ))}
-                {debugItems.map((item) => (
-                  <Row
-                    key={item.href}
-                    href={item.href}
-                    icon={item.icon}
-                    label={item.label}
-                    active={isActive(item.href)}
-                  />
-                ))}
-              </Section>
+                  {debugItems.map((item) => (
+                    <Row key={item.href} href={item.href} icon={item.icon} label={item.label} active={isActive(item.href)} />
+                  ))}
+                </Section>
+              )}
             </div>
 
             <div className="flex shrink-0 items-center gap-2 border-t border-border-subtle px-3 py-2.5">

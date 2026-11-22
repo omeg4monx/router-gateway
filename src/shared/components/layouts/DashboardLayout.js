@@ -56,7 +56,7 @@ function hasOwnHeading(pathname) {
   return false;
 }
 
-export default function DashboardLayout({ children }) {
+export default function DashboardLayout({ children, railPinned = true }) {
   const pathname = usePathname();
   const notifications = useNotificationStore((state) => state.notifications);
   const removeNotification = useNotificationStore((state) => state.removeNotification);
@@ -99,7 +99,7 @@ export default function DashboardLayout({ children }) {
     // stacking context, which traps every `fixed inset-0 z-50` overlay
     // declared inside the page below the `z-30` mobile app header — the
     // header then paints over the modal and hides its title row.
-    <div className="relative z-0 flex h-screen w-full overflow-hidden bg-bg">
+    <div className="relative z-0 flex h-dvh w-full overflow-hidden bg-bg">
       {/* Toasts - High z-index to stay above charts, cards, and page headings */}
       <div className="fixed top-4 right-4 z-[9999] flex w-[min(92vw,380px)] flex-col gap-2 pointer-events-none">
         {notifications.map((n) => {
@@ -134,7 +134,7 @@ export default function DashboardLayout({ children }) {
       <WelcomeModal />
 
       {/* Left-docked navigation (desktop) */}
-      <LeftRail />
+      <LeftRail initialPinned={railPinned} />
 
       {/* Content column */}
       <div className="flex min-w-0 flex-1 flex-col">

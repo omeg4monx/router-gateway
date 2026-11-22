@@ -9,12 +9,18 @@ import { APP_CONFIG } from "@/shared/constants/config";
 import HeaderMenu from "@/shared/components/HeaderMenu";
 import LogoMark from "@/shared/components/LogoMark";
 import { useNavigation } from "@/shared/hooks/useNavigation";
-import { MEDIA_ITEMS } from "@/shared/constants/navigation";
+import {
+  MEDIA_ITEMS,
+  COMBINED_WEB_ITEM,
+  CORE_ROUTING_HREFS,
+  SETTINGS_HREF,
+  RAIL_PINNED_COOKIE,
+} from "@/shared/constants/navigation";
 
-/* Suspended Studio Rail. Navigation is a floating, rounded instrument dock
-   docked to the left edge with 10px margin. Can be compact (58px icon-only)
-   or pinned/expanded (216px). Flyout sub-menus expand rightward into the canvas.
-   Active item is marked with a glowing ember indicator. */
+/* Suspended Studio Rail. A floating, rounded dock on the left edge: compact
+   (52px, icon-only) or pinned/expanded (212px). Pinned, a group opens inline and
+   stays open while one of its pages is active; compact, it opens as a flyout to
+   the right of the rail. The active item carries a glowing ember indicator. */
 
 function RailRow({ href, icon, label, active, open, onClick, badge = null }) {
   const inner = (
@@ -119,15 +125,37 @@ GroupRow.propTypes = {
   onClick: PropTypes.func,
 };
 
-function Flyout({ children }) {
+/* Fixed, not absolute: the nav list scrolls, and its overflow would clip an
+   absolutely positioned child. `top` is the opening group row's viewport offset. */
+function Flyout({ top, label, children }) {
   return (
-    <div className="fade-in absolute left-full top-1 z-50 ml-2.5 w-[240px] rounded-[6px] border border-border bg-surface p-1.5 shadow-[var(--shadow-elev)]">
+    <div
+      role="group"
+      aria-label={label}
+      className="fade-in custom-scrollbar fixed left-[68px] z-50 w-[240px] overflow-y-auto rounded-[6px] border border-border bg-surface p-1.5 shadow-[var(--shadow-elev)]"
+      style={{ top, maxHeight: `calc(100dvh - ${top}px - 8px)` }}
+    >
+      <div className="px-2.5 pb-1 pt-0.5 font-mono text-[10.5px] uppercase tracking-wider text-text-muted">{label}</div>
       {children}
     </div>
   );
 }
 
-Flyout.propTypes = { children: PropTypes.node };
+Flyout.propTypes = { top: PropTypes.number.isRequired, label: PropTypes.string.isRequired, children: PropTypes.node };
+
+function SectionLabel({ children }) {
+  return <div className="px-2 pb-1 font-mono text-[10.5px] uppercase tracking-wider text-text-muted">{children}</div>;
+}
+
+SectionLabel.propTypes = { children: PropTypes.node };
+
+function NewBadge() {
+  return (
+    <span className="rounded-[3px] bg-brand-500/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-primary">
+      New
+    </span>
+  );
+}
 
 export function FlyoutLink({ href, icon, label, active, onClick, badge = null }) {
   return (
@@ -158,10 +186,11 @@ FlyoutLink.propTypes = {
   badge: PropTypes.node,
 };
 
-export default function LeftRail() {
+export default function LeftRail({ initialPinned = true }) {
   const pathname = usePathname();
-  const [pinned, setPinned] = useState(true);
+  const [pinned, setPinned] = useState(initialPinned);
   const [expandedGroup, setExpandedGroup] = useState(null);
+  const [flyoutTop, setFlyoutTop] = useState(0);
   const [displayPort, setDisplayPort] = useState("8080");
   const railRef = useRef(null);
 
@@ -171,49 +200,73 @@ export default function LeftRail() {
     debugItems,
     systemItems,
     canOpenMedia,
-    showSystemGroup,
     isApiKeyUser,
     hasMediaNew,
     isActive,
   } = useNavigation();
 
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem("omeg4mon_router_left_rail_pinned");
-      if (saved !== null) {
-        setPinned(saved === "true");
-      }
-    } catch {}
+  const open = pinned;
+  const coreRouting = navItems.filter((i) => CORE_ROUTING_HREFS.includes(i.href));
+  const operations = navItems.filter((i) => !CORE_ROUTING_HREFS.includes(i.href));
+  const settingsItem = systemItems.find((i) => i.href === SETTINGS_HREF);
+  const groupSystemItems = systemItems.filter((i) => i.href !== SETTINGS_HREF);
+  const mediaItems = canOpenMedia ? MEDIA_ITEMS : [];
+  const showSystemGroup = mediaItems.length > 0 || debugItems.length > 0 || groupSystemItems.length > 0;
+  const workshopActive = workshopItems.some((i) => isActive(i.href));
+  const systemActive = [...mediaItems, ...debugItems, ...groupSystemItems].some((i) => isActive(i.href));
+  const activeGroup = workshopActive ? "workshop" : systemActive ? "system" : null;
 
+  useEffect(() => {
     // Derive live port from window location or health endpoint
-    if (typeof window !== "undefined") {
-      if (window.location.port) {
-        setDisplayPort(window.location.port);
-      } else {
-        // Reverse proxy without port (80/443), query server health probe
-        fetch("/api/health", { cache: "no-store" })
-          .then((r) => r.json())
-          .then((d) => {
-            if (d?.port) setDisplayPort(String(d.port));
-          })
-          .catch(() => {});
-      }
+    if (window.location.port) {
+      setDisplayPort(window.location.port);
+      return;
     }
+    // Reverse proxy without port (80/443), query server health probe
+    fetch("/api/health", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((d) => {
+        if (d?.port) setDisplayPort(String(d.port));
+      })
+      .catch(() => {});
   }, []);
 
-  const handleTogglePin = (e) => {
-    e?.preventDefault();
-    e?.stopPropagation();
-    setPinned((prev) => {
-      const next = !prev;
-      try {
-        localStorage.setItem("omeg4mon_router_left_rail_pinned", String(next));
-      } catch {}
-      return next;
-    });
+  // Pinned: keep the group holding the current page open so its active row stays
+  // visible. Compact: navigating (or collapsing the rail) closes the flyout.
+  useEffect(() => {
+    setExpandedGroup(open ? activeGroup : null);
+  }, [pathname, open, activeGroup]);
+
+  // Only the compact flyout is transient; an inline group stays until toggled.
+  useEffect(() => {
+    if (open || !expandedGroup) return;
+    const close = () => setExpandedGroup(null);
+    const onDocClick = (e) => {
+      if (railRef.current && !railRef.current.contains(e.target)) close();
+    };
+    const onKeyDown = (e) => e.key === "Escape" && close();
+    document.addEventListener("click", onDocClick);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("click", onDocClick);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [open, expandedGroup]);
+
+  const handleTogglePin = () => {
+    const next = !pinned;
+    setPinned(next);
+    document.cookie = `${RAIL_PINNED_COOKIE}=${next}; path=/; max-age=31536000; samesite=lax`;
   };
 
-  const open = pinned;
+  const toggleGroup = (group) => (e) => {
+    setFlyoutTop(e.currentTarget.getBoundingClientRect().top);
+    setExpandedGroup((prev) => (prev === group ? null : group));
+  };
+
+  const closeFlyout = () => {
+    if (!open) setExpandedGroup(null);
+  };
 
   const handleLogout = async () => {
     try {
@@ -224,34 +277,54 @@ export default function LeftRail() {
     }
   };
 
-  useEffect(() => {
-    setExpandedGroup(null);
-  }, [pathname]);
+  const renderLinks = (items) =>
+    items.map((item) => (
+      <FlyoutLink
+        key={item.href}
+        href={item.href}
+        icon={item.icon}
+        label={item.label}
+        active={isActive(item.href)}
+        onClick={closeFlyout}
+        badge={item.href === COMBINED_WEB_ITEM.href && hasMediaNew ? <NewBadge /> : null}
+      />
+    ));
 
-  useEffect(() => {
-    if (!expandedGroup) return;
-    const onDocClick = (e) => {
-      if (railRef.current && !railRef.current.contains(e.target)) {
-        setExpandedGroup(null);
-      }
-    };
-    document.addEventListener("click", onDocClick);
-    return () => document.removeEventListener("click", onDocClick);
-  }, [expandedGroup]);
+  const renderRows = (items) =>
+    items.map((item) => (
+      <RailRow
+        key={item.href}
+        href={item.href}
+        icon={item.icon}
+        label={item.label}
+        active={isActive(item.href)}
+        open={open}
+        onClick={closeFlyout}
+      />
+    ));
 
-  // Split nav items into core routing vs telemetry for clean visual hierarchy
-  const coreRoutingHrefs = ["/dashboard/endpoint", "/dashboard/providers", "/dashboard/combos"];
-  const coreRouting = navItems.filter((i) => coreRoutingHrefs.includes(i.href));
-  const telemetry = navItems.filter((i) => !coreRoutingHrefs.includes(i.href));
+  const renderGroup = (id, icon, label, active, links) => {
+    const expanded = expandedGroup === id;
+    return (
+      <div>
+        <GroupRow icon={icon} label={label} active={active} open={open} expanded={expanded} onClick={toggleGroup(id)} />
+        {expanded &&
+          (open ? (
+            <div className="ml-3 mt-1 space-y-0.5 border-l-2 border-border-subtle pl-2">{links}</div>
+          ) : (
+            <Flyout top={flyoutTop} label={label}>
+              {links}
+            </Flyout>
+          ))}
+      </div>
+    );
+  };
 
   return (
     <aside
       ref={railRef}
-      onMouseLeave={() => {
-        setExpandedGroup(null);
-      }}
       className={cn(
-        "relative isolate hidden my-2 ml-2 h-[calc(100vh-16px)] flex-col rounded-[8px] border border-border bg-surface select-none lg:flex z-30 shrink-0 shadow-lg",
+        "relative isolate hidden my-2 ml-2 h-[calc(100dvh-16px)] flex-col rounded-[8px] border border-border bg-surface select-none lg:flex z-30 shrink-0 shadow-lg",
         open ? "w-[212px] overflow-hidden" : "w-[52px]"
       )}
       aria-label="Application navigation"
@@ -313,241 +386,45 @@ export default function LeftRail() {
 
       {/* Main navigation list */}
       <div className="flex-1 overflow-y-auto px-2 py-2.5 custom-scrollbar space-y-3">
-        {/* Core Routing */}
         <div className="space-y-0.5">
-          {open && (
-            <div className="px-2 pb-1 text-[9.5px] font-mono uppercase tracking-wider text-text-subtle">
-              Routing
-            </div>
-          )}
-          {coreRouting.map((item) => (
-            <RailRow
-              key={item.href}
-              href={item.href}
-              icon={item.icon}
-              label={item.label}
-              active={isActive(item.href)}
-              open={open}
-              onClick={() => setExpandedGroup(null)}
-            />
-          ))}
+          {open && <SectionLabel>Routing</SectionLabel>}
+          {renderRows(coreRouting)}
         </div>
 
-        {/* Telemetry & Policies */}
         <div className="space-y-0.5 pt-1 border-t border-border-subtle">
-          {open && (
-            <div className="px-2 pb-1 text-[9.5px] font-mono uppercase tracking-wider text-text-subtle">
-              Operations
-            </div>
-          )}
-          {telemetry.map((item) => (
-            <RailRow
-              key={item.href}
-              href={item.href}
-              icon={item.icon}
-              label={item.label}
-              active={isActive(item.href)}
-              open={open}
-              onClick={() => setExpandedGroup(null)}
-            />
-          ))}
-          {!isApiKeyUser && (
-            <RailRow
-              href="/dashboard/vouchers"
-              icon="card_giftcard"
-              label="Vouchers & Market"
-              active={isActive("/dashboard/vouchers")}
-              open={open}
-              onClick={() => setExpandedGroup(null)}
-            />
-          )}
+          {open && <SectionLabel>Operations</SectionLabel>}
+          {renderRows(operations)}
+          {!isApiKeyUser &&
+            renderRows([{ href: "/dashboard/vouchers", icon: "card_giftcard", label: "Vouchers & Market" }])}
         </div>
 
-        {/* Extensions & System */}
         {(workshopItems.length > 0 || showSystemGroup) && (
           <div className="space-y-0.5 pt-1 border-t border-border-subtle">
-            {open && (
-              <div className="px-2 pb-1 text-[9.5px] font-mono uppercase tracking-wider text-text-subtle">
-                Extensions
-              </div>
-            )}
-            {/* Feature+ Group */}
-            {workshopItems.length > 0 && (
-              <div>
-                <GroupRow
-                  icon="auto_awesome"
-                  label="Features"
-                  active={workshopItems.some((i) => isActive(i.href))}
-                  open={open}
-                  expanded={expandedGroup === "workshop"}
-                  onClick={() => setExpandedGroup((prev) => (prev === "workshop" ? null : "workshop"))}
-                />
-                {expandedGroup === "workshop" && (
-                  <div className={cn("mt-1 space-y-0.5", open ? "pl-3 border-l-2 border-border-subtle ml-3" : "px-0")}>
-                    {workshopItems.map((item) => (
-                      open ? (
-                        <Link
-                          key={item.href}
-                          href={item.href}
-                          onClick={() => setExpandedGroup(null)}
-                          title={item.label}
-                          className={cn(
-                            "flex items-center gap-2 rounded-[4px] px-2 py-1 text-[12px] transition-colors",
-                            isActive(item.href)
-                              ? "bg-primary/15 text-primary font-medium"
-                              : "text-text-main/70 hover:bg-surface-2 hover:text-text-main"
-                          )}
-                        >
-                          <span className={cn("material-symbols-outlined shrink-0 text-[15px] leading-none", isActive(item.href) ? "text-primary" : "text-text-main/60")}>
-                            {item.icon}
-                          </span>
-                          <span className="truncate">{item.label}</span>
-                        </Link>
-                      ) : (
-                        <RailRow
-                          key={item.href}
-                          href={item.href}
-                          icon={item.icon}
-                          label={item.label}
-                          active={isActive(item.href)}
-                          open={false}
-                          onClick={() => setExpandedGroup(null)}
-                        />
-                      )
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* System Group */}
-          {showSystemGroup && (
-            <div>
-              <GroupRow
-                icon="tune"
-                label="System"
-                active={
-                  systemItems.some((i) => isActive(i.href)) ||
-                  debugItems.some((i) => isActive(i.href)) ||
-                  MEDIA_ITEMS.some((i) => isActive(i.href))
-                }
-                open={open}
-                expanded={expandedGroup === "system"}
-                onClick={() => setExpandedGroup((prev) => (prev === "system" ? null : "system"))}
-              />
-              {expandedGroup === "system" && (
-                <div className={cn("mt-1 space-y-0.5", open ? "pl-3 border-l-2 border-border-subtle ml-3" : "px-0")}>
-                  {canOpenMedia && (
-                    <div className={cn("mb-1 pb-1", open ? "border-b border-border-subtle" : "")}>
-                      {open && (
-                        <div className="px-1 py-0.5 text-[9.5px] font-medium text-text-subtle uppercase">
-                          Media Engines
-                        </div>
-                      )}
-                      {MEDIA_ITEMS.map((item) => (
-                        open ? (
-                          <Link
-                            key={item.href}
-                            href={item.href}
-                            onClick={() => setExpandedGroup(null)}
-                            title={item.label}
-                            className={cn(
-                              "flex items-center gap-2 rounded-[4px] px-2 py-1 text-[12px] transition-colors",
-                              pathname.startsWith(item.href)
-                                ? "bg-primary/15 text-primary font-medium"
-                                : "text-text-main/70 hover:bg-surface-2 hover:text-text-main"
-                            )}
-                          >
-                            <span className={cn("material-symbols-outlined shrink-0 text-[15px] leading-none", pathname.startsWith(item.href) ? "text-primary" : "text-text-main/60")}>
-                              {item.icon}
-                            </span>
-                            <span className="truncate">{item.label}</span>
-                          </Link>
-                        ) : (
-                          <RailRow
-                            key={item.href}
-                            href={item.href}
-                            icon={item.icon}
-                            label={item.label}
-                            active={isActive(item.href)}
-                            open={false}
-                            onClick={() => setExpandedGroup(null)}
-                          />
-                        )
-                      ))}
+            {open && <SectionLabel>Extensions</SectionLabel>}
+            {workshopItems.length > 0 &&
+              renderGroup("workshop", "auto_awesome", "Features", workshopActive, renderLinks(workshopItems))}
+            {showSystemGroup &&
+              renderGroup(
+                "system",
+                "tune",
+                "System",
+                systemActive,
+                <>
+                  {mediaItems.length > 0 && (
+                    <div className="mb-1 border-b border-border-subtle pb-1">
+                      <div className="px-2.5 py-0.5 text-[10.5px] font-medium uppercase text-text-muted">Media Engines</div>
+                      {renderLinks(mediaItems)}
                     </div>
                   )}
+                  {renderLinks(debugItems)}
+                  {renderLinks(groupSystemItems)}
+                </>
+              )}
+          </div>
+        )}
+      </div>
 
-                  {debugItems.map((item) => (
-                    open ? (
-                      <Link
-                        key={item.href}
-                        href={item.href}
-                        onClick={() => setExpandedGroup(null)}
-                        title={item.label}
-                        className={cn(
-                          "flex items-center gap-2 rounded-[4px] px-2 py-1 text-[12px] transition-colors",
-                          isActive(item.href)
-                            ? "bg-primary/15 text-primary font-medium"
-                            : "text-text-main/70 hover:bg-surface-2 hover:text-text-main"
-                        )}
-                      >
-                        <span className={cn("material-symbols-outlined shrink-0 text-[15px] leading-none", isActive(item.href) ? "text-primary" : "text-text-main/60")}>
-                          {item.icon}
-                        </span>
-                        <span className="truncate">{item.label}</span>
-                      </Link>
-                    ) : (
-                      <RailRow
-                        key={item.href}
-                        href={item.href}
-                        icon={item.icon}
-                        label={item.label}
-                        active={isActive(item.href)}
-                        open={false}
-                        onClick={() => setExpandedGroup(null)}
-                      />
-                    )
-                  ))}
-
-                  {systemItems.map((item) => (
-                    open ? (
-                      <Link
-                        key={item.href}
-                        href={item.href}
-                        onClick={() => setExpandedGroup(null)}
-                        title={item.label}
-                        className={cn(
-                          "flex items-center gap-2 rounded-[4px] px-2 py-1 text-[12px] transition-colors",
-                          isActive(item.href)
-                            ? "bg-primary/15 text-primary font-medium"
-                            : "text-text-main/70 hover:bg-surface-2 hover:text-text-main"
-                        )}
-                      >
-                        <span className={cn("material-symbols-outlined shrink-0 text-[15px] leading-none", isActive(item.href) ? "text-primary" : "text-text-main/60")}>
-                          {item.icon}
-                        </span>
-                        <span className="truncate">{item.label}</span>
-                      </Link>
-                    ) : (
-                      <RailRow
-                        key={item.href}
-                        href={item.href}
-                        icon={item.icon}
-                        label={item.label}
-                        active={isActive(item.href)}
-                        open={false}
-                        onClick={() => setExpandedGroup(null)}
-                      />
-                    )
-                  ))}
-                  </div>
-                  )}
-                  </div>
-                  )}
-                  </div>
-                  )}
-                  </div>
+      {settingsItem && <div className="shrink-0 border-t border-border px-2 py-1.5">{renderRows([settingsItem])}</div>}
 
       {/* Footer controls & user menu */}
       <div className="border-t border-border p-2 bg-surface-2 flex items-center justify-between gap-2 shrink-0">
@@ -584,3 +461,7 @@ export default function LeftRail() {
     </aside>
   );
 }
+
+LeftRail.propTypes = {
+  initialPinned: PropTypes.bool,
+};

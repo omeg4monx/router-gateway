@@ -6,7 +6,7 @@ import { filterNavigation, hasMediaNew as mediaHasNew, DEFAULT_PERMISSIONS } fro
 import useSettingsStore from "@/store/settingsStore";
 
 /* Shared navigation state: identity, permissions, translator flag, and the
-   filtered item lists. Both the right rail and the mobile nav consume this,
+   filtered item lists. Both the left rail and the mobile nav consume this,
    so gating logic lives in exactly one place. */
 
 export function useNavigation() {

@@ -1,4 +1,4 @@
-/* Single source of truth for dashboard navigation. Both the right rail (desktop)
+/* Single source of truth for dashboard navigation. Both the left rail (desktop)
    and the mobile sheet read from here, so a section can never exist in one and
    be missing from the other. Permission gating is expressed once, in
    filterNavigation(), instead of being repeated per surface. */
@@ -25,10 +25,20 @@ export const NAV_ITEMS = [
   { href: "/dashboard/connection", label: "Connection", icon: "hub" },
 ];
 
+// First section ("Routing") of NAV_ITEMS; the rest render under "Operations".
+export const CORE_ROUTING_HREFS = ["/dashboard/endpoint", "/dashboard/providers", "/dashboard/combos"];
+
+// Desktop docks Settings at the rail's foot instead of inside the System group.
+export const SETTINGS_HREF = "/dashboard/profile";
+
+// Cookie (not localStorage) so the server renders the rail at its saved width.
+export const RAIL_PINNED_COOKIE = "omeg4mon_router_left_rail_pinned";
+
 export const WORKSHOP_ITEMS = [
   { href: "/dashboard/teams", label: "Teams", icon: "groups" },
   { href: "/dashboard/arena", label: "Compare Models", icon: "swords" },
   { href: "/dashboard/model-editor", label: "Custom Models", icon: "auto_awesome" },
+  { href: "/dashboard/prompt-injection", label: "Prompt Injection", icon: "input" },
   { href: "/dashboard/plugins", label: "Custom Plugins", icon: "widgets" },
   { href: "/dashboard/model-bypass", label: "Model Bypass", icon: "bolt" },
   { href: "/dashboard/prd-builder", label: "PRD Builder", icon: "description" },
