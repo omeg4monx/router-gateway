@@ -6,15 +6,15 @@
     "semantic_hash": "43771d62722224196b74620a278ae233"
   },
   "internal/contracts/contracts.go": {
-    "mtime": 1795381385.5486386,
-    "seen": 1795381587.662216,
-    "ast_hash": "5a5da0bb1abfd07d446269d293eea8fb",
+    "mtime": 1795381660.2767437,
+    "seen": 1795381675.8543355,
+    "ast_hash": "539e79b7635507710d081ceddec6cfdb",
     "semantic_hash": ""
   },
   "internal/contracts/contracts_test.go": {
-    "mtime": 1795381385.5486386,
-    "seen": 1795381587.6622174,
-    "ast_hash": "1e00cb534178814e899e6ef41f98a3d9",
+    "mtime": 1795381645.1695251,
+    "seen": 1795381675.8543432,
+    "ast_hash": "ff39d41bd582fd915592c49912324241",
     "semantic_hash": ""
   },
   "internal/platform/config/config.go": {

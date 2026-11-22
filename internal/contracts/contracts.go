@@ -15,6 +15,26 @@ import (
 // been configured yet.
 var ErrNotInitialized = errors.New("contracts: system is not initialized")
 
+// ErrModelNotFound indicates that a requested model, alias, or combo could not
+// be resolved to any configured upstream target.
+var ErrModelNotFound = errors.New("contracts: model not found")
+
+// ErrModelForbidden indicates that the caller's API key is not permitted to
+// access the requested model.
+var ErrModelForbidden = errors.New("contracts: model forbidden")
+
+// ErrAllAccountsCoolingDown indicates that all matching upstream provider
+// connections are currently in cooldown.
+var ErrAllAccountsCoolingDown = errors.New("contracts: all accounts cooling down")
+
+// ErrConnectionNotFound indicates that the requested provider connection ID
+// does not exist.
+var ErrConnectionNotFound = errors.New("contracts: connection not found")
+
+// ErrOAuthRefreshUnsupported indicates that the requested provider connection
+// does not support OAuth token refresh.
+var ErrOAuthRefreshUnsupported = errors.New("contracts: oauth refresh unsupported")
+
 // AdminCredentialStore exposes system-owned administrator credential and login
 // enforcement state to the authentication module.
 type AdminCredentialStore interface {
@@ -144,4 +164,62 @@ type UsageRecorder interface {
 // upstream provider. A nil *url.URL with a nil error indicates direct dial.
 type ProxyDialerResolver interface {
 	ProxyURLForProvider(ctx context.Context, providerID string) (*url.URL, error)
+}
+
+// ProviderConnection describes an enabled upstream provider connection and its
+// routing metadata without exposing secret credentials.
+type ProviderConnection struct {
+	ID           string
+	ProviderID   string
+	Name         string
+	Protocol     string
+	BaseURL      string
+	AuthType     string
+	Priority     int
+	Enabled      bool
+	Models       []string
+	ExtraHeaders map[string]string
+}
+
+// UpstreamCredentials holds resolved upstream connection parameters and secret
+// authentication material for executing an upstream request.
+type UpstreamCredentials struct {
+	ConnectionID string
+	ProviderID   string
+	Protocol     string
+	BaseURL      string
+	AuthType     string
+	APIKey       string
+	AccessToken  string
+	ExtraHeaders map[string]string
+}
+
+// ProviderStore exposes enabled upstream provider connections and credential
+// resolution/refresh operations to routing and gateway modules.
+type ProviderStore interface {
+	ListEnabledConnections(ctx context.Context) ([]ProviderConnection, error)
+	ResolveCredentials(ctx context.Context, connectionID string) (UpstreamCredentials, error)
+	RefreshOAuthToken(ctx context.Context, connectionID string) (UpstreamCredentials, error)
+}
+
+// AccountHealthTracker tracks transient failure cooldown state per upstream
+// provider connection.
+type AccountHealthTracker interface {
+	IsInCooldown(connectionID string, now time.Time) bool
+	RecordFailure(connectionID string, statusCode int, retryAfter time.Duration)
+	RecordSuccess(connectionID string)
+}
+
+// ModelDescriptor describes an available model, combo, or alias exposed by the
+// gateway model listing endpoints. Kind is one of "combo", "alias", or "model".
+type ModelDescriptor struct {
+	ID      string
+	OwnedBy string
+	Kind    string
+}
+
+// ModelLister lists available models, combos, and aliases permitted by the
+// caller's allowed model rules.
+type ModelLister interface {
+	ListModels(ctx context.Context, allowed []string) ([]ModelDescriptor, error)
 }

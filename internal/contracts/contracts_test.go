@@ -101,6 +101,77 @@ func (s *stubAdminCredentialStore) SetRequireLogin(_ context.Context, required b
 	return nil
 }
 
+type stubProviderStore struct{}
+
+var _ contracts.ProviderStore = stubProviderStore{}
+
+func (stubProviderStore) ListEnabledConnections(_ context.Context) ([]contracts.ProviderConnection, error) {
+	return []contracts.ProviderConnection{
+		{
+			ID:           "conn_1",
+			ProviderID:   "openai",
+			Name:         "Primary OpenAI",
+			Protocol:     "openai-compatible",
+			BaseURL:      "https://api.openai.com/v1",
+			AuthType:     "api_key",
+			Priority:     1,
+			Enabled:      true,
+			Models:       []string{"gpt-5"},
+			ExtraHeaders: map[string]string{"X-Custom": "1"},
+		},
+	}, nil
+}
+
+func (stubProviderStore) ResolveCredentials(_ context.Context, connectionID string) (contracts.UpstreamCredentials, error) {
+	if connectionID == "" {
+		return contracts.UpstreamCredentials{}, contracts.ErrConnectionNotFound
+	}
+	return contracts.UpstreamCredentials{
+		ConnectionID: connectionID,
+		ProviderID:   "openai",
+		Protocol:     "openai-compatible",
+		BaseURL:      "https://api.openai.com/v1",
+		AuthType:     "api_key",
+		APIKey:       "sk-test",
+		AccessToken:  "",
+		ExtraHeaders: map[string]string{"X-Custom": "1"},
+	}, nil
+}
+
+func (stubProviderStore) RefreshOAuthToken(_ context.Context, _ string) (contracts.UpstreamCredentials, error) {
+	return contracts.UpstreamCredentials{}, contracts.ErrOAuthRefreshUnsupported
+}
+
+type stubAccountHealthTracker struct {
+	cooling bool
+}
+
+var _ contracts.AccountHealthTracker = (*stubAccountHealthTracker)(nil)
+
+func (s *stubAccountHealthTracker) IsInCooldown(_ string, _ time.Time) bool {
+	return s.cooling
+}
+
+func (s *stubAccountHealthTracker) RecordFailure(_ string, _ int, _ time.Duration) {
+	s.cooling = true
+}
+
+func (s *stubAccountHealthTracker) RecordSuccess(_ string) {
+	s.cooling = false
+}
+
+type stubModelLister struct{}
+
+var _ contracts.ModelLister = stubModelLister{}
+
+func (stubModelLister) ListModels(_ context.Context, _ []string) ([]contracts.ModelDescriptor, error) {
+	return []contracts.ModelDescriptor{
+		{ID: "gpt-5", OwnedBy: "openai", Kind: "model"},
+		{ID: "fast", OwnedBy: "router", Kind: "combo"},
+		{ID: "latest", OwnedBy: "router", Kind: "alias"},
+	}, nil
+}
+
 func TestContractInterfacesSatisfied(t *testing.T) {
 	var (
 		auth      contracts.AuthVerifier         = stubAuthVerifier{}
@@ -110,6 +181,9 @@ func TestContractInterfacesSatisfied(t *testing.T) {
 		recorder  contracts.UsageRecorder        = &stubUsageRecorder{}
 		proxy     contracts.ProxyDialerResolver  = stubProxyDialerResolver{}
 		credStore contracts.AdminCredentialStore = &stubAdminCredentialStore{requireLogin: true}
+		providers contracts.ProviderStore        = stubProviderStore{}
+		health    contracts.AccountHealthTracker = &stubAccountHealthTracker{}
+		models    contracts.ModelLister          = stubModelLister{}
 	)
 
 	ctx := context.Background()
@@ -176,5 +250,69 @@ func TestContractInterfacesSatisfied(t *testing.T) {
 	}
 	if err := credStore.SetRequireLogin(ctx, false); err != nil {
 		t.Fatalf("SetRequireLogin error: %v", err)
+	}
+
+	conns, err := providers.ListEnabledConnections(ctx)
+	if err != nil || len(conns) != 1 || !conns[0].Enabled || conns[0].Priority != 1 || conns[0].Name != "Primary OpenAI" {
+		t.Fatalf("ListEnabledConnections unexpected result: %+v, %v", conns, err)
+	}
+	creds, err := providers.ResolveCredentials(ctx, conns[0].ID)
+	if err != nil || creds.APIKey != "sk-test" || creds.ConnectionID != "conn_1" {
+		t.Fatalf("ResolveCredentials unexpected result: %+v, %v", creds, err)
+	}
+	if _, err := providers.RefreshOAuthToken(ctx, conns[0].ID); !errors.Is(err, contracts.ErrOAuthRefreshUnsupported) {
+		t.Fatalf("RefreshOAuthToken err = %v, want ErrOAuthRefreshUnsupported", err)
+	}
+
+	now := time.Now().UTC()
+	if health.IsInCooldown("conn_1", now) {
+		t.Fatal("expected IsInCooldown to be false initially")
+	}
+	health.RecordFailure("conn_1", http.StatusTooManyRequests, 5*time.Second)
+	if !health.IsInCooldown("conn_1", now) {
+		t.Fatal("expected IsInCooldown to be true after RecordFailure")
+	}
+	health.RecordSuccess("conn_1")
+	if health.IsInCooldown("conn_1", now) {
+		t.Fatal("expected IsInCooldown to be false after RecordSuccess")
+	}
+
+	descs, err := models.ListModels(ctx, info.AllowedModels)
+	if err != nil || len(descs) != 3 || descs[1].Kind != "combo" || descs[2].Kind != "alias" {
+		t.Fatalf("ListModels unexpected result: %+v, %v", descs, err)
+	}
+}
+
+func TestSentinelErrorsDistinct(t *testing.T) {
+	sentinels := []struct {
+		name string
+		err  error
+	}{
+		{name: "ErrNotInitialized", err: contracts.ErrNotInitialized},
+		{name: "ErrModelNotFound", err: contracts.ErrModelNotFound},
+		{name: "ErrModelForbidden", err: contracts.ErrModelForbidden},
+		{name: "ErrAllAccountsCoolingDown", err: contracts.ErrAllAccountsCoolingDown},
+		{name: "ErrConnectionNotFound", err: contracts.ErrConnectionNotFound},
+		{name: "ErrOAuthRefreshUnsupported", err: contracts.ErrOAuthRefreshUnsupported},
+	}
+
+	for i, a := range sentinels {
+		if a.err == nil {
+			t.Fatalf("sentinel %s is nil", a.name)
+		}
+		if a.err.Error() == "" {
+			t.Fatalf("sentinel %s has empty error string", a.name)
+		}
+		for j, b := range sentinels {
+			if i == j {
+				if !errors.Is(a.err, b.err) {
+					t.Fatalf("expected %s to match itself with errors.Is", a.name)
+				}
+				continue
+			}
+			if errors.Is(a.err, b.err) {
+				t.Fatalf("expected %s and %s to be distinct sentinel errors", a.name, b.name)
+			}
+		}
 	}
 }
