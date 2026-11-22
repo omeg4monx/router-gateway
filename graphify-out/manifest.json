@@ -718,5 +718,41 @@
     "seen": 1795382350.841936,
     "ast_hash": "9f4ac3a80e5f9b9352110e3d76432dbf",
     "semantic_hash": ""
+  },
+  "contracts/openapi/modules/combos.yaml": {
+    "mtime": 1795383247.6004813,
+    "seen": 1795383348.0340455,
+    "ast_hash": "b9965cee5af7a57e473d57d6f278c8cf",
+    "semantic_hash": ""
+  },
+  "internal/modules/combos/cooldown.go": {
+    "mtime": 1795383240.3249416,
+    "seen": 1795383348.0343895,
+    "ast_hash": "33f46334da5a9b9fc946705092922003",
+    "semantic_hash": ""
+  },
+  "internal/modules/combos/module.go": {
+    "mtime": 1795383246.045459,
+    "seen": 1795383348.0343919,
+    "ast_hash": "dc057334518fd313a31e86686750bcfe",
+    "semantic_hash": ""
+  },
+  "internal/modules/combos/module_test.go": {
+    "mtime": 1795383291.5341094,
+    "seen": 1795383348.0343933,
+    "ast_hash": "893c1627b04f06f58fd2d5438ee14eb4",
+    "semantic_hash": ""
+  },
+  "internal/modules/combos/repo.go": {
+    "mtime": 1795383242.3644066,
+    "seen": 1795383348.0343947,
+    "ast_hash": "9dc80471ce88bfe2409e4dcb885d9cf5",
+    "semantic_hash": ""
+  },
+  "internal/modules/combos/resolver.go": {
+    "mtime": 1795383326.837614,
+    "seen": 1795383348.0343964,
+    "ast_hash": "87cd6a2db25ef251d2bfd013b39b1c31",
+    "semantic_hash": ""
   }
 }
