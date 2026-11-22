@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"slices"
 	"sort"
 	"strings"
 
@@ -140,7 +139,10 @@ func (m *Module) ListModels(ctx context.Context, allowed []string) ([]contracts.
 			if modelID == "" || modelID == "*" {
 				continue
 			}
-			bareModel := strings.TrimPrefix(modelID, conn.ProviderID+"/")
+			bareModel := strings.TrimSpace(strings.TrimPrefix(modelID, conn.ProviderID+"/"))
+			if bareModel == "" || bareModel == "*" {
+				continue
+			}
 			if isModelDisabled(snap.disabled, conn.ProviderID, bareModel) {
 				continue
 			}
@@ -303,16 +305,28 @@ func connectionSupportsExplicit(conn contracts.ProviderConnection, upstreamModel
 	if len(conn.Models) == 0 {
 		return true
 	}
-	return slices.Contains(conn.Models, "*") ||
-		slices.Contains(conn.Models, upstreamModel) ||
-		slices.Contains(conn.Models, fullSpec)
+	providerWildcard := conn.ProviderID + "/*"
+	for _, raw := range conn.Models {
+		entry := strings.TrimSpace(raw)
+		if entry == "*" || entry == providerWildcard || entry == upstreamModel || entry == fullSpec {
+			return true
+		}
+	}
+	return false
 }
 
 func connectionSupportsBare(conn contracts.ProviderConnection, bareModel string) bool {
 	if len(conn.Models) == 0 {
 		return false
 	}
-	return slices.Contains(conn.Models, "*") || slices.Contains(conn.Models, bareModel)
+	qualified := conn.ProviderID + "/" + bareModel
+	for _, raw := range conn.Models {
+		entry := strings.TrimSpace(raw)
+		if entry == "*" || entry == bareModel || entry == qualified {
+			return true
+		}
+	}
+	return false
 }
 
 func isModelDisabled(disabled map[string]struct{}, providerID, upstreamModel string) bool {

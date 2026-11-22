@@ -881,6 +881,20 @@ func TestDisabledModelsAndCooldownStateMachine(t *testing.T) {
 		t.Fatal("second 403 failure should use 120s")
 	}
 
+	// Subsequent shorter-backoff failure must NOT shrink an active longer Retry-After window.
+	h.mod.RecordSuccess("conn_openai_1")
+	tLong := h.clock.Now()
+	h.mod.RecordFailure("conn_openai_1", http.StatusTooManyRequests, 120*time.Second)
+	h.clock.Advance(5 * time.Second)
+	// Second failure has 30s base backoff -> T+35s < T+120s, so T+120s must be preserved.
+	h.mod.RecordFailure("conn_openai_1", http.StatusInternalServerError, 0)
+	if !h.mod.IsInCooldown("conn_openai_1", tLong.Add(119*time.Second)) {
+		t.Fatal("subsequent shorter-backoff failure must not shrink active Retry-After window")
+	}
+	if h.mod.IsInCooldown("conn_openai_1", tLong.Add(120*time.Second)) {
+		t.Fatal("preserved Retry-After window should expire at +120s")
+	}
+
 	// Retry-After honored when larger than base backoff, ignored when smaller.
 	h.mod.RecordSuccess("conn_openai_1")
 	tRetry := h.clock.Now()
@@ -1148,6 +1162,61 @@ func TestListModelsDeduplicationAndFiltering(t *testing.T) {
 	}
 	if len(openaiOnly) != 1 || openaiOnly[0].ID != "openai/gpt-4o" {
 		t.Fatalf("openaiOnly = %+v, want [openai/gpt-4o]", openaiOnly)
+	}
+}
+
+func TestProviderQualifiedModelsListAndBareResolveSymmetry(t *testing.T) {
+	t.Parallel()
+
+	conns := []contracts.ProviderConnection{
+		{
+			ID:         "conn_openai_qualified",
+			ProviderID: "openai",
+			Name:       "OpenAI Qualified",
+			Protocol:   "openai-chat",
+			BaseURL:    "https://api.openai.com/v1",
+			AuthType:   "api_key",
+			Priority:   10,
+			Enabled:    true,
+			Models:     []string{" openai/gpt-4o ", "openai/*", "openai/"},
+		},
+	}
+
+	h := newTestHarness(t, nil, conns...)
+	ctx := context.Background()
+
+	listed, err := h.mod.ListModels(ctx, nil)
+	if err != nil {
+		t.Fatalf("ListModels err = %v", err)
+	}
+	if len(listed) != 2 {
+		t.Fatalf("ListModels = %+v, want exactly [gpt-4o, openai/gpt-4o] without bogus wildcard/empty entries", listed)
+	}
+	if listed[0].ID != "gpt-4o" || listed[1].ID != "openai/gpt-4o" {
+		t.Fatalf("ListModels IDs = [%s, %s], want [gpt-4o, openai/gpt-4o]", listed[0].ID, listed[1].ID)
+	}
+
+	// Bare Tier 4 resolution must resolve models advertised as bare by ListModels.
+	targets, err := h.mod.Resolve(ctx, "gpt-4o", nil)
+	if err != nil {
+		t.Fatalf("Resolve(bare gpt-4o) err = %v", err)
+	}
+	if len(targets) != 1 || targets[0].ConnectionID != "conn_openai_qualified" || targets[0].UpstreamModel != "gpt-4o" {
+		t.Fatalf("Resolve(bare gpt-4o) = %+v, want [conn_openai_qualified/gpt-4o]", targets)
+	}
+
+	// Provider-prefixed wildcard openai/* must not match arbitrary unrelated bare models.
+	if _, err := h.mod.Resolve(ctx, "claude-sonnet-4", nil); !errors.Is(err, contracts.ErrModelNotFound) {
+		t.Fatalf("Resolve(unrelated bare claude-sonnet-4) = %v, want ErrModelNotFound", err)
+	}
+
+	// Provider-prefixed wildcard openai/* supports explicit Tier 3 lookup for that provider.
+	explicitTargets, err := h.mod.Resolve(ctx, "openai/gpt-4.1", nil)
+	if err != nil {
+		t.Fatalf("Resolve(explicit openai/gpt-4.1 via openai/*) err = %v", err)
+	}
+	if len(explicitTargets) != 1 || explicitTargets[0].ConnectionID != "conn_openai_qualified" || explicitTargets[0].UpstreamModel != "gpt-4.1" {
+		t.Fatalf("Resolve(explicit openai/gpt-4.1) = %+v, want [conn_openai_qualified/gpt-4.1]", explicitTargets)
 	}
 }
 

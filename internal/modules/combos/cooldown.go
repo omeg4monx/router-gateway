@@ -89,7 +89,9 @@ func (t *cooldownTracker) RecordFailure(connectionID string, statusCode int, ret
 	st := t.entries[id]
 	st.failures++
 	backoff := computeBackoff(st.failures, statusCode, retryAfter)
-	st.until = ts.Add(backoff)
+	if nextUntil := ts.Add(backoff); nextUntil.After(st.until) {
+		st.until = nextUntil
+	}
 	st.lastStatus = statusCode
 	st.updatedAt = ts
 	t.entries[id] = st
