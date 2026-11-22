@@ -69,9 +69,11 @@ docs/*
 !docs/specs/
 docs/specs/*
 !docs/specs/2026-11-22-infra-foundation-design.md
+!docs/specs/2026-11-22-web-typescript-design.md
 !docs/plans/
 docs/plans/*
 !docs/plans/2026-11-22-infra-foundation.md
+!docs/plans/2026-11-22-web-typescript.md
 test/*
 open-sse/test/*
 RM.vn.md
