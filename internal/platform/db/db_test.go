@@ -91,6 +91,24 @@ func TestOpenAppliesWALPragmasAndSplitPools(t *testing.T) {
 	if _, err := database.Reader().ExecContext(ctx, "CREATE TABLE should_fail (id INTEGER PRIMARY KEY)"); err == nil {
 		t.Fatalf("expected Reader() write statement to fail under read-only query path, got nil")
 	}
+
+	// Defense-in-depth: even if a caller disables PRAGMA query_only on a pooled
+	// reader connection, SQLite mode=ro must still reject writes.
+	conn, err := database.Reader().Conn(ctx)
+	if err != nil {
+		t.Fatalf("Reader().Conn() failed: %v", err)
+	}
+	defer func() {
+		if err := conn.Close(); err != nil {
+			t.Errorf("conn.Close() failed: %v", err)
+		}
+	}()
+	if _, err := conn.ExecContext(ctx, "PRAGMA query_only = OFF"); err != nil {
+		t.Fatalf("PRAGMA query_only = OFF failed: %v", err)
+	}
+	if _, err := conn.ExecContext(ctx, "CREATE TABLE bypass_ro (id INTEGER PRIMARY KEY)"); err == nil {
+		t.Fatalf("expected write on Reader() connection to fail even after PRAGMA query_only = OFF")
+	}
 }
 
 func TestMigrateModuleIdempotentAndAtomicRollback(t *testing.T) {
@@ -322,5 +340,69 @@ func TestConcurrentReadersAndWritersUnderWAL(t *testing.T) {
 	}
 	if want := numWriters * opsPerTask; total != want {
 		t.Fatalf("final row count = %d, want %d", total, want)
+	}
+}
+
+func TestConcurrentMigrateModuleIdempotent(t *testing.T) {
+	ctx := context.Background()
+	dbPath := filepath.Join(t.TempDir(), "concurrent-migrate.sqlite")
+
+	database, err := db.Open(dbPath)
+	if err != nil {
+		t.Fatalf("Open() failed: %v", err)
+	}
+	defer func() {
+		if err := database.Close(); err != nil {
+			t.Errorf("Close() failed: %v", err)
+		}
+	}()
+
+	migFS := fstest.MapFS{
+		"0001_init.sql": &fstest.MapFile{
+			Data: []byte(`CREATE TABLE conc_items (id INTEGER PRIMARY KEY, label TEXT NOT NULL);`),
+		},
+		"0002_seed.sql": &fstest.MapFile{
+			Data: []byte(`INSERT INTO conc_items (id, label) VALUES (1, 'once');`),
+		},
+	}
+
+	const workers = 8
+	start := make(chan struct{})
+	errs := make(chan error, workers)
+	var wg sync.WaitGroup
+
+	for i := 0; i < workers; i++ {
+		wg.Add(1)
+		go func(id int) {
+			defer wg.Done()
+			<-start
+			if err := database.MigrateModule(ctx, "concurrent_mod", migFS); err != nil {
+				errs <- fmt.Errorf("worker %d: %w", id, err)
+			}
+		}(i)
+	}
+
+	close(start)
+	wg.Wait()
+	close(errs)
+
+	for err := range errs {
+		t.Fatalf("concurrent MigrateModule failed: %v", err)
+	}
+
+	versions, err := database.AppliedVersions(ctx, "concurrent_mod")
+	if err != nil {
+		t.Fatalf("AppliedVersions() failed: %v", err)
+	}
+	if !reflect.DeepEqual(versions, []int{1, 2}) {
+		t.Fatalf("AppliedVersions(concurrent_mod) = %v, want [1 2]", versions)
+	}
+
+	var count int
+	if err := database.Reader().QueryRowContext(ctx, "SELECT COUNT(*) FROM conc_items").Scan(&count); err != nil {
+		t.Fatalf("count conc_items: %v", err)
+	}
+	if count != 1 {
+		t.Fatalf("conc_items count = %d, want 1", count)
 	}
 }

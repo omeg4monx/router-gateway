@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -44,6 +45,9 @@ func (d *DB) MigrateModule(ctx context.Context, module string, fsys fs.FS) error
 		return nil
 	}
 
+	d.migrateMu.Lock()
+	defer d.migrateMu.Unlock()
+
 	applied, err := d.appliedVersionSet(ctx, mod)
 	if err != nil {
 		return fmt.Errorf("load applied versions for module %q: %w", mod, err)
@@ -62,6 +66,23 @@ func (d *DB) MigrateModule(ctx context.Context, module string, fsys fs.FS) error
 		tx, err := d.writer.BeginTx(ctx, nil)
 		if err != nil {
 			return fmt.Errorf("begin migration tx for module %q version %d (%s): %w", mod, m.version, m.path, err)
+		}
+
+		var exists int
+		err = tx.QueryRowContext(
+			ctx,
+			"SELECT 1 FROM schema_migrations WHERE module = ? AND version = ?",
+			mod,
+			m.version,
+		).Scan(&exists)
+		if err == nil {
+			_ = tx.Rollback()
+			applied[m.version] = true
+			continue
+		}
+		if !errors.Is(err, sql.ErrNoRows) {
+			_ = tx.Rollback()
+			return fmt.Errorf("recheck migration for module %q version %d (%s): %w", mod, m.version, m.path, err)
 		}
 
 		if _, err := tx.ExecContext(ctx, string(sqlBytes)); err != nil {

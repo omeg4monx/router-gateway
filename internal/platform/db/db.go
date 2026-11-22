@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	_ "modernc.org/sqlite"
 )
@@ -34,9 +35,10 @@ CREATE TABLE IF NOT EXISTS schema_migrations (
 // DB wraps split SQLite connection pools: a single-connection writer pool and a
 // bounded read-only reader pool sharing the same WAL-mode database file.
 type DB struct {
-	writer *sql.DB
-	reader *sql.DB
-	path   string
+	writer    *sql.DB
+	reader    *sql.DB
+	path      string
+	migrateMu sync.Mutex
 }
 
 // Open initializes a SQLite WAL database at path, creating parent directories
@@ -154,6 +156,7 @@ func buildDSN(absPath string, readOnly bool) string {
 	q.Add("_pragma", "cache_size(-2000)")
 	q.Add("_pragma", "mmap_size(0)")
 	if readOnly {
+		q.Set("mode", "ro")
 		q.Add("_pragma", "query_only(ON)")
 	}
 
