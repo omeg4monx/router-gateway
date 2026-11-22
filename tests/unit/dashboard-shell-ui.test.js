@@ -193,3 +193,43 @@ describe("StatusBar brand consistency and interactive controls", () => {
     expect(bar).toContain("clearTimeout");
   });
 });
+
+describe("MobileNav tactile UI", () => {
+  const mobile = read("src/shared/components/MobileNav.js");
+
+  it("uses frosted sticky top bar and tactile MENU trigger", () => {
+    expect(mobile).toContain("h-13");
+    expect(mobile).toContain("bg-surface/85");
+    expect(mobile).toContain("backdrop-blur-md");
+    expect(mobile).toContain("rounded-xl");
+    expect(mobile).toContain("rounded-[10px]");
+    expect(mobile).toContain("active:scale-95");
+  });
+
+  it("uses blurred fade-in backdrop and rounded-l-2xl shell-rail drawer", () => {
+    expect(mobile).toContain("backdrop-blur-");
+    expect(mobile).toContain("backdrop-fade-in");
+    expect(mobile).toContain("rounded-l-2xl");
+    expect(mobile).toContain("shell-rail");
+    expect(mobile).toContain("shadow-[var(--shadow-elev)]");
+  });
+
+  it("unifies drawer Row styling with LeftRail tactile tokens and filled active icons", () => {
+    expect(mobile).toContain("bg-primary/12");
+    expect(mobile).toContain("border-primary/20");
+    expect(mobile).toContain("rail-icon");
+    expect(mobile).toContain("fill-1");
+    expect(mobile).toContain("active:scale-[0.98]");
+    expect(mobile).toContain('aria-current={active ? "page" : undefined}');
+  });
+
+  it("preserves modal accessibility, focus trap, and security gates", () => {
+    expect(mobile).toContain('role="dialog"');
+    expect(mobile).toContain('aria-modal="true"');
+    expect(mobile).toMatch(/e\.key\s*===\s*"Escape"/);
+    expect(mobile).toMatch(/e\.key\s*!==\s*"Tab"/);
+    expect(mobile).toContain("opener?.focus()");
+    expect(mobile).not.toContain("<HeaderMenu");
+    expect(mobile).toMatch(/!isApiKeyUser && \(\s*<button[\s\S]{0,200}setThemeModalOpen\(true\)/);
+  });
+});
