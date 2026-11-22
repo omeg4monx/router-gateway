@@ -458,3 +458,28 @@ describe("providers-ux Task 5: ProviderCard", () => {
     expect(src).toContain("Add API Key");
   });
 });
+
+describe("providers-ux Task 6: ProvidersPage orchestrator & DashboardLayout heading", () => {
+  it("DashboardLayout suppresses duplicate PageHeading for /dashboard/providers", () => {
+    const src = readSrc("src/shared/components/layouts/DashboardLayout.js");
+    expect(src).toContain('"/dashboard/providers"');
+  });
+
+  it("ProvidersPage composes modular studio components, refreshes after batch test, guards/rolls back toggles, and surfaces fetchError", () => {
+    const src = readSrc("src/app/(dashboard)/dashboard/providers/page.js");
+    expect(src).toContain("<ProvidersHeader");
+    expect(src).toContain("<ProvidersToolbar");
+    expect(src).toContain("<ProviderCard");
+    expect(src).toContain("<TestResultsModal");
+    expect(src).toContain("<AddCompatibleModal");
+    expect(src).not.toMatch(/<select[\s>]/);
+    expect(src).not.toContain("<ModelAvailabilityBadge");
+    expect(src).not.toContain("z-[100]");
+    expect(src).toContain("togglingProviders");
+    expect(src).toContain("res.ok");
+    expect(src).toContain("notify.error");
+    expect(src).toContain("fetchError");
+    expect(src).toContain("Test Free OAuth");
+    expect(src).toMatch(/refreshProviders|fetchData/);
+  });
+});

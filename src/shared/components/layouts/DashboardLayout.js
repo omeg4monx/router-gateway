@@ -67,7 +67,13 @@ const PAGES_WITH_OWN_HEADING = [
 
 function hasOwnHeading(pathname) {
   if (!pathname) return false;
-  if (pathname === "/dashboard" || pathname === "/dashboard/endpoint") return true;
+  if (
+    pathname === "/dashboard" ||
+    pathname === "/dashboard/endpoint" ||
+    pathname === "/dashboard/providers"
+  ) {
+    return true;
+  }
   if (PAGES_WITH_OWN_HEADING.some((p) => p !== "/dashboard" && (pathname === p || pathname.startsWith(`${p}/`)))) return true;
   // Provider / media-provider detail pages draw their own hero with the logo.
   if (/^\/dashboard\/providers\/[^/]+$/.test(pathname)) return true;
