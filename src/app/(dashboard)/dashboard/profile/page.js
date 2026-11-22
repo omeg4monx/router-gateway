@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { Card, Button, Toggle, Input, Select, DownloadBackupModal, ProgressCard } from "@/shared/components";
 import Modal, { ConfirmModal } from "@/shared/components/Modal";
 import LanguageSwitcher from "@/shared/components/LanguageSwitcher";
+import SettingsHistory from "@/shared/components/SettingsHistory";
 import { cn } from "@/shared/utils/cn";
 import { APP_CONFIG } from "@/shared/constants/config";
 import { LOCALE_COOKIE, normalizeLocale } from "@/i18n/config";
@@ -2131,6 +2132,9 @@ export default function ProfilePage() {
             />
           </div>
         </Card>
+
+        {/* Forms (SSO, OIDC, SAML) are seeded once on load, so a rollback reloads the page to re-seed them. */}
+        <SettingsHistory onReverted={() => window.location.reload()} />
 
         {/* Account actions */}
         <div className="flex flex-col sm:flex-row gap-2">

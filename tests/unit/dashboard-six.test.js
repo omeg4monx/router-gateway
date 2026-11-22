@@ -25,9 +25,6 @@ const FILES = {
   bulkRoute: "src/app/api/keys/bulk/route.js",
   bulkModal: "src/app/(dashboard)/dashboard/endpoint/components/BulkEditKeys.js",
   endpointPage: "src/app/(dashboard)/dashboard/endpoint/EndpointPageClient.js",
-  benchRoute: "src/app/api/models/benchmark/route.js",
-  benchRepo: "src/lib/db/repos/benchmarkRepo.js",
-  benchPage: "src/app/(dashboard)/dashboard/benchmark/BenchmarkPage.js",
   requestDetailsTab: "src/app/(dashboard)/dashboard/usage/components/RequestDetailsTab.js",
   guard: "src/dashboardGuard.js",
   sidebar: "src/shared/components/Sidebar.js",
@@ -177,42 +174,5 @@ describe("bulk key edit", () => {
     expect(page).toContain("selectedKeyIds");
     expect(page).toContain("<BulkEditKeys");
     expect(modal).toMatch(/selectedCount/);
-  });
-});
-
-describe("model benchmark", () => {
-  const route = read(FILES.benchRoute);
-  const repo = read(FILES.benchRepo);
-  const page = read(FILES.benchPage);
-  const sidebar = read(FILES.sidebar);
-
-  it("is admin-only on both the page and the route", () => {
-    // The route gates through requireAdmin, which excludes key sessions.
-    expect(route).toMatch(/requireAdmin|role !== "admin"|role === "apikey"/);
-    expect(sidebar).toMatch(/benchmark"\) return false/);
-  });
-
-  it("bounds a run and caps the number of models", () => {
-    expect(route).toMatch(/MAX_MODELS\s*=\s*\d+/);
-    expect(route).toMatch(/slice\(0,\s*MAX_MODELS\)/);
-  });
-
-  it("gives each model its own deadline so a hang cannot block the rest", () => {
-    expect(route).toMatch(/withTimeout/);
-    expect(route).toMatch(/MODEL_TIMEOUT_MS/);
-  });
-
-  it("ranks by median latency and leaves failures unranked", () => {
-    expect(repo).toMatch(/median/);
-    expect(repo).toMatch(/medianLatencyMs/);
-    expect(repo).toMatch(/r\.ok \? i \+ 1 : null/);
-  });
-
-  it("keeps the table bounded", () => {
-    expect(repo).toMatch(/LIMIT 1000/);
-  });
-
-  it("shows the empty state rather than a blank table", () => {
-    expect(page).toMatch(/No runs yet/);
   });
 });

@@ -110,6 +110,8 @@ export default function RequestDetailsTab() {
   const [loading, setLoading] = useState(false);
   const [selectedDetail, setSelectedDetail] = useState(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  // Keyed by record id so a late failure for one record never labels another.
+  const [fullBodyError, setFullBodyError] = useState(null);
   const [providers, setProviders] = useState([]);
   const [providerNameCache, setProviderNameCache] = useState(null);
   const [filters, setFilters] = useState({
@@ -165,6 +167,7 @@ export default function RequestDetailsTab() {
   const handleViewDetail = async (detail) => {
     setSelectedDetail(detail);
     setIsDrawerOpen(true);
+    setFullBodyError(null);
 
     // The listing redacts conversation bodies; the full payload comes from an
     // admin-only per-record endpoint and is merged over the row once it lands.
@@ -173,12 +176,15 @@ export default function RequestDetailsTab() {
     try {
       const res = await fetch(`/api/usage/request-details/${encodeURIComponent(id)}`);
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) return;
+      if (!res.ok) {
+        setFullBodyError({ id, message: data.error || `HTTP ${res.status}` });
+        return;
+      }
       if (data.detail) {
         setSelectedDetail((prev) => (prev && prev.id === id ? { ...prev, ...data.detail } : prev));
       }
-    } catch {
-      // The full body is a bonus; the redacted listing is still usable.
+    } catch (error) {
+      setFullBodyError({ id, message: error.message || "Network error" });
     }
   };
 
@@ -479,6 +485,12 @@ export default function RequestDetailsTab() {
                   </p>
                 )}
               </div>
+            )}
+
+            {fullBodyError?.id === selectedDetail.id && (
+              <p role="alert" className="rounded-lg border border-danger-border bg-danger-bg p-3 text-xs text-danger">
+                Full payload could not be loaded ({fullBodyError.message}). Bodies below are the redacted listing copy.
+              </p>
             )}
 
             <div className="space-y-4">
