@@ -1,0 +1,306 @@
+openapi: 3.1.0
+info:
+  title: omeg4mon-router Settings Module API
+  version: 0.1.0
+paths:
+  /api/settings:
+    get:
+      operationId: listSettings
+      summary: List all typed runtime settings merged with defaults and revision metadata
+      tags:
+        - settings
+      responses:
+        '200':
+          description: Current typed settings snapshot.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SettingsResponse'
+        '401':
+          description: Administrative authentication is required.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '500':
+          description: Failed to load settings from storage.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+    patch:
+      operationId: patchSettings
+      summary: Atomically validate and update one or more typed runtime settings
+      tags:
+        - settings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchSettingsRequest'
+      responses:
+        '200':
+          description: Settings updated atomically and revision history recorded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SettingsResponse'
+        '400':
+          description: Malformed request body, unknown setting key, or invalid typed setting value.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Administrative authentication is required.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '413':
+          description: Request body exceeds maximum allowed size.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '500':
+          description: Failed to persist settings update.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+  /api/settings/history:
+    get:
+      operationId: listSettingsHistory
+      summary: List newest-first setting revision history entries
+      tags:
+        - settings
+      parameters:
+        - name: key
+          in: query
+          required: false
+          description: Optional setting key to filter history entries.
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          description: Maximum number of history entries to return (default 50, max 200).
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 50
+      responses:
+        '200':
+          description: Revision history entries ordered newest-first.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SettingsHistoryResponse'
+        '400':
+          description: Invalid query parameter value.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Administrative authentication is required.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '500':
+          description: Failed to load settings revision history.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+  /api/settings/rollback:
+    post:
+      operationId: rollbackSetting
+      summary: Atomically roll back a setting to the state prior to a history entry
+      tags:
+        - settings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RollbackSettingRequest'
+      responses:
+        '200':
+          description: Setting rolled back and rollback audit entry recorded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SettingItem'
+        '400':
+          description: Malformed request body or invalid rollback target value.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Administrative authentication is required.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Requested settings history entry was not found.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '413':
+          description: Request body exceeds maximum allowed size.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '500':
+          description: Failed to commit setting rollback.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+components:
+  schemas:
+    SettingValue:
+      oneOf:
+        - type: string
+        - type: integer
+          format: int64
+        - type: boolean
+    NullableSettingValue:
+      oneOf:
+        - type: string
+        - type: integer
+          format: int64
+        - type: boolean
+        - type: 'null'
+    SettingItem:
+      type: object
+      additionalProperties: false
+      required:
+        - key
+        - type
+        - value
+        - default_value
+        - revision
+        - updated_at
+        - description
+      properties:
+        key:
+          type: string
+        type:
+          type: string
+          enum:
+            - enum
+            - boolean
+            - integer
+        value:
+          $ref: '#/components/schemas/SettingValue'
+        default_value:
+          $ref: '#/components/schemas/SettingValue'
+        revision:
+          type: integer
+          format: int64
+          minimum: 0
+        updated_at:
+          type: string
+        updated_by:
+          type: string
+        description:
+          type: string
+        options:
+          type: array
+          items:
+            type: string
+        min:
+          type: integer
+          format: int64
+        max:
+          type: integer
+          format: int64
+    SettingsResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - settings
+      properties:
+        settings:
+          type: array
+          items:
+            $ref: '#/components/schemas/SettingItem'
+    PatchSettingsRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - updates
+      properties:
+        updates:
+          type: object
+          minProperties: 1
+          additionalProperties:
+            $ref: '#/components/schemas/SettingValue'
+        reason:
+          type: string
+          maxLength: 512
+    SettingHistoryItem:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - setting_key
+        - old_value
+        - new_value
+        - revision
+        - changed_by
+        - reason
+        - created_at
+      properties:
+        id:
+          type: integer
+          format: int64
+        setting_key:
+          type: string
+        old_value:
+          $ref: '#/components/schemas/NullableSettingValue'
+        new_value:
+          $ref: '#/components/schemas/SettingValue'
+        revision:
+          type: integer
+          format: int64
+          minimum: 1
+        changed_by:
+          type: string
+        reason:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+    SettingsHistoryResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/SettingHistoryItem'
+    RollbackSettingRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - history_id
+      properties:
+        history_id:
+          type: integer
+          format: int64
+        reason:
+          type: string
+          maxLength: 512

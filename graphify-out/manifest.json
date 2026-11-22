@@ -508,5 +508,35 @@
     "seen": 1795376384.8057542,
     "ast_hash": "d9e7c3ef8e9399357c615203c82fcb12",
     "semantic_hash": ""
+  },
+  "contracts/openapi/modules/settings.yaml": {
+    "mtime": 1795376893.6202755,
+    "seen": 1795376955.4035017,
+    "ast_hash": "17c854202e1b9ab0d2299ed45942f1a8",
+    "semantic_hash": ""
+  },
+  "internal/modules/settings/module.go": {
+    "mtime": 1795376892.1402562,
+    "seen": 1795376955.4036872,
+    "ast_hash": "08502fca1f0ade2bbc001f776796ef97",
+    "semantic_hash": ""
+  },
+  "internal/modules/settings/module_test.go": {
+    "mtime": 1795376910.6444964,
+    "seen": 1795376955.4036887,
+    "ast_hash": "123a0e75c45047ddf46fd0a3f3425779",
+    "semantic_hash": ""
+  },
+  "internal/modules/settings/repo.go": {
+    "mtime": 1795376923.060986,
+    "seen": 1795376955.40369,
+    "ast_hash": "9f68f4acb6d2b5c3bbd3afc539ffbbff",
+    "semantic_hash": ""
+  },
+  "internal/modules/settings/schema.go": {
+    "mtime": 1795376889.0102155,
+    "seen": 1795376955.403691,
+    "ast_hash": "4440a3dfb471344ed7d7a45d02dfcdbb",
+    "semantic_hash": ""
   }
 }
