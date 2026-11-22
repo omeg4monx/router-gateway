@@ -538,5 +538,41 @@
     "seen": 1795376955.403691,
     "ast_hash": "4440a3dfb471344ed7d7a45d02dfcdbb",
     "semantic_hash": ""
+  },
+  "contracts/openapi/modules/keys.yaml": {
+    "mtime": 1795377695.362687,
+    "seen": 1795377744.7547436,
+    "ast_hash": "f94b3aa73fd95ab07807a7ffdd0aa890",
+    "semantic_hash": ""
+  },
+  "internal/modules/keys/cache.go": {
+    "mtime": 1795377690.4716237,
+    "seen": 1795377744.7549496,
+    "ast_hash": "645a908297073e4c1bac243f8f8d3f35",
+    "semantic_hash": ""
+  },
+  "internal/modules/keys/module.go": {
+    "mtime": 1795377694.04167,
+    "seen": 1795377744.7549512,
+    "ast_hash": "c26e0a823b58bca23565d1cb16280080",
+    "semantic_hash": ""
+  },
+  "internal/modules/keys/module_test.go": {
+    "mtime": 1795377731.9451623,
+    "seen": 1795377744.7549522,
+    "ast_hash": "fb053ac9b6f6c1465c324baf513d7451",
+    "semantic_hash": ""
+  },
+  "internal/modules/keys/repo.go": {
+    "mtime": 1795377691.9476428,
+    "seen": 1795377744.7549531,
+    "ast_hash": "cfb07591d47f8a7283a9ed05d75d8e0f",
+    "semantic_hash": ""
+  },
+  "internal/modules/keys/token.go": {
+    "mtime": 1795377688.8316023,
+    "seen": 1795377744.7549543,
+    "ast_hash": "d7b3b39e3da876b2f620844d3d3de616",
+    "semantic_hash": ""
   }
 }
