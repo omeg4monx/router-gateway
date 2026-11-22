@@ -8,7 +8,7 @@ export default function HeroSection() {
       
       <div className="relative z-10 max-w-4xl w-full text-center flex flex-col items-center gap-8">
         {/* Version badge */}
-        <div className="inline-flex items-center gap-2 rounded-full border border-[#3a2f27] bg-[#23180f]/50 px-3 py-1 text-xs font-medium text-[var(--color-brand-500)]">
+        <div className="inline-flex items-center gap-2 rounded-full border border-border bg-surface-2/50 px-3 py-1 text-xs font-medium text-primary">
           <span className="flex h-2 w-2 rounded-full bg-[var(--color-brand-500)] animate-pulse"></span>
           v1.0 is now live
         </div>
@@ -26,7 +26,7 @@ export default function HeroSection() {
 
         {/* CTA Buttons */}
         <div className="flex flex-wrap items-center justify-center gap-4 w-full">
-          <button className="h-12 px-8 rounded-lg bg-[var(--color-brand-500)] hover:bg-[#e0650a] text-[#181411] text-base font-bold transition-all shadow-[0_0_15px_rgba(249,120,21,0.4)] flex items-center gap-2">
+          <button className="h-12 px-8 rounded-lg bg-primary hover:bg-primary-hover text-on-primary text-base font-bold transition-all shadow-[0_0_15px_color-mix(in_srgb,var(--color-primary)_40%,transparent)] flex items-center gap-2">
             <span className="material-symbols-outlined">rocket_launch</span>
             Get Started
           </button>
@@ -34,7 +34,7 @@ export default function HeroSection() {
             href="https://github.com/omeg4monx/router-gateway"
             target="_blank" 
             rel="noopener noreferrer"
-            className="h-12 px-8 rounded-lg border border-[#3a2f27] bg-[#23180f] hover:bg-[#3a2f27] text-white text-base font-bold transition-all flex items-center gap-2"
+            className="h-12 px-8 rounded-lg border border-border bg-surface-2 hover:bg-surface-3 text-text-main text-base font-bold transition-all flex items-center gap-2"
           >
             <span className="material-symbols-outlined">code</span>
             View on GitHub

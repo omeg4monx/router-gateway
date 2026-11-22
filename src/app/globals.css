@@ -99,7 +99,7 @@
   --color-danger-fg: #a02a22;
   --color-danger-border: #f0c4c0;
 
-  --color-success: #157f4b;
+  --color-success: #117444;
   --color-success-bg: #e7f4ec;
   --color-success-fg: #10693d;
   --color-success-border: #b7dfc6;
@@ -219,10 +219,10 @@
   --color-muted: var(--color-text-muted);
   --color-info-solid: #0e7490;
 
-  --color-danger: #e5484d;
-  --color-danger-bg: rgba(229, 72, 77, 0.14);
+  --color-danger: #f0605f;
+  --color-danger-bg: rgba(240, 96, 95, 0.14);
   --color-danger-fg: #f2959a;
-  --color-danger-border: rgba(229, 72, 77, 0.30);
+  --color-danger-border: rgba(240, 96, 95, 0.30);
 
   --color-success: #46a077;
   --color-success-bg: rgba(70, 160, 119, 0.14);

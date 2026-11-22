@@ -2,7 +2,7 @@
 
 export default function HowItWorks() {
   return (
-    <section className="py-24 border-y border-[#3a2f27] bg-[#23180f]/30" id="how-it-works">
+    <section className="py-24 border-y border-border bg-surface-2/30" id="how-it-works">
       <div className="max-w-7xl mx-auto px-6">
         <div className="mb-16">
           <h2 className="text-3xl md:text-4xl font-bold mb-4">How OMEG4MON ROUTER Works</h2>
@@ -17,7 +17,7 @@ export default function HowItWorks() {
           
           {/* Step 1: CLI & SDKs */}
           <div className="flex flex-col gap-6 relative group">
-            <div className="w-24 h-24 rounded-[6px] bg-[#181411] border border-[#3a2f27] flex items-center justify-center shadow-[var(--shadow-elev)] group-hover:border-border transition-colors z-10 mx-auto md:mx-0">
+            <div className="w-24 h-24 rounded-[6px] bg-surface border border-border flex items-center justify-center shadow-[var(--shadow-elev)] group-hover:border-border-hover transition-colors z-10 mx-auto md:mx-0">
               <span className="material-symbols-outlined text-4xl text-muted">terminal</span>
             </div>
             <div>
@@ -30,7 +30,7 @@ export default function HowItWorks() {
 
           {/* Step 2: OMEG4MON ROUTER Hub */}
           <div className="flex flex-col gap-6 relative group md:items-center md:text-center">
-            <div className="w-24 h-24 rounded-[6px] bg-[#181411] border-2 border-[var(--color-brand-500)] flex items-center justify-center shadow-[0_0_30px_rgba(249,120,21,0.2)] z-10 mx-auto">
+            <div className="w-24 h-24 rounded-[6px] bg-surface border-2 border-primary flex items-center justify-center shadow-[0_0_30px_color-mix(in_srgb,var(--color-primary)_20%,transparent)] z-10 mx-auto">
               <span className="material-symbols-outlined text-4xl text-[var(--color-brand-500)] animate-pulse">hub</span>
             </div>
             <div>
@@ -43,7 +43,7 @@ export default function HowItWorks() {
 
           {/* Step 3: AI Providers */}
           <div className="flex flex-col gap-6 relative group md:items-end md:text-right">
-            <div className="w-24 h-24 rounded-[6px] bg-[#181411] border border-[#3a2f27] flex items-center justify-center shadow-[var(--shadow-elev)] group-hover:border-border transition-colors z-10 mx-auto md:mx-0">
+            <div className="w-24 h-24 rounded-[6px] bg-surface border border-border flex items-center justify-center shadow-[var(--shadow-elev)] group-hover:border-border-hover transition-colors z-10 mx-auto md:mx-0">
               <div className="grid grid-cols-2 gap-2">
                 <div className="w-6 h-6 rounded bg-surface-3"></div>
                 <div className="w-6 h-6 rounded bg-surface-3"></div>

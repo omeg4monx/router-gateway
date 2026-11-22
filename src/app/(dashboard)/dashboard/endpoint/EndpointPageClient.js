@@ -1307,7 +1307,7 @@ console.log(res.choices[0].message.content);`;
 
         {/* Anthropic-Compatible Endpoint */}
         <div className="mt-1.5 flex items-center gap-1.5 rounded-[6px] border border-border bg-surface-2 p-1.5 transition-all focus-within:border-brand-500">
-          <span className="px-2 py-0.5 rounded-[3px] bg-surface border border-border-subtle font-mono text-[10px] font-semibold text-[#d97757] shrink-0">
+          <span className="px-2 py-0.5 rounded-[3px] bg-surface border border-border-subtle font-mono text-[10px] font-semibold text-[#a9502f] dark:text-[#d97757] shrink-0">
             Claude
           </span>
           <input
@@ -1322,7 +1322,7 @@ console.log(res.choices[0].message.content);`;
             className="flex items-center gap-1 rounded-[4px] bg-surface px-2.5 py-1 text-xs font-medium text-text-main border border-border hover:border-brand-500 hover:text-primary transition-colors shrink-0 cursor-pointer shadow-xs"
             title="Copy Anthropic Base URL"
           >
-            <span className="material-symbols-outlined text-[15px] text-[#d97757]">
+            <span className="material-symbols-outlined text-[15px] text-[#a9502f] dark:text-[#d97757]">
               {copied === "anthropic_url" ? "check" : "content_copy"}
             </span>
             <span className="text-[11px]">{copied === "anthropic_url" ? "Copied!" : "Copy"}</span>

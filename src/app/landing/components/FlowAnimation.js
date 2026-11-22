@@ -14,19 +14,19 @@ const PROVIDERS = [
     id: "openai",
     name: "OpenAI",
     color: "bg-success-solid",
-    textColor: "text-text-main",
+    textColor: "text-white",
   },
   {
     id: "anthropic",
     name: "Anthropic",
     color: "bg-warning-solid",
-    textColor: "text-text-main",
+    textColor: "text-white",
   },
   {
     id: "gemini",
     name: "Gemini",
     color: "bg-info-solid",
-    textColor: "text-text-main",
+    textColor: "text-white",
   },
   {
     id: "github",

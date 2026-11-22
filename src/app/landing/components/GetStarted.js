@@ -9,7 +9,7 @@ export default function GetStarted() {
   };
 
   return (
-    <section className="py-24 px-6 bg-[#120f0d]">
+    <section className="py-24 px-6 bg-bg-alt">
       <div className="max-w-7xl mx-auto">
         <div className="flex flex-col lg:flex-row gap-16 items-start">
           {/* Left: Steps */}
@@ -21,7 +21,7 @@ export default function GetStarted() {
             
             <div className="flex flex-col gap-6">
               <div className="flex gap-4">
-                <div className="flex-none w-8 h-8 rounded-full bg-[var(--color-brand-500)]/20 text-[var(--color-brand-500)] flex items-center justify-center font-bold">1</div>
+                <div className="flex-none w-8 h-8 rounded-full bg-primary/15 text-primary-hover dark:text-primary flex items-center justify-center font-bold">1</div>
                 <div>
                   <h4 className="font-bold text-lg">Install OMEG4MON ROUTER</h4>
                   <p className="text-sm text-muted mt-1">Run npx command to start the server instantly</p>
@@ -29,7 +29,7 @@ export default function GetStarted() {
               </div>
               
               <div className="flex gap-4">
-                <div className="flex-none w-8 h-8 rounded-full bg-[var(--color-brand-500)]/20 text-[var(--color-brand-500)] flex items-center justify-center font-bold">2</div>
+                <div className="flex-none w-8 h-8 rounded-full bg-primary/15 text-primary-hover dark:text-primary flex items-center justify-center font-bold">2</div>
                 <div>
                   <h4 className="font-bold text-lg">Open Dashboard</h4>
                   <p className="text-sm text-muted mt-1">Configure providers and API keys via web interface</p>
@@ -37,7 +37,7 @@ export default function GetStarted() {
               </div>
               
               <div className="flex gap-4">
-                <div className="flex-none w-8 h-8 rounded-full bg-[var(--color-brand-500)]/20 text-[var(--color-brand-500)] flex items-center justify-center font-bold">3</div>
+                <div className="flex-none w-8 h-8 rounded-full bg-primary/15 text-primary-hover dark:text-primary flex items-center justify-center font-bold">3</div>
                 <div>
                   <h4 className="font-bold text-lg">Route Requests</h4>
                   <p className="text-sm text-muted mt-1">Point your CLI tools to http://localhost:20128</p>
@@ -48,9 +48,9 @@ export default function GetStarted() {
 
           {/* Right: Code block */}
           <div className="flex-1 w-full">
-            <div className="rounded-[6px] overflow-hidden bg-[#1e1e1e] border border-[#3a2f27] shadow-[var(--shadow-elev)]">
+            <div className="rounded-[6px] overflow-hidden bg-surface border border-border shadow-[var(--shadow-elev)]">
               {/* Terminal header */}
-              <div className="flex items-center gap-2 px-4 py-3 bg-[#252526] border-b border-border">
+              <div className="flex items-center gap-2 px-4 py-3 bg-surface-3 border-b border-border">
                 <div className="w-3 h-3 rounded-full bg-danger-solid"></div>
                 <div className="w-3 h-3 rounded-full bg-warning-solid"></div>
                 <div className="w-3 h-3 rounded-full bg-success-solid"></div>
@@ -64,7 +64,7 @@ export default function GetStarted() {
                   onClick={() => handleCopy("bun install && bun run dev")}
                 >
                   <span className="text-success">$</span>
-                  <span className="text-white">bun install && bun run dev</span>
+                  <span className="text-text-main">bun install && bun run dev</span>
                   <span className="ml-auto text-muted text-xs opacity-0 group-hover:opacity-100">
                     {copied === "landing" ? "Tersalin" : "Copy"}
                   </span>

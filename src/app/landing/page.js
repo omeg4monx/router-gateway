@@ -11,7 +11,7 @@ import Footer from "./components/Footer";
 export default function LandingPage() {
   const router = useRouter();
   return (
-    <div className="relative text-text-main font-sans overflow-x-hidden antialiased selection:bg-primary selection:text-white">
+    <div className="relative text-text-main font-sans overflow-x-hidden antialiased selection:bg-primary selection:text-on-primary">
       {/* Animated Background */}
       <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none bg-bg">
         {/* Identity motif: the ember veil. One warm glow, anchored to the top. */}
@@ -51,13 +51,13 @@ export default function LandingPage() {
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
               <button 
                 onClick={() => router.push("/dashboard")}
-                className="w-full sm:w-auto h-14 px-10 rounded-lg bg-[var(--color-brand-500)] hover:bg-[#e0650a] text-[#181411] text-lg font-bold transition-all shadow-[0_0_20px_rgba(249,120,21,0.5)]"
+                className="w-full sm:w-auto h-14 px-10 rounded-lg bg-primary hover:bg-primary-hover text-on-primary text-lg font-bold transition-all shadow-[0_0_20px_color-mix(in_srgb,var(--color-primary)_50%,transparent)]"
               >
                 Start Free
               </button>
               <button 
                 onClick={() => window.open("https://github.com/omeg4monx/router-gateway/tree/main/docs", "_blank")}
-                className="w-full sm:w-auto h-14 px-10 rounded-lg border border-[#3a2f27] hover:bg-[#23180f] text-white text-lg font-bold transition-all"
+                className="w-full sm:w-auto h-14 px-10 rounded-lg border border-border hover:bg-surface-2 text-text-main text-lg font-bold transition-all"
               >
                 Read Documentation
               </button>
