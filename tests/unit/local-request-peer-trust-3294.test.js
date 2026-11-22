@@ -202,6 +202,22 @@ describe("login limiter client IP", () => {
     expect(ip).toBe("203.0.113.9");
   });
 
+  it("ignores a cf-connecting-ip the wrapper never vouched for", () => {
+    const ip = getClientIp(request("/api/auth/login", { "cf-connecting-ip": "203.0.113.50" }));
+
+    expect(ip).toBe("unknown");
+  });
+
+  it("prefers the stamped peer IP over a cf-connecting-ip header", () => {
+    const ip = getClientIp(request("/api/auth/login", {
+      "cf-connecting-ip": "203.0.113.50",
+      "x-9r-real-ip": "203.0.113.9",
+      "x-9r-peer-token": PEER_TOKEN,
+    }));
+
+    expect(ip).toBe("203.0.113.9");
+  });
+
   it("still honours TRUST_PROXY for operators fronting omeg4mon-router with a reverse proxy", () => {
     process.env.TRUST_PROXY = "true";
 

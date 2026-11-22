@@ -34,8 +34,7 @@ export async function GET(request) {
       );
     }
 
-    const cfIp = request.headers.get("cf-connecting-ip");
-    const rawIp = (cfIp && cfIp.trim()) ? cfIp.trim() : (getClientIp(request) || "");
+    const rawIp = getClientIp(request);
     const ip = normalizeClientIp(rawIp);
 
     // Naub: blokir IP proxy/VPN/datacenter/TOR — anti-farming
@@ -148,8 +147,7 @@ export async function POST(request) {
     );
   }
 
-  const cfIp = request.headers.get("cf-connecting-ip");
-  const rawIp = (cfIp && cfIp.trim()) ? cfIp.trim() : (getClientIp(request) || "");
+  const rawIp = getClientIp(request);
   const ip = normalizeClientIp(rawIp);
   const lockKey = `claim_lock:${ip}`;
   let hwLockKey = null;

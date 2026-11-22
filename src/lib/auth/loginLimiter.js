@@ -65,17 +65,15 @@ export function recordSuccess(ip) {
 }
 
 export function getClientIp(request) {
-  // 1. Direct Cloudflare Tunnel real client IP (unspoofable, stamped by CF edge)
-  const cfIp = request.headers.get("cf-connecting-ip");
-  if (cfIp && cfIp.trim()) return cfIp.trim();
-
-  // 2. Trusted peer header stamped by custom-server.js from TCP socket
+  // 1. Trusted peer header stamped by custom-server.js. For a loopback proxy hop
+  // (cloudflared) the wrapper already folds cf-connecting-ip in here; a raw
+  // cf-connecting-ip is client-controlled whenever the wrapper is not in the path.
   if (hasTrustedPeerHeaders(request)) {
     const realIp = request.headers.get("x-9r-real-ip");
     if (realIp) return realIp;
   }
 
-  // 3. Fallback only if TRUST_PROXY is explicitly enabled
+  // 2. Fallback only if TRUST_PROXY is explicitly enabled
   if (process.env.TRUST_PROXY === "true") {
     const xff = request.headers.get("x-forwarded-for");
     if (xff) return xff.split(",")[0].trim();
