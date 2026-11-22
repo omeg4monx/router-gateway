@@ -18,6 +18,7 @@ COPY go.mod go.sum ./
 RUN go mod download
 COPY cmd ./cmd
 COPY internal ./internal
+RUN rm -rf ./cmd/omeg4mon-router/ui_dist
 COPY --from=web-builder /src/web/out ./cmd/omeg4mon-router/ui_dist
 RUN mkdir -p /data && \
     CGO_ENABLED=0 go build \

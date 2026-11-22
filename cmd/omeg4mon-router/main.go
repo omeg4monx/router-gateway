@@ -229,8 +229,9 @@ func (a *App) Run(ctx context.Context) error {
 	return errors.Join(serveErr, closeErr)
 }
 
-// Close gracefully stops the HTTP server, active modules, background jobs, and
-// SQLite connection pools. Close is idempotent and safe to call multiple times.
+// Close gracefully stops the HTTP server, background jobs, active modules,
+// idle HTTP connections, and SQLite connection pools in strict LIFO order.
+// Close is idempotent and safe to call multiple times.
 func (a *App) Close(ctx context.Context) error {
 	if a == nil {
 		return nil
@@ -248,14 +249,14 @@ func (a *App) Close(ctx context.Context) error {
 				errs = append(errs, fmt.Errorf("shutdown http server: %w", err))
 			}
 		}
-		if a.registry != nil {
-			if err := a.registry.StopAll(ctx); err != nil {
-				errs = append(errs, fmt.Errorf("stop modules: %w", err))
-			}
-		}
 		if a.jobs != nil {
 			if err := a.jobs.Stop(ctx); err != nil {
 				errs = append(errs, fmt.Errorf("stop jobs runner: %w", err))
+			}
+		}
+		if a.registry != nil {
+			if err := a.registry.StopAll(ctx); err != nil {
+				errs = append(errs, fmt.Errorf("stop modules: %w", err))
 			}
 		}
 		if a.httpClient != nil {

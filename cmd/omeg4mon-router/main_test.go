@@ -4,15 +4,22 @@ import (
 	"context"
 	"encoding/json"
 	"io"
+	"io/fs"
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/omeg4monx/router-gateway/internal/modules/system"
 	"github.com/omeg4monx/router-gateway/internal/platform/config"
+	"github.com/omeg4monx/router-gateway/internal/platform/db"
+	"github.com/omeg4monx/router-gateway/internal/platform/jobs"
+	"github.com/omeg4monx/router-gateway/internal/platform/lifecycle"
+	"github.com/omeg4monx/router-gateway/internal/platform/logging"
 )
 
 func TestAppBootstrapsMigrationsRoutesAndShutdown(t *testing.T) {
@@ -205,5 +212,105 @@ func TestBuildAppCleansUpOnPartialFailure(t *testing.T) {
 	}
 	if app != nil {
 		t.Fatalf("expected nil app on buildApp failure")
+	}
+}
+
+type orderStubModule struct {
+	name   string
+	onStop func(context.Context) error
+}
+
+func (m *orderStubModule) Name() string                      { return m.name }
+func (m *orderStubModule) Dependencies() []string            { return nil }
+func (m *orderStubModule) Migrations() fs.FS                 { return nil }
+func (m *orderStubModule) RegisterRoutes(lifecycle.RouteMounts) {}
+func (m *orderStubModule) Start(context.Context) error       { return nil }
+func (m *orderStubModule) Stop(ctx context.Context) error {
+	if m.onStop != nil {
+		return m.onStop(ctx)
+	}
+	return nil
+}
+
+func TestAppCloseTeardownOrderIsLIFO(t *testing.T) {
+	ctx := context.Background()
+	logger, _ := logging.New("error", io.Discard, 16)
+
+	database, err := db.Open(filepath.Join(t.TempDir(), "lifo.sqlite"))
+	if err != nil {
+		t.Fatalf("db.Open() error = %v", err)
+	}
+
+	var (
+		mu     sync.Mutex
+		events []string
+	)
+	record := func(ev string) {
+		mu.Lock()
+		events = append(events, ev)
+		mu.Unlock()
+	}
+
+	jobStarted := make(chan struct{})
+	var startOnce sync.Once
+
+	jobRunner := jobs.NewRunner(logger)
+	jobRunner.Every("lifo-check", time.Millisecond, func(jobCtx context.Context) error {
+		startOnce.Do(func() { close(jobStarted) })
+		<-jobCtx.Done()
+		// Yield briefly so an incorrect teardown order that stops modules before
+		// jobs reliably records module_stopped first.
+		time.Sleep(15 * time.Millisecond)
+		record("job_stopped")
+		return jobCtx.Err()
+	})
+
+	registry := lifecycle.NewRegistry(nil)
+	if err := registry.Register(&orderStubModule{
+		name: "stub",
+		onStop: func(stopCtx context.Context) error {
+			if err := database.Ping(stopCtx); err != nil {
+				t.Errorf("database was closed before module Stop ran: %v", err)
+			}
+			record("module_stopped")
+			return nil
+		},
+	}); err != nil {
+		t.Fatalf("registry.Register() error = %v", err)
+	}
+	if err := registry.StartAll(ctx); err != nil {
+		t.Fatalf("registry.StartAll() error = %v", err)
+	}
+	jobRunner.Start(context.Background())
+
+	select {
+	case <-jobStarted:
+	case <-time.After(2 * time.Second):
+		t.Fatalf("timed out waiting for background job to start")
+	}
+
+	app := &App{
+		db:       database,
+		jobs:     jobRunner,
+		registry: registry,
+	}
+
+	closeCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	if err := app.Close(closeCtx); err != nil {
+		t.Fatalf("app.Close() error = %v", err)
+	}
+
+	if err := database.Ping(ctx); err == nil {
+		t.Fatalf("expected database to be closed after app.Close()")
+	}
+
+	mu.Lock()
+	got := slices.Clone(events)
+	mu.Unlock()
+
+	want := []string{"job_stopped", "module_stopped"}
+	if !slices.Equal(got, want) {
+		t.Fatalf("teardown order = %v, want %v", got, want)
 	}
 }
