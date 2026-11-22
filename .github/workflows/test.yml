@@ -25,11 +25,13 @@ jobs:
       - name: Install app deps
         run: npm install --no-audit --no-fund
 
-      - name: Install test deps
-        run: npm install --no-audit --no-fund
-        working-directory: tests
+      # A separate `npm install` in tests/ crashes npm's arborist (edgesOut of null)
+      # once the root has node_modules; add vitest to the root tree instead,
+      # pinned to the range in tests/package.json.
+      - name: Install test runner
+        run: npm install --no-save --no-audit --no-fund "vitest@$(node -p "require('./tests/package.json').devDependencies.vitest")"
 
       # Run from the repo root: several tests resolve files from process.cwd().
       # CI=true makes tests/vitest.config.js skip the files in tests/quarantine.js.
       - name: Unit tests
-        run: tests/node_modules/.bin/vitest run --config tests/vitest.config.js
+        run: npx vitest run --config tests/vitest.config.js
