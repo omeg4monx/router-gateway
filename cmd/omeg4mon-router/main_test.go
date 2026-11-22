@@ -220,11 +220,11 @@ type orderStubModule struct {
 	onStop func(context.Context) error
 }
 
-func (m *orderStubModule) Name() string                      { return m.name }
-func (m *orderStubModule) Dependencies() []string            { return nil }
-func (m *orderStubModule) Migrations() fs.FS                 { return nil }
+func (m *orderStubModule) Name() string                         { return m.name }
+func (m *orderStubModule) Dependencies() []string               { return nil }
+func (m *orderStubModule) Migrations() fs.FS                    { return nil }
 func (m *orderStubModule) RegisterRoutes(lifecycle.RouteMounts) {}
-func (m *orderStubModule) Start(context.Context) error       { return nil }
+func (m *orderStubModule) Start(context.Context) error          { return nil }
 func (m *orderStubModule) Stop(ctx context.Context) error {
 	if m.onStop != nil {
 		return m.onStop(ctx)

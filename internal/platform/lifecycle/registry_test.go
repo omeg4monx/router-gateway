@@ -713,9 +713,9 @@ func TestRegistryStartAllChecksContextBetweenModulesAndUsesFreshRollbackDeadline
 		defer cancel()
 
 		var (
-			bCalled      bool
-			aRolledBack  bool
-			rollbackErr  error
+			bCalled     bool
+			aRolledBack bool
+			rollbackErr error
 		)
 
 		reg := lifecycle.NewRegistry(nil)
