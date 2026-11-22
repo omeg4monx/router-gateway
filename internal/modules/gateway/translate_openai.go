@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"slices"
 	"strings"
 )
 
@@ -686,12 +687,14 @@ type openAIStreamDecoder struct {
 	activeBlockIdx int
 	nextBlockIdx   int
 	toolBlocks     map[int]int // openAI tool_call index -> canonical block index
+	openToolBlocks map[int]bool
 }
 
 func newOpenAIStreamDecoder(model string) *openAIStreamDecoder {
 	return &openAIStreamDecoder{
-		model:      model,
-		toolBlocks: make(map[int]int),
+		model:          model,
+		toolBlocks:     make(map[int]int),
+		openToolBlocks: make(map[int]bool),
 	}
 }
 
@@ -707,6 +710,26 @@ func (d *openAIStreamDecoder) closeActiveBlock(chunks *[]CanonicalStreamChunk) {
 	d.activeBlock = ""
 }
 
+func (d *openAIStreamDecoder) closeAllOpenBlocks(chunks *[]CanonicalStreamChunk) {
+	d.closeActiveBlock(chunks)
+	if len(d.openToolBlocks) == 0 {
+		return
+	}
+	indices := make([]int, 0, len(d.openToolBlocks))
+	for idx := range d.openToolBlocks {
+		indices = append(indices, idx)
+	}
+	slices.Sort(indices)
+	for _, idx := range indices {
+		*chunks = append(*chunks, CanonicalStreamChunk{
+			EventType:  ChunkBlockStop,
+			BlockIndex: idx,
+			BlockType:  BlockTypeToolUse,
+		})
+		delete(d.openToolBlocks, idx)
+	}
+}
+
 func (d *openAIStreamDecoder) Decode(_ string, data []byte) ([]CanonicalStreamChunk, error) {
 	trimmed := bytes.TrimSpace(data)
 	if len(trimmed) == 0 {
@@ -714,7 +737,7 @@ func (d *openAIStreamDecoder) Decode(_ string, data []byte) ([]CanonicalStreamCh
 	}
 	if bytes.Equal(trimmed, []byte("[DONE]")) {
 		var chunks []CanonicalStreamChunk
-		d.closeActiveBlock(&chunks)
+		d.closeAllOpenBlocks(&chunks)
 		chunks = append(chunks, CanonicalStreamChunk{
 			EventType: ChunkMessageStop,
 			Done:      true,
@@ -767,8 +790,8 @@ func (d *openAIStreamDecoder) Decode(_ string, data []byte) ([]CanonicalStreamCh
 
 	ch := payload.Choices[0]
 	if ch.Delta.ReasoningContent != "" {
-		if d.activeBlock != BlockTypeThinking {
-			d.closeActiveBlock(&chunks)
+		if d.activeBlock != BlockTypeThinking || len(d.openToolBlocks) > 0 {
+			d.closeAllOpenBlocks(&chunks)
 			d.activeBlock = BlockTypeThinking
 			d.activeBlockIdx = d.nextBlockIdx
 			d.nextBlockIdx++
@@ -787,8 +810,8 @@ func (d *openAIStreamDecoder) Decode(_ string, data []byte) ([]CanonicalStreamCh
 	}
 
 	if ch.Delta.Content != "" {
-		if d.activeBlock != BlockTypeText {
-			d.closeActiveBlock(&chunks)
+		if d.activeBlock != BlockTypeText || len(d.openToolBlocks) > 0 {
+			d.closeAllOpenBlocks(&chunks)
 			d.activeBlock = BlockTypeText
 			d.activeBlockIdx = d.nextBlockIdx
 			d.nextBlockIdx++
@@ -807,18 +830,17 @@ func (d *openAIStreamDecoder) Decode(_ string, data []byte) ([]CanonicalStreamCh
 	}
 
 	for _, tc := range ch.Delta.ToolCalls {
+		d.closeActiveBlock(&chunks)
 		tcIdx := 0
 		if tc.Index != nil {
 			tcIdx = *tc.Index
 		}
 		blockIdx, seen := d.toolBlocks[tcIdx]
 		if !seen {
-			d.closeActiveBlock(&chunks)
 			blockIdx = d.nextBlockIdx
 			d.nextBlockIdx++
 			d.toolBlocks[tcIdx] = blockIdx
-			d.activeBlock = BlockTypeToolUse
-			d.activeBlockIdx = blockIdx
+			d.openToolBlocks[blockIdx] = true
 			chunks = append(chunks, CanonicalStreamChunk{
 				EventType:  ChunkBlockStart,
 				BlockIndex: blockIdx,
@@ -838,7 +860,7 @@ func (d *openAIStreamDecoder) Decode(_ string, data []byte) ([]CanonicalStreamCh
 	}
 
 	if ch.FinishReason != "" {
-		d.closeActiveBlock(&chunks)
+		d.closeAllOpenBlocks(&chunks)
 		chunks = append(chunks, CanonicalStreamChunk{
 			EventType:  ChunkMessageDelta,
 			StopReason: mapOpenAIFinishReasonToCanonical(ch.FinishReason),

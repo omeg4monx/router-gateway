@@ -731,6 +731,60 @@ func TestGeminiAndOpenAIChatRoundTrip(t *testing.T) {
 	if !strings.Contains(string(openAIRoundTrip), `"lookup_price"`) || !strings.Contains(string(openAIRoundTrip), `"data:image/jpeg;base64,/9j/4AAQ"`) {
 		t.Fatalf("round-tripped openai request missing expected fields: %s", string(openAIRoundTrip))
 	}
+
+	t.Run("parallel tool results merge into single user turn in gemini", func(t *testing.T) {
+		parallelReq := []byte(`{
+			"model": "gemini-2.5-pro",
+			"messages": [
+				{"role": "user", "content": "Check weather and price"},
+				{
+					"role": "assistant",
+					"tool_calls": [
+						{"id": "call_w", "type": "function", "function": {"name": "get_weather", "arguments": "{\"city\":\"Tokyo\"}"}},
+						{"id": "call_p", "type": "function", "function": {"name": "lookup_price", "arguments": "{\"sku\":\"A1\"}"}}
+					]
+				},
+				{"role": "tool", "tool_call_id": "call_w", "content": "{\"temp_c\":22}"},
+				{"role": "tool", "tool_call_id": "call_p", "content": "{\"price\":19.99}"}
+			]
+		}`)
+
+		parallelIR, err := DecodeRequest(ProtocolOpenAIChat, parallelReq, "")
+		if err != nil {
+			t.Fatalf("DecodeRequest error: %v", err)
+		}
+		parallelGemBytes, err := EncodeRequest(ProtocolGemini, parallelIR)
+		if err != nil {
+			t.Fatalf("EncodeRequest(gemini) error: %v", err)
+		}
+
+		var parallelGem struct {
+			Contents []struct {
+				Role  string `json:"role"`
+				Parts []struct {
+					FunctionCall *struct {
+						Name string `json:"name"`
+					} `json:"functionCall"`
+					FunctionResponse *struct {
+						ID   string `json:"id"`
+						Name string `json:"name"`
+					} `json:"functionResponse"`
+				} `json:"parts"`
+			} `json:"contents"`
+		}
+		if err := json.Unmarshal(parallelGemBytes, &parallelGem); err != nil {
+			t.Fatalf("unmarshal parallel gemini req: %v", err)
+		}
+		if len(parallelGem.Contents) != 3 {
+			t.Fatalf("expected 3 contents (user, model, merged user tool_results), got %d: %s", len(parallelGem.Contents), string(parallelGemBytes))
+		}
+		mergedTurn := parallelGem.Contents[2]
+		if mergedTurn.Role != "user" || len(mergedTurn.Parts) != 2 ||
+			mergedTurn.Parts[0].FunctionResponse == nil || mergedTurn.Parts[0].FunctionResponse.Name != "get_weather" ||
+			mergedTurn.Parts[1].FunctionResponse == nil || mergedTurn.Parts[1].FunctionResponse.Name != "lookup_price" {
+			t.Fatalf("expected merged user turn with 2 functionResponse parts, got %+v", mergedTurn)
+		}
+	})
 }
 
 func TestStreamTranslators(t *testing.T) {
@@ -965,6 +1019,105 @@ func TestStreamTranslators(t *testing.T) {
 		extraFrames, _ := tr.Finalize()
 		if len(extraFrames) != 0 {
 			t.Fatalf("expected 0 frames from idempotent Finalize, got %d", len(extraFrames))
+		}
+	})
+
+	t.Run("interleaved multi-index openai-chat tool_calls SSE to anthropic and gemini", func(t *testing.T) {
+		chunks := []string{
+			`{"id":"chatcmpl-multi","object":"chat.completion.chunk","model":"gpt-4o","choices":[{"index":0,"delta":{"role":"assistant","tool_calls":[{"index":0,"id":"call_0","type":"function","function":{"name":"get_weather","arguments":""}}]},"finish_reason":null}]}`,
+			`{"id":"chatcmpl-multi","object":"chat.completion.chunk","model":"gpt-4o","choices":[{"index":0,"delta":{"tool_calls":[{"index":1,"id":"call_1","type":"function","function":{"name":"get_time","arguments":""}}]},"finish_reason":null}]}`,
+			`{"id":"chatcmpl-multi","object":"chat.completion.chunk","model":"gpt-4o","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"function":{"arguments":"{\"city\":"}}]},"finish_reason":null}]}`,
+			`{"id":"chatcmpl-multi","object":"chat.completion.chunk","model":"gpt-4o","choices":[{"index":0,"delta":{"tool_calls":[{"index":1,"function":{"arguments":"{\"tz\":\"UTC\"}"}}]},"finish_reason":null}]}`,
+			`{"id":"chatcmpl-multi","object":"chat.completion.chunk","model":"gpt-4o","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"function":{"arguments":"\"Tokyo\"}"}}]},"finish_reason":null}]}`,
+			`{"id":"chatcmpl-multi","object":"chat.completion.chunk","model":"gpt-4o","choices":[{"index":0,"delta":{},"finish_reason":"tool_calls"}],"usage":{"prompt_tokens":20,"completion_tokens":10,"total_tokens":30}}`,
+			`[DONE]`,
+		}
+
+		// Verify Anthropic output: each block index starts once, receives its deltas while open, and stops once at end.
+		anthTr, err := NewStreamTranslator(ProtocolAnthropic, ProtocolOpenAIChat, "gpt-4o")
+		if err != nil {
+			t.Fatalf("NewStreamTranslator(anthropic) error: %v", err)
+		}
+		var anthOut strings.Builder
+		for _, c := range chunks {
+			frames, _, _, err := anthTr.TranslateEvent("", []byte(c))
+			if err != nil {
+				t.Fatalf("anth TranslateEvent error: %v", err)
+			}
+			for _, f := range frames {
+				anthOut.Write(f)
+			}
+		}
+		anthStr := anthOut.String()
+		if count := strings.Count(anthStr, "event: content_block_start\n"); count != 2 {
+			t.Fatalf("expected 2 content_block_start events, got %d:\n%s", count, anthStr)
+		}
+		if count := strings.Count(anthStr, "event: content_block_stop\n"); count != 2 {
+			t.Fatalf("expected 2 content_block_stop events, got %d:\n%s", count, anthStr)
+		}
+		// Block 0 must not stop before its second argument delta ("Tokyo").
+		stop0Idx := strings.Index(anthStr, `{"index":0,"type":"content_block_stop"}`)
+		tokyoIdx := strings.Index(anthStr, `\"Tokyo\"`)
+		if stop0Idx < 0 || tokyoIdx < 0 || stop0Idx < tokyoIdx {
+			t.Fatalf("block 0 stopped prematurely (stop0Idx=%d, tokyoIdx=%d):\n%s", stop0Idx, tokyoIdx, anthStr)
+		}
+
+		// Verify Gemini output: exactly 2 functionCall frames with complete JSON args and non-null terminal parts.
+		gemTr, err := NewStreamTranslator(ProtocolGemini, ProtocolOpenAIChat, "gemini-2.5-pro")
+		if err != nil {
+			t.Fatalf("NewStreamTranslator(gemini) error: %v", err)
+		}
+		var gemFrames []string
+		for _, c := range chunks {
+			frames, _, _, err := gemTr.TranslateEvent("", []byte(c))
+			if err != nil {
+				t.Fatalf("gem TranslateEvent error: %v", err)
+			}
+			for _, f := range frames {
+				gemFrames = append(gemFrames, string(f))
+			}
+		}
+		gemAll := strings.Join(gemFrames, "")
+		if count := strings.Count(gemAll, `"functionCall"`); count != 2 {
+			t.Fatalf("expected 2 functionCall frames, got %d:\n%s", count, gemAll)
+		}
+		if !strings.Contains(gemAll, `"city":"Tokyo"`) || !strings.Contains(gemAll, `"tz":"UTC"`) {
+			t.Fatalf("interleaved tool arguments lost in gemini output:\n%s", gemAll)
+		}
+		if strings.Contains(gemAll, `"parts":null`) {
+			t.Fatalf("terminal gemini SSE frame emitted parts:null:\n%s", gemAll)
+		}
+		if !strings.Contains(gemAll, `"parts":[]`) {
+			t.Fatalf("terminal gemini SSE frame missing parts:[]:\n%s", gemAll)
+		}
+	})
+
+	t.Run("gemini terminal SSE frame emits empty parts array instead of null", func(t *testing.T) {
+		tr, err := NewStreamTranslator(ProtocolGemini, ProtocolOpenAIChat, "gemini-2.5-flash")
+		if err != nil {
+			t.Fatalf("NewStreamTranslator error: %v", err)
+		}
+		chunks := []string{
+			`{"id":"chatcmpl-t","object":"chat.completion.chunk","model":"gpt-4o","choices":[{"index":0,"delta":{"role":"assistant","content":"ok"},"finish_reason":null}]}`,
+			`{"id":"chatcmpl-t","object":"chat.completion.chunk","model":"gpt-4o","choices":[{"index":0,"delta":{},"finish_reason":"stop"}],"usage":{"prompt_tokens":5,"completion_tokens":2,"total_tokens":7}}`,
+			`[DONE]`,
+		}
+		var out strings.Builder
+		for _, c := range chunks {
+			frames, _, _, err := tr.TranslateEvent("", []byte(c))
+			if err != nil {
+				t.Fatalf("TranslateEvent error: %v", err)
+			}
+			for _, f := range frames {
+				out.Write(f)
+			}
+		}
+		outStr := out.String()
+		if strings.Contains(outStr, `"parts":null`) {
+			t.Fatalf("terminal gemini SSE frame emitted parts:null:\n%s", outStr)
+		}
+		if !strings.Contains(outStr, `"parts":[]`) {
+			t.Fatalf("terminal gemini SSE frame missing parts:[]:\n%s", outStr)
 		}
 	})
 }

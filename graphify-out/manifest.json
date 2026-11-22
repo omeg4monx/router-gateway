@@ -774,15 +774,15 @@
     "semantic_hash": ""
   },
   "internal/modules/gateway/translate_gemini.go": {
-    "mtime": 1795384667.434354,
-    "seen": 1795384677.3009758,
-    "ast_hash": "a2cd9324a8ce25e707a6155180bf115f",
+    "mtime": 1795384979.7130919,
+    "seen": 1795385014.6293805,
+    "ast_hash": "f1032df92f5d26b215aa90557a995a93",
     "semantic_hash": ""
   },
   "internal/modules/gateway/translate_openai.go": {
-    "mtime": 1795384661.698267,
-    "seen": 1795384677.300979,
-    "ast_hash": "ada703b4d20fd5446bf87e3fc987751a",
+    "mtime": 1795384983.5961509,
+    "seen": 1795385014.6293826,
+    "ast_hash": "5e7d6838628df918ac3459e9fd69b328",
     "semantic_hash": ""
   },
   "internal/modules/gateway/translate_responses.go": {
@@ -792,9 +792,9 @@
     "semantic_hash": ""
   },
   "internal/modules/gateway/translate_test.go": {
-    "mtime": 1795384058.7001185,
-    "seen": 1795384677.300985,
-    "ast_hash": "1faa2e6c3f1351eb17cb336248ff9f7f",
+    "mtime": 1795384942.7079043,
+    "seen": 1795385014.6294131,
+    "ast_hash": "d6d8ff9b028bf86aad4388a28da80819",
     "semantic_hash": ""
   }
 }

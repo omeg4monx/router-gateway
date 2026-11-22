@@ -485,10 +485,14 @@ func encodeGeminiRequest(req *CanonicalChatRequest) ([]byte, error) {
 			}
 		}
 		if len(parts) > 0 {
-			out.Contents = append(out.Contents, geminiContent{
-				Role:  role,
-				Parts: parts,
-			})
+			if n := len(out.Contents); n > 0 && out.Contents[n-1].Role == role {
+				out.Contents[n-1].Parts = append(out.Contents[n-1].Parts, parts...)
+			} else {
+				out.Contents = append(out.Contents, geminiContent{
+					Role:  role,
+					Parts: parts,
+				})
+			}
 		}
 	}
 
@@ -929,7 +933,7 @@ func (e *geminiStreamEncoder) emitFinal(usage CanonicalUsage) ([][]byte, error) 
 	}
 	e.sentFinal = true
 
-	var parts []geminiPart
+	parts := []geminiPart{}
 	pendingIndices := make([]int, 0, len(e.pendingTools))
 	for idx := range e.pendingTools {
 		pendingIndices = append(pendingIndices, idx)
