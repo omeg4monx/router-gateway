@@ -123,14 +123,19 @@ export function SettingsConsole() {
     reValidateMode: "onChange",
   });
 
+  const {
+    reset: resetSettingsForm,
+    formState: { isDirty: isSettingsDirty },
+  } = settingsForm;
+
   const settingsItems: SettingItem[] = settingsQuery.data ?? [];
   const settingsByKey = new Map(settingsItems.map((item) => [item.key, item]));
 
   useEffect(() => {
-    if (settingsQuery.data) {
-      settingsForm.reset(settingsItemsToFormValues(settingsQuery.data));
+    if (settingsQuery.data && !isSettingsDirty) {
+      resetSettingsForm(settingsItemsToFormValues(settingsQuery.data));
     }
-  }, [settingsQuery.data, settingsForm]);
+  }, [settingsQuery.data, isSettingsDirty, resetSettingsForm]);
 
   const handleRefreshAll = () => {
     void Promise.all([settingsQuery.refetch(), historyQuery.refetch(), authSessionQuery.refetch()]);
@@ -154,7 +159,7 @@ export function SettingsConsole() {
         if ("ui.theme" in patchPayload.updates) {
           syncThemeToUIStore(patchPayload.updates["ui.theme"]);
         }
-        settingsForm.reset(settingsItemsToFormValues(updatedItems));
+        resetSettingsForm(settingsItemsToFormValues(updatedItems));
         const changedCount = Object.keys(patchPayload.updates).length;
         setSettingsFeedback(
           `Saved ${changedCount} ${changedCount === 1 ? "setting" : "settings"} atomically.`,
@@ -164,6 +169,9 @@ export function SettingsConsole() {
   };
 
   const handleRollback = (historyId: number, settingKey: string) => {
+    if (rollbackBusyId !== null) {
+      return;
+    }
     setRollbackFeedback(null);
     rollbackMutation.reset();
     setRollbackBusyId(historyId);
@@ -178,6 +186,10 @@ export function SettingsConsole() {
           if (restoredItem.key === "ui.theme") {
             syncThemeToUIStore(restoredItem.value);
           }
+          const nextItems = settingsItems.some((item) => item.key === restoredItem.key)
+            ? settingsItems.map((item) => (item.key === restoredItem.key ? restoredItem : item))
+            : [...settingsItems, restoredItem];
+          resetSettingsForm(settingsItemsToFormValues(nextItems));
           setRollbackFeedback(
             `Rolled back ${restoredItem.key} to ${formatSettingValue(restoredItem.value)} (rev ${restoredItem.revision}).`,
           );
@@ -621,64 +633,104 @@ export function SettingsConsole() {
                   {authSession?.remote_enforced ? (
                     <Badge variant="warning">Remote-Bind Locked</Badge>
                   ) : null}
-                  <Badge variant={authSession?.require_login ? "success" : "secondary"}>
-                    {authSessionQuery.isPending
-                      ? "Checking"
-                      : authSession?.require_login
-                        ? "Enforced"
-                        : "Optional"}
-                  </Badge>
+                  {authSessionQuery.isError ? (
+                    <Badge variant="destructive">Unavailable</Badge>
+                  ) : (
+                    <Badge variant={authSession?.require_login ? "success" : "secondary"}>
+                      {authSessionQuery.isPending
+                        ? "Checking"
+                        : authSession?.require_login
+                          ? "Enforced"
+                          : "Optional"}
+                    </Badge>
+                  )}
                 </div>
               </div>
-              <p className="mt-2 text-xs text-[var(--text-muted)]">
-                Controls whether loopback requests to administrative APIs and dashboard routes
-                require a signed operator session cookie.
-              </p>
 
-              {authSession?.remote_enforced ? (
-                <Alert variant="warning" className="mt-3">
-                  <Lock
-                    className="mt-0.5 h-4 w-4 shrink-0 text-[var(--status-warn)]"
-                    aria-hidden="true"
-                  />
-                  <div>
-                    <AlertTitle>Non-Loopback Bind Lock Active</AlertTitle>
-                    <AlertDescription>
-                      This instance is bound to a non-loopback address. Disabling login enforcement
-                      is locked unless{" "}
-                      <span className="font-mono">OMEG4MON_ALLOW_INSECURE_REMOTE</span> is
-                      explicitly enabled at startup.
-                    </AlertDescription>
-                  </div>
-                </Alert>
-              ) : null}
-
-              <div className="mt-4 flex items-center justify-between gap-3">
-                <span className="font-mono text-xs text-[var(--text-muted)]">
-                  Subject: {authSession?.subject || "anonymous"}
-                </span>
-                <Button
-                  type="button"
-                  variant={authSession?.require_login ? "secondary" : "default"}
-                  size="sm"
-                  onClick={handleToggleRequireLogin}
-                  disabled={
-                    authSessionQuery.isPending ||
-                    updatePolicyMutation.isPending ||
-                    !authSession ||
-                    (authSession.remote_enforced && authSession.require_login)
-                  }
+              {authSessionQuery.isError ? (
+                <Alert
+                  variant="destructive"
+                  className="mt-3 flex-col justify-between gap-3 sm:flex-row sm:items-center"
                 >
-                  <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
-                  <span>
-                    {updatePolicyMutation.isPending
-                      ? "Updating..."
-                      : authSession?.require_login
-                        ? "Disable Login Requirement"
-                        : "Enable Login Requirement"}
-                  </span>
-                </Button>
-              </div>
+                  <div className="flex items-start gap-2.5">
+                    <AlertCircle
+                      className="mt-0.5 h-4 w-4 shrink-0 text-[var(--status-error)]"
+                      aria-hidden="true"
+                    />
+                    <div>
+                      <AlertTitle>Unable to load authentication policy</AlertTitle>
+                      <AlertDescription className="font-mono">
+                        {authSessionQuery.error.message}
+                      </AlertDescription>
+                    </div>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="xs"
+                    onClick={() => void authSessionQuery.refetch()}
+                    disabled={authSessionQuery.isFetching}
+                    className="shrink-0"
+                  >
+                    {authSessionQuery.isFetching ? "Retrying..." : "Retry"}
+                  </Button>
+                </Alert>
+              ) : (
+                <>
+                  <p className="mt-2 text-xs text-[var(--text-muted)]">
+                    Controls whether loopback requests to administrative APIs and dashboard routes
+                    require a signed operator session cookie.
+                  </p>
+
+                  {authSession?.remote_enforced ? (
+                    <Alert variant="warning" className="mt-3">
+                      <Lock
+                        className="mt-0.5 h-4 w-4 shrink-0 text-[var(--status-warn)]"
+                        aria-hidden="true"
+                      />
+                      <div>
+                        <AlertTitle>Non-Loopback Bind Lock Active</AlertTitle>
+                        <AlertDescription>
+                          This instance is bound to a non-loopback address. Disabling login
+                          enforcement is locked unless{" "}
+                          <span className="font-mono">OMEG4MON_ALLOW_INSECURE_REMOTE</span> is
+                          explicitly enabled at startup.
+                        </AlertDescription>
+                      </div>
+                    </Alert>
+                  ) : null}
+
+                  <div className="mt-4 flex items-center justify-between gap-3">
+                    <span className="font-mono text-xs text-[var(--text-muted)]">
+                      Subject:{" "}
+                      {authSessionQuery.isPending
+                        ? "checking..."
+                        : authSession?.subject || "anonymous"}
+                    </span>
+                    <Button
+                      type="button"
+                      variant={authSession?.require_login ? "secondary" : "default"}
+                      size="sm"
+                      onClick={handleToggleRequireLogin}
+                      disabled={
+                        authSessionQuery.isPending ||
+                        updatePolicyMutation.isPending ||
+                        !authSession ||
+                        (authSession.remote_enforced && authSession.require_login)
+                      }
+                    >
+                      <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
+                      <span>
+                        {updatePolicyMutation.isPending
+                          ? "Updating..."
+                          : authSession?.require_login
+                            ? "Disable Login Requirement"
+                            : "Enable Login Requirement"}
+                      </span>
+                    </Button>
+                  </div>
+                </>
+              )}
             </div>
           </CardContent>
         </Card>

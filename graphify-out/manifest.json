@@ -618,9 +618,9 @@
     "semantic_hash": ""
   },
   "web/src/features/keys/KeysConsole.tsx": {
-    "mtime": 1795379054.173563,
-    "seen": 1795379117.9546573,
-    "ast_hash": "3ce1c375b69b3a16d8b68604904f0db3",
+    "mtime": 1795379435.4873033,
+    "seen": 1795379455.829383,
+    "ast_hash": "3188ff184a1b526b345441efecd90fe7",
     "semantic_hash": ""
   },
   "web/src/features/keys/hooks.ts": {
@@ -642,9 +642,9 @@
     "semantic_hash": ""
   },
   "web/src/features/settings/SettingsConsole.tsx": {
-    "mtime": 1795379054.177563,
-    "seen": 1795379117.954662,
-    "ast_hash": "5fe23ef07e6c8e0cf1827aa4364b19cc",
+    "mtime": 1795379431.5062435,
+    "seen": 1795379455.8294551,
+    "ast_hash": "bbcd55cd9405b2c342b27ff895c3458f",
     "semantic_hash": ""
   },
   "web/src/features/settings/hooks.ts": {

@@ -1,7 +1,7 @@
 # Graph Report - omeg4mon-router  (2026-11-23)
 
 ## Corpus Check
-- 113 files · ~81,169 words
+- 113 files · ~81,314 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 8 file(s) not represented in the graph (top: (none) 6, .lock 1, .css 1)
 
@@ -11,7 +11,7 @@
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `afaf0999`
+- Built from commit: `b3f947fd`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -313,7 +313,7 @@ Nodes (3): stubUsageRecorder, UsageRecorder, UsageRecord
 _Questions this graph is uniquely positioned to answer:_
 
 - **Why does `File Map` connect `APIKeySummary` to `Server`, `AppShell.tsx`, `newTestHarness`, `Module`?**
-  _High betweenness centrality (0.241) - this node is a cross-community bridge._
+  _High betweenness centrality (0.261) - this node is a cross-community bridge._
 - **Are the 14 inferred relationships involving `buildApp()` (e.g. with `.Close()` and `.Start()`) actually correct?**
   _`buildApp()` has 14 INFERRED edges - model-reasoned connections that need verification._
 - **What connects `github.com/omeg4monx/router-gateway`, `Structured Logging RingBuffer & Non-Blocking EventBus`, `Platform Crypto Vault, Bcrypt & Session Signer` to the rest of the system?**
@@ -321,8 +321,8 @@ _Questions this graph is uniquely positioned to answer:_
 - **Should `Binary Entrypoint & Embedded UI` be split into smaller, more focused modules?**
   _Cohesion score 0.0690631808278867 - nodes in this community are weakly interconnected._
 - **Why does `Task 6: Frontend Auth Flow (`web/src/features/auth/`, Live `/login/`, `AuthGuard`, Sign-Out)` connect `AppShell.tsx` to `SystemOverview.tsx`, `APIKeySummary`?**
-  _High betweenness centrality (0.169) - this node is a cross-community bridge._
+  _High betweenness centrality (0.187) - this node is a cross-community bridge._
 - **Should `SystemOverview.tsx` be split into smaller, more focused modules?**
   _Cohesion score 0.10752688172043011 - nodes in this community are weakly interconnected._
 - **Why does `AppShell()` connect `AppShell.tsx` to `LoginForm.tsx`, `APIKeySummary`, `login/page.tsx`?**
-  _High betweenness centrality (0.139) - this node is a cross-community bridge._
+  _High betweenness centrality (0.143) - this node is a cross-community bridge._

@@ -19,7 +19,13 @@ import { useForm } from "react-hook-form";
 import { Alert, AlertDescription, AlertTitle } from "@/shared/ui/alert";
 import { Badge } from "@/shared/ui/badge";
 import { Button } from "@/shared/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/shared/ui/card";
 import { EmberRule } from "@/shared/ui/EmberRule";
 import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
@@ -46,7 +52,10 @@ interface RevealedSecretState {
   secret: string;
 }
 
-type PendingRowConfirm = { id: string; kind: "rotate" } | { id: string; kind: "delete" } | null;
+type PendingRowConfirm =
+  | { id: string; kind: "rotate" }
+  | { id: string; kind: "delete" }
+  | null;
 
 function formatTimestamp(iso: string | null): string {
   if (!iso) {
@@ -87,7 +96,8 @@ export function KeysConsole() {
   const rotateMutation = useRotateApiKeyMutation();
   const deleteMutation = useDeleteApiKeyMutation();
 
-  const [revealedSecret, setRevealedSecret] = useState<RevealedSecretState | null>(null);
+  const [revealedSecret, setRevealedSecret] =
+    useState<RevealedSecretState | null>(null);
   const [copiedSecret, setCopiedSecret] = useState(false);
   const [copyError, setCopyError] = useState<string | null>(null);
   const [pendingConfirm, setPendingConfirm] = useState<PendingRowConfirm>(null);
@@ -107,7 +117,9 @@ export function KeysConsole() {
   });
 
   const keys = keysQuery.data ?? [];
-  const activeCount = keys.filter((item) => !item.disabled && !isKeyExpired(item)).length;
+  const activeCount = keys.filter(
+    (item) => !item.disabled && !isKeyExpired(item),
+  ).length;
   const disabledCount = keys.filter((item) => item.disabled).length;
 
   const handleCopySecret = async () => {
@@ -120,7 +132,9 @@ export function KeysConsole() {
       setCopiedSecret(true);
       window.setTimeout(() => setCopiedSecret(false), 2500);
     } catch {
-      setCopyError("Clipboard access was denied. Select and copy the secret manually.");
+      setCopyError(
+        "Clipboard access was denied. Select and copy the secret manually.",
+      );
     }
   };
 
@@ -148,6 +162,9 @@ export function KeysConsole() {
   };
 
   const handleToggleDisabled = (key: ApiKeySummary) => {
+    if (busyKeyId !== null) {
+      return;
+    }
     setRowError(null);
     setPendingConfirm(null);
     setBusyKeyId(key.id);
@@ -161,6 +178,9 @@ export function KeysConsole() {
   };
 
   const handleConfirmRotate = (key: ApiKeySummary) => {
+    if (busyKeyId !== null) {
+      return;
+    }
     setRowError(null);
     setBusyKeyId(key.id);
     rotateMutation.mutate(key.id, {
@@ -181,6 +201,9 @@ export function KeysConsole() {
   };
 
   const handleConfirmDelete = (key: ApiKeySummary) => {
+    if (busyKeyId !== null) {
+      return;
+    }
     setRowError(null);
     setBusyKeyId(key.id);
     deleteMutation.mutate(key.id, {
@@ -203,7 +226,8 @@ export function KeysConsole() {
             API Keys
           </h2>
           <p className="mt-1 text-sm text-[var(--text-secondary)]">
-            Issue, constrain, rotate, and revoke client gateway tokens stored as SHA-256 hashes.
+            Issue, constrain, rotate, and revoke client gateway tokens stored as
+            SHA-256 hashes.
           </p>
         </div>
 
@@ -226,7 +250,10 @@ export function KeysConsole() {
             onClick={() => void keysQuery.refetch()}
             disabled={keysQuery.isFetching}
           >
-            <RefreshCw className="h-3.5 w-3.5 text-[#E56A4A]" aria-hidden="true" />
+            <RefreshCw
+              className="h-3.5 w-3.5 text-[#E56A4A]"
+              aria-hidden="true"
+            />
             <span>{keysQuery.isFetching ? "Refreshing" : "Refresh"}</span>
           </Button>
         </div>
@@ -236,7 +263,10 @@ export function KeysConsole() {
         <Card className="border-[#E56A4A] bg-[var(--bg-surface-raised)]">
           <CardHeader className="border-[var(--border-strong)]">
             <div className="flex items-center gap-2">
-              <ShieldAlert className="h-4 w-4 text-[#E56A4A]" aria-hidden="true" />
+              <ShieldAlert
+                className="h-4 w-4 text-[#E56A4A]"
+                aria-hidden="true"
+              />
               <CardTitle>
                 {revealedSecret.action === "created"
                   ? "One-Time API Key Secret Created"
@@ -260,13 +290,18 @@ export function KeysConsole() {
               <span className="font-medium text-[var(--text-primary)]">
                 {revealedSecret.keyName}
               </span>{" "}
-              now. Once dismissed, the raw secret cannot be recovered from the server.
+              now. Once dismissed, the raw secret cannot be recovered from the
+              server.
             </p>
             <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center">
               <code className="block flex-1 overflow-x-auto rounded-md border border-[var(--border-strong)] bg-[var(--bg-input)] px-3.5 py-2.5 font-mono text-sm text-[var(--text-primary)] select-all">
                 {revealedSecret.secret}
               </code>
-              <Button type="button" onClick={() => void handleCopySecret()} className="shrink-0">
+              <Button
+                type="button"
+                onClick={() => void handleCopySecret()}
+                className="shrink-0"
+              >
                 {copiedSecret ? (
                   <>
                     <Check className="h-4 w-4" aria-hidden="true" />
@@ -281,7 +316,9 @@ export function KeysConsole() {
               </Button>
             </div>
             {copyError ? (
-              <p className="font-mono text-xs text-[var(--status-warn)]">{copyError}</p>
+              <p className="font-mono text-xs text-[var(--status-warn)]">
+                {copyError}
+              </p>
             ) : null}
           </CardContent>
         </Card>
@@ -295,14 +332,20 @@ export function KeysConsole() {
               <CardTitle>Create Gateway API Key</CardTitle>
             </div>
             <CardDescription className="mt-0.5">
-              Leave allowed models blank to permit all configured models. Use 0 for unlimited RPM or
-              USD quota.
+              Leave allowed models blank to permit all configured models. Use 0
+              for unlimited RPM or USD quota.
             </CardDescription>
           </div>
-          <span className="font-mono text-xs text-[var(--text-muted)]">POST /api/keys</span>
+          <span className="font-mono text-xs text-[var(--text-muted)]">
+            POST /api/keys
+          </span>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit(onCreateSubmit)} noValidate className="space-y-4">
+          <form
+            onSubmit={handleSubmit(onCreateSubmit)}
+            noValidate
+            className="space-y-4"
+          >
             {createMutation.error ? (
               <Alert variant="destructive">
                 <AlertCircle
@@ -330,12 +373,16 @@ export function KeysConsole() {
                   {...register("name")}
                 />
                 {errors.name ? (
-                  <p className="mt-1 text-xs text-[var(--status-error)]">{errors.name.message}</p>
+                  <p className="mt-1 text-xs text-[var(--status-error)]">
+                    {errors.name.message}
+                  </p>
                 ) : null}
               </div>
 
               <div>
-                <Label htmlFor="key-allowed-models">Allowed Models (comma-separated)</Label>
+                <Label htmlFor="key-allowed-models">
+                  Allowed Models (comma-separated)
+                </Label>
                 <Input
                   id="key-allowed-models"
                   type="text"
@@ -362,7 +409,9 @@ export function KeysConsole() {
                   {...register("tags")}
                 />
                 {errors.tags ? (
-                  <p className="mt-1 text-xs text-[var(--status-error)]">{errors.tags.message}</p>
+                  <p className="mt-1 text-xs text-[var(--status-error)]">
+                    {errors.tags.message}
+                  </p>
                 ) : null}
               </div>
 
@@ -433,9 +482,15 @@ export function KeysConsole() {
               >
                 Reset
               </Button>
-              <Button type="submit" size="sm" disabled={createMutation.isPending}>
+              <Button
+                type="submit"
+                size="sm"
+                disabled={createMutation.isPending}
+              >
                 <KeyRound className="h-3.5 w-3.5" aria-hidden="true" />
-                <span>{createMutation.isPending ? "Creating..." : "Create API Key"}</span>
+                <span>
+                  {createMutation.isPending ? "Creating..." : "Create API Key"}
+                </span>
               </Button>
             </div>
           </form>
@@ -452,7 +507,9 @@ export function KeysConsole() {
           />
           <div className="flex-1">
             <AlertTitle>Key operation failed</AlertTitle>
-            <AlertDescription className="font-mono">{rowError}</AlertDescription>
+            <AlertDescription className="font-mono">
+              {rowError}
+            </AlertDescription>
           </div>
           <Button
             type="button"
@@ -472,7 +529,9 @@ export function KeysConsole() {
             <KeyRound className="h-4 w-4 text-[#E56A4A]" aria-hidden="true" />
             <CardTitle>Issued API Keys</CardTitle>
           </div>
-          <span className="font-mono text-xs text-[var(--text-muted)]">GET /api/keys</span>
+          <span className="font-mono text-xs text-[var(--text-muted)]">
+            GET /api/keys
+          </span>
         </CardHeader>
 
         {keysQuery.isError ? (
@@ -484,7 +543,9 @@ export function KeysConsole() {
               />
               <div>
                 <AlertTitle>Unable to load API keys</AlertTitle>
-                <AlertDescription className="font-mono">{keysQuery.error.message}</AlertDescription>
+                <AlertDescription className="font-mono">
+                  {keysQuery.error.message}
+                </AlertDescription>
               </div>
             </Alert>
           </CardContent>
@@ -498,8 +559,8 @@ export function KeysConsole() {
               No gateway API keys issued yet
             </p>
             <p className="mt-1 text-xs text-[var(--text-muted)]">
-              Create your first key above to authenticate OpenAI or Anthropic compatible client
-              requests.
+              Create your first key above to authenticate OpenAI or Anthropic
+              compatible client requests.
             </p>
           </CardContent>
         ) : (
@@ -530,11 +591,14 @@ export function KeysConsole() {
               <tbody className="divide-y divide-[var(--border-subtle)]">
                 {keys.map((key) => {
                   const expired = isKeyExpired(key);
-                  const isBusy = busyKeyId === key.id;
+                  const isRowBusy = busyKeyId === key.id;
+                  const anyRowBusy = busyKeyId !== null;
                   const confirmingRotate =
-                    pendingConfirm?.id === key.id && pendingConfirm.kind === "rotate";
+                    pendingConfirm?.id === key.id &&
+                    pendingConfirm.kind === "rotate";
                   const confirmingDelete =
-                    pendingConfirm?.id === key.id && pendingConfirm.kind === "delete";
+                    pendingConfirm?.id === key.id &&
+                    pendingConfirm.kind === "delete";
 
                   return (
                     <tr
@@ -543,7 +607,9 @@ export function KeysConsole() {
                     >
                       <td className="px-5 py-3.5">
                         <div className="flex flex-wrap items-center gap-2">
-                          <span className="font-medium text-[var(--text-primary)]">{key.name}</span>
+                          <span className="font-medium text-[var(--text-primary)]">
+                            {key.name}
+                          </span>
                           {key.disabled ? (
                             <Badge variant="warning">Disabled</Badge>
                           ) : expired ? (
@@ -586,7 +652,9 @@ export function KeysConsole() {
                       <td className="px-4 py-3.5">
                         <div className="flex flex-wrap gap-1.5">
                           <Badge variant="outline" className="tabular-nums">
-                            {key.rate_limit_rpm > 0 ? `${key.rate_limit_rpm} RPM` : "No RPM Cap"}
+                            {key.rate_limit_rpm > 0
+                              ? `${key.rate_limit_rpm} RPM`
+                              : "No RPM Cap"}
                           </Badge>
                           <Badge variant="outline" className="tabular-nums">
                             Quota: {formatQuotaUsd(key.quota_usd)}
@@ -596,7 +664,9 @@ export function KeysConsole() {
 
                       <td className="px-4 py-3.5 font-mono text-xs text-[var(--text-muted)]">
                         <div>Created: {formatTimestamp(key.created_at)}</div>
-                        <div className="mt-0.5">Last used: {formatTimestamp(key.last_used_at)}</div>
+                        <div className="mt-0.5">
+                          Last used: {formatTimestamp(key.last_used_at)}
+                        </div>
                         {key.expires_at ? (
                           <div className="mt-0.5 text-[var(--text-secondary)]">
                             Expires: {formatTimestamp(key.expires_at)}
@@ -611,16 +681,16 @@ export function KeysConsole() {
                               type="button"
                               size="xs"
                               onClick={() => handleConfirmRotate(key)}
-                              disabled={isBusy}
+                              disabled={anyRowBusy}
                             >
-                              {isBusy ? "Rotating..." : "Confirm Rotate"}
+                              {isRowBusy ? "Rotating..." : "Confirm Rotate"}
                             </Button>
                             <Button
                               type="button"
                               variant="secondary"
                               size="xs"
                               onClick={() => setPendingConfirm(null)}
-                              disabled={isBusy}
+                              disabled={anyRowBusy}
                             >
                               Cancel
                             </Button>
@@ -632,16 +702,16 @@ export function KeysConsole() {
                               variant="destructive"
                               size="xs"
                               onClick={() => handleConfirmDelete(key)}
-                              disabled={isBusy}
+                              disabled={anyRowBusy}
                             >
-                              {isBusy ? "Deleting..." : "Confirm Delete"}
+                              {isRowBusy ? "Deleting..." : "Confirm Delete"}
                             </Button>
                             <Button
                               type="button"
                               variant="secondary"
                               size="xs"
                               onClick={() => setPendingConfirm(null)}
-                              disabled={isBusy}
+                              disabled={anyRowBusy}
                             >
                               Cancel
                             </Button>
@@ -653,30 +723,49 @@ export function KeysConsole() {
                               variant="secondary"
                               size="xs"
                               onClick={() => handleToggleDisabled(key)}
-                              disabled={isBusy}
+                              disabled={anyRowBusy}
                             >
-                              <Power className="h-3.5 w-3.5" aria-hidden="true" />
+                              <Power
+                                className="h-3.5 w-3.5"
+                                aria-hidden="true"
+                              />
                               <span>{key.disabled ? "Enable" : "Disable"}</span>
                             </Button>
                             <Button
                               type="button"
                               variant="outline"
                               size="xs"
-                              onClick={() => setPendingConfirm({ id: key.id, kind: "rotate" })}
-                              disabled={isBusy}
+                              onClick={() =>
+                                setPendingConfirm({
+                                  id: key.id,
+                                  kind: "rotate",
+                                })
+                              }
+                              disabled={anyRowBusy}
                             >
-                              <RotateCw className="h-3.5 w-3.5" aria-hidden="true" />
+                              <RotateCw
+                                className="h-3.5 w-3.5"
+                                aria-hidden="true"
+                              />
                               <span>Rotate</span>
                             </Button>
                             <Button
                               type="button"
                               variant="destructive"
                               size="xs"
-                              onClick={() => setPendingConfirm({ id: key.id, kind: "delete" })}
-                              disabled={isBusy}
+                              onClick={() =>
+                                setPendingConfirm({
+                                  id: key.id,
+                                  kind: "delete",
+                                })
+                              }
+                              disabled={anyRowBusy}
                               aria-label={`Delete API key ${key.name}`}
                             >
-                              <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                              <Trash2
+                                className="h-3.5 w-3.5"
+                                aria-hidden="true"
+                              />
                               <span>Delete</span>
                             </Button>
                           </div>
