@@ -1,0 +1,58 @@
+openapi: 3.1.0
+info:
+  title: omeg4mon-router Control Plane API
+  version: 0.1.0
+  description: Modular OpenAPI 3.1 contract for the omeg4mon-router control plane.
+servers:
+  - url: /
+    description: Same-origin router control plane
+tags:
+  - name: system
+    description: Health checks, build version metadata, first-run initialization, and shutdown control
+paths:
+  /api/health:
+    $ref: './modules/system.yaml#/paths/~1api~1health'
+  /api/version:
+    $ref: './modules/system.yaml#/paths/~1api~1version'
+  /api/init:
+    $ref: './modules/system.yaml#/paths/~1api~1init'
+  /api/shutdown:
+    $ref: './modules/system.yaml#/paths/~1api~1shutdown'
+components:
+  schemas:
+    ErrorDetail:
+      type: object
+      additionalProperties: false
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          description: Machine-readable error code.
+        message:
+          type: string
+          description: Human-readable error message.
+        request_id:
+          type: string
+          description: Unique request correlation identifier when present.
+    ErrorEnvelope:
+      type: object
+      additionalProperties: false
+      required:
+        - error
+      properties:
+        error:
+          $ref: '#/components/schemas/ErrorDetail'
+    HealthResponse:
+      $ref: './modules/system.yaml#/components/schemas/HealthResponse'
+    VersionResponse:
+      $ref: './modules/system.yaml#/components/schemas/VersionResponse'
+    InitStatusResponse:
+      $ref: './modules/system.yaml#/components/schemas/InitStatusResponse'
+    InitRequest:
+      $ref: './modules/system.yaml#/components/schemas/InitRequest'
+    InitCompleteResponse:
+      $ref: './modules/system.yaml#/components/schemas/InitCompleteResponse'
+    ShutdownResponse:
+      $ref: './modules/system.yaml#/components/schemas/ShutdownResponse'
