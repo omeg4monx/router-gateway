@@ -16,6 +16,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/omeg4monx/router-gateway/internal/contracts"
 	"github.com/omeg4monx/router-gateway/internal/platform/config"
 	"github.com/omeg4monx/router-gateway/internal/platform/crypto"
 	"github.com/omeg4monx/router-gateway/internal/platform/db"
@@ -64,7 +65,10 @@ type Module struct {
 	initMu       sync.Mutex
 }
 
-var _ lifecycle.Module = (*Module)(nil)
+var (
+	_ lifecycle.Module               = (*Module)(nil)
+	_ contracts.AdminCredentialStore = (*Module)(nil)
+)
 
 // New constructs a system Module with the provided dependencies and metadata.
 func New(opts Options) *Module {
@@ -155,6 +159,28 @@ func (m *Module) Start(ctx context.Context) error {
 // Stop completes graceful shutdown for the system module.
 func (m *Module) Stop(context.Context) error {
 	return nil
+}
+
+// AdminPasswordHash returns the stored bcrypt admin password hash or
+// contracts.ErrNotInitialized if the system has not been initialized.
+func (m *Module) AdminPasswordHash(ctx context.Context) (string, error) {
+	return m.repo.AdminPasswordHash(ctx)
+}
+
+// UpdateAdminPasswordHash atomically replaces the stored admin password hash,
+// returning contracts.ErrNotInitialized if the system is not initialized.
+func (m *Module) UpdateAdminPasswordHash(ctx context.Context, hash string) error {
+	return m.repo.UpdateAdminPasswordHash(ctx, hash)
+}
+
+// RequireLogin reports whether dashboard login is currently enforced.
+func (m *Module) RequireLogin(ctx context.Context) (bool, error) {
+	return m.repo.RequireLogin(ctx)
+}
+
+// SetRequireLogin persists whether dashboard login is enforced.
+func (m *Module) SetRequireLogin(ctx context.Context, required bool) error {
+	return m.repo.SetRequireLogin(ctx, required)
 }
 
 type healthResponse struct {

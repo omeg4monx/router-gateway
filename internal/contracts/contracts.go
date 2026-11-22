@@ -5,10 +5,24 @@ package contracts
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/url"
 	"time"
 )
+
+// ErrNotInitialized indicates that the system administrator password has not
+// been configured yet.
+var ErrNotInitialized = errors.New("contracts: system is not initialized")
+
+// AdminCredentialStore exposes system-owned administrator credential and login
+// enforcement state to the authentication module.
+type AdminCredentialStore interface {
+	AdminPasswordHash(ctx context.Context) (string, error)
+	UpdateAdminPasswordHash(ctx context.Context, hash string) error
+	RequireLogin(ctx context.Context) (bool, error)
+	SetRequireLogin(ctx context.Context, required bool) error
+}
 
 // AuthVerifier validates administrative dashboard requests and reports whether
 // dashboard authentication is currently enforced.

@@ -2,6 +2,7 @@ package contracts_test
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/url"
 	"testing"
@@ -69,14 +70,46 @@ func (stubProxyDialerResolver) ProxyURLForProvider(_ context.Context, _ string) 
 	return url.Parse("http://127.0.0.1:8080")
 }
 
+type stubAdminCredentialStore struct {
+	hash         string
+	requireLogin bool
+}
+
+var _ contracts.AdminCredentialStore = (*stubAdminCredentialStore)(nil)
+
+func (s *stubAdminCredentialStore) AdminPasswordHash(_ context.Context) (string, error) {
+	if s.hash == "" {
+		return "", contracts.ErrNotInitialized
+	}
+	return s.hash, nil
+}
+
+func (s *stubAdminCredentialStore) UpdateAdminPasswordHash(_ context.Context, hash string) error {
+	if s.hash == "" {
+		return contracts.ErrNotInitialized
+	}
+	s.hash = hash
+	return nil
+}
+
+func (s *stubAdminCredentialStore) RequireLogin(_ context.Context) (bool, error) {
+	return s.requireLogin, nil
+}
+
+func (s *stubAdminCredentialStore) SetRequireLogin(_ context.Context, required bool) error {
+	s.requireLogin = required
+	return nil
+}
+
 func TestContractInterfacesSatisfied(t *testing.T) {
 	var (
-		auth     contracts.AuthVerifier        = stubAuthVerifier{}
-		keys     contracts.KeyValidator        = stubKeyValidator{}
-		resolver contracts.ProviderResolver    = stubProviderResolver{}
-		hook     contracts.GatewayInterceptor  = stubInterceptor{}
-		recorder contracts.UsageRecorder       = &stubUsageRecorder{}
-		proxy    contracts.ProxyDialerResolver = stubProxyDialerResolver{}
+		auth      contracts.AuthVerifier         = stubAuthVerifier{}
+		keys      contracts.KeyValidator         = stubKeyValidator{}
+		resolver  contracts.ProviderResolver     = stubProviderResolver{}
+		hook      contracts.GatewayInterceptor   = stubInterceptor{}
+		recorder  contracts.UsageRecorder        = &stubUsageRecorder{}
+		proxy     contracts.ProxyDialerResolver  = stubProxyDialerResolver{}
+		credStore contracts.AdminCredentialStore = &stubAdminCredentialStore{requireLogin: true}
 	)
 
 	ctx := context.Background()
@@ -130,5 +163,18 @@ func TestContractInterfacesSatisfied(t *testing.T) {
 	u, err := proxy.ProxyURLForProvider(ctx, "openai")
 	if err != nil || u == nil || u.Host != "127.0.0.1:8080" {
 		t.Fatalf("ProxyURLForProvider unexpected result: %v, %v", u, err)
+	}
+
+	if _, err := credStore.AdminPasswordHash(ctx); !errors.Is(err, contracts.ErrNotInitialized) {
+		t.Fatalf("AdminPasswordHash before init err = %v, want ErrNotInitialized", err)
+	}
+	if err := credStore.UpdateAdminPasswordHash(ctx, "$2a$10$hash"); !errors.Is(err, contracts.ErrNotInitialized) {
+		t.Fatalf("UpdateAdminPasswordHash before init err = %v, want ErrNotInitialized", err)
+	}
+	if reqLogin, err := credStore.RequireLogin(ctx); err != nil || !reqLogin {
+		t.Fatalf("RequireLogin = %v, %v, want true, nil", reqLogin, err)
+	}
+	if err := credStore.SetRequireLogin(ctx, false); err != nil {
+		t.Fatalf("SetRequireLogin error: %v", err)
 	}
 }
