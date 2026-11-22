@@ -1,0 +1,10 @@
+bin/
+dist/
+web/node_modules/
+web/.next/
+web/out/
+cmd/omeg4mon-router/ui_dist/
+*.sqlite*
+master.key
+.env
+.env.local
