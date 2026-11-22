@@ -312,9 +312,9 @@
     "semantic_hash": ""
   },
   "web/src/features/system/SystemOverview.tsx": {
-    "mtime": 1795375751.9745793,
-    "seen": 1795375775.2440457,
-    "ast_hash": "8bc58408a5ced24fbe232fe8ae5dfddd",
+    "mtime": 1795379023.6851048,
+    "seen": 1795379117.9546983,
+    "ast_hash": "7e94207d578e92a85d7c05196f79e6e7",
     "semantic_hash": ""
   },
   "web/src/features/system/hooks.ts": {
@@ -354,8 +354,8 @@
     "semantic_hash": "bb80d375646eeb2d8c259c26500224b0"
   },
   "web/src/shared/api/schema.d.ts": {
-    "mtime": 1795378089.1600063,
-    "seen": 1795378119.4784725,
+    "mtime": 1795379071.8048284,
+    "seen": 1795379117.9548407,
     "ast_hash": "cf71bb48088bc3b5eeb525a3f122d4d5",
     "semantic_hash": ""
   },
@@ -384,9 +384,9 @@
     "semantic_hash": ""
   },
   "web/src/shared/ui/AppShell.tsx": {
-    "mtime": 1795378450.5319934,
-    "seen": 1795378522.6148822,
-    "ast_hash": "a9023d41ae3cf711aa381b5b97b1cf38",
+    "mtime": 1795379033.3452494,
+    "seen": 1795379117.9549358,
+    "ast_hash": "8533c45f4a8bb12fb88e4c0ae30b7f0c",
     "semantic_hash": ""
   },
   "web/src/shared/ui/CaduceusLogo.tsx": {
@@ -603,6 +603,66 @@
     "mtime": 1795378415.6945126,
     "seen": 1795378522.6142797,
     "ast_hash": "2d7bcef166dce62a5cbc2050fa990ca6",
+    "semantic_hash": ""
+  },
+  "web/src/app/(dashboard)/dashboard/keys/page.tsx": {
+    "mtime": 1795379013.7746732,
+    "seen": 1795379117.9543529,
+    "ast_hash": "ebc6ea1e8a6838dad5e5a4dabb83bc1b",
+    "semantic_hash": ""
+  },
+  "web/src/app/(dashboard)/dashboard/settings/page.tsx": {
+    "mtime": 1795379017.2760074,
+    "seen": 1795379117.9544108,
+    "ast_hash": "bbff719f7d5b64ba31b7b6fe0fe4ca00",
+    "semantic_hash": ""
+  },
+  "web/src/features/keys/KeysConsole.tsx": {
+    "mtime": 1795379054.173563,
+    "seen": 1795379117.9546573,
+    "ast_hash": "3ce1c375b69b3a16d8b68604904f0db3",
+    "semantic_hash": ""
+  },
+  "web/src/features/keys/hooks.ts": {
+    "mtime": 1795378884.1010025,
+    "seen": 1795379117.9546585,
+    "ast_hash": "7c1b88af894707a356703bb10d6c6f75",
+    "semantic_hash": ""
+  },
+  "web/src/features/keys/schemas.test.ts": {
+    "mtime": 1795379054.1625628,
+    "seen": 1795379117.95466,
+    "ast_hash": "d0511d96339eae2babef386ca0eb1e74",
+    "semantic_hash": ""
+  },
+  "web/src/features/keys/schemas.ts": {
+    "mtime": 1795378882.3279757,
+    "seen": 1795379117.954661,
+    "ast_hash": "9e68848dcd92d9c3ebb4a13cf25a3741",
+    "semantic_hash": ""
+  },
+  "web/src/features/settings/SettingsConsole.tsx": {
+    "mtime": 1795379054.177563,
+    "seen": 1795379117.954662,
+    "ast_hash": "5fe23ef07e6c8e0cf1827aa4364b19cc",
+    "semantic_hash": ""
+  },
+  "web/src/features/settings/hooks.ts": {
+    "mtime": 1795379010.2237873,
+    "seen": 1795379117.9546633,
+    "ast_hash": "447711655adb3ad0e8c8ee553a84cbbf",
+    "semantic_hash": ""
+  },
+  "web/src/features/settings/schemas.test.ts": {
+    "mtime": 1795378835.5893073,
+    "seen": 1795379117.9546652,
+    "ast_hash": "f31f41ddb54cf28020db390fc8de63f3",
+    "semantic_hash": ""
+  },
+  "web/src/features/settings/schemas.ts": {
+    "mtime": 1795378886.064032,
+    "seen": 1795379117.9546673,
+    "ast_hash": "d85d65b32498b6543ab9d69ced192c37",
     "semantic_hash": ""
   }
 }

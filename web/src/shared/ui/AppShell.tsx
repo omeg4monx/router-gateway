@@ -45,14 +45,14 @@ interface PlannedNavItem {
 
 const ACTIVE_NAV_ITEMS: ActiveNavItem[] = [
   { label: "System Overview", href: "/dashboard/", icon: Activity },
+  { label: "API Keys", href: "/dashboard/keys/", icon: KeyRound },
+  { label: "Settings", href: "/dashboard/settings/", icon: SlidersHorizontal },
 ];
 
 const PLANNED_NAV_ITEMS: PlannedNavItem[] = [
   { label: "Providers", icon: Server, phase: "Wave 1" },
   { label: "Models & Routing", icon: Layers, phase: "Wave 1" },
-  { label: "API Keys", icon: KeyRound, phase: "Wave 1" },
   { label: "Usage & Telemetry", icon: Cpu, phase: "Wave 1" },
-  { label: "Settings", icon: SlidersHorizontal, phase: "Wave 1" },
 ];
 
 const ACCESS_NAV_ITEMS: ActiveNavItem[] = [
@@ -100,6 +100,9 @@ export function AppShell({ children }: AppShellProps) {
   }, [mobileNavOpen, closeMobileNav]);
 
   const normalizedPathname = normalizeRoute(pathname);
+  const activeRouteLabel =
+    ACTIVE_NAV_ITEMS.find((item) => normalizeRoute(item.href) === normalizedPathname)?.label ??
+    "Gateway Monitor";
 
   const renderSidebar = (compact: boolean) => (
     <div className="flex h-full flex-col bg-[var(--bg-surface)] text-[var(--text-primary)]">
@@ -255,11 +258,11 @@ export function AppShell({ children }: AppShellProps) {
           )}
         >
           {compact ? (
-            <span className="text-[var(--text-secondary)]">W0</span>
+            <span className="text-[var(--text-secondary)]">W1A</span>
           ) : (
             <>
               <span>KERNEL</span>
-              <span className="text-[var(--text-secondary)]">WAVE 0</span>
+              <span className="text-[var(--text-secondary)]">WAVE 1A</span>
             </>
           )}
         </div>
@@ -333,7 +336,7 @@ export function AppShell({ children }: AppShellProps) {
                   Control Plane
                 </p>
                 <h1 className="text-base font-semibold tracking-tight text-[var(--text-primary)]">
-                  Gateway Monitor
+                  {activeRouteLabel}
                 </h1>
               </div>
             </div>
