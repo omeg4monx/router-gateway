@@ -236,14 +236,14 @@ describe("dashboard guard local-only access", () => {
     expect(response.body.error).toBe("Local only: CLI token required");
   });
 
-  it("rejects local-only route on loopback when requireLogin=true and no JWT", async () => {
+  it("lets a loopback browser past the local-only gate but still requires login", async () => {
     const response = await proxy(localRequest("/api/mcp/filesystem/sse", {
       host: "localhost:20128",
       origin: "http://localhost:20128",
     }));
 
-    expect(response.status).toBe(403);
-    expect(response.body.error).toBe("Local only: CLI token required");
+    expect(response.status).toBe(401);
+    expect(response.body.error).toBe("Unauthorized");
   });
 
   it("allows local-only route on loopback when requireLogin=false", async () => {
