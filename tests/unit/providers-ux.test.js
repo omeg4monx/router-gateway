@@ -440,3 +440,21 @@ describe("providers-ux Task 4: ProvidersToolbar & TestResultsModal", () => {
     expect(src).toContain("Re-run Test");
   });
 });
+
+describe("providers-ux Task 5: ProviderCard", () => {
+  it("renders calm rounded-xl card linking to detail, with Quick Test, guarded Toggle, and clear status badges", () => {
+    const src = readSrc(
+      "src/app/(dashboard)/dashboard/providers/components/ProviderCard.js",
+    );
+    expect(src).toContain("/dashboard/providers/${providerId}");
+    expect(src).toContain("rounded-xl");
+    expect(src).toContain("shadow-[var(--shadow-soft)]");
+    expect(src).not.toContain("shadow-[var(--shadow-elev)]");
+    expect(src).toContain("onQuickTest");
+    expect(src).toContain("e.preventDefault()");
+    expect(src).toContain("e.stopPropagation()");
+    expect(src).toContain("<Toggle");
+    expect(src).toContain("isToggling");
+    expect(src).toContain("Add API Key");
+  });
+});
