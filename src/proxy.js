@@ -2,8 +2,8 @@
 // Complements SameSite=lax cookies: even if a cookie policy ever loosens, a
 // cross-site browser POST never reaches a handler. Non-browser clients (no
 // Origin / no Sec-Fetch-Site headers) pass untouched.
-// Build-time & runtime conflict prevention: avoid having both middleware.js and proxy.js in src/
-// Xiaomi MiMo reverse proxy logic is safely routed through src/lib/mimoReverseProxy.js
+// Next.js 16 `proxy` convention (formerly src/middleware.js); do not add a
+// middleware.js alongside it.
 import { NextResponse } from "next/server";
 
 const MUTATING = new Set(["POST", "PUT", "PATCH", "DELETE"]);
@@ -52,7 +52,7 @@ function requestHosts(request) {
   return hosts;
 }
 
-export function middleware(request) {
+export function proxy(request) {
   if (!MUTATING.has(request.method)) return NextResponse.next();
 
   // Auth login/logout and status routes need to be accessible from any client

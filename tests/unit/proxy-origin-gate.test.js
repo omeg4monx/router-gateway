@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { NextRequest } from "next/server";
-import { middleware } from "../../src/middleware.js";
+import { proxy } from "../../src/proxy.js";
 
 // Regression coverage for the tunnel false-403 bug: the Muse (Meta Model API)
 // device-code connect flow POSTs /api/oauth/muse/poll from the dashboard and
@@ -18,7 +18,7 @@ function isBlocked(res) {
   return res && res.status === 403;
 }
 
-describe("middleware origin gate", () => {
+describe("proxy origin gate", () => {
   const saved = {};
   const envKeys = ["BASE_URL", "PUBLIC_BASE_URL", "NEXT_PUBLIC_BASE_URL", "APP_URL", "SITE_URL", "NEXTAUTH_URL"];
 
@@ -45,7 +45,7 @@ describe("middleware origin gate", () => {
         host: INTERNAL_HOST,
       },
     });
-    expect(isBlocked(middleware(req))).toBe(false);
+    expect(isBlocked(proxy(req))).toBe(false);
   });
 
   it("allows a navigational request (Sec-Fetch-Site: none)", () => {
@@ -53,7 +53,7 @@ describe("middleware origin gate", () => {
       url: `http://${INTERNAL_HOST}/api/oauth/muse/exchange`,
       headers: { origin: `https://${PUBLIC_HOST}`, "sec-fetch-site": "none", host: INTERNAL_HOST },
     });
-    expect(isBlocked(middleware(req))).toBe(false);
+    expect(isBlocked(proxy(req))).toBe(false);
   });
 
   it("does not trust same-site alone: a sibling subdomain is still origin-checked", () => {
@@ -61,7 +61,7 @@ describe("middleware origin gate", () => {
       url: `http://${INTERNAL_HOST}/api/oauth/muse/exchange`,
       headers: { origin: "https://evil.example.net", "sec-fetch-site": "same-site", host: INTERNAL_HOST },
     });
-    expect(isBlocked(middleware(req))).toBe(true);
+    expect(isBlocked(proxy(req))).toBe(true);
   });
 
   it("blocks a cross-site POST from a foreign origin", () => {
@@ -73,7 +73,7 @@ describe("middleware origin gate", () => {
         host: INTERNAL_HOST,
       },
     });
-    expect(isBlocked(middleware(req))).toBe(true);
+    expect(isBlocked(proxy(req))).toBe(true);
   });
 
   it("blocks a cross-site POST even when Origin is spoofed to the host", () => {
@@ -85,7 +85,7 @@ describe("middleware origin gate", () => {
         host: INTERNAL_HOST,
       },
     });
-    expect(isBlocked(middleware(req))).toBe(true);
+    expect(isBlocked(proxy(req))).toBe(true);
   });
 
   it("allows a same-host POST without Sec-Fetch-Site (older browser)", () => {
@@ -93,7 +93,7 @@ describe("middleware origin gate", () => {
       url: `http://${INTERNAL_HOST}/api/oauth/muse/poll`,
       headers: { origin: `http://${INTERNAL_HOST}`, host: INTERNAL_HOST },
     });
-    expect(isBlocked(middleware(req))).toBe(false);
+    expect(isBlocked(proxy(req))).toBe(false);
   });
 
   it("allows an origin listed in the configured base URL env", () => {
@@ -102,7 +102,7 @@ describe("middleware origin gate", () => {
       url: `http://${INTERNAL_HOST}/api/oauth/muse/poll`,
       headers: { origin: `https://${PUBLIC_HOST}`, host: INTERNAL_HOST },
     });
-    expect(isBlocked(middleware(req))).toBe(false);
+    expect(isBlocked(proxy(req))).toBe(false);
   });
 
   it("allows an origin matching the first entry of a forwarded-host chain", () => {
@@ -114,7 +114,7 @@ describe("middleware origin gate", () => {
         host: INTERNAL_HOST,
       },
     });
-    expect(isBlocked(middleware(req))).toBe(false);
+    expect(isBlocked(proxy(req))).toBe(false);
   });
 
   it("passes a non-browser POST with no Origin or Sec-Fetch-Site", () => {
@@ -122,7 +122,7 @@ describe("middleware origin gate", () => {
       url: `http://${INTERNAL_HOST}/api/oauth/muse/poll`,
       headers: { host: INTERNAL_HOST },
     });
-    expect(isBlocked(middleware(req))).toBe(false);
+    expect(isBlocked(proxy(req))).toBe(false);
   });
 
   it("never gates read-only requests", () => {
@@ -131,7 +131,7 @@ describe("middleware origin gate", () => {
       method: "GET",
       headers: { origin: "https://evil.example", "sec-fetch-site": "cross-site" },
     });
-    expect(isBlocked(middleware(req))).toBe(false);
+    expect(isBlocked(proxy(req))).toBe(false);
   });
 
   it("keeps the auth endpoints reachable cross-origin", () => {
@@ -139,6 +139,6 @@ describe("middleware origin gate", () => {
       url: `http://${INTERNAL_HOST}/api/auth/login`,
       headers: { origin: "https://evil.example", "sec-fetch-site": "cross-site" },
     });
-    expect(isBlocked(middleware(req))).toBe(false);
+    expect(isBlocked(proxy(req))).toBe(false);
   });
 });

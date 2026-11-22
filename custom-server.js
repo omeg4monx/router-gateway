@@ -193,12 +193,10 @@ function applyDotEnv() {
 applyDotEnv();
 
 // --- Dashboard auth guard (loader hooks: scripts/auth-guard-hooks.mjs) -----
-// Upstream enforces auth in middleware.js -> proxy.js (Next.js 16, Node
-// runtime). This fork runs Next.js 14, whose middleware is Edge-only, so the
-// Node-dependent guard could never execute there: the app answered every
-// /api/* route unauthenticated and never asked for a password. Wrapping the
-// HTTP handler keeps src/dashboardGuard.js the single source of truth for which
-// paths are public, so no path list is duplicated here.
+// Dashboard auth is enforced here, not in src/proxy.js (which only gates
+// cross-origin writes). Wrapping the HTTP handler keeps src/dashboardGuard.js
+// the single source of truth for which paths are public, so no path list is
+// duplicated here.
 let guardModulePromise = null;
 function getGuardModule() {
   if (!guardModulePromise) {
