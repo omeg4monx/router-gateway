@@ -242,15 +242,7 @@ export default function MobileNav() {
                 </svg>
               </a>
               <div className="ml-auto flex items-center gap-1">
-                {isApiKeyUser ? (
-                  <button
-                    onClick={handleLogout}
-                    className="flex items-center justify-center p-2 rounded-[6px] text-primary hover:bg-primary/10 transition-colors"
-                    title="Log Out"
-                  >
-                    <span className="material-symbols-outlined text-[18px]">logout</span>
-                  </button>
-                ) : (
+                {!isApiKeyUser && (
                   <button
                     type="button"
                     onClick={() => { setOpen(false); setThemeModalOpen(true); }}
@@ -261,6 +253,15 @@ export default function MobileNav() {
                     <span className="material-symbols-outlined text-primary text-[20px] leading-none">palette</span>
                   </button>
                 )}
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  aria-label="Log Out"
+                  className="flex items-center justify-center p-2 rounded-[6px] text-primary hover:bg-primary/10 transition-colors"
+                  title="Log Out"
+                >
+                  <span className="material-symbols-outlined text-[18px]">logout</span>
+                </button>
               </div>
             </div>
           </div>

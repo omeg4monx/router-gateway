@@ -71,15 +71,18 @@ export default function HeaderMenu({ onLogout }) {
     <>
       <div className="relative" ref={menuRef}>
         <button
-          onClick={() => setThemeModalOpen(true)}
+          type="button"
+          onClick={() => setIsOpen((v) => !v)}
+          aria-haspopup="menu"
+          aria-expanded={isOpen}
           className="flex items-center justify-center p-2 rounded-[6px] text-text-muted hover:text-text-main hover:bg-surface-2 transition-all cursor-pointer"
-          title="Theme & Appearance"
+          title="Account menu"
         >
-          <span className="material-symbols-outlined text-[20px]">palette</span>
+          <span className="material-symbols-outlined text-[20px]">account_circle</span>
         </button>
 
         {isOpen && (
-          <div className="absolute right-0 top-full mt-2 w-60 bg-surface border border-border-subtle rounded-[6px] shadow-[var(--shadow-elev)] z-50 slide-in-top overflow-hidden py-1">
+          <div className="absolute left-0 bottom-full mb-2 w-48 bg-surface border border-border-subtle rounded-[6px] shadow-[var(--shadow-elev)] z-50 overflow-hidden py-1" role="menu">
             <MenuItem
               icon="history"
               label="Change Log"

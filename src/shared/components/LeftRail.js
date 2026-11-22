@@ -551,7 +551,7 @@ export default function LeftRail() {
 
       {/* Footer controls & user menu */}
       <div className="border-t border-border p-2 bg-surface-2 flex items-center justify-between gap-2 shrink-0">
-        <div className={cn("flex items-center gap-2 min-w-0 overflow-hidden", !open && "w-full justify-center")}>
+        <div className={cn("flex items-center gap-2 min-w-0", !open && "w-full justify-center")}>
           {!isApiKeyUser ? (
             <HeaderMenu onLogout={handleLogout} />
           ) : (
