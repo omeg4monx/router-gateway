@@ -32,7 +32,7 @@ const PUBLIC_API_PATHS = [
   "/api/auth/saml",
   "/api/version",
   "/api/changelog",
-  "/api/theme",
+  "/api/theme", // reads only; writes go through READ_PUBLIC_ONLY below
   "/api/settings/require-login",
   "/api/vouchers/claim",
   "/api/connection/telegram/webhook",
@@ -46,6 +46,11 @@ const PUBLIC_API_PATHS = [
   "/api/model",
   "/api/usage",
 ];
+
+// Public for GET/HEAD only. The site-wide theme is read by public portals
+// (/claim, /market) but only the instance owner may change it; a write falls
+// through to normal API auth, which also refuses key sessions without permission.
+const READ_PUBLIC_ONLY = new Set(["/api/theme"]);
 
 // Discovery paths that answer "what can I call" with no credential at all. They
 // stay public because the voucher claim / market portals and external clients
@@ -432,7 +437,8 @@ export async function proxy(request) {
 
   // Deny-by-default for /api/* — public allow-list bypasses, everything else requires auth.
   if (pathname.startsWith("/api/")) {
-    if (isPublicApi(pathname)) return NextResponse.next();
+    const readOnlyPublic = READ_PUBLIC_ONLY.has(pathname) && !["GET", "HEAD"].includes(request.method);
+    if (isPublicApi(pathname) && !readOnlyPublic) return NextResponse.next();
     // Naub: daftar voucher (semua kode + issued key) khusus admin — API key session
     // selalu ditolak, dan requireLogin=false tidak boleh membuka endpoint ini.
     if (pathname === "/api/vouchers" || pathname.startsWith("/api/vouchers/")) {

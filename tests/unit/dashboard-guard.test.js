@@ -404,3 +404,31 @@ describe("dashboard guard helpers", () => {
     expect(__test__.extractApiKey(apiRequest)).toBe("header-key");
   });
 });
+
+describe("dashboard guard: the site-wide theme is read by anyone, written by the owner", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    process.env.NINEROUTER_PEER_TOKEN = PEER_TOKEN;
+    mocks.getSettings.mockResolvedValue({ requireLogin: true });
+    mocks.getConsistentMachineId.mockResolvedValue("cli-token");
+    mocks.verifyDashboardAuthToken.mockResolvedValue(false);
+  });
+
+  const withMethod = (req, method) => Object.assign(req, { method });
+
+  it("serves GET /api/theme without a session", async () => {
+    expect(await proxy(withMethod(request("/api/theme"), "GET"))).toBe(mocks.nextResponse);
+  });
+
+  it("refuses POST /api/theme without a session", async () => {
+    const response = await proxy(withMethod(request("/api/theme"), "POST"));
+    expect(response.status).toBe(401);
+  });
+
+  it("lets a signed-in owner POST /api/theme", async () => {
+    mocks.verifyDashboardAuthToken.mockResolvedValue(true);
+    const req = withMethod(request("/api/theme"), "POST");
+    req.cookies.get = vi.fn(() => ({ value: "jwt" }));
+    expect(await proxy(req)).toBe(mocks.nextResponse);
+  });
+});

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getMeta, setMeta } from "@/lib/db/helpers/metaStore";
+import { getSessionContext } from "@/lib/auth/dashboardPermissions";
 
 export const dynamic = "force-dynamic";
 
@@ -27,9 +28,15 @@ export async function GET() {
   }
 }
 
-// POST /api/theme - update global theme preference
+// POST /api/theme - update global theme preference (instance owner only).
+// dashboardGuard already refuses anonymous and key-session writes; this is the
+// route's own check so the rule survives a guard allow-list edit.
 export async function POST(request) {
   try {
+    const { session } = await getSessionContext();
+    if (session?.role === "apikey") {
+      return NextResponse.json({ ok: false, error: "Only the instance owner can change the site theme" }, { status: 403 });
+    }
     const body = await request.json();
     const theme = body.theme || "ember";
     const accent = body.accent || "orange";

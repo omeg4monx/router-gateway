@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
@@ -17,10 +17,22 @@ describe("theme: the site-wide mode is a password-session setting", () => {
     expect(route).not.toContain("getSettings");
   });
 
-  it("POST /api/theme refuses a key-signed session", () => {
-    const route = read("src/app/api/theme/route.js");
-    expect(route).toMatch(/session\.role === "apikey"/);
-    expect(route).toContain("403");
+  it("POST /api/theme refuses a key-signed session and keeps the stored theme", async () => {
+    const setMeta = vi.fn();
+    vi.resetModules();
+    vi.doMock("@/lib/auth/dashboardPermissions", () => ({
+      getSessionContext: async () => ({ session: { role: "apikey" } }),
+    }));
+    vi.doMock("@/lib/db/helpers/metaStore", () => ({ getMeta: vi.fn(), setMeta }));
+    try {
+      const { POST } = await import("@/app/api/theme/route.js");
+      const res = await POST(new Request("http://x/api/theme", { method: "POST", body: JSON.stringify({ theme: "dark" }) }));
+      expect(res.status).toBe(403);
+      expect(setMeta).not.toHaveBeenCalled();
+    } finally {
+      vi.doUnmock("@/lib/auth/dashboardPermissions");
+      vi.doUnmock("@/lib/db/helpers/metaStore");
+    }
   });
 
   it("PATCH /api/settings is closed to a key-signed session", async () => {
