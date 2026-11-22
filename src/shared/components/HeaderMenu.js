@@ -10,17 +10,19 @@ import ThemeModal from "./ThemeModal";
 function MenuItem({ icon, label, onClick, trailing, danger }) {
   return (
     <button
+      type="button"
+      role="menuitem"
       onClick={onClick}
-      className={`flex items-center gap-3 w-full px-4 py-2.5 text-sm transition-colors ${
+      className={`flex items-center gap-2.5 w-full rounded-[8px] px-2.5 py-2 text-[12.5px] font-medium transition-colors duration-150 cursor-pointer active:scale-[0.98] ${
         danger
           ? "text-danger hover:bg-danger-bg"
           : "text-text-main hover:bg-surface-2"
       }`}
     >
-      <span className={`material-symbols-outlined text-[20px] ${danger ? "" : "text-text-muted"}`}>
+      <span className={`material-symbols-outlined text-[18px] leading-none shrink-0 ${danger ? "" : "text-text-muted"}`}>
         {icon}
       </span>
-      <span className="flex-1 text-left">{label}</span>
+      <span className="flex-1 text-left truncate">{label}</span>
       {trailing && <span className="text-base">{trailing}</span>}
     </button>
   );
@@ -54,15 +56,21 @@ export default function HeaderMenu({ onLogout }) {
   };
 
   useEffect(() => {
+    if (!isOpen) return undefined;
     const handleClickOutside = (e) => {
       if (menuRef.current && !menuRef.current.contains(e.target)) {
         setIsOpen(false);
       }
     };
-    if (isOpen) {
-      document.addEventListener("mousedown", handleClickOutside);
-      return () => document.removeEventListener("mousedown", handleClickOutside);
-    }
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") setIsOpen(false);
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
   }, [isOpen]);
 
   const close = () => setIsOpen(false);
@@ -75,14 +83,22 @@ export default function HeaderMenu({ onLogout }) {
           onClick={() => setIsOpen((v) => !v)}
           aria-haspopup="menu"
           aria-expanded={isOpen}
-          className="flex items-center justify-center p-2 rounded-[6px] text-text-muted hover:text-text-main hover:bg-surface-2 transition-all cursor-pointer"
+          className={`flex items-center justify-center size-8 rounded-[10px] transition-all duration-150 cursor-pointer active:scale-[0.97] ${
+            isOpen
+              ? "bg-primary/12 text-primary border border-primary/20"
+              : "text-text-muted hover:text-text-main hover:bg-surface-2 border border-transparent"
+          }`}
           title="Account menu"
+          aria-label="Account menu"
         >
-          <span className="material-symbols-outlined text-[20px]">account_circle</span>
+          <span className="material-symbols-outlined text-[20px] leading-none">account_circle</span>
         </button>
 
         {isOpen && (
-          <div className="absolute left-0 bottom-full mb-2 w-48 bg-surface border border-border-subtle rounded-[6px] shadow-[var(--shadow-elev)] z-50 overflow-hidden py-1" role="menu">
+          <div
+            className="absolute left-0 bottom-full mb-2.5 w-52 rounded-xl shell-popover popover-in z-[70] p-1.5"
+            role="menu"
+          >
             <MenuItem
               icon="history"
               label="Change Log"
@@ -95,12 +111,14 @@ export default function HeaderMenu({ onLogout }) {
             />
             <Link
               href="/dashboard/profile"
+              role="menuitem"
               onClick={close}
-              className="w-full px-3 py-2 text-left text-sm flex items-center gap-2.5 text-text-muted hover:text-text-main hover:bg-surface-2 transition-colors cursor-pointer"
+              className="flex items-center gap-2.5 w-full rounded-[8px] px-2.5 py-2 text-[12.5px] font-medium text-text-main hover:bg-surface-2 transition-colors duration-150 cursor-pointer active:scale-[0.98]"
             >
-              <span className="material-symbols-outlined text-[18px]">settings</span>
-              <span>Settings</span>
+              <span className="material-symbols-outlined text-[18px] leading-none shrink-0 text-text-muted">settings</span>
+              <span className="flex-1 text-left truncate">Settings</span>
             </Link>
+            <div className="my-1 border-t border-border-subtle/80" role="separator" />
             <MenuItem
               icon="power_settings_new"
               label="Shutdown"

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import PropTypes from "prop-types";
 import ChangelogModal from "./ChangelogModal";
 import { useSessionStore } from "@/store/sessionStore";
 import { useTaskStore } from "@/store/taskStore";
@@ -9,8 +10,8 @@ import { revealBackgroundedTasks } from "./LongTaskBanner";
 const POLL_MS = 60000;
 
 const SEVERITY_STYLE = {
-  error: { dot: "bg-red-500", text: "text-red-500", icon: "error" },
-  warning: { dot: "bg-amber-500", text: "text-amber-500", icon: "warning" },
+  error: { dot: "bg-danger", text: "text-danger", icon: "error" },
+  warning: { dot: "bg-warning", text: "text-warning", icon: "warning" },
   info: { dot: "bg-primary", text: "text-primary", icon: "info" },
 };
 
@@ -19,7 +20,7 @@ const SEVERITY_STYLE = {
  * derives. A key-signed session gets nothing - these messages describe this
  * install, not the caller's own key.
  */
-export default function NotificationBell() {
+export default function NotificationBell({ placement = "bottom-right" } = {}) {
   const role = useSessionStore((state) => state.role);
   const isAdmin = role !== "apikey";
   const [open, setOpen] = useState(false);
@@ -162,6 +163,8 @@ export default function NotificationBell() {
   if (!isAdmin) return null;
 
   const visible = items.filter((n) => !n.cleared);
+  const panelPosition =
+    placement === "right-bottom" ? "left-full bottom-0 ml-2.5" : "right-0 mt-2";
 
   return (
     <div className="relative z-[60]" ref={ref}>
@@ -176,16 +179,22 @@ export default function NotificationBell() {
             return !v;
           })
         }
-        className="relative flex items-center justify-center size-8 rounded-[10px] text-text-muted hover:text-text-main hover:bg-surface-2 transition-colors"
+        className={`relative flex items-center justify-center size-8 rounded-[10px] border transition-colors cursor-pointer active:scale-[0.97] ${
+          open
+            ? "bg-primary/12 border-primary/20 text-primary"
+            : "border-transparent text-text-muted hover:text-text-main hover:bg-surface-2"
+        }`}
         title="Notifications"
         aria-label={`Notifications${unread ? `, ${unread} unread` : ""}`}
         aria-expanded={open}
       >
-        <span className="material-symbols-outlined text-[20px]">notifications</span>
+        <span className="material-symbols-outlined text-[20px] leading-none">notifications</span>
         {unread > 0 && (
           <span
-            className={`absolute -top-0.5 -right-0.5 min-w-[15px] h-[15px] px-1 rounded-full text-[9px] font-bold leading-[15px] text-white ${
-              items.some((n) => !n.read && n.severity === "error") ? "bg-red-500" : "bg-primary"
+            className={`absolute -top-0.5 -right-0.5 min-w-[15px] h-[15px] px-1 rounded-full text-[9px] font-bold leading-[15px] ${
+              items.some((n) => !n.read && n.severity === "error")
+                ? "bg-danger-solid text-white"
+                : "bg-primary text-[var(--color-on-primary)]"
             }`}
           >
             {unread > 99 ? "99+" : unread}
@@ -194,7 +203,9 @@ export default function NotificationBell() {
       </button>
 
       {open && (
-        <div className="absolute right-0 mt-2 w-[min(340px,calc(100vw-2rem))] rounded-xl border border-border-subtle bg-surface shadow-2xl z-[9999] overflow-hidden">
+        <div
+          className={`absolute ${panelPosition} w-[min(340px,calc(100vw-2rem))] rounded-xl shell-popover popover-in z-[9999] overflow-hidden`}
+        >
           <div className="flex items-center justify-between px-3.5 py-2.5 border-b border-border-subtle">
             <span className="text-xs font-semibold uppercase tracking-wide text-text-muted">
               Notifications
@@ -335,3 +346,7 @@ export default function NotificationBell() {
     </div>
   );
 }
+
+NotificationBell.propTypes = {
+  placement: PropTypes.oneOf(["bottom-right", "right-bottom"]),
+};
