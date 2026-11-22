@@ -1,17 +1,17 @@
 # Graph Report - omeg4mon-router  (2026-11-23)
 
 ## Corpus Check
-- 79 files · ~44,797 words
+- 80 files · ~48,328 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 8 file(s) not represented in the graph (top: (none) 6, .lock 1, .css 1)
 
 ## Summary
-- 839 nodes · 1944 edges · 39 communities (32 shown, 7 thin omitted)
-- Extraction: 94% EXTRACTED · 6% INFERRED · 0% AMBIGUOUS · INFERRED: 115 edges (avg confidence: 0.81)
+- 851 nodes · 1983 edges · 48 communities (36 shown, 12 thin omitted)
+- Extraction: 93% EXTRACTED · 7% INFERRED · 0% AMBIGUOUS · INFERRED: 143 edges (avg confidence: 0.84)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `08382a34`
+- Built from commit: `9a05488a`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -21,7 +21,7 @@
 - biome.json
 - settings
 - Rewrite Architecture Specification
-- contracts.go
+- time.Duration
 - Frontend Build & Dev Tooling
 - Structured Logging & Ring Buffer
 - TypeScript Strict Compiler Config
@@ -31,7 +31,7 @@
 - shadcn/ui Component Configuration
 - TestContractInterfacesSatisfied
 - App
-- Module
+- static_ui.go
 - RouteMounts
 - Design System & Wave 0 Plan Docs
 - Module Registry & Orchestration
@@ -45,7 +45,7 @@
 - web-check
 - on
 - cross-compile
-- Vault
+- Module
 - Web Package Build Scripts
 - Generated OpenAPI TypeScript Schema
 - docker-build
@@ -53,31 +53,40 @@
 - JSON Marshaler Error Test Fixture
 - Tailwind PostCSS Config
 - Go Module Root Definition
-- tailwind-merge
+- password.ts
+- Server
+- File Map
+- AuthVerifier
+- bus_test.go
+- KeyValidator
+- nameMinHeap
+- .Resolve
+- sync.Mutex
+- trackedResponseWriter
 
 ## God Nodes (most connected - your core abstractions)
-1. `buildApp()` - 29 edges
-2. `Module` - 24 edges
+1. `buildApp()` - 30 edges
+2. `Module` - 26 edges
 3. `cn()` - 23 edges
 4. `App` - 22 edges
 5. `with` - 20 edges
 6. `Server` - 19 edges
-7. `NewRegistry()` - 17 edges
-8. `SystemOverview()` - 17 edges
-9. `compilerOptions` - 17 edges
-10. `New()` - 16 edges
+7. `SystemOverview()` - 17 edges
+8. `NewRegistry()` - 17 edges
+9. `New()` - 17 edges
+10. `compilerOptions` - 17 edges
 
 ## Surprising Connections (you probably didn't know these)
-- `App` --references--> `Config`  [EXTRACTED]
-  cmd/omeg4mon-router/main.go → internal/platform/config/config.go
-- `App` --references--> `SessionSigner`  [EXTRACTED]
-  cmd/omeg4mon-router/main.go → internal/platform/crypto/session.go
-- `App` --references--> `Vault`  [EXTRACTED]
-  cmd/omeg4mon-router/main.go → internal/platform/crypto/vault.go
-- `App` --references--> `DB`  [EXTRACTED]
-  cmd/omeg4mon-router/main.go → internal/platform/db/db.go
-- `App` --references--> `Bus`  [EXTRACTED]
-  cmd/omeg4mon-router/main.go → internal/platform/eventbus/bus.go
+- `Task 7: Frontend API Keys & Settings Control Plane Pages + Full Single-Binary Verification` --references--> `AppShell()`  [INFERRED]
+  docs/superpowers/plans/2026-11-23-wave1a-auth-settings-keys.md → web/src/shared/ui/AppShell.tsx
+- `Wave 1A — Control Plane Foundation (`auth`, `settings`, `keys`) Implementation Plan` --references--> `Module`  [INFERRED]
+  docs/superpowers/plans/2026-11-23-wave1a-auth-settings-keys.md → internal/platform/lifecycle/registry.go
+- `Global Constraints` --references--> `main()`  [INFERRED]
+  docs/superpowers/plans/2026-11-23-wave1a-auth-settings-keys.md → cmd/omeg4mon-router/main.go
+- `Review Focus` --references--> `KeyValidator`  [INFERRED]
+  docs/superpowers/plans/2026-11-23-wave1a-auth-settings-keys.md → internal/contracts/contracts.go
+- `File Map` --references--> `KeyValidator`  [INFERRED]
+  docs/superpowers/plans/2026-11-23-wave1a-auth-settings-keys.md → internal/contracts/contracts.go
 
 ## Import Cycles
 - None detected.
@@ -90,15 +99,15 @@
 - **Wave 0 Go Platform Foundation Infrastructure** — docs_superpowers_plans_2026_11_22_wave0_platform_foundation_platform_config, docs_superpowers_plans_2026_11_22_wave0_platform_foundation_logging_and_eventbus, docs_superpowers_plans_2026_11_22_wave0_platform_foundation_platform_crypto, docs_superpowers_plans_2026_11_22_wave0_platform_foundation_platform_db, docs_superpowers_plans_2026_11_22_wave0_platform_foundation_httpclient_and_jobs, docs_superpowers_plans_2026_11_22_wave0_platform_foundation_contracts_and_registry, docs_superpowers_plans_2026_11_22_wave0_platform_foundation_httpserver [EXTRACTED 1.00]
 - **Waves 0-3 Phased Modular Delivery Roadmap** — docs_superpowers_specs_2026_11_22_modular_ts_go_rewrite_design_wave_0_platform_foundation, docs_superpowers_specs_2026_11_22_modular_ts_go_rewrite_design_wave_1_core_gateway, docs_superpowers_specs_2026_11_22_modular_ts_go_rewrite_design_wave_2_routing_security_devtools, docs_superpowers_specs_2026_11_22_modular_ts_go_rewrite_design_wave_3_extended_ecosystem [EXTRACTED 1.00]
 
-## Communities (39 total, 7 thin omitted)
+## Communities (48 total, 12 thin omitted)
 
 ### Community 0 - "Binary Entrypoint & Embedded UI"
 Cohesion: 0.08
-Nodes (24): main(), runMain(), adminSubjectKey, ErrorDetail, ErrorEnvelope, CoreModules(), Load(), parseDisabledModules() (+16 more)
+Nodes (25): main(), runMain(), loadUI(), adminSubjectKey, ErrorDetail, ErrorEnvelope, CoreModules(), Load() (+17 more)
 
 ### Community 1 - "Next.js 15 App & shadcn/ui Shell"
-Cohesion: 0.05
-Nodes (83): class-variance-authority, lucide-react, next, openapi-fetch, react, nextConfig, openapi-fetch@^0.14.0, DashboardLayout() (+75 more)
+Cohesion: 0.06
+Nodes (76): Task 6: Frontend Auth Flow (`web/src/features/auth/`, Live `/login/`, `AuthGuard`, Sign-Out), class-variance-authority, lucide-react, next, openapi-fetch, react, nextConfig, openapi-fetch@^0.14.0 (+68 more)
 
 ### Community 2 - "biome.json"
 Cohesion: 0.05
@@ -112,53 +121,49 @@ Nodes (37): check-blank, check-type-assertions, generated, presets, rules, forma
 Cohesion: 0.13
 Nodes (19): Single-Admin Auth & Remote-Bind Posture, Canonical IR & Direct Protocol Translators, CLI Tools Generator & Loopback-Only Apply, OMEG4MON Design System (docs/DESIGN.md), In-Process Typed EventBus, Gateway Routing & SSE Streaming Pipeline, Internal Contracts & GatewayInterceptor Chain, Next.js 15 Static Export & Feature-Modular UI (+11 more)
 
-### Community 5 - "contracts.go"
+### Community 5 - "time.Duration"
 Cohesion: 0.18
-Nodes (9): KeyValidator, ProviderResolver, stubKeyValidator, stubProviderResolver, stubUsageRecorder, UsageRecorder, KeyInfo, ResolvedTarget (+1 more)
+Nodes (7): stubProxyDialerResolver, stubUsageRecorder, UsageRecorder, Options, UsageRecord, applyDefaults(), apiTimeoutMiddleware()
 
 ### Community 6 - "Frontend Build & Dev Tooling"
 Cohesion: 0.12
 Nodes (22): @biomejs/biome, openapi-typescript, tailwindcss, @tailwindcss/postcss, @types/bun, @types/node, @types/react, @types/react-dom (+14 more)
 
 ### Community 7 - "Structured Logging & Ring Buffer"
-Cohesion: 0.08
-Nodes (15): Claims, Event, TestSessionSignVerifyAndExpiry(), SessionSigner, NewSessionSigner(), Bus, addAttrAt(), attrValue() (+7 more)
+Cohesion: 0.14
+Nodes (9): addAttrAt(), attrValue(), cloneAttrMap(), ensurePath(), RingBuffer, parseLevel(), boundAttrs, LogEntry (+1 more)
 
 ### Community 8 - "TypeScript Strict Compiler Config"
 Cohesion: 0.10
 Nodes (19): compilerOptions, allowJs, esModuleInterop, incremental, isolatedModules, jsx, lib, module (+11 more)
 
-### Community 9 - "SQLite WAL Engine & System Repo"
-Cohesion: 0.21
-Nodes (6): BuildInfo, New(), newRepository(), DB, Options, repository
-
 ### Community 10 - "Web Form, Store & UI Dependencies"
-Cohesion: 0.10
-Nodes (21): clsx, @hookform/resolvers, @radix-ui/react-label, @radix-ui/react-slot, react-dom, react-hook-form, zod, zustand (+13 more)
+Cohesion: 0.11
+Nodes (19): clsx, @radix-ui/react-label, @radix-ui/react-slot, react-dom, react-hook-form, tailwind-merge, zustand, dependencies (+11 more)
 
 ### Community 11 - "testing.T"
-Cohesion: 0.07
-Nodes (48): TestAppCloseTeardownOrderIsLIFO(), Options, newTestHarness(), TestSystemHealthAndVersion(), TestSystemInitConcurrentRace(), TestSystemInitLifecycle(), TestSystemShutdownRemoteBindGuard(), TestIsLoopbackClassification() (+40 more)
+Cohesion: 0.05
+Nodes (69): buildApp(), TestAppBootstrapsMigrationsRoutesAndShutdown(), TestAppCloseTeardownOrderIsLIFO(), TestAppRunAndShutdownEndpointTriggersGracefulExit(), TestBuildAppCleansUpOnPartialFailure(), TestDevUIHandlerDirectsToNextDevServer(), Task 2: `auth` Module & OpenAPI Fragment, Task 5: Wire `auth`, `settings`, `keys` into `main.go`, Root OpenAPI & TypeScript Codegen (+61 more)
 
 ### Community 12 - "shadcn/ui Component Configuration"
 Cohesion: 0.11
 Nodes (17): aliases, components, hooks, lib, ui, utils, iconLibrary, rsc (+9 more)
 
 ### Community 13 - "TestContractInterfacesSatisfied"
-Cohesion: 0.19
-Nodes (7): GatewayInterceptor, stubInterceptor, CanonicalRequest, ResponseMeta, StreamEvent, TestContractInterfacesSatisfied(), applyStaticCacheHeaders()
+Cohesion: 0.18
+Nodes (7): GatewayInterceptor, ProxyDialerResolver, stubInterceptor, CanonicalRequest, ResponseMeta, StreamEvent, TestContractInterfacesSatisfied()
 
-### Community 15 - "Module"
-Cohesion: 0.05
-Nodes (39): loadUI(), loadUI(), stubAuthVerifier, migrationFile, Options, stubAuthVerifier, trackedResponseWriter, AuthVerifier (+31 more)
+### Community 15 - "static_ui.go"
+Cohesion: 0.18
+Nodes (11): migrationFile, collectMigrations(), collectMigrationsFromDir(), parseMigrationVersion(), applyStaticCacheHeaders(), hasUnsafePath(), isMissingAssetPath(), NewStaticUIHandler() (+3 more)
 
 ### Community 17 - "Design System & Wave 0 Plan Docs"
 Cohesion: 0.19
 Nodes (13): Brand Identity (Caduceus & Ember Line), OMEG4MON ROUTER Design Direction, Cross-Module Contracts & Topological Module Registry, Streaming HTTP/2 Client Pool & Panic-Safe Job Runner, Chi HTTP Server, Streaming Timeout Split & SPA Static Handler, Structured Logging RingBuffer & Non-Blocking EventBus, Platform Config Loader (internal/platform/config), Platform Crypto Vault, Bcrypt & Session Signer (+5 more)
 
 ### Community 18 - "Module Registry & Orchestration"
-Cohesion: 0.13
-Nodes (10): buildApp(), TestAppBootstrapsMigrationsRoutesAndShutdown(), TestAppRunAndShutdownEndpointTriggersGracefulExit(), TestBuildAppCleansUpOnPartialFailure(), TestDevUIHandlerDirectsToNextDevServer(), Module, Registry, normalizeName() (+2 more)
+Cohesion: 0.23
+Nodes (4): Module, Registry, normalizeName(), registryState
 
 ### Community 19 - "updates"
 Cohesion: 0.13
@@ -168,10 +173,6 @@ Nodes (14): patterns, patterns, actions, go-dependencies, web-dependencies, inte
 Cohesion: 0.20
 Nodes (9): geist, @tanstack/react-query, geist@^1.4.2, @tanstack/react-query@^5.76.1, metadata, RootLayout(), RootLayoutProps, QueryProvider() (+1 more)
 
-### Community 21 - "Module Start/Stop Lifecycle Hooks"
-Cohesion: 0.18
-Nodes (3): ProxyDialerResolver, stubProxyDialerResolver, orderStubModule
-
 ### Community 22 - "with"
 Cohesion: 0.12
 Nodes (16): with, bun-version, cache, cache-from, cache-to, check-latest, context, go-version-file (+8 more)
@@ -179,10 +180,6 @@ Nodes (16): with, bun-version, cache, cache-from, cache-to, check-latest, contex
 ### Community 23 - "jobs"
 Cohesion: 0.15
 Nodes (12): concurrency, cancel-in-progress, group, jobs, single-binary, name, permissions, contents (+4 more)
-
-### Community 24 - "Runner"
-Cohesion: 0.22
-Nodes (3): Runner, job, syncBuffer
 
 ### Community 25 - "steps"
 Cohesion: 0.50
@@ -200,9 +197,9 @@ Nodes (6): on, pull_request, push, workflow_dispatch, branches, branches
 Cohesion: 0.40
 Nodes (5): name, needs, runs-on, timeout-minutes, cross-compile
 
-### Community 29 - "Vault"
-Cohesion: 0.33
-Nodes (3): TestVaultRoundTripAndTamperRejection(), Vault, NewVault()
+### Community 29 - "Module"
+Cohesion: 0.41
+Nodes (5): Module, WriteError(), WriteJSON(), jsonMethodNotAllowedHandler(), jsonNotFoundHandler()
 
 ### Community 30 - "Web Package Build Scripts"
 Cohesion: 0.18
@@ -220,25 +217,53 @@ Nodes (5): name, needs, runs-on, timeout-minutes, docker-build
 Cohesion: 0.50
 Nodes (4): name, runs-on, timeout-minutes, go-check
 
+### Community 38 - "password.ts"
+Cohesion: 0.23
+Nodes (12): @hookform/resolvers, zod, @hookform/resolvers@^7.0.8, zod@^4.6.7, countPasswordRunes(), initPasswordSchema, InitPasswordValidation, InitPasswordValues (+4 more)
+
+### Community 39 - "Server"
+Cohesion: 0.22
+Nodes (4): loadUI(), Server, wrapTrackedResponseWriter(), testHarness
+
+### Community 40 - "File Map"
+Cohesion: 0.19
+Nodes (8): Claims, File Map, Global Constraints, Task 1: Cross-Module `AdminCredentialStore` Contract & `system` Adapter, Task 3: `settings` Module (Typed Store, Revision History & Rollback) & OpenAPI Fragment, Task 7: Frontend API Keys & Settings Control Plane Pages + Full Single-Binary Verification, Wave 1A — Control Plane Foundation (`auth`, `settings`, `keys`) Implementation Plan, SessionSigner
+
+### Community 41 - "AuthVerifier"
+Cohesion: 0.21
+Nodes (4): stubAuthVerifier, stubAuthVerifier, AuthVerifier, stubAdminAuth
+
+### Community 42 - "bus_test.go"
+Cohesion: 0.29
+Nodes (6): Event, Bus, New(), TestConcurrentPublishSubscribeUnsubscribe(), TestPublishDeliversToMultipleSubscribersOnMatchingTopic(), TestPublishNeverBlocksSlowSubscriber()
+
+### Community 43 - "KeyValidator"
+Cohesion: 0.38
+Nodes (5): KeyValidator, stubKeyValidator, Review Focus, Task 4: `keys` Module (API Keys CRUD, SHA-256 Cache & `contracts.KeyValidator`) & OpenAPI Fragment, KeyInfo
+
+### Community 45 - ".Resolve"
+Cohesion: 0.50
+Nodes (3): ProviderResolver, stubProviderResolver, ResolvedTarget
+
 ## Knowledge Gaps
 - **7 isolated node(s):** `github.com/omeg4monx/router-gateway`, `Structured Logging RingBuffer & Non-Blocking EventBus`, `Platform Crypto Vault, Bcrypt & Session Signer`, `Wave 0 Platform Foundation Implementation Plan`, `Canonical IR & Direct Protocol Translators` (+2 more)
-  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 235 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
-- **7 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 237 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
+- **12 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `buildApp()` connect `Module Registry & Orchestration` to `Binary Entrypoint & Embedded UI`, `Structured Logging & Ring Buffer`, `SQLite WAL Engine & System Repo`, `testing.T`, `App`, `Module`, `Module Start/Stop Lifecycle Hooks`, `Runner`, `Vault`?**
-  _High betweenness centrality (0.023) - this node is a cross-community bridge._
-- **Are the 12 inferred relationships involving `buildApp()` (e.g. with `.Close()` and `.Start()`) actually correct?**
-  _`buildApp()` has 12 INFERRED edges - model-reasoned connections that need verification._
+- **Why does `File Map` connect `File Map` to `Next.js 15 App & shadcn/ui Shell`, `AuthVerifier`, `testing.T`, `KeyValidator`, `Module`?**
+  _High betweenness centrality (0.214) - this node is a cross-community bridge._
+- **Are the 13 inferred relationships involving `buildApp()` (e.g. with `.Close()` and `.Start()`) actually correct?**
+  _`buildApp()` has 13 INFERRED edges - model-reasoned connections that need verification._
 - **What connects `github.com/omeg4monx/router-gateway`, `Structured Logging RingBuffer & Non-Blocking EventBus`, `Platform Crypto Vault, Bcrypt & Session Signer` to the rest of the system?**
   _7 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `Binary Entrypoint & Embedded UI` be split into smaller, more focused modules?**
-  _Cohesion score 0.07784896136672491 - nodes in this community are weakly interconnected._
-- **Why does `App` connect `App` to `Binary Entrypoint & Embedded UI`, `Structured Logging & Ring Buffer`, `SQLite WAL Engine & System Repo`, `testing.T`, `Module`, `Module Registry & Orchestration`, `Runner`, `Vault`?**
-  _High betweenness centrality (0.016) - this node is a cross-community bridge._
+  _Cohesion score 0.07858585858585859 - nodes in this community are weakly interconnected._
+- **Why does `Task 6: Frontend Auth Flow (`web/src/features/auth/`, Live `/login/`, `AuthGuard`, Sign-Out)` connect `Next.js 15 App & shadcn/ui Shell` to `File Map`?**
+  _High betweenness centrality (0.165) - this node is a cross-community bridge._
+- **Are the 2 inferred relationships involving `Module` (e.g. with `File Map` and `Task 1: Cross-Module `AdminCredentialStore` Contract & `system` Adapter`) actually correct?**
+  _`Module` has 2 INFERRED edges - model-reasoned connections that need verification._
 - **Should `Next.js 15 App & shadcn/ui Shell` be split into smaller, more focused modules?**
-  _Cohesion score 0.054375804375804374 - nodes in this community are weakly interconnected._
-- **Why does `Module` connect `Module` to `Binary Entrypoint & Embedded UI`, `Structured Logging & Ring Buffer`, `SQLite WAL Engine & System Repo`, `App`, `RouteMounts`, `Module Registry & Orchestration`, `Module Start/Stop Lifecycle Hooks`, `Runner`?**
-  _High betweenness centrality (0.015) - this node is a cross-community bridge._
+  _Cohesion score 0.05996573386636208 - nodes in this community are weakly interconnected._
