@@ -860,6 +860,52 @@ func (m *Module) handleOAuthExchange(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var validatedConnName string
+	if strings.TrimSpace(req.ConnectionName) != "" {
+		validatedConnName, err = validateName(req.ConnectionName)
+		if err != nil {
+			httpserver.WriteError(w, r, http.StatusBadRequest, "invalid_request", err.Error())
+			return
+		}
+	}
+
+	priority := defaultPriorityValue
+	if req.Priority != nil {
+		if *req.Priority < 0 {
+			httpserver.WriteError(w, r, http.StatusBadRequest, "invalid_request", "priority must be non-negative")
+			return
+		}
+		priority = *req.Priority
+	}
+
+	enabled := true
+	if req.Enabled != nil {
+		enabled = *req.Enabled
+	}
+
+	headers, err := validateHeaders(req.Headers)
+	if err != nil {
+		httpserver.WriteError(w, r, http.StatusBadRequest, "invalid_request", err.Error())
+		return
+	}
+
+	updateConnID := strings.TrimSpace(req.ConnectionID)
+	if updateConnID != "" {
+		existing, lookupErr := m.repo.GetConnectionSummary(r.Context(), updateConnID)
+		if lookupErr != nil {
+			if errors.Is(lookupErr, contracts.ErrConnectionNotFound) {
+				httpserver.WriteError(w, r, http.StatusNotFound, "connection_not_found", "target provider connection not found")
+				return
+			}
+			httpserver.WriteError(w, r, http.StatusInternalServerError, "internal_error", "failed to load target provider connection")
+			return
+		}
+		if existing.ProviderID != providerID || existing.AuthType != authTypeOAuth {
+			httpserver.WriteError(w, r, http.StatusBadRequest, "invalid_connection", "target connection must be an oauth connection for the same provider")
+			return
+		}
+	}
+
 	sess, err := m.repo.GetOAuthSession(r.Context(), state)
 	if err != nil {
 		if errors.Is(err, ErrOAuthSessionNotFound) {
@@ -946,35 +992,11 @@ func (m *Module) handleOAuthExchange(w http.ResponseWriter, r *http.Request) {
 	}
 
 	connName := sess.ConnectionName
-	if strings.TrimSpace(req.ConnectionName) != "" {
-		connName, err = validateName(req.ConnectionName)
-		if err != nil {
-			httpserver.WriteError(w, r, http.StatusBadRequest, "invalid_request", err.Error())
-			return
-		}
+	if validatedConnName != "" {
+		connName = validatedConnName
 	}
 
-	priority := defaultPriorityValue
-	if req.Priority != nil {
-		if *req.Priority < 0 {
-			httpserver.WriteError(w, r, http.StatusBadRequest, "invalid_request", "priority must be non-negative")
-			return
-		}
-		priority = *req.Priority
-	}
-
-	enabled := true
-	if req.Enabled != nil {
-		enabled = *req.Enabled
-	}
-
-	headers, err := validateHeaders(req.Headers)
-	if err != nil {
-		httpserver.WriteError(w, r, http.StatusBadRequest, "invalid_request", err.Error())
-		return
-	}
-
-	updateConnID := strings.TrimSpace(req.ConnectionID)
+	errOAuthConnectionMismatch := errors.New("providers: target connection mismatch")
 	var createParams createConnectionParams
 	var updateFn func(cur connectionRecord) (updateConnectionValues, error)
 
@@ -1000,9 +1022,12 @@ func (m *Module) handleOAuthExchange(w http.ResponseWriter, r *http.Request) {
 		}
 	} else {
 		updateFn = func(cur connectionRecord) (updateConnectionValues, error) {
+			if cur.Summary.ProviderID != providerID || cur.Summary.AuthType != authTypeOAuth {
+				return updateConnectionValues{}, errOAuthConnectionMismatch
+			}
 			nextName := cur.Summary.Name
-			if strings.TrimSpace(req.ConnectionName) != "" {
-				nextName = connName
+			if validatedConnName != "" {
+				nextName = validatedConnName
 			}
 			nextPriority := cur.Summary.Priority
 			if req.Priority != nil {
@@ -1034,6 +1059,8 @@ func (m *Module) handleOAuthExchange(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case errors.Is(err, ErrOAuthSessionNotFound):
 			httpserver.WriteError(w, r, http.StatusBadRequest, "invalid_oauth_state", "oauth session not found or already consumed")
+		case errors.Is(err, errOAuthConnectionMismatch):
+			httpserver.WriteError(w, r, http.StatusBadRequest, "invalid_connection", "target connection must be an oauth connection for the same provider")
 		case errors.Is(err, contracts.ErrConnectionNotFound):
 			httpserver.WriteError(w, r, http.StatusNotFound, "connection_not_found", "target provider connection not found")
 		default:

@@ -1003,3 +1003,187 @@ func TestOAuthEnvResolutionAndCallbackJSONAndValidation(t *testing.T) {
 		t.Fatalf("expected error starting module without DB/Vault")
 	}
 }
+
+func TestOAuthExchangePreValidationAndConnectionCompatibility(t *testing.T) {
+	var tokenCalls atomic.Int32
+	mockTokenServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		tokenCalls.Add(1)
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"access_token":  "reauth-access-token-new",
+			"refresh_token": "reauth-refresh-token-new",
+			"token_type":    "Bearer",
+			"expires_in":    3600,
+		})
+	}))
+	defer mockTokenServer.Close()
+
+	overrides := map[string]providers.OAuthConfig{
+		"claude": {
+			AuthorizeURL:       "https://claude.ai/oauth/authorize",
+			TokenURL:           mockTokenServer.URL + "/token",
+			ClientID:           "claude-client-id",
+			DefaultRedirectURI: "http://localhost:20128/api/oauth/callback",
+		},
+		"codex": {
+			AuthorizeURL:       "https://auth.openai.com/oauth/authorize",
+			TokenURL:           mockTokenServer.URL + "/token",
+			ClientID:           "codex-client-id",
+			DefaultRedirectURI: "http://localhost:20128/api/oauth/callback",
+		},
+	}
+
+	h := newTestHarness(t, nil, overrides)
+
+	// Seed an API-key connection (openai), an OAuth connection for another provider (codex),
+	// and a matching OAuth connection (claude).
+	apiConnRec := h.doRequest(t, http.MethodPost, "/api/providers/connections", `{
+		"provider_id": "openai",
+		"name": "OpenAI Key Conn",
+		"api_key": "sk-original-api-key"
+	}`, false)
+	if apiConnRec.Code != http.StatusCreated {
+		t.Fatalf("seed api key conn status = %d: %s", apiConnRec.Code, apiConnRec.Body.String())
+	}
+	var apiConn providers.ConnectionSummary
+	_ = json.Unmarshal(apiConnRec.Body.Bytes(), &apiConn)
+
+	codexConnRec := h.doRequest(t, http.MethodPost, "/api/providers/connections", `{
+		"provider_id": "codex",
+		"name": "Codex OAuth Conn",
+		"auth_type": "oauth",
+		"access_token": "codex-original-access"
+	}`, false)
+	if codexConnRec.Code != http.StatusCreated {
+		t.Fatalf("seed codex oauth conn status = %d: %s", codexConnRec.Code, codexConnRec.Body.String())
+	}
+	var codexConn providers.ConnectionSummary
+	_ = json.Unmarshal(codexConnRec.Body.Bytes(), &codexConn)
+
+	claudeConnRec := h.doRequest(t, http.MethodPost, "/api/providers/connections", `{
+		"provider_id": "claude",
+		"name": "Claude OAuth Old",
+		"auth_type": "oauth",
+		"access_token": "claude-original-access",
+		"priority": 50
+	}`, false)
+	if claudeConnRec.Code != http.StatusCreated {
+		t.Fatalf("seed claude oauth conn status = %d: %s", claudeConnRec.Code, claudeConnRec.Body.String())
+	}
+	var claudeConn providers.ConnectionSummary
+	_ = json.Unmarshal(claudeConnRec.Body.Bytes(), &claudeConn)
+
+	// Start a single claude OAuth session; all pre-validation failures must fail fast
+	// WITHOUT calling the mock token endpoint or consuming the session.
+	startRec := h.doRequest(t, http.MethodPost, "/api/providers/oauth/claude/start", `{}`, false)
+	if startRec.Code != http.StatusOK {
+		t.Fatalf("start claude oauth status = %d: %s", startRec.Code, startRec.Body.String())
+	}
+	var startResp struct {
+		State string `json:"state"`
+	}
+	_ = json.Unmarshal(startRec.Body.Bytes(), &startResp)
+
+	// 1. Target connection_id is an API-key connection -> 400, tokenCalls == 0, credentials untouched.
+	badAuthType := h.doRequest(t, http.MethodPost, "/api/providers/oauth/claude/exchange", `{
+		"code": "code-1",
+		"state": "`+startResp.State+`",
+		"connection_id": "`+apiConn.ID+`"
+	}`, false)
+	if badAuthType.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 when targeting api_key connection, got %d: %s", badAuthType.Code, badAuthType.Body.String())
+	}
+	if tokenCalls.Load() != 0 {
+		t.Fatalf("expected 0 token endpoint calls on api_key mismatch, got %d", tokenCalls.Load())
+	}
+
+	// 2. Target connection_id belongs to a different provider (codex) -> 400, tokenCalls == 0.
+	badProvider := h.doRequest(t, http.MethodPost, "/api/providers/oauth/claude/exchange", `{
+		"code": "code-1",
+		"state": "`+startResp.State+`",
+		"connection_id": "`+codexConn.ID+`"
+	}`, false)
+	if badProvider.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 when targeting another provider's oauth connection, got %d: %s", badProvider.Code, badProvider.Body.String())
+	}
+	if tokenCalls.Load() != 0 {
+		t.Fatalf("expected 0 token endpoint calls on provider mismatch, got %d", tokenCalls.Load())
+	}
+
+	// 3. Target connection_id does not exist -> 404, tokenCalls == 0.
+	missingConn := h.doRequest(t, http.MethodPost, "/api/providers/oauth/claude/exchange", `{
+		"code": "code-1",
+		"state": "`+startResp.State+`",
+		"connection_id": "conn_does_not_exist"
+	}`, false)
+	if missingConn.Code != http.StatusNotFound {
+		t.Fatalf("expected 404 when targeting missing connection_id, got %d: %s", missingConn.Code, missingConn.Body.String())
+	}
+	if tokenCalls.Load() != 0 {
+		t.Fatalf("expected 0 token endpoint calls on missing connection_id, got %d", tokenCalls.Load())
+	}
+
+	// 4. Negative priority -> 400, tokenCalls == 0.
+	badPriority := h.doRequest(t, http.MethodPost, "/api/providers/oauth/claude/exchange", `{
+		"code": "code-1",
+		"state": "`+startResp.State+`",
+		"priority": -5
+	}`, false)
+	if badPriority.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 for negative priority, got %d: %s", badPriority.Code, badPriority.Body.String())
+	}
+	if tokenCalls.Load() != 0 {
+		t.Fatalf("expected 0 token endpoint calls on negative priority, got %d", tokenCalls.Load())
+	}
+
+	// 5. Invalid headers (CRLF injection) -> 400, tokenCalls == 0.
+	badHeaders := h.doRequest(t, http.MethodPost, "/api/providers/oauth/claude/exchange", `{
+		"code": "code-1",
+		"state": "`+startResp.State+`",
+		"headers": {"X-Bad": "val\r\nInjected: 1"}
+	}`, false)
+	if badHeaders.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 for invalid headers, got %d: %s", badHeaders.Code, badHeaders.Body.String())
+	}
+	if tokenCalls.Load() != 0 {
+		t.Fatalf("expected 0 token endpoint calls on invalid headers, got %d", tokenCalls.Load())
+	}
+
+	// Verify existing mismatched connections remain completely untouched.
+	apiCreds, err := h.mod.ResolveCredentials(context.Background(), apiConn.ID)
+	if err != nil || apiCreds.APIKey != "sk-original-api-key" {
+		t.Fatalf("api_key connection was unexpectedly altered: creds=%+v err=%v", apiCreds, err)
+	}
+	codexCreds, err := h.mod.ResolveCredentials(context.Background(), codexConn.ID)
+	if err != nil || codexCreds.AccessToken != "codex-original-access" {
+		t.Fatalf("codex oauth connection was unexpectedly altered: creds=%+v err=%v", codexCreds, err)
+	}
+
+	// 6. Valid exchange updating the matching claude OAuth connection succeeds with the same unburned session!
+	okUpdate := h.doRequest(t, http.MethodPost, "/api/providers/oauth/claude/exchange", `{
+		"code": "code-valid",
+		"state": "`+startResp.State+`",
+		"connection_id": "`+claudeConn.ID+`",
+		"connection_name": "Claude OAuth Reauthed",
+		"priority": 15
+	}`, false)
+	if okUpdate.Code != http.StatusCreated {
+		t.Fatalf("expected 201 updating matching oauth connection, got %d: %s", okUpdate.Code, okUpdate.Body.String())
+	}
+	if tokenCalls.Load() != 1 {
+		t.Fatalf("expected exactly 1 token endpoint call after valid exchange, got %d", tokenCalls.Load())
+	}
+
+	var updated providers.ConnectionSummary
+	if err := json.Unmarshal(okUpdate.Body.Bytes(), &updated); err != nil {
+		t.Fatalf("decode updated connection: %v", err)
+	}
+	if updated.ID != claudeConn.ID || updated.Name != "Claude OAuth Reauthed" || updated.Priority != 15 || updated.TokenExpiresAt == nil {
+		t.Fatalf("unexpected updated connection summary: %+v", updated)
+	}
+
+	newCreds, err := h.mod.ResolveCredentials(context.Background(), claudeConn.ID)
+	if err != nil || newCreds.AccessToken != "reauth-access-token-new" {
+		t.Fatalf("expected updated claude oauth access token, got creds=%+v err=%v", newCreds, err)
+	}
+}
