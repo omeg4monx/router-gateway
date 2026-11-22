@@ -6,6 +6,7 @@ import {
   KeyRound,
   Layers,
   LogIn,
+  LogOut,
   Menu,
   PanelLeftClose,
   PanelLeftOpen,
@@ -15,8 +16,9 @@ import {
   X,
 } from "lucide-react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { type ReactNode, useEffect } from "react";
+import { useAuthSession, useLogoutMutation } from "@/features/auth/hooks";
 import { cn } from "@/shared/lib/utils";
 import { useUIStore } from "@/shared/store/uiStore";
 import { Badge } from "./badge";
@@ -64,11 +66,25 @@ function normalizeRoute(path: string): string {
 
 export function AppShell({ children }: AppShellProps) {
   const pathname = usePathname();
+  const router = useRouter();
+  const authSessionQuery = useAuthSession();
+  const logoutMutation = useLogoutMutation();
   const mobileNavOpen = useUIStore((state) => state.mobileNavOpen);
   const setMobileNavOpen = useUIStore((state) => state.setMobileNavOpen);
   const closeMobileNav = useUIStore((state) => state.closeMobileNav);
   const sidebarCollapsed = useUIStore((state) => state.sidebarCollapsed);
   const toggleSidebarCollapsed = useUIStore((state) => state.toggleSidebarCollapsed);
+
+  const isAuthenticated = Boolean(authSessionQuery.data?.authenticated);
+
+  const handleSignOut = () => {
+    logoutMutation.mutate(undefined, {
+      onSuccess: () => {
+        closeMobileNav();
+        router.replace("/login/");
+      },
+    });
+  };
 
   useEffect(() => {
     if (!mobileNavOpen) {
@@ -323,6 +339,19 @@ export function AppShell({ children }: AppShellProps) {
             </div>
 
             <div className="flex items-center gap-2.5">
+              {isAuthenticated ? (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={handleSignOut}
+                  disabled={logoutMutation.isPending}
+                  title={logoutMutation.error?.message}
+                >
+                  <LogOut className="h-3.5 w-3.5" aria-hidden="true" />
+                  <span>{logoutMutation.isPending ? "Signing out..." : "Sign Out"}</span>
+                </Button>
+              ) : null}
               <ThemeToggle />
             </div>
           </div>

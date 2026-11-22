@@ -270,10 +270,10 @@
     "semantic_hash": "239f3ebf717465dc636818a1a619398d"
   },
   "web/src/app/(dashboard)/dashboard/layout.tsx": {
-    "mtime": 1795371333.024734,
-    "seen": 1795371440.1263702,
-    "ast_hash": "e9c9765643fb0b71a59c41efc677629d",
-    "semantic_hash": "e9c9765643fb0b71a59c41efc677629d"
+    "mtime": 1795378426.7510252,
+    "seen": 1795378522.6141572,
+    "ast_hash": "537bed06c9de7f92344dc0d983498f2c",
+    "semantic_hash": ""
   },
   "web/src/app/(dashboard)/dashboard/page.tsx": {
     "mtime": 1795371333.024868,
@@ -294,15 +294,15 @@
     "semantic_hash": ""
   },
   "web/src/app/login/page.tsx": {
-    "mtime": 1795375751.9745793,
-    "seen": 1795375775.2440422,
-    "ast_hash": "65a6d4e680b5a8814e5251d1d3074bee",
+    "mtime": 1795378505.1337469,
+    "seen": 1795378522.6142664,
+    "ast_hash": "408436a1c9cda70b1401bde1e5aa8cf0",
     "semantic_hash": ""
   },
   "web/src/app/page.tsx": {
-    "mtime": 1795375751.9745793,
-    "seen": 1795375775.2440434,
-    "ast_hash": "414d5f8a5ff56763460b456b388274ce",
+    "mtime": 1795378507.103774,
+    "seen": 1795378522.6142688,
+    "ast_hash": "ec82116bf204d878be892fc4d129ea5f",
     "semantic_hash": ""
   },
   "web/src/features/system/InitForm.tsx": {
@@ -384,9 +384,9 @@
     "semantic_hash": ""
   },
   "web/src/shared/ui/AppShell.tsx": {
-    "mtime": 1795375751.9745793,
-    "seen": 1795375775.244147,
-    "ast_hash": "ecb5e440a7100e497721a9fc514bc1a3",
+    "mtime": 1795378450.5319934,
+    "seen": 1795378522.6148822,
+    "ast_hash": "a9023d41ae3cf711aa381b5b97b1cf38",
     "semantic_hash": ""
   },
   "web/src/shared/ui/CaduceusLogo.tsx": {
@@ -573,6 +573,36 @@
     "mtime": 1795377688.8316023,
     "seen": 1795377744.7549543,
     "ast_hash": "d7b3b39e3da876b2f620844d3d3de616",
+    "semantic_hash": ""
+  },
+  "web/src/features/auth/AuthGuard.tsx": {
+    "mtime": 1795378503.7247274,
+    "seen": 1795378522.6142714,
+    "ast_hash": "ae63799b941a632260730cd4cafa9e4f",
+    "semantic_hash": ""
+  },
+  "web/src/features/auth/LoginForm.tsx": {
+    "mtime": 1795378465.2451963,
+    "seen": 1795378522.6142738,
+    "ast_hash": "a26dc66e7bee5fa001b21771809a9196",
+    "semantic_hash": ""
+  },
+  "web/src/features/auth/hooks.ts": {
+    "mtime": 1795378501.9547029,
+    "seen": 1795378522.614276,
+    "ast_hash": "bd1b60ffb57a10ce5997c1de3ef4852b",
+    "semantic_hash": ""
+  },
+  "web/src/features/auth/schemas.test.ts": {
+    "mtime": 1795378465.2491965,
+    "seen": 1795378522.6142776,
+    "ast_hash": "30df34c85948d6ffa54f011f949766b9",
+    "semantic_hash": ""
+  },
+  "web/src/features/auth/schemas.ts": {
+    "mtime": 1795378415.6945126,
+    "seen": 1795378522.6142797,
+    "ast_hash": "2d7bcef166dce62a5cbc2050fa990ca6",
     "semantic_hash": ""
   }
 }
