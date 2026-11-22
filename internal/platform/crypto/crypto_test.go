@@ -111,6 +111,53 @@ func TestLoadOrCreateMasterKey(t *testing.T) {
 			t.Fatalf("got error %v, want errors.Is(_, ErrInvalidDataDir)", err)
 		}
 	})
+
+	t.Run("concurrent cold-start calls return identical key without clobbering", func(t *testing.T) {
+		for round := range 5 {
+			dataDir := filepath.Join(t.TempDir(), "cold-start")
+			const workers = 16
+			start := make(chan struct{})
+			keys := make([][]byte, workers)
+			errs := make([]error, workers)
+
+			var wg sync.WaitGroup
+			for i := range workers {
+				wg.Add(1)
+				go func(idx int) {
+					defer wg.Done()
+					<-start
+					keys[idx], errs[idx] = LoadOrCreateMasterKey(dataDir, "")
+				}(i)
+			}
+			close(start)
+			wg.Wait()
+
+			diskKey, err := os.ReadFile(filepath.Join(dataDir, "master.key"))
+			if err != nil {
+				t.Fatalf("round %d: read master.key: %v", round, err)
+			}
+			if len(diskKey) != MasterKeySize {
+				t.Fatalf("round %d: disk key length = %d, want %d", round, len(diskKey), MasterKeySize)
+			}
+
+			for i := range workers {
+				if errs[i] != nil {
+					t.Fatalf("round %d worker %d failed: %v", round, i, errs[i])
+				}
+				if !bytes.Equal(keys[i], diskKey) {
+					t.Fatalf("round %d worker %d returned clobbered key %x, disk has %x", round, i, keys[i], diskKey)
+				}
+			}
+
+			entries, err := os.ReadDir(dataDir)
+			if err != nil {
+				t.Fatalf("round %d: readdir: %v", round, err)
+			}
+			if len(entries) != 1 || entries[0].Name() != "master.key" {
+				t.Fatalf("round %d: unexpected directory entries after cold start: %v", round, entries)
+			}
+		}
+	})
 }
 
 func TestVaultRoundTripAndTamperRejection(t *testing.T) {
@@ -258,6 +305,20 @@ func TestPasswordHashAndVerify(t *testing.T) {
 		tooLong := strings.Repeat("a", 73)
 		if _, err := HashPassword(tooLong); !errors.Is(err, ErrPasswordTooLong) {
 			t.Fatalf("HashPassword(73 bytes) err = %v, want ErrPasswordTooLong", err)
+		}
+	})
+
+	t.Run("VerifyPassword rejects passwords longer than 72 bytes even when 72-byte prefix matches", func(t *testing.T) {
+		pw72 := strings.Repeat("a", 72)
+		hash, err := HashPassword(pw72)
+		if err != nil {
+			t.Fatalf("HashPassword(72 bytes) failed: %v", err)
+		}
+		if !VerifyPassword(hash, pw72) {
+			t.Fatal("VerifyPassword returned false for exact 72-byte password")
+		}
+		if VerifyPassword(hash, pw72+"extra") {
+			t.Fatal("VerifyPassword returned true for >72-byte password sharing 72-byte prefix")
 		}
 	})
 

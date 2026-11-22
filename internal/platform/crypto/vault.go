@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 )
 
 const (
@@ -59,15 +60,12 @@ func LoadOrCreateMasterKey(dataDir, envHex string) ([]byte, error) {
 	}
 
 	keyPath := filepath.Join(dataDir, masterKeyFileName)
-	existing, err := os.ReadFile(keyPath)
+	existing, err := readMasterKeyFile(keyPath)
 	if err == nil {
-		if len(existing) != MasterKeySize {
-			return nil, fmt.Errorf("%w: master.key length %d, want %d", ErrInvalidMasterKey, len(existing), MasterKeySize)
-		}
 		return existing, nil
 	}
 	if !errors.Is(err, os.ErrNotExist) {
-		return nil, fmt.Errorf("crypto: read master key: %w", err)
+		return nil, err
 	}
 
 	key := make([]byte, MasterKeySize)
@@ -76,9 +74,26 @@ func LoadOrCreateMasterKey(dataDir, envHex string) ([]byte, error) {
 	}
 
 	if err := writeKeyAtomically(dataDir, keyPath, key); err != nil {
+		if errors.Is(err, os.ErrExist) {
+			return readMasterKeyFile(keyPath)
+		}
 		return nil, err
 	}
 	return key, nil
+}
+
+func readMasterKeyFile(keyPath string) ([]byte, error) {
+	existing, err := os.ReadFile(keyPath)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil, err
+		}
+		return nil, fmt.Errorf("crypto: read master key: %w", err)
+	}
+	if len(existing) != MasterKeySize {
+		return nil, fmt.Errorf("%w: master.key length %d, want %d", ErrInvalidMasterKey, len(existing), MasterKeySize)
+	}
+	return existing, nil
 }
 
 func writeKeyAtomically(dataDir, keyPath string, key []byte) error {
@@ -87,11 +102,8 @@ func writeKeyAtomically(dataDir, keyPath string, key []byte) error {
 		return fmt.Errorf("crypto: create temp master key file: %w", err)
 	}
 	tmpPath := tmpFile.Name()
-	cleanup := true
 	defer func() {
-		if cleanup {
-			_ = os.Remove(tmpPath)
-		}
+		_ = os.Remove(tmpPath)
 	}()
 
 	if err := os.Chmod(tmpPath, 0o600); err != nil {
@@ -113,10 +125,48 @@ func writeKeyAtomically(dataDir, keyPath string, key []byte) error {
 		return fmt.Errorf("crypto: close temp master key file: %w", err)
 	}
 
-	if err := os.Rename(tmpPath, keyPath); err != nil {
-		return fmt.Errorf("crypto: rename temp master key file: %w", err)
+	if err := os.Link(tmpPath, keyPath); err != nil {
+		if errors.Is(err, os.ErrExist) {
+			return os.ErrExist
+		}
+		if isLinkUnsupported(err) {
+			return writeKeyExclusive(keyPath, key)
+		}
+		return fmt.Errorf("crypto: link master key file: %w", err)
 	}
-	cleanup = false
+	return nil
+}
+
+func isLinkUnsupported(err error) bool {
+	return errors.Is(err, errors.ErrUnsupported) ||
+		errors.Is(err, syscall.EPERM) ||
+		errors.Is(err, syscall.EOPNOTSUPP) ||
+		errors.Is(err, syscall.ENOTSUP)
+}
+
+func writeKeyExclusive(keyPath string, key []byte) error {
+	f, err := os.OpenFile(keyPath, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
+	if err != nil {
+		if errors.Is(err, os.ErrExist) {
+			return os.ErrExist
+		}
+		return fmt.Errorf("crypto: create master key file: %w", err)
+	}
+	if err := os.Chmod(keyPath, 0o600); err != nil {
+		_ = f.Close()
+		return fmt.Errorf("crypto: chmod master key file: %w", err)
+	}
+	if _, err := f.Write(key); err != nil {
+		_ = f.Close()
+		return fmt.Errorf("crypto: write master key file: %w", err)
+	}
+	if err := f.Sync(); err != nil {
+		_ = f.Close()
+		return fmt.Errorf("crypto: sync master key file: %w", err)
+	}
+	if err := f.Close(); err != nil {
+		return fmt.Errorf("crypto: close master key file: %w", err)
+	}
 	return nil
 }
 
