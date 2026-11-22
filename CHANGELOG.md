@@ -1,5 +1,7 @@
 # v0.2.0 (2026-11-22)
 
+> **Unreleased on `infra/foundation` (not part of v0.2.0):** locked npm installs for the app and tests, independent Next.js and Go CI checks, and a local workflow with isolated data paths. Deployment defaults are unchanged.
+
 ### Breaking — Omegamon theme system
 
 - **Light = Omegamon X-Antibody, Dark = Omegamon Zwart.** Light uses pearl-white surfaces, Garuru blue primary (`#0860A8`), Grey Sword gold secondary and red armor accent; dark uses obsidian/gunmetal surfaces, silver text, electric cyan primary (`#0EA8CF`) and a red core accent. New tokens: `secondary-*`, `accent-*`, `highlight`, `on-primary`. `accent` is now the red accent, no longer an alias of the brand color.

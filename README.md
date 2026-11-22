@@ -32,9 +32,9 @@ Local AI routing gateway with a web dashboard. It exposes one OpenAI- and Anthro
 
 ## Requirements
 
-- Node.js 22 (see `.nvmrc`). The CLI accepts Node ≥ 18.
-- npm (Bun also works: `dev:bun`, `build:bun`, `start:bun`).
-- Optional: Docker, Go 1.26+ for the experimental Go core.
+- Node.js `22.23.4` for source builds (see `.nvmrc`). The CLI accepts Node ≥ 18.
+- npm `11.20.0` for locked installs (the commands below select it). Bun still works via `dev:bun`, `build:bun`, and `start:bun`.
+- Optional: Docker, Go `1.26.0` for the experimental Go core.
 
 ---
 
@@ -44,7 +44,7 @@ Local AI routing gateway with a web dashboard. It exposes one OpenAI- and Anthro
 git clone https://github.com/omeg4monx/router-gateway.git
 cd router-gateway
 cp .env.example .env        # set JWT_SECRET and INITIAL_PASSWORD
-npm install
+npx --yes npm@11.20.0 ci
 npm run build
 npm run start               # http://localhost:20128/dashboard
 ```
@@ -52,6 +52,34 @@ npm run start               # http://localhost:20128/dashboard
 To develop with hot reload, run `npm run dev`. It serves on `127.0.0.1:20128` only.
 
 > `next dev` does **not** load `custom-server.js`, so the dashboard auth guard is inactive in dev mode. Never expose a dev server to a network.
+
+### Develop against both runtimes
+
+For this smoke check, use a checkout without a production `.env` or credentials. Run the locked app install above first. Start Next.js in one terminal:
+
+```bash
+node_data=$(mktemp -d)
+DATA_DIR="$node_data" INITIAL_PASSWORD=dev-node-disposable npm run dev
+```
+
+Start the experimental Go gateway in another terminal:
+
+```bash
+go_data=$(mktemp -d)
+CGO_ENABLED=0 go build -mod=readonly -o "$go_data/router" ./cmd/omeg4mon-router
+HOST=127.0.0.1 PORT=8080 DATA_DIR="$go_data" INITIAL_PASSWORD=dev-go-disposable "$go_data/router"
+```
+
+Verify each process independently:
+
+```bash
+curl --fail --silent --show-error http://127.0.0.1:20128/api/health
+curl --fail --silent --show-error http://127.0.0.1:8080/api/health
+```
+
+Both responses should have `ok: true`; the Go response also has `engine: "golang"`. If a port is occupied, use a free loopback port: append `-- --port 22028` to `npm run dev` or set `PORT` on the Go command, and adjust the probe URL.
+
+Do not point the processes at a shared or existing data directory. Starting Go does not redirect Node routes. Stop each process with Ctrl-C; only then remove the disposable directory created in that terminal if you no longer need it.
 
 ### First login
 
@@ -188,13 +216,13 @@ tests/          Vitest suite (independent package)
 ## Tests
 
 ```bash
-npm install
-cd tests && npm install
-npx vitest run                      # whole suite
-npx vitest run unit/<file>.test.js  # one file
+npx --yes npm@11.20.0 ci
+npx --yes npm@11.20.0 --prefix tests ci
+RUN_REAL=0 tests/node_modules/.bin/vitest run --config tests/vitest.config.js
+CGO_ENABLED=0 GOTOOLCHAIN=local go test -mod=readonly ./...
 ```
 
-Some tests are known to fail on a plain checkout: `tests/__baseline__/` holds the regression baselines, and `real/*.real.test.js` calls live providers and needs credentials. Compare against a baseline run instead of expecting an all-green suite.
+Run these commands from the repository root. To focus Vitest, append a path such as `tests/unit/auth-fail-closed.test.js`. Live-provider tests require explicit `RUN_REAL=1` and the relevant credentials; default CI keeps them off.
 
 ---
 
