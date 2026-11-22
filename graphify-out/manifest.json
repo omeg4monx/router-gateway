@@ -312,9 +312,9 @@
     "semantic_hash": ""
   },
   "web/src/features/system/SystemOverview.tsx": {
-    "mtime": 1795381385.5531905,
-    "seen": 1795381587.6629026,
-    "ast_hash": "7e94207d578e92a85d7c05196f79e6e7",
+    "mtime": 1795387057.167036,
+    "seen": 1795387118.9087708,
+    "ast_hash": "cd1da71963a62dba8d6dfdf55e90856f",
     "semantic_hash": ""
   },
   "web/src/features/system/hooks.ts": {
@@ -354,8 +354,8 @@
     "semantic_hash": "bb80d375646eeb2d8c259c26500224b0"
   },
   "web/src/shared/api/schema.d.ts": {
-    "mtime": 1795386115.7445157,
-    "seen": 1795386156.4684007,
+    "mtime": 1795387088.7445233,
+    "seen": 1795387118.908945,
     "ast_hash": "6f2125e76c8ba0cfffc6c88377e0d783",
     "semantic_hash": ""
   },
@@ -384,9 +384,9 @@
     "semantic_hash": ""
   },
   "web/src/shared/ui/AppShell.tsx": {
-    "mtime": 1795381385.5531905,
-    "seen": 1795381587.6631281,
-    "ast_hash": "8533c45f4a8bb12fb88e4c0ae30b7f0c",
+    "mtime": 1795387063.4467041,
+    "seen": 1795387118.9090607,
+    "ast_hash": "370caf01160f8b1e9fb2e572fe0800b6",
     "semantic_hash": ""
   },
   "web/src/shared/ui/CaduceusLogo.tsx": {
@@ -873,6 +873,36 @@
     "mtime": 1795386597.2389421,
     "seen": 1795386622.3279235,
     "ast_hash": "577d42f6888682c96785ffac56dc3724",
+    "semantic_hash": ""
+  },
+  "web/src/app/(dashboard)/dashboard/models/page.tsx": {
+    "mtime": 1795387039.1937587,
+    "seen": 1795387118.9079542,
+    "ast_hash": "2f60c01d7b57debebf8908ec2e4a357e",
+    "semantic_hash": ""
+  },
+  "web/src/features/combos/ModelsRoutingConsole.tsx": {
+    "mtime": 1795387063.4821334,
+    "seen": 1795387118.9083574,
+    "ast_hash": "c144fbcf488dfd1b042d714b40bbd221",
+    "semantic_hash": ""
+  },
+  "web/src/features/combos/hooks.ts": {
+    "mtime": 1795386951.6511216,
+    "seen": 1795387118.9083598,
+    "ast_hash": "b542042d3abfc5fa751bf94c7b81cedf",
+    "semantic_hash": ""
+  },
+  "web/src/features/combos/schemas.test.ts": {
+    "mtime": 1795386910.2037692,
+    "seen": 1795387118.9083612,
+    "ast_hash": "c921ad4293d5ebc82deee38144cec7fc",
+    "semantic_hash": ""
+  },
+  "web/src/features/combos/schemas.ts": {
+    "mtime": 1795387063.4001322,
+    "seen": 1795387118.9083624,
+    "ast_hash": "d7c6a62142c667ebd598a68873193e1a",
     "semantic_hash": ""
   }
 }

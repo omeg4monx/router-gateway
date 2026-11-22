@@ -23,15 +23,18 @@ const MODULE_SCOPES: Record<string, string> = {
   auth: "Single-admin session cookies, password rotation & remote-bind policy",
   settings: "Typed runtime settings store, revision history & atomic rollback",
   keys: "Gateway API keys, SHA-256 hash validation, model scopes & rotation",
+  providers: "Upstream LLM adapters, OAuth PKCE & AES-256-GCM credential vault",
+  combos: "Ordered fallback chains, model aliases, disabled list & cooldowns",
+  gateway: "OpenAI, Anthropic, Responses & Gemini SSE translation proxy",
 };
 
 const PLANNED_WAVE1_MODULES = [
   { name: "auth", scope: MODULE_SCOPES.auth },
   { name: "settings", scope: MODULE_SCOPES.settings },
   { name: "keys", scope: MODULE_SCOPES.keys },
-  { name: "providers", scope: "Upstream LLM adapters, OAuth & credential vault" },
-  { name: "combos", scope: "Fallback chains, aliases & account cooldowns" },
-  { name: "gateway", scope: "OpenAI, Anthropic, Responses & Gemini SSE proxy" },
+  { name: "providers", scope: MODULE_SCOPES.providers },
+  { name: "combos", scope: MODULE_SCOPES.combos },
+  { name: "gateway", scope: MODULE_SCOPES.gateway },
   { name: "usage", scope: "Async token accounting, pricing & request telemetry" },
   { name: "clitools", scope: "CLI client integrations & local developer profiles" },
 ];
@@ -321,7 +324,7 @@ export function SystemOverview() {
                   </p>
                   <p className="text-xs text-[var(--text-muted)]">{mod.scope}</p>
                 </div>
-                <Badge variant="outline">Wave 1</Badge>
+                <Badge variant="outline">Wave 1C</Badge>
               </div>
             ))}
           </div>
