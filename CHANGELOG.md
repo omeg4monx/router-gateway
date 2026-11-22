@@ -21,7 +21,6 @@
 - **Model capabilities:** provider aliases (`ocg`, `cmc`) resolve; providers whose connections are all disabled are hidden in the model picker.
 - From the quarantine triage: stalled streams send an in-band error frame; `/messages`-only models use their own transport; codebuddy keeps a stable conversation id; opencode-zen free models no longer reuse the paid token; legacy custom rows no longer duplicate registry entries in `/api/models`; bulk key import no longer overwrites existing key names.
 - Token-saver opt-out header is `x-omeg4mon-router-token-saver` (`x-9router-token-saver` still works). The update check re-fetches the remote release after its TTL instead of caching it forever.
-- **Docker image:** ships `jose`, `bcryptjs`, `chalk` and `ora` (with its dependencies). `custom-server.js` loads the auth guard and token refresh from `src/` outside Next's tracing, so without them every route answered 503 and xAI token refresh crashed.
 
 ### Tests
 
