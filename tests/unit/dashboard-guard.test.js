@@ -288,6 +288,73 @@ describe("dashboard guard local-only access", () => {
   });
 });
 
+describe("dashboard guard host-credential auto-import", () => {
+  const AUTO_IMPORT_PATHS = [
+    "/api/oauth/cursor/auto-import",
+    "/api/oauth/kiro/auto-import",
+    "/api/oauth/zed/auto-import",
+    "/api/oauth/xiaomi-mimo/auto-import",
+  ];
+  const LOCAL = { host: "localhost:20128", origin: "http://localhost:20128" };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    process.env.NINEROUTER_PEER_TOKEN = PEER_TOKEN;
+    mocks.getSettings.mockResolvedValue({ requireLogin: true });
+    mocks.validateApiKey.mockResolvedValue(false);
+    mocks.getConsistentMachineId.mockResolvedValue("cli-token");
+    // Signed-in password session.
+    mocks.verifyDashboardAuthToken.mockResolvedValue(true);
+  });
+
+  it.each(AUTO_IMPORT_PATHS)("rejects a signed-in remote session for %s", async (path) => {
+    const response = await proxy(request(path, { host: "router.example.com" }));
+
+    expect(response.status).toBe(403);
+  });
+
+  it.each(AUTO_IMPORT_PATHS)("allows a signed-in loopback browser for %s", async (path) => {
+    const response = await proxy(localRequest(path, LOCAL));
+
+    expect(response).toBe(mocks.nextResponse);
+  });
+
+  it("rejects a remote caller holding the CLI token", async () => {
+    const response = await proxy(request("/api/oauth/xiaomi-mimo/auto-import", {
+      host: "router.example.com",
+      "x-9r-cli-token": "cli-token",
+    }));
+
+    expect(response.status).toBe(403);
+  });
+
+  it("rejects a loopback hop from a reverse proxy", async () => {
+    const response = await proxy(localRequest("/api/oauth/xiaomi-mimo/auto-import", {
+      ...LOCAL,
+      "x-9r-via-proxy": "1",
+    }));
+
+    expect(response.status).toBe(403);
+  });
+
+  it("rejects a loopback request with a foreign Origin", async () => {
+    const response = await proxy(localRequest("/api/oauth/xiaomi-mimo/auto-import", {
+      ...LOCAL,
+      origin: "http://evil.example.com",
+    }));
+
+    expect(response.status).toBe(403);
+  });
+
+  it("still requires a dashboard login from loopback", async () => {
+    mocks.verifyDashboardAuthToken.mockResolvedValue(false);
+
+    const response = await proxy(localRequest("/api/oauth/xiaomi-mimo/auto-import", LOCAL));
+
+    expect(response.status).toBe(401);
+  });
+});
+
 describe("dashboard guard high-severity regressions", () => {
   beforeEach(() => {
     vi.clearAllMocks();

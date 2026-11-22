@@ -91,6 +91,7 @@ const ALWAYS_PROTECTED = [
   "/api/oauth/cursor/auto-import",
   "/api/oauth/kiro/auto-import",
   "/api/oauth/zed/auto-import",
+  "/api/oauth/xiaomi-mimo/auto-import",
 ];
 
 function redirectWithProto(targetPath, request) {
@@ -187,14 +188,20 @@ const LOCAL_ONLY_PATHS = [
   "/api/tunnel/tailscale-check",
   "/api/tunnel/enable",
   "/api/tunnel/disable",
-  "/api/oauth/cursor/auto-import",
-  "/api/oauth/kiro/auto-import",
-  "/api/oauth/zed/auto-import",
-  "/api/oauth/xiaomi-mimo/auto-import",
   "/api/auth/reset-password",
   "/api/headroom/start",
   "/api/headroom/stop",
   "/api/headroom/proxy",
+];
+
+// Routes that hand the host's stored IDE/desktop credentials to the browser.
+// Stricter than LOCAL_ONLY_PATHS: a signed-in remote session or CLI token is
+// not enough — the request itself must come from a browser on the host.
+const HOST_CREDENTIAL_PATHS = [
+  "/api/oauth/cursor/auto-import",
+  "/api/oauth/kiro/auto-import",
+  "/api/oauth/zed/auto-import",
+  "/api/oauth/xiaomi-mimo/auto-import",
 ];
 
 const LOOPBACK_HOSTS = new Set(["localhost", "127.0.0.1", "::1"]);
@@ -380,6 +387,16 @@ export async function proxy(request) {
   // Sessions signed in with an API key carry their own permission set. Read once
   // here so every gate below sees the same claims.
   const apiKeySession = await getApiKeySession(request);
+
+  // Host-credential gate: loopback browser only; login is still checked below.
+  if (HOST_CREDENTIAL_PATHS.some((p) => pathname.startsWith(p))) {
+    if (apiKeySession) {
+      return NextResponse.json({ error: "This route is not available to API key sessions" }, { status: 403 });
+    }
+    if (!isLocalRequest(request)) {
+      return NextResponse.json({ error: "Local only: open the dashboard on this machine" }, { status: 403 });
+    }
+  }
 
   // Local-only gate for spawn-capable / host-secret routes.
   if (LOCAL_ONLY_PATHS.some((p) => pathname.startsWith(p))) {
