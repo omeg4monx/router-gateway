@@ -1,5 +1,5 @@
-import * as React from "react";
 import { cva, type VariantProps } from "class-variance-authority";
+import type * as React from "react";
 import { cn } from "@/shared/lib/utils";
 
 const badgeVariants = cva(
@@ -7,12 +7,9 @@ const badgeVariants = cva(
   {
     variants: {
       variant: {
-        default:
-          "border-[#E56A4A] bg-[var(--bg-surface-raised)] text-[var(--accent-text)]",
-        secondary:
-          "border-[var(--border-subtle)] bg-[var(--bg-canvas)] text-[var(--text-muted)]",
-        outline:
-          "border-[var(--border-subtle)] bg-[var(--bg-surface)] text-[var(--text-muted)]",
+        default: "border-[#E56A4A] bg-[var(--bg-surface-raised)] text-[var(--accent-text)]",
+        secondary: "border-[var(--border-subtle)] bg-[var(--bg-canvas)] text-[var(--text-muted)]",
+        outline: "border-[var(--border-subtle)] bg-[var(--bg-surface)] text-[var(--text-muted)]",
         success:
           "border-[var(--status-ok-border)] bg-[var(--status-ok-bg)] text-[var(--status-ok)]",
         warning:
@@ -32,9 +29,7 @@ export interface BadgeProps
     VariantProps<typeof badgeVariants> {}
 
 function Badge({ className, variant, ...props }: BadgeProps) {
-  return (
-    <span className={cn(badgeVariants({ variant }), className)} {...props} />
-  );
+  return <span className={cn(badgeVariants({ variant }), className)} {...props} />;
 }
 
 export { Badge, badgeVariants };

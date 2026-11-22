@@ -193,7 +193,7 @@ func (a *App) Addr() string {
 	return a.server.Addr()
 }
 
-// Run starts the HTTP server and blocks until ctx is cancelled, the shutdown
+// Run starts the HTTP server and blocks until ctx is canceled, the shutdown
 // endpoint triggers shutdown, or the listener fails, then performs graceful
 // teardown via Close.
 func (a *App) Run(ctx context.Context) error {
@@ -284,14 +284,18 @@ func (a *App) requestShutdown() {
 }
 
 func main() {
-	cfg, err := config.Load(os.Args[1:], os.Getenv)
+	os.Exit(runMain(os.Args[1:], os.Getenv))
+}
+
+func runMain(args []string, getenv func(string) string) int {
+	cfg, err := config.Load(args, getenv)
 	if err != nil {
 		if errors.Is(err, flag.ErrHelp) {
 			fmt.Fprintln(os.Stderr, "Usage: omeg4mon-router [--host 127.0.0.1] [--port 20128] [--data-dir PATH] [--log-level info]")
-			os.Exit(0)
+			return 0
 		}
 		fmt.Fprintf(os.Stderr, "omeg4mon-router: configuration error: %v\n", err)
-		os.Exit(1)
+		return 1
 	}
 
 	sigCtx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -306,7 +310,7 @@ func main() {
 	app, err := buildApp(sigCtx, cfg, build)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "omeg4mon-router: startup error: %v\n", err)
-		os.Exit(1)
+		return 1
 	}
 
 	app.logger.Info("omeg4mon-router starting",
@@ -318,8 +322,9 @@ func main() {
 
 	if err := app.Run(sigCtx); err != nil {
 		app.logger.Error("omeg4mon-router exited with error", "error", err)
-		os.Exit(1)
+		return 1
 	}
 
 	app.logger.Info("omeg4mon-router stopped")
+	return 0
 }

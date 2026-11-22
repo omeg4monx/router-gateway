@@ -157,7 +157,7 @@ func (r *Runner) runOnce(ctx context.Context, j job) {
 		}
 	}()
 
-	if err := j.fn(ctx); err != nil && !(ctx.Err() != nil && errors.Is(err, context.Canceled)) {
+	if err := j.fn(ctx); err != nil && (ctx.Err() == nil || !errors.Is(err, context.Canceled)) {
 		r.logger.Error("periodic job failed",
 			"job", j.name,
 			"error", err,

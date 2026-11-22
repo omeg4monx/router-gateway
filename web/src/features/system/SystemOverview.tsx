@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -11,16 +10,13 @@ import {
   Server,
   ShieldCheck,
 } from "lucide-react";
+import Link from "next/link";
 import { Alert, AlertDescription, AlertTitle } from "@/shared/ui/alert";
 import { Badge } from "@/shared/ui/badge";
 import { Button } from "@/shared/ui/button";
 import { Card, CardHeader, CardTitle } from "@/shared/ui/card";
 import { EmberRule } from "@/shared/ui/EmberRule";
-import {
-  useInitStatus,
-  useSystemHealth,
-  useSystemVersion,
-} from "./hooks";
+import { useInitStatus, useSystemHealth, useSystemVersion } from "./hooks";
 
 const PLANNED_WAVE1_MODULES = [
   { name: "auth", scope: "Single-admin session cookies & login policy" },
@@ -62,15 +58,10 @@ export function SystemOverview() {
   const versionQuery = useSystemVersion();
   const initQuery = useInitStatus();
 
-  const isRefreshing =
-    healthQuery.isFetching || versionQuery.isFetching || initQuery.isFetching;
+  const isRefreshing = healthQuery.isFetching || versionQuery.isFetching || initQuery.isFetching;
 
   const handleRefresh = () => {
-    void Promise.all([
-      healthQuery.refetch(),
-      versionQuery.refetch(),
-      initQuery.refetch(),
-    ]);
+    void Promise.all([healthQuery.refetch(), versionQuery.refetch(), initQuery.refetch()]);
   };
 
   const health = healthQuery.data;
@@ -82,14 +73,9 @@ export function SystemOverview() {
   const hasError = healthQuery.isError || versionQuery.isError;
 
   const mountedSet = new Set(health?.modules ?? []);
-  const pendingWave1Modules = PLANNED_WAVE1_MODULES.filter(
-    (mod) => !mountedSet.has(mod.name),
-  );
+  const pendingWave1Modules = PLANNED_WAVE1_MODULES.filter((mod) => !mountedSet.has(mod.name));
 
-  const lastSyncTimestamp = Math.max(
-    healthQuery.dataUpdatedAt,
-    versionQuery.dataUpdatedAt,
-  );
+  const lastSyncTimestamp = Math.max(healthQuery.dataUpdatedAt, versionQuery.dataUpdatedAt);
 
   return (
     <div className="space-y-6">
@@ -135,8 +121,8 @@ export function SystemOverview() {
               aria-hidden="true"
             />
             <p className="text-sm text-[var(--text-primary)]">
-              Administrator password has not been initialized yet. Complete
-              first-run configuration before exposing this instance.
+              Administrator password has not been initialized yet. Complete first-run configuration
+              before exposing this instance.
             </p>
           </div>
           <Button asChild size="xs" className="shrink-0">
@@ -186,16 +172,11 @@ export function SystemOverview() {
               Gateway Status
             </span>
             {isHealthy ? (
-              <CheckCircle2
-                className="h-4 w-4 text-[var(--status-ok)]"
-                aria-hidden="true"
-              />
+              <CheckCircle2 className="h-4 w-4 text-[var(--status-ok)]" aria-hidden="true" />
             ) : (
               <AlertTriangle
                 className={`h-4 w-4 ${
-                  isDegraded
-                    ? "text-[var(--status-warn)]"
-                    : "text-[var(--text-muted)]"
+                  isDegraded ? "text-[var(--status-warn)]" : "text-[var(--text-muted)]"
                 }`}
                 aria-hidden="true"
               />
@@ -230,10 +211,7 @@ export function SystemOverview() {
             <span className="text-xs font-medium uppercase tracking-wider text-[var(--text-muted)]">
               SQLite Store
             </span>
-            <Database
-              className="h-4 w-4 text-[var(--text-muted)]"
-              aria-hidden="true"
-            />
+            <Database className="h-4 w-4 text-[var(--text-muted)]" aria-hidden="true" />
           </div>
           <div className="mt-3">
             <span
@@ -245,16 +223,10 @@ export function SystemOverview() {
                     : "text-[var(--text-secondary)]"
               }`}
             >
-              {healthQuery.isPending
-                ? "CHECKING"
-                : health
-                  ? health.db.toUpperCase()
-                  : "UNKNOWN"}
+              {healthQuery.isPending ? "CHECKING" : health ? health.db.toUpperCase() : "UNKNOWN"}
             </span>
           </div>
-          <p className="mt-1.5 text-xs text-[var(--text-muted)]">
-            WAL mode embedded state engine
-          </p>
+          <p className="mt-1.5 text-xs text-[var(--text-muted)]">WAL mode embedded state engine</p>
         </Card>
 
         <Card className="p-4">
@@ -262,10 +234,7 @@ export function SystemOverview() {
             <span className="text-xs font-medium uppercase tracking-wider text-[var(--text-muted)]">
               Process Uptime
             </span>
-            <Clock
-              className="h-4 w-4 text-[var(--text-muted)]"
-              aria-hidden="true"
-            />
+            <Clock className="h-4 w-4 text-[var(--text-muted)]" aria-hidden="true" />
           </div>
           <div className="mt-3">
             <span className="font-mono text-2xl font-semibold tracking-tight tabular-nums text-[var(--text-primary)]">
@@ -274,9 +243,7 @@ export function SystemOverview() {
                 : formatUptime(health.uptimeSeconds)}
             </span>
           </div>
-          <p className="mt-1.5 text-xs text-[var(--text-muted)]">
-            Elapsed since kernel start
-          </p>
+          <p className="mt-1.5 text-xs text-[var(--text-muted)]">Elapsed since kernel start</p>
         </Card>
 
         <Card className="p-4">
@@ -309,18 +276,13 @@ export function SystemOverview() {
               <Server className="h-4 w-4 text-[#E56A4A]" aria-hidden="true" />
               <CardTitle>Registered Kernel Modules</CardTitle>
             </div>
-            <span className="font-mono text-xs text-[var(--text-muted)]">
-              GET /api/health
-            </span>
+            <span className="font-mono text-xs text-[var(--text-muted)]">GET /api/health</span>
           </CardHeader>
 
           <div className="divide-y divide-[var(--border-subtle)]">
             {health && health.modules.length > 0 ? (
               health.modules.map((mod) => (
-                <div
-                  key={mod}
-                  className="flex items-center justify-between px-5 py-3"
-                >
+                <div key={mod} className="flex items-center justify-between px-5 py-3">
                   <div>
                     <p className="font-mono text-sm font-medium text-[var(--text-primary)]">
                       {mod}
@@ -360,48 +322,35 @@ export function SystemOverview() {
         <Card className="flex flex-col">
           <CardHeader>
             <div className="flex items-center gap-2">
-              <ShieldCheck
-                className="h-4 w-4 text-[#E56A4A]"
-                aria-hidden="true"
-              />
+              <ShieldCheck className="h-4 w-4 text-[#E56A4A]" aria-hidden="true" />
               <CardTitle>Build &amp; Security Posture</CardTitle>
             </div>
-            <span className="font-mono text-xs text-[var(--text-muted)]">
-              GET /api/version
-            </span>
+            <span className="font-mono text-xs text-[var(--text-muted)]">GET /api/version</span>
           </CardHeader>
 
           <dl className="divide-y divide-[var(--border-subtle)] text-sm">
             <div className="grid grid-cols-3 gap-4 px-5 py-3">
               <dt className="text-[var(--text-muted)]">Version</dt>
               <dd className="col-span-2 font-mono text-[var(--text-primary)]">
-                {versionQuery.isPending
-                  ? "Loading..."
-                  : (version?.version ?? "Unavailable")}
+                {versionQuery.isPending ? "Loading..." : (version?.version ?? "Unavailable")}
               </dd>
             </div>
             <div className="grid grid-cols-3 gap-4 px-5 py-3">
               <dt className="text-[var(--text-muted)]">Git Commit</dt>
               <dd className="col-span-2 truncate font-mono text-[var(--text-primary)]">
-                {versionQuery.isPending
-                  ? "Loading..."
-                  : (version?.commit ?? "Unavailable")}
+                {versionQuery.isPending ? "Loading..." : (version?.commit ?? "Unavailable")}
               </dd>
             </div>
             <div className="grid grid-cols-3 gap-4 px-5 py-3">
               <dt className="text-[var(--text-muted)]">Build Time</dt>
               <dd className="col-span-2 font-mono text-[var(--text-primary)]">
-                {versionQuery.isPending
-                  ? "Loading..."
-                  : (version?.buildTime ?? "Unavailable")}
+                {versionQuery.isPending ? "Loading..." : (version?.buildTime ?? "Unavailable")}
               </dd>
             </div>
             <div className="grid grid-cols-3 gap-4 px-5 py-3">
               <dt className="text-[var(--text-muted)]">Go Runtime</dt>
               <dd className="col-span-2 font-mono text-[var(--text-primary)]">
-                {versionQuery.isPending
-                  ? "Loading..."
-                  : (version?.goVersion ?? "Unavailable")}
+                {versionQuery.isPending ? "Loading..." : (version?.goVersion ?? "Unavailable")}
               </dd>
             </div>
             <div className="grid grid-cols-3 gap-4 px-5 py-3">

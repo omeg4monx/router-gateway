@@ -25,15 +25,7 @@ export function CaduceusLogo({
       {...rest}
     >
       {/* Central staff */}
-      <line
-        x1="16"
-        y1="4"
-        x2="16"
-        y2="29"
-        stroke="#E56A4A"
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
+      <line x1="16" y1="4" x2="16" y2="29" stroke="#E56A4A" strokeWidth="2" strokeLinecap="round" />
       {/* Top finial sphere */}
       <circle cx="16" cy="4.5" r="2" fill="#E56A4A" />
       {/* Geometric Hermes wings */}

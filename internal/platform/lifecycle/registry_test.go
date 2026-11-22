@@ -400,7 +400,7 @@ func TestRegistryStartAllRollsBackOnPartialFailure(t *testing.T) {
 	}
 	for i, cerr := range stopCtxErr {
 		if cerr != nil {
-			t.Fatalf("rollback stop %d received cancelled context: %v", i, cerr)
+			t.Fatalf("rollback stop %d received canceled context: %v", i, cerr)
 		}
 	}
 
@@ -428,7 +428,6 @@ func TestRegistryStopAllJoinsErrors(t *testing.T) {
 		{"b", []string{"a"}, nil},
 		{"c", []string{"b"}, errStopC},
 	} {
-		tc := tc
 		if err := reg.Register(&stubModule{
 			name: tc.name,
 			deps: tc.deps,
@@ -708,7 +707,7 @@ func TestRegistryCallbacksCanInspectRegistryWithoutDeadlock(t *testing.T) {
 }
 
 func TestRegistryStartAllChecksContextBetweenModulesAndUsesFreshRollbackDeadline(t *testing.T) {
-	t.Run("cancelled context between modules skips next module and rolls back", func(t *testing.T) {
+	t.Run("canceled context between modules skips next module and rolls back", func(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
@@ -723,7 +722,7 @@ func TestRegistryStartAllChecksContextBetweenModulesAndUsesFreshRollbackDeadline
 			name: "a",
 			startFn: func(_ context.Context) error {
 				// Cancel context right before returning success so ctx is already
-				// cancelled before StartAll moves on to module b.
+				// canceled before StartAll moves on to module b.
 				cancel()
 				return nil
 			},
@@ -751,13 +750,13 @@ func TestRegistryStartAllChecksContextBetweenModulesAndUsesFreshRollbackDeadline
 			t.Fatalf("StartAll() err = %v, want context.Canceled", err)
 		}
 		if bCalled {
-			t.Fatal("module b.Start must not be called when ctx is already cancelled")
+			t.Fatal("module b.Start must not be called when ctx is already canceled")
 		}
 		if !aRolledBack {
 			t.Fatal("module a must be rolled back when ctx cancels before module b")
 		}
 		if rollbackErr != nil {
-			t.Fatalf("rollback context was already cancelled: %v", rollbackErr)
+			t.Fatalf("rollback context was already canceled: %v", rollbackErr)
 		}
 	})
 

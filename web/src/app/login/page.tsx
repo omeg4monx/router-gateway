@@ -1,18 +1,12 @@
 "use client";
 
+import { AlertTriangle, ArrowRight, KeyRound, RefreshCw, ShieldCheck } from "lucide-react";
 import Link from "next/link";
-import {
-  AlertTriangle,
-  ArrowRight,
-  KeyRound,
-  RefreshCw,
-  ShieldCheck,
-} from "lucide-react";
 import { useInitStatus, useSystemVersion } from "@/features/system/hooks";
 import { Alert, AlertDescription, AlertTitle } from "@/shared/ui/alert";
 import { Button } from "@/shared/ui/button";
-import { Card } from "@/shared/ui/card";
 import { CaduceusLogo } from "@/shared/ui/CaduceusLogo";
+import { Card } from "@/shared/ui/card";
 import { EmberRule } from "@/shared/ui/EmberRule";
 import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
@@ -56,9 +50,7 @@ export default function LoginPage() {
               <p className="text-base font-semibold tracking-wider text-[var(--text-primary)]">
                 OMEG4MON
               </p>
-              <p className="font-mono text-xs tracking-widest text-[var(--text-muted)]">
-                ROUTER
-              </p>
+              <p className="font-mono text-xs tracking-widest text-[var(--text-muted)]">ROUTER</p>
             </div>
           </div>
 
@@ -73,23 +65,19 @@ export default function LoginPage() {
             Control Plane Access
           </h1>
           <p className="max-w-md text-sm leading-relaxed text-[var(--text-secondary)]">
-            Unified OpenAI and Anthropic compatible routing kernel. Single binary
-            runtime with embedded SQLite state and deterministic provider failover.
+            Unified OpenAI and Anthropic compatible routing kernel. Single binary runtime with
+            embedded SQLite state and deterministic provider failover.
           </p>
           <EmberRule />
           <dl className="grid grid-cols-2 gap-4 pt-1 text-xs">
             <div>
-              <dt className="uppercase tracking-wider text-[var(--text-muted)]">
-                Build Version
-              </dt>
+              <dt className="uppercase tracking-wider text-[var(--text-muted)]">Build Version</dt>
               <dd className="mt-1 font-mono text-sm text-[var(--text-primary)]">
                 {buildVersionLabel}
               </dd>
             </div>
             <div>
-              <dt className="uppercase tracking-wider text-[var(--text-muted)]">
-                Auth Module
-              </dt>
+              <dt className="uppercase tracking-wider text-[var(--text-muted)]">Auth Module</dt>
               <dd className="mt-1 font-mono text-sm text-[var(--text-primary)]">
                 {authModuleLabel}
               </dd>
@@ -176,19 +164,14 @@ export default function LoginPage() {
                 <div className="text-xs leading-relaxed text-[var(--text-secondary)]">
                   <AlertTitle>Wave 0 Kernel Posture</AlertTitle>
                   <AlertDescription className="mt-1">
-                    Cookie-backed operator login (
-                    <span className="font-mono">/api/auth/login</span>) is
-                    scheduled for Wave 1. Loopback control plane access is
-                    currently direct.
+                    Cookie-backed operator login (<span className="font-mono">/api/auth/login</span>
+                    ) is scheduled for Wave 1. Loopback control plane access is currently direct.
                   </AlertDescription>
                 </div>
               </Alert>
 
               <div>
-                <Label
-                  htmlFor="login-password-standby"
-                  className="text-[var(--text-muted)]"
-                >
+                <Label htmlFor="login-password-standby" className="text-[var(--text-muted)]">
                   Administrator Password
                 </Label>
                 <Input

@@ -88,7 +88,6 @@ func New(opts Options) *Server {
 
 	root := chi.NewRouter()
 	root.Use(middleware.RequestID)
-	root.Use(middleware.RealIP)
 
 	// Control plane router mounted under /api with panic recovery and API timeout.
 	apiRouter := chi.NewRouter()
@@ -176,7 +175,7 @@ func (s *Server) Addr() string {
 }
 
 // Start binds the configured TCP address and serves HTTP requests until
-// Shutdown is called or ctx is cancelled. It returns nil on graceful shutdown.
+// Shutdown is called or ctx is canceled. It returns nil on graceful shutdown.
 func (s *Server) Start(ctx context.Context) error {
 	if ctx == nil {
 		ctx = context.Background()
@@ -288,7 +287,7 @@ func (s *Server) recoverJSON(next http.Handler) http.Handler {
 		tw := wrapTrackedResponseWriter(w)
 		defer func() {
 			if rec := recover(); rec != nil {
-				if rec == http.ErrAbortHandler {
+				if err, ok := rec.(error); ok && errors.Is(err, http.ErrAbortHandler) {
 					panic(rec)
 				}
 				s.logger.Error("http handler panicked",
@@ -312,7 +311,7 @@ func (s *Server) recoverUI(next http.Handler) http.Handler {
 		tw := wrapTrackedResponseWriter(w)
 		defer func() {
 			if rec := recover(); rec != nil {
-				if rec == http.ErrAbortHandler {
+				if err, ok := rec.(error); ok && errors.Is(err, http.ErrAbortHandler) {
 					panic(rec)
 				}
 				s.logger.Error("ui handler panicked",
@@ -324,6 +323,7 @@ func (s *Server) recoverUI(next http.Handler) http.Handler {
 				)
 				if !tw.wroteHeader {
 					http.Error(tw, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+					return
 				}
 			}
 		}()

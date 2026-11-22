@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect } from "react";
 import { Moon, Sun } from "lucide-react";
+import { useEffect } from "react";
 import { useUIStore } from "@/shared/store/uiStore";
 import { Button } from "./button";
 
@@ -20,11 +20,7 @@ export function ThemeToggle() {
       variant="secondary"
       size="sm"
       onClick={toggleTheme}
-      aria-label={
-        theme === "dark"
-          ? "Switch to warm light theme"
-          : "Switch to charcoal dark theme"
-      }
+      aria-label={theme === "dark" ? "Switch to warm light theme" : "Switch to charcoal dark theme"}
     >
       {theme === "dark" ? (
         <>
