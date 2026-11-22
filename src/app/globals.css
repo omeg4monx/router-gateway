@@ -152,6 +152,9 @@
     0 12px 36px -8px rgba(15,23,42,0.12);
   --shadow-focus: 0 0 0 3px color-mix(in srgb, var(--color-primary) 22%, transparent);
 
+  /* Motion */
+  --ease-spring: cubic-bezier(0.22, 1, 0.36, 1);
+
   color-scheme: light;
 }
 
@@ -595,6 +598,22 @@ button:disabled,
 .slide-in-right { animation: slideInFromRight 0.25s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
 .fade-in { animation: fadeIn 0.2s ease-out forwards; }
 .slide-in-top { animation: slideInFromTop 0.18s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
+
+@keyframes popoverIn {
+  from { opacity: 0; transform: translateY(4px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes flyoutIn {
+  from { opacity: 0; transform: translateX(-6px) scale(0.97); }
+  to { opacity: 1; transform: translateX(0) scale(1); }
+}
+@keyframes backdropFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.popover-in { animation: popoverIn 180ms var(--ease-spring) forwards; }
+.flyout-in { animation: flyoutIn 180ms var(--ease-spring) forwards; }
+.backdrop-fade-in { animation: backdropFadeIn 200ms ease-out forwards; }
 /* LongTaskBanner's no-percent bar: a 40%-wide strip sweeping across its track. */
 @keyframes progressSweep {
   from { transform: translateX(-100%); }
@@ -678,11 +697,30 @@ button:disabled,
 }
 /* Alias for the app shell. Same single veil — one glow per screen (R-13). */
 .ember-veil {
-  background-image: radial-gradient(
-    ellipse 70% 45% at 50% -8%,
-    color-mix(in srgb, var(--color-primary) 9%, transparent),
-    transparent 72%
-  );
+  background-image:
+    radial-gradient(
+      ellipse 72% 46% at 50% -8%,
+      color-mix(in srgb, var(--color-primary) 11%, transparent),
+      transparent 72%
+    ),
+    radial-gradient(
+      ellipse 42% 30% at 88% 0%,
+      color-mix(in srgb, var(--color-highlight) 6%, transparent),
+      transparent 68%
+    );
+}
+.dark .ember-veil {
+  background-image:
+    radial-gradient(
+      ellipse 72% 46% at 50% -8%,
+      color-mix(in srgb, var(--color-primary) 14%, transparent),
+      transparent 72%
+    ),
+    radial-gradient(
+      ellipse 44% 30% at 88% 0%,
+      color-mix(in srgb, var(--color-highlight) 7%, transparent),
+      transparent 68%
+    );
 }
 
 /* Topology: router card pulse (no flying rings) + electric edge beam */
@@ -907,6 +945,72 @@ button:disabled,
 .scroll-under-header {
   box-shadow: inset 0 1px 0 0 var(--color-border);
 }
+
+/* Tactile Omegamon Studio shell surfaces & motion primitives */
+.shell-rail {
+  background-color: color-mix(in srgb, var(--color-surface) 92%, transparent);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+  border: 1px solid color-mix(in srgb, var(--color-border) 85%, transparent);
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.6),
+    0 1px 2px rgba(11, 13, 18, 0.05),
+    0 10px 28px -10px rgba(11, 13, 18, 0.12);
+}
+.dark .shell-rail {
+  background-color: color-mix(in srgb, var(--color-surface) 92%, transparent);
+  border-color: color-mix(in srgb, var(--color-border) 90%, transparent);
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.06),
+    0 1px 2px rgba(0, 0, 0, 0.45),
+    0 14px 36px -12px rgba(0, 0, 0, 0.65);
+}
+
+.shell-popover {
+  background-color: color-mix(in srgb, var(--color-surface) 94%, transparent);
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+  border: 1px solid color-mix(in srgb, var(--color-border) 90%, transparent);
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.72),
+    var(--shadow-elev);
+}
+.dark .shell-popover {
+  background-color: color-mix(in srgb, var(--color-surface) 95%, transparent);
+  border-color: color-mix(in srgb, var(--color-border) 95%, transparent);
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.07),
+    var(--shadow-elev);
+}
+
+.accordion-grid {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition:
+    grid-template-rows 220ms var(--ease-spring),
+    opacity 180ms ease-out;
+}
+.accordion-grid[data-open="true"] {
+  grid-template-rows: 1fr;
+  opacity: 1;
+}
+.accordion-inner {
+  overflow: hidden;
+  min-height: 0;
+}
+
+.rail-icon {
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+  transition:
+    font-variation-settings 180ms var(--ease-spring),
+    transform 180ms var(--ease-spring),
+    color 150ms ease-out;
+}
+.rail-icon.fill-1,
+[aria-current="page"] .rail-icon {
+  font-variation-settings: 'FILL' 1, 'wght' 500, 'GRAD' 0, 'opsz' 20;
+}
 }
 
 /* Focus ring follows the active primary (Garuru blue / Zwart cyan) — keyboard nav stays visible */
@@ -925,6 +1029,20 @@ h1, h2, h3 {
 @media (prefers-reduced-motion: no-preference) {
   * {
     scroll-behavior: smooth;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .popover-in,
+  .flyout-in,
+  .backdrop-fade-in,
+  .slide-in-right,
+  .fade-in {
+    animation: none;
+  }
+  .accordion-grid,
+  .rail-icon {
+    transition: none;
   }
 }
 
