@@ -796,5 +796,41 @@
     "seen": 1795385014.6294131,
     "ast_hash": "d6d8ff9b028bf86aad4388a28da80819",
     "semantic_hash": ""
+  },
+  "internal/modules/gateway/auth.go": {
+    "mtime": 1795385446.9190533,
+    "seen": 1795385684.4813163,
+    "ast_hash": "5bad69588bb8b21dd18d83d24c9dbfce",
+    "semantic_hash": ""
+  },
+  "internal/modules/gateway/chains.go": {
+    "mtime": 1795385449.3630958,
+    "seen": 1795385684.4813192,
+    "ast_hash": "099f5340a401b7d8d126a22518bfcd5c",
+    "semantic_hash": ""
+  },
+  "internal/modules/gateway/classify.go": {
+    "mtime": 1795385588.408279,
+    "seen": 1795385684.4813206,
+    "ast_hash": "13120514b6d4e4d0972b284bbcf0912a",
+    "semantic_hash": ""
+  },
+  "internal/modules/gateway/module.go": {
+    "mtime": 1795385638.4423647,
+    "seen": 1795385684.4813597,
+    "ast_hash": "f2a97debb3a80f0ae3a51032eb7fb650",
+    "semantic_hash": ""
+  },
+  "internal/modules/gateway/module_test.go": {
+    "mtime": 1795385552.5988805,
+    "seen": 1795385684.4813614,
+    "ast_hash": "7be04e2a6151b953c12d99310452be13",
+    "semantic_hash": ""
+  },
+  "internal/modules/gateway/stream.go": {
+    "mtime": 1795385510.7971578,
+    "seen": 1795385684.4813626,
+    "ast_hash": "679ba27b38147ddb600b5f9e7079b6aa",
+    "semantic_hash": ""
   }
 }
