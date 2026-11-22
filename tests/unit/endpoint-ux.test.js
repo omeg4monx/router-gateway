@@ -202,3 +202,30 @@ describe("BulkEditKeys and KeyShareModal UX contracts", () => {
     expect(src).toContain("rounded-xl");
   });
 });
+
+describe("KeyFormModal and KeySnippetModal UX contracts", () => {
+  it("implements a 3-tab KeyFormModal with sticky footer, inline validation, English copy, and permission lock", () => {
+    const src = readRel("src/app/(dashboard)/dashboard/endpoint/components/KeyFormModal.js");
+    expect(src).toContain("SegmentedControl");
+    expect(src).toContain('"general"');
+    expect(src).toContain('"limits"');
+    expect(src).toContain('"permissions"');
+    expect(src).toContain("footer={");
+    expect(src).toContain("validateCustomInterval");
+    expect(src).toContain('role="alert"');
+    expect(src).toContain("isApiKeyUser");
+    expect(src).not.toMatch(/\balert\s*\(/);
+    expect(src).not.toContain("Maksimal");
+    expect(src).not.toContain("Saat ini");
+  });
+
+  it("implements KeySnippetModal with OpenAI/Anthropic switcher, copy confirmation, and sticky footer", () => {
+    const src = readRel("src/app/(dashboard)/dashboard/endpoint/components/KeySnippetModal.js");
+    expect(src).toContain("generateEndpointSnippet");
+    expect(src).toContain('"openai"');
+    expect(src).toContain('"anthropic"');
+    expect(src).toContain("useCopyToClipboard");
+    expect(src).toContain("Copied!");
+    expect(src).toContain("footer={");
+  });
+});
