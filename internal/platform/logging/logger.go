@@ -4,6 +4,7 @@ package logging
 
 import (
 	"context"
+	"encoding/json"
 	"io"
 	"log/slog"
 	"slices"
@@ -48,9 +49,26 @@ func (r *RingBuffer) Recent(limit int) []LogEntry {
 	out := make([]LogEntry, n)
 	start := (r.next - n + r.cap) % r.cap
 	for i := range n {
-		out[i] = r.entries[(start+i)%r.cap]
+		entry := r.entries[(start+i)%r.cap]
+		entry.Attrs = cloneAttrMap(entry.Attrs)
+		out[i] = entry
 	}
 	return out
+}
+
+func cloneAttrMap(src map[string]any) map[string]any {
+	if src == nil {
+		return nil
+	}
+	dst := make(map[string]any, len(src))
+	for k, v := range src {
+		if nested, ok := v.(map[string]any); ok {
+			dst[k] = cloneAttrMap(nested)
+		} else {
+			dst[k] = v
+		}
+	}
+	return dst
 }
 
 func (r *RingBuffer) add(entry LogEntry) {
@@ -238,6 +256,12 @@ func attrValue(v slog.Value) any {
 	case slog.KindTime:
 		return v.Time()
 	default:
-		return v.Any()
+		a := v.Any()
+		if _, jm := a.(json.Marshaler); !jm {
+			if err, ok := a.(error); ok {
+				return err.Error()
+			}
+		}
+		return a
 	}
 }
