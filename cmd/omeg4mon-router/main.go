@@ -15,6 +15,9 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/omeg4monx/router-gateway/internal/modules/auth"
+	"github.com/omeg4monx/router-gateway/internal/modules/keys"
+	"github.com/omeg4monx/router-gateway/internal/modules/settings"
 	"github.com/omeg4monx/router-gateway/internal/modules/system"
 	"github.com/omeg4monx/router-gateway/internal/platform/config"
 	"github.com/omeg4monx/router-gateway/internal/platform/crypto"
@@ -130,13 +133,6 @@ func buildApp(ctx context.Context, cfg config.Config, build system.BuildInfo) (*
 		return nil, fmt.Errorf("load UI assets: %w", err)
 	}
 
-	srv := httpserver.New(httpserver.Options{
-		Config:       cfg,
-		Logger:       logger,
-		UI:           uiFS,
-		DevUIHandler: devUIHandler,
-	})
-
 	app := &App{
 		cfg:        cfg,
 		logger:     logger,
@@ -148,7 +144,6 @@ func buildApp(ctx context.Context, cfg config.Config, build system.BuildInfo) (*
 		db:         database,
 		jobs:       jobRunner,
 		registry:   registry,
-		server:     srv,
 	}
 
 	sysMod := system.New(system.Options{
@@ -158,8 +153,42 @@ func buildApp(ctx context.Context, cfg config.Config, build system.BuildInfo) (*
 		ActiveModules: registry.ActiveNames,
 		Shutdown:      app.requestShutdown,
 	})
+	authMod := auth.New(auth.Options{
+		Store:    sysMod,
+		Sessions: sessions,
+		Config:   cfg,
+		Bus:      bus,
+	})
+
+	srv := httpserver.New(httpserver.Options{
+		Config:       cfg,
+		Logger:       logger,
+		Auth:         authMod,
+		UI:           uiFS,
+		DevUIHandler: devUIHandler,
+	})
+	app.server = srv
+
+	settingsMod := settings.New(settings.Options{
+		DB:  database,
+		Bus: bus,
+	})
+	keysMod := keys.New(keys.Options{
+		DB:  database,
+		Bus: bus,
+	})
+
 	if err := registry.Register(sysMod); err != nil {
 		return nil, fmt.Errorf("register system module: %w", err)
+	}
+	if err := registry.Register(authMod); err != nil {
+		return nil, fmt.Errorf("register auth module: %w", err)
+	}
+	if err := registry.Register(settingsMod); err != nil {
+		return nil, fmt.Errorf("register settings module: %w", err)
+	}
+	if err := registry.Register(keysMod); err != nil {
+		return nil, fmt.Errorf("register keys module: %w", err)
 	}
 
 	if err := registry.MigrateAll(ctx, database); err != nil {

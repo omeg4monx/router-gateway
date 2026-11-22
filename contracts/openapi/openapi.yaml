@@ -9,6 +9,12 @@ servers:
 tags:
   - name: system
     description: Health checks, build version metadata, first-run initialization, and shutdown control
+  - name: auth
+    description: Single-admin session authentication, password rotation, and login enforcement policy
+  - name: settings
+    description: Typed control-plane runtime settings, revision history, and atomic rollback
+  - name: keys
+    description: Gateway API key lifecycle management and secret rotation
 paths:
   /api/health:
     $ref: './modules/system.yaml#/paths/~1api~1health'
@@ -18,6 +24,28 @@ paths:
     $ref: './modules/system.yaml#/paths/~1api~1init'
   /api/shutdown:
     $ref: './modules/system.yaml#/paths/~1api~1shutdown'
+  /api/auth/login:
+    $ref: './modules/auth.yaml#/paths/~1api~1auth~1login'
+  /api/auth/logout:
+    $ref: './modules/auth.yaml#/paths/~1api~1auth~1logout'
+  /api/auth/me:
+    $ref: './modules/auth.yaml#/paths/~1api~1auth~1me'
+  /api/auth/password:
+    $ref: './modules/auth.yaml#/paths/~1api~1auth~1password'
+  /api/auth/policy:
+    $ref: './modules/auth.yaml#/paths/~1api~1auth~1policy'
+  /api/settings:
+    $ref: './modules/settings.yaml#/paths/~1api~1settings'
+  /api/settings/history:
+    $ref: './modules/settings.yaml#/paths/~1api~1settings~1history'
+  /api/settings/rollback:
+    $ref: './modules/settings.yaml#/paths/~1api~1settings~1rollback'
+  /api/keys:
+    $ref: './modules/keys.yaml#/paths/~1api~1keys'
+  /api/keys/{id}:
+    $ref: './modules/keys.yaml#/paths/~1api~1keys~1{id}'
+  /api/keys/{id}/rotate:
+    $ref: './modules/keys.yaml#/paths/~1api~1keys~1{id}~1rotate'
 components:
   schemas:
     ErrorDetail:
@@ -56,3 +84,45 @@ components:
       $ref: './modules/system.yaml#/components/schemas/InitCompleteResponse'
     ShutdownResponse:
       $ref: './modules/system.yaml#/components/schemas/ShutdownResponse'
+    LoginRequest:
+      $ref: './modules/auth.yaml#/components/schemas/LoginRequest'
+    LoginResponse:
+      $ref: './modules/auth.yaml#/components/schemas/LoginResponse'
+    LogoutResponse:
+      $ref: './modules/auth.yaml#/components/schemas/LogoutResponse'
+    AuthMeResponse:
+      $ref: './modules/auth.yaml#/components/schemas/AuthMeResponse'
+    ChangePasswordRequest:
+      $ref: './modules/auth.yaml#/components/schemas/ChangePasswordRequest'
+    ChangePasswordResponse:
+      $ref: './modules/auth.yaml#/components/schemas/ChangePasswordResponse'
+    UpdateAuthPolicyRequest:
+      $ref: './modules/auth.yaml#/components/schemas/UpdateAuthPolicyRequest'
+    AuthPolicyResponse:
+      $ref: './modules/auth.yaml#/components/schemas/AuthPolicyResponse'
+    SettingValue:
+      $ref: './modules/settings.yaml#/components/schemas/SettingValue'
+    NullableSettingValue:
+      $ref: './modules/settings.yaml#/components/schemas/NullableSettingValue'
+    SettingItem:
+      $ref: './modules/settings.yaml#/components/schemas/SettingItem'
+    SettingsResponse:
+      $ref: './modules/settings.yaml#/components/schemas/SettingsResponse'
+    PatchSettingsRequest:
+      $ref: './modules/settings.yaml#/components/schemas/PatchSettingsRequest'
+    SettingHistoryItem:
+      $ref: './modules/settings.yaml#/components/schemas/SettingHistoryItem'
+    SettingsHistoryResponse:
+      $ref: './modules/settings.yaml#/components/schemas/SettingsHistoryResponse'
+    RollbackSettingRequest:
+      $ref: './modules/settings.yaml#/components/schemas/RollbackSettingRequest'
+    ApiKeySummary:
+      $ref: './modules/keys.yaml#/components/schemas/ApiKeySummary'
+    ListApiKeysResponse:
+      $ref: './modules/keys.yaml#/components/schemas/ListApiKeysResponse'
+    CreateApiKeyRequest:
+      $ref: './modules/keys.yaml#/components/schemas/CreateApiKeyRequest'
+    UpdateApiKeyRequest:
+      $ref: './modules/keys.yaml#/components/schemas/UpdateApiKeyRequest'
+    ApiKeySecretResponse:
+      $ref: './modules/keys.yaml#/components/schemas/ApiKeySecretResponse'

@@ -6,6 +6,7 @@ import (
 	"io"
 	"io/fs"
 	"net/http"
+	"net/http/cookiejar"
 	"net/http/httptest"
 	"path/filepath"
 	"slices"
@@ -131,11 +132,12 @@ func TestAppRunAndShutdownEndpointTriggersGracefulExit(t *testing.T) {
 	defer cancel()
 
 	cfg := config.Config{
-		Host:       "127.0.0.1",
-		Port:       0,
-		DataDir:    t.TempDir(),
-		LogLevel:   "error",
-		APITimeout: 5 * time.Second,
+		Host:          "127.0.0.1",
+		Port:          0,
+		DataDir:       t.TempDir(),
+		AdminPassword: "shutdown-test-pass-2026",
+		LogLevel:      "error",
+		APITimeout:    5 * time.Second,
 	}
 
 	app, err := buildApp(ctx, cfg, system.BuildInfo{Version: "test"})
@@ -162,7 +164,14 @@ func TestAppRunAndShutdownEndpointTriggersGracefulExit(t *testing.T) {
 		t.Fatalf("server failed to bind ephemeral address")
 	}
 
-	client := &http.Client{Timeout: 2 * time.Second}
+	jar, err := cookiejar.New(nil)
+	if err != nil {
+		t.Fatalf("cookiejar.New() error = %v", err)
+	}
+	client := &http.Client{
+		Jar:     jar,
+		Timeout: 2 * time.Second,
+	}
 
 	healthResp, err := client.Get("http://" + addr + "/api/health")
 	if err != nil {
@@ -172,6 +181,31 @@ func TestAppRunAndShutdownEndpointTriggersGracefulExit(t *testing.T) {
 	_ = healthResp.Body.Close()
 	if healthResp.StatusCode != http.StatusOK {
 		t.Fatalf("GET /api/health status = %d, want 200", healthResp.StatusCode)
+	}
+
+	// Unauthenticated POST /api/shutdown must be rejected when require_login=true.
+	unauthShutResp, err := client.Post("http://"+addr+"/api/shutdown", "application/json", nil)
+	if err != nil {
+		t.Fatalf("unauthenticated POST /api/shutdown failed: %v", err)
+	}
+	_, _ = io.ReadAll(unauthShutResp.Body)
+	_ = unauthShutResp.Body.Close()
+	if unauthShutResp.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("unauthenticated POST /api/shutdown status = %d, want 401", unauthShutResp.StatusCode)
+	}
+
+	loginResp, err := client.Post(
+		"http://"+addr+"/api/auth/login",
+		"application/json",
+		strings.NewReader(`{"password":"shutdown-test-pass-2026"}`),
+	)
+	if err != nil {
+		t.Fatalf("POST /api/auth/login failed: %v", err)
+	}
+	loginBody, _ := io.ReadAll(loginResp.Body)
+	_ = loginResp.Body.Close()
+	if loginResp.StatusCode != http.StatusOK {
+		t.Fatalf("POST /api/auth/login status = %d, want 200 (body: %s)", loginResp.StatusCode, string(loginBody))
 	}
 
 	shutResp, err := client.Post("http://"+addr+"/api/shutdown", "application/json", nil)
@@ -312,5 +346,244 @@ func TestAppCloseTeardownOrderIsLIFO(t *testing.T) {
 	want := []string{"job_stopped", "module_stopped"}
 	if !slices.Equal(got, want) {
 		t.Fatalf("teardown order = %v, want %v", got, want)
+	}
+}
+
+func TestAppWave1AAuthSettingsKeysEndToEnd(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	cfg := config.Config{
+		Host:          "127.0.0.1",
+		Port:          0,
+		DataDir:       t.TempDir(),
+		AdminPassword: "test-admin-pass-2026",
+		LogLevel:      "error",
+		APITimeout:    5 * time.Second,
+	}
+	build := system.BuildInfo{
+		Version:   "test",
+		Commit:    "wave1a",
+		BuildTime: "2026-11-23T00:00:00Z",
+	}
+
+	app, err := buildApp(ctx, cfg, build)
+	if err != nil {
+		t.Fatalf("buildApp() error = %v", err)
+	}
+	t.Cleanup(func() {
+		_ = app.Close(context.Background())
+	})
+
+	ts := httptest.NewServer(app.Handler())
+	defer ts.Close()
+
+	jar, err := cookiejar.New(nil)
+	if err != nil {
+		t.Fatalf("cookiejar.New() error = %v", err)
+	}
+	client := &http.Client{
+		Jar:     jar,
+		Timeout: 5 * time.Second,
+	}
+
+	// 1) GET /api/health includes system, auth, settings, keys in modules.
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, ts.URL+"/api/health", nil)
+	if err != nil {
+		t.Fatalf("new GET /api/health request: %v", err)
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		t.Fatalf("GET /api/health failed: %v", err)
+	}
+	body, _ := io.ReadAll(resp.Body)
+	_ = resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("GET /api/health status = %d, want %d (body: %s)", resp.StatusCode, http.StatusOK, string(body))
+	}
+	var health struct {
+		Status  string   `json:"status"`
+		DB      string   `json:"db"`
+		Modules []string `json:"modules"`
+	}
+	if err := json.Unmarshal(body, &health); err != nil {
+		t.Fatalf("decode /api/health JSON: %v", err)
+	}
+	for _, wantMod := range []string{"system", "auth", "settings", "keys"} {
+		if !slices.Contains(health.Modules, wantMod) {
+			t.Fatalf("GET /api/health modules = %v, missing %q", health.Modules, wantMod)
+		}
+	}
+
+	// 2) Unauthenticated GET /api/keys and GET /api/settings return 401 when require_login=true.
+	for _, path := range []string{"/api/keys", "/api/settings"} {
+		unauthReq, err := http.NewRequestWithContext(ctx, http.MethodGet, ts.URL+path, nil)
+		if err != nil {
+			t.Fatalf("new unauthenticated GET %s request: %v", path, err)
+		}
+		unauthResp, err := client.Do(unauthReq)
+		if err != nil {
+			t.Fatalf("unauthenticated GET %s failed: %v", path, err)
+		}
+		unauthBody, _ := io.ReadAll(unauthResp.Body)
+		_ = unauthResp.Body.Close()
+		if unauthResp.StatusCode != http.StatusUnauthorized {
+			t.Fatalf("unauthenticated GET %s status = %d, want %d (body: %s)", path, unauthResp.StatusCode, http.StatusUnauthorized, string(unauthBody))
+		}
+	}
+
+	// 3) Authenticate via POST /api/auth/login -> capture om4_session cookie.
+	loginReq, err := http.NewRequestWithContext(
+		ctx,
+		http.MethodPost,
+		ts.URL+"/api/auth/login",
+		strings.NewReader(`{"password":"test-admin-pass-2026"}`),
+	)
+	if err != nil {
+		t.Fatalf("new POST /api/auth/login request: %v", err)
+	}
+	loginReq.Header.Set("Content-Type", "application/json")
+	loginResp, err := client.Do(loginReq)
+	if err != nil {
+		t.Fatalf("POST /api/auth/login failed: %v", err)
+	}
+	loginBody, _ := io.ReadAll(loginResp.Body)
+	_ = loginResp.Body.Close()
+	if loginResp.StatusCode != http.StatusOK {
+		t.Fatalf("POST /api/auth/login status = %d, want %d (body: %s)", loginResp.StatusCode, http.StatusOK, string(loginBody))
+	}
+	var sessionCookie *http.Cookie
+	for _, c := range loginResp.Cookies() {
+		if c.Name == "om4_session" {
+			sessionCookie = c
+			break
+		}
+	}
+	if sessionCookie == nil || sessionCookie.Value == "" {
+		t.Fatalf("POST /api/auth/login missing non-empty om4_session cookie: %v", loginResp.Cookies())
+	}
+
+	// 4) With cookie: GET /api/settings returns 200.
+	getSettingsReq, err := http.NewRequestWithContext(ctx, http.MethodGet, ts.URL+"/api/settings", nil)
+	if err != nil {
+		t.Fatalf("new GET /api/settings request: %v", err)
+	}
+	getSettingsResp, err := client.Do(getSettingsReq)
+	if err != nil {
+		t.Fatalf("GET /api/settings failed: %v", err)
+	}
+	getSettingsBody, _ := io.ReadAll(getSettingsResp.Body)
+	_ = getSettingsResp.Body.Close()
+	if getSettingsResp.StatusCode != http.StatusOK {
+		t.Fatalf("GET /api/settings status = %d, want %d (body: %s)", getSettingsResp.StatusCode, http.StatusOK, string(getSettingsBody))
+	}
+
+	// 5) With cookie: PATCH /api/settings updates ui.theme.
+	patchSettingsReq, err := http.NewRequestWithContext(
+		ctx,
+		http.MethodPatch,
+		ts.URL+"/api/settings",
+		strings.NewReader(`{"updates":{"ui.theme":"light"},"reason":"e2e integration test"}`),
+	)
+	if err != nil {
+		t.Fatalf("new PATCH /api/settings request: %v", err)
+	}
+	patchSettingsReq.Header.Set("Content-Type", "application/json")
+	patchSettingsResp, err := client.Do(patchSettingsReq)
+	if err != nil {
+		t.Fatalf("PATCH /api/settings failed: %v", err)
+	}
+	patchSettingsBody, _ := io.ReadAll(patchSettingsResp.Body)
+	_ = patchSettingsResp.Body.Close()
+	if patchSettingsResp.StatusCode != http.StatusOK {
+		t.Fatalf("PATCH /api/settings status = %d, want %d (body: %s)", patchSettingsResp.StatusCode, http.StatusOK, string(patchSettingsBody))
+	}
+	var settingsPayload struct {
+		Settings []struct {
+			Key      string `json:"key"`
+			Value    any    `json:"value"`
+			Revision int64  `json:"revision"`
+		} `json:"settings"`
+	}
+	if err := json.Unmarshal(patchSettingsBody, &settingsPayload); err != nil {
+		t.Fatalf("decode PATCH /api/settings JSON: %v", err)
+	}
+	foundTheme := false
+	for _, item := range settingsPayload.Settings {
+		if item.Key == "ui.theme" {
+			foundTheme = true
+			if item.Value != "light" {
+				t.Fatalf("ui.theme value = %v, want %q", item.Value, "light")
+			}
+			if item.Revision < 1 {
+				t.Fatalf("ui.theme revision = %d, want >= 1", item.Revision)
+			}
+		}
+	}
+	if !foundTheme {
+		t.Fatalf("PATCH /api/settings response missing ui.theme: %s", string(patchSettingsBody))
+	}
+
+	// 6) With cookie: POST /api/keys creates key.
+	createKeyReq, err := http.NewRequestWithContext(
+		ctx,
+		http.MethodPost,
+		ts.URL+"/api/keys",
+		strings.NewReader(`{"name":"wave1a-e2e-key"}`),
+	)
+	if err != nil {
+		t.Fatalf("new POST /api/keys request: %v", err)
+	}
+	createKeyReq.Header.Set("Content-Type", "application/json")
+	createKeyResp, err := client.Do(createKeyReq)
+	if err != nil {
+		t.Fatalf("POST /api/keys failed: %v", err)
+	}
+	createKeyBody, _ := io.ReadAll(createKeyResp.Body)
+	_ = createKeyResp.Body.Close()
+	if createKeyResp.StatusCode != http.StatusCreated {
+		t.Fatalf("POST /api/keys status = %d, want %d (body: %s)", createKeyResp.StatusCode, http.StatusCreated, string(createKeyBody))
+	}
+	var createdKey struct {
+		Key struct {
+			ID   string `json:"id"`
+			Name string `json:"name"`
+		} `json:"key"`
+		Secret string `json:"secret"`
+	}
+	if err := json.Unmarshal(createKeyBody, &createdKey); err != nil {
+		t.Fatalf("decode POST /api/keys JSON: %v", err)
+	}
+	if createdKey.Key.ID == "" || createdKey.Key.Name != "wave1a-e2e-key" || !strings.HasPrefix(createdKey.Secret, "sk-om4-") {
+		t.Fatalf("unexpected POST /api/keys response: %+v", createdKey)
+	}
+
+	// 7) POST /api/auth/logout clears session -> subsequent GET /api/keys returns 401.
+	logoutReq, err := http.NewRequestWithContext(ctx, http.MethodPost, ts.URL+"/api/auth/logout", nil)
+	if err != nil {
+		t.Fatalf("new POST /api/auth/logout request: %v", err)
+	}
+	logoutResp, err := client.Do(logoutReq)
+	if err != nil {
+		t.Fatalf("POST /api/auth/logout failed: %v", err)
+	}
+	logoutBody, _ := io.ReadAll(logoutResp.Body)
+	_ = logoutResp.Body.Close()
+	if logoutResp.StatusCode != http.StatusOK {
+		t.Fatalf("POST /api/auth/logout status = %d, want %d (body: %s)", logoutResp.StatusCode, http.StatusOK, string(logoutBody))
+	}
+
+	postLogoutReq, err := http.NewRequestWithContext(ctx, http.MethodGet, ts.URL+"/api/keys", nil)
+	if err != nil {
+		t.Fatalf("new post-logout GET /api/keys request: %v", err)
+	}
+	postLogoutResp, err := client.Do(postLogoutReq)
+	if err != nil {
+		t.Fatalf("post-logout GET /api/keys failed: %v", err)
+	}
+	postLogoutBody, _ := io.ReadAll(postLogoutResp.Body)
+	_ = postLogoutResp.Body.Close()
+	if postLogoutResp.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("post-logout GET /api/keys status = %d, want %d (body: %s)", postLogoutResp.StatusCode, http.StatusUnauthorized, string(postLogoutBody))
 	}
 }
