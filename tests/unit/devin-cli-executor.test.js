@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeAll, afterAll } from "vitest";
 import { EventEmitter } from "node:events";
 import os from "node:os";
 
@@ -130,7 +130,25 @@ async function runExecute(credentials = {}) {
   return { acc, child };
 }
 
+describe("DevinCliExecutor opt-in gate", () => {
+  it("refuses to spawn the CLI unless DEVIN_CLI_ENABLED=true", async () => {
+    vi.stubEnv("DEVIN_CLI_ENABLED", "");
+    try {
+      const exec = new DevinCliExecutor();
+      await expect(
+        exec.execute({ model: "swe-1.6-fast", body: { messages: [] }, credentials: {}, log: { info() {}, debug() {} } }),
+      ).rejects.toThrow(/DEVIN_CLI_ENABLED/);
+      expect(spawnMock).not.toHaveBeenCalled();
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+});
+
 describe("DevinCliExecutor ACP session/new", () => {
+  beforeAll(() => vi.stubEnv("DEVIN_CLI_ENABLED", "true"));
+  afterAll(() => vi.unstubAllEnvs());
+
   it("sends session/new with mcpServers as an array", async () => {
     const { child } = await runExecute();
     const writes = child.writes.map((w) => JSON.parse(w.trim()));
@@ -429,7 +447,7 @@ describe("DevinCliExecutor ACP session/new", () => {
     // XDG_CONFIG_HOME set so devin loads the generated config.
     expect(child.opts.env.XDG_CONFIG_HOME).toBeTruthy();
     // Static MCP bridge script written to disk.
-    const scriptPath = path.join(os.tmpdir(), "omeg4mon-router-devin-client-tools.mjs");
+    const scriptPath = path.join(os.tmpdir(), "9router-devin-client-tools.mjs");
     expect(fs.existsSync(scriptPath)).toBe(true);
     expect(fs.readFileSync(scriptPath, "utf8")).toContain("clientTools");
     expect(fs.readFileSync(scriptPath, "utf8")).toContain("DEVIN_MCP_TOOLS");

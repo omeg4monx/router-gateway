@@ -3,12 +3,20 @@ import { describe, it, expect } from "vitest";
 import { FORMATS } from "../../open-sse/translator/formats.js";
 import { translateRequest } from "../../open-sse/translator/index.js";
 import { claudeToOpenAIRequest } from "../../open-sse/translator/request/claude-to-openai.js";
-import { filterToOpenAIFormat } from "../../open-sse/translator/formats/openai.js";
 import { parseSSELine } from "../../open-sse/utils/streamHelpers.js";
+import { parseFrameLine } from "../../open-sse/utils/stream.js";
 
 describe("request normalization", () => {
-  it("claudeToOpenAIRequest flattens text-only content arrays into string", () => {
-    const body = {
+  // Generic OpenAI targets accept content-part arrays; only a lone text part is
+  // collapsed. Providers that need plain strings flatten in their own path
+  // (openai-to-ollama, paramSupport flattenContent, qoder executor).
+  it("claudeToOpenAIRequest collapses a lone text part and keeps multi-part text as OpenAI parts", () => {
+    const single = claudeToOpenAIRequest("gpt-4o", {
+      messages: [{ role: "user", content: [{ type: "text", text: "hi" }] }],
+    }, true);
+    expect(single.messages[0].content).toBe("hi");
+
+    const multi = claudeToOpenAIRequest("gpt-4o", {
       messages: [
         {
           role: "user",
@@ -18,10 +26,11 @@ describe("request normalization", () => {
           ],
         },
       ],
-    };
-
-    const result = claudeToOpenAIRequest("gpt-oss:120b", body, true);
-    expect(result.messages[0].content).toBe("hi\nthere");
+    }, true);
+    expect(multi.messages[0].content).toEqual([
+      { type: "text", text: "hi" },
+      { type: "text", text: "there" },
+    ]);
   });
 
   it("claudeToOpenAIRequest preserves multimodal arrays", () => {
@@ -48,24 +57,8 @@ describe("request normalization", () => {
     expect(Array.isArray(result.messages[0].content)).toBe(true);
   });
 
-  it("filterToOpenAIFormat flattens text-only arrays to string", () => {
-    const body = {
-      messages: [
-        {
-          role: "user",
-          content: [
-            { type: "text", text: "a" },
-            { type: "text", text: "b" },
-          ],
-        },
-      ],
-    };
-
-    const result = filterToOpenAIFormat(JSON.parse(JSON.stringify(body)));
-    expect(result.messages[0].content).toBe("a\nb");
-  });
-
-  it("translateRequest keeps /v1/messages Claude->OpenAI text payloads string-safe", () => {
+  // Ollama only accepts string content; its own format translator flattens.
+  it("translateRequest keeps /v1/messages Claude->Ollama text payloads string-safe", () => {
     const body = {
       model: "ollama/gpt-oss:120b",
       system: [{ type: "text", text: "You are helpful." }],
@@ -83,7 +76,7 @@ describe("request normalization", () => {
 
     const result = translateRequest(
       FORMATS.CLAUDE,
-      FORMATS.OPENAI,
+      FORMATS.OLLAMA,
       "gpt-oss:120b",
       JSON.parse(JSON.stringify(body)),
       true,
@@ -164,14 +157,16 @@ describe("request normalization", () => {
     expect(result.output_config).toEqual(body.output_config);
   });
 
-  it("parseSSELine supports provider raw NDJSON stream lines", () => {
+  // parseSSELine stays strict (bare JSON only for Ollama); stream.js parseFrameLine is
+  // the entry point that accepts NDJSON lines from any upstream.
+  it("parseFrameLine supports provider raw NDJSON stream lines", () => {
     const raw = JSON.stringify({
       model: "gpt-oss:120b",
       message: { role: "assistant", content: "hello" },
       done: false,
     });
 
-    const parsed = parseSSELine(raw);
+    const parsed = parseFrameLine(raw, FORMATS.OPENAI);
     expect(parsed).toEqual({
       model: "gpt-oss:120b",
       message: { role: "assistant", content: "hello" },

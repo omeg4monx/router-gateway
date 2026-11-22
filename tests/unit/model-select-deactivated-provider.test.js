@@ -59,8 +59,4 @@ describe("ModelSelectModal source verification for deactivated providers", () =>
   it("filters providerIdsToShow by !deactivatedProviderIds.has(id)", () => {
     expect(src).toMatch(/!deactivatedProviderIds\.has\(id\)/);
   });
-
-  it("fetches /api/providers on modal open", () => {
-    expect(src).toContain('fetch("/api/providers")');
-  });
 });

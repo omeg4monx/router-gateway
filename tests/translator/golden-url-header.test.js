@@ -2,6 +2,8 @@
 // Sinh snapshot lần đầu (baseline) → sau refactor chạy lại phải khớp y hệt.
 // Mock proxyFetch + uuid-heavy executors KHÔNG cần ở đây vì chỉ gọi buildUrl/buildHeaders (pure).
 import { describe, it, expect } from "vitest";
+import os from "node:os";
+import pkg from "../../package.json" with { type: "json" };
 import { PROVIDERS } from "../../open-sse/config/providers.js";
 import { DefaultExecutor } from "../../open-sse/executors/default.js";
 
@@ -24,14 +26,23 @@ const SPECIALIZED = new Set([
 ]);
 
 // Sanitize header: khử token + field thời gian động (kimi X-Msh-Device-Id) để snapshot ổn định.
+// Values that depend on the host, Node, timezone, app version or a fresh UUID per call
+// are masked too, otherwise the golden differs per machine and per release.
+const UUID_RE = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi;
+const ENV_KEYS = new Set(["X-PLATFORM", "X-PLATFORM-VERSION", "X-Msh-Device-Name", "X-Msh-Device-Model", "X-Mavis-Timezone-Offset"]);
 function sanitize(headers) {
   const out = {};
   for (const [k, v] of Object.entries(headers)) {
-    out[k] = typeof v === "string"
-      ? v.replace(/Bearer .+/, "Bearer <TOK>")
-          .replace(/sk-test-APIKEY|tok-test-ACCESS/g, "<CRED>")
-          .replace(/kimi-\d{10,}/g, "kimi-<TS>")
-      : v;
+    out[k] = typeof v !== "string"
+      ? v
+      : ENV_KEYS.has(k)
+        ? "<ENV>"
+        : v.replace(/Bearer .+/, "Bearer <TOK>")
+            .replace(/sk-test-APIKEY|tok-test-ACCESS/g, "<CRED>")
+            .replace(/kimi-\d{10,}/g, "kimi-<TS>")
+            .replace(UUID_RE, "<UUID>")
+            .split(pkg.version).join("<VER>")
+            .split(os.hostname()).join("<HOST>");
   }
   return out;
 }

@@ -18,6 +18,12 @@ import {
   FALLBACK_SUGGESTIONS,
 } from "@/app/api/providers/suggested-models/filters.js";
 
+// The module fetches through undici, not the global; route it to the per-test stub.
+vi.mock("undici", async (importOriginal) => ({
+  ...(await importOriginal()),
+  fetch: (...args) => globalThis.fetch(...args),
+}));
+
 function jsonResponse(data, { ok = true } = {}) {
   return { ok, json: async () => data };
 }
@@ -38,10 +44,11 @@ describe("fetchSuggestedModelsServer", () => {
       ],
     }));
     const data = await fetchSuggestedModelsServer(ZEN);
-    const ids = data.map((m) => m.id);
-    expect(ids).toContain("brand-new-model-free");
-    expect(ids).toContain("big-pickle");
-    expect(ids).not.toContain("some-paid-model");
+    // The filter keeps the whole catalogue; consumers read only isFree entries.
+    const free = data.filter((m) => m.isFree).map((m) => m.id);
+    expect(free).toContain("brand-new-model-free");
+    expect(free).toContain("big-pickle");
+    expect(free).not.toContain("some-paid-model");
   });
 
   it("falls back to the registry table when upstream is unreachable", async () => {
@@ -54,7 +61,8 @@ describe("fetchSuggestedModelsServer", () => {
   });
 
   it("falls back when upstream returns nothing usable", async () => {
-    vi.stubGlobal("fetch", async () => jsonResponse({ data: [{ id: "paid-only" }] }));
+    // The filter keeps paid ids too (whole catalogue), so "unusable" means no ids at all.
+    vi.stubGlobal("fetch", async () => jsonResponse({ data: [{ id: "" }, { object: "model" }] }));
     const data = await fetchSuggestedModelsServer({ url: "https://other.invalid/y", type: "opencode-free" });
     expect(data.map((m) => m.id)).toEqual(
       FALLBACK_SUGGESTIONS["opencode-free"].map((m) => m.id)
@@ -72,7 +80,7 @@ describe("fetchSuggestedModelsServer", () => {
     const filter = FILTERS["opencode-free"];
     const ids = filter([
       { id: "a-free" }, { id: "b:free" }, { id: "big-pickle" }, { id: "paid" },
-    ]).map((m) => m.id);
+    ]).filter((m) => m.isFree).map((m) => m.id);
     expect(ids).toEqual(["a-free", "b:free", "big-pickle"]);
   });
 });

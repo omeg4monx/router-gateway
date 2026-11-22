@@ -1,17 +1,17 @@
 /**
- * Theme switching stays on two dark-based modes with no orphan classes.
+ * Theme switching stays on the fork's three modes with no orphan classes.
  *
- * Both modes keep `.dark` on <html> (every component renders from dark-tuned
- * tokens); `.glass` adds the frosted overrides. An unknown persisted value
- * must degrade to the glass default rather than a class combination the CSS never
- * defines, which would silently render a broken theme.
+ * Ember and Dark keep `.dark` on <html> (components render from dark-tuned
+ * tokens); `.ember` adds the ember overrides; Light clears both. An unknown
+ * persisted value must degrade to the ember default rather than a class
+ * combination the CSS never defines, which would silently render a broken theme.
  *
  * The suite runs in the node environment, so window/document/localStorage are
  * stubbed before the store module loads — zustand-persist reads localStorage at
- * import time.
+ * import time. fetch is stubbed so the server sync stays offline.
  */
 
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
 let classes;
 let store;
@@ -26,12 +26,16 @@ function stubDom() {
   };
   const mem = {};
   vi.stubGlobal("window", globalThis);
-  vi.stubGlobal("document", { documentElement: { classList } });
+  vi.stubGlobal("document", {
+    documentElement: { classList, style: { setProperty: () => {} } },
+    querySelector: () => null,
+  });
   vi.stubGlobal("localStorage", {
     getItem: (k) => (k in mem ? mem[k] : null),
     setItem: (k, v) => { mem[k] = String(v); },
     removeItem: (k) => { delete mem[k]; },
   });
+  vi.stubGlobal("fetch", vi.fn(async () => ({ ok: false })));
 }
 
 describe("theme mode contract", () => {
@@ -47,53 +51,61 @@ describe("theme mode contract", () => {
     vi.unstubAllGlobals();
   });
 
-  it("only knows Dark and Glass", () => {
-    expect(globalThis.__THEME_IDS__).toEqual(["glass", "dark"]);
+  it("only knows Ember, Dark and Light", () => {
+    expect(globalThis.__THEME_IDS__).toEqual(["ember", "dark", "light"]);
   });
 
-  it("applies dark as plain .dark and glass as .dark.glass", () => {
+  it("applies ember as .dark.ember, dark as plain .dark, light as neither", () => {
     const setTheme = store.getState().setTheme;
 
-    setTheme("glass");
+    setTheme("ember");
     expect(classes.has("dark")).toBe(true);
-    expect(classes.has("glass")).toBe(true);
+    expect(classes.has("ember")).toBe(true);
 
     setTheme("dark");
     expect(classes.has("dark")).toBe(true);
-    expect(classes.has("glass")).toBe(false);
-  });
-
-  it("degrades an unknown persisted value to the glass default", () => {
-    const setTheme = store.getState().setTheme;
+    expect(classes.has("ember")).toBe(false);
 
     setTheme("light");
-    expect(store.getState().theme).toBe("glass");
-    expect(classes.has("glass")).toBe(true);
+    expect(classes.has("dark")).toBe(false);
+    expect(classes.has("ember")).toBe(false);
+  });
+
+  it("degrades an unknown persisted value to the ember default", () => {
+    const setTheme = store.getState().setTheme;
+
+    setTheme("glass");
+    expect(store.getState().theme).toBe("ember");
+    expect(classes.has("ember")).toBe(true);
     expect(classes.has("dark")).toBe(true);
   });
 
-  it("toggles between the two modes starting from the glass default", () => {
+  it("cycles ember → dark → light → ember starting from the ember default", () => {
     const { toggleTheme } = store.getState();
 
-    expect(store.getState().theme).toBe("glass");
+    expect(store.getState().theme).toBe("ember");
 
     toggleTheme();
     expect(store.getState().theme).toBe("dark");
-    expect(classes.has("glass")).toBe(false);
+    expect(classes.has("ember")).toBe(false);
 
     toggleTheme();
-    expect(store.getState().theme).toBe("glass");
-    expect(classes.has("glass")).toBe(true);
+    expect(store.getState().theme).toBe("light");
+    expect(classes.has("dark")).toBe(false);
+
+    toggleTheme();
+    expect(store.getState().theme).toBe("ember");
+    expect(classes.has("ember")).toBe(true);
   });
 
-  it("re-applies the persisted mode on init (page reload path)", () => {
-    store.getState().setTheme("glass");
+  it("re-applies the persisted mode on init (page reload path)", async () => {
+    store.getState().setTheme("ember");
 
     // Simulate reload: classes wiped, store hydrated from persistence.
     classes.clear();
-    store.getState().initTheme();
+    await store.getState().initTheme();
 
     expect(classes.has("dark")).toBe(true);
-    expect(classes.has("glass")).toBe(true);
+    expect(classes.has("ember")).toBe(true);
   });
 });

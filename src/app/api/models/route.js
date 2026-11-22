@@ -3,7 +3,7 @@ import { getModelAliases, setModelAlias, getCustomModels } from "@/models";
 import { getDisabledModels } from "@/lib/disabledModelsDb";
 import { getSettings } from "@/lib/localDb";
 import { AI_MODELS } from "@/shared/constants/config";
-import { getProviderAlias } from "@/shared/constants/providers";
+import { getProviderAlias, resolveProviderId } from "@/shared/constants/providers";
 import { getCapabilitiesForModel } from "open-sse/providers/capabilities.js";
 import { fetchSuggestedModelsServer } from "@/app/api/providers/suggested-models/filters.js";
 import { FREE_PROVIDERS as FREE_PROVIDER_REGISTRY } from "@/shared/constants/providers.js";
@@ -140,14 +140,18 @@ export async function GET() {
       }
     }
 
-    // Custom models ride along; their stored caps override the name heuristic
+    // Custom models ride along; their stored caps override the name heuristic.
+    // A row added under the UI alias before the registry listed the model would
+    // shadow the real entry's routedModel (and its caps on the client), so drop it.
+    const listed = new Set(models.flatMap((m) => [m.fullModel, m.routedModel]));
     const customModels = (await getCustomModels()).filter((m) => {
       if (!m?.id || (m.kind || m.type || "llm") !== "llm") return false;
-      return !seenFull.has(`${m.providerAlias}/${m.id}`);
+      return !listed.has(`${m.providerAlias}/${m.id}`);
     });
     for (const m of customModels) {
       const fullModel = `${m.providerAlias}/${m.id}`;
-      const c = getCapabilitiesForModel(m.providerAlias, m.id);
+      // Capability tables are keyed by provider id, not the UI alias.
+      const c = getCapabilitiesForModel(resolveProviderId(m.providerAlias), m.id);
       const caps = {
         vision: c.vision,
         search: c.search,
@@ -250,7 +254,7 @@ export async function GET() {
     for (const combo of combos) {
       const members = Array.isArray(combo.models) ? combo.models : [];
       if (members.length === 0) continue;
-      const aggregated = aggregateComboCapabilities(members, comboByName);
+      const aggregated = aggregateComboCapabilities(members, comboByName, null, combo.contextWindow);
       if (!aggregated) continue;
       const comboCaps = { ...aggregated };
       if (ivEnabled && (ivModels.has(combo.name) || ivModels.has(`combo/${combo.name}`) || members.some((m) => ivModels.has(m)))) {

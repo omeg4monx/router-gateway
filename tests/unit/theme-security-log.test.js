@@ -6,15 +6,15 @@ const root = resolve(__dirname, "../..");
 const read = (p) => readFileSync(resolve(root, p), "utf8");
 
 describe("theme: the site-wide mode is a password-session setting", () => {
-  it("defaults the site to glass in settings", () => {
-    expect(read("src/lib/db/repos/settingsRepo.js")).toMatch(/theme:\s*"glass"/);
+  it("defaults the site to ember when the owner never picked one", () => {
+    const route = read("src/app/api/theme/route.js");
+    expect(route).toMatch(/theme:\s*"ember"/);
   });
 
-  it("GET /api/theme answers one value and never leaks the rest", () => {
+  it("GET /api/theme answers the theme record only and never leaks settings", () => {
     const route = read("src/app/api/theme/route.js");
-    expect(route).toMatch(/json\(\s*\{\s*theme:/);
-    // GET never reads anything but the one value
-    expect(route).not.toMatch(/const settings = await getSettings\(\);[\s\S]{0,120}json\(settings/);
+    expect(route).toContain('getMeta("global_theme_settings"');
+    expect(route).not.toContain("getSettings");
   });
 
   it("POST /api/theme refuses a key-signed session", () => {
@@ -23,32 +23,22 @@ describe("theme: the site-wide mode is a password-session setting", () => {
     expect(route).toContain("403");
   });
 
-  it("PATCH /api/settings refuses to write theme for a key-signed session", () => {
-    const settings = read("src/app/api/settings/route.js");
-    expect(settings).toContain("ADMIN_ONLY_SETTING_KEYS");
-    expect(settings).toContain("apikey");
-    expect(settings).toContain("403");
+  it("PATCH /api/settings is closed to a key-signed session", async () => {
+    const { requiredPermissionsForApiPath } = await import("@/lib/auth/permissionPaths.js");
+    // null = no permission opens it, so dashboardGuard answers 403 to any API key session
+    expect(requiredPermissionsForApiPath("/api/settings", "PATCH")).toBeNull();
   });
 
-  it("ThemeModal shows a lock to a key session instead of clickable modes", () => {
-    const modal = read("src/shared/components/ThemeModal.js");
-    expect(modal).toContain("canChangeTheme");
-    expect(modal).toContain("disabled={!canChangeTheme}");
-    expect(modal).toContain("Administrator setting");
-  });
-
-  it("HeaderMenu hides the Theme row from a key session", () => {
-    const menu = read("src/shared/components/HeaderMenu.js");
-    expect(menu).toContain('role !== "apikey"');
-    expect(menu).toContain("canChangeTheme && (");
+  it("the dashboard shell hides theme controls from a key session", () => {
+    const rail = read("src/shared/components/LeftRail.js");
+    expect(rail).toMatch(/!isApiKeyUser \? \(\s*<HeaderMenu/);
+    const mobile = read("src/shared/components/MobileNav.js");
+    expect(mobile).toMatch(/!isApiKeyUser && \(\s*<button[\s\S]{0,200}setThemeModalOpen\(true\)/);
   });
 
   it("the theme is loaded from the server for every visitor", () => {
     const store = read("src/store/themeStore.js");
-    expect(store).toContain("setServerTheme");
-    expect(store).toContain("/api/theme");
-    // no per-browser persistence as the source of truth anymore
-    expect(store).not.toContain('zustand/middleware');
+    expect(store).toMatch(/initTheme:[\s\S]*fetch\("\/api\/theme"/);
   });
 });
 

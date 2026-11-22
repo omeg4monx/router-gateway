@@ -23,6 +23,12 @@ afterAll(() => {
   else process.env.DATA_DIR = originalDataDir;
 });
 
+// saveRequestUsage treats a row with the same timestamp, provider, model,
+// account, key and token counts as one request saved twice and keeps a single
+// copy, so each simulated request gets its own timestamp (inside the 24h window).
+let tick = Date.now() - 60_000;
+const nextTimestamp = () => new Date(tick++).toISOString();
+
 describe("DB Concurrency — atomic safety", () => {
   it("100 parallel saveRequestUsage → no count loss", async () => {
     const N = 100;
@@ -31,7 +37,7 @@ describe("DB Concurrency — atomic safety", () => {
       promises.push(db.saveRequestUsage({
         provider: "openai", model: "gpt-4", connectionId: "c1",
         tokens: { prompt_tokens: 10, completion_tokens: 5 },
-        endpoint: "/v1/chat", status: "ok",
+        endpoint: "/v1/chat", status: "ok", timestamp: nextTimestamp(),
       }));
     }
     await Promise.all(promises);
@@ -71,7 +77,7 @@ describe("DB Concurrency — atomic safety", () => {
     for (let i = 0; i < 50; i++) {
       ops.push(db.saveRequestUsage({
         provider: "anthropic", model: `m-${i % 3}`, connectionId: "c2",
-        tokens: { prompt_tokens: 20 }, status: "ok",
+        tokens: { prompt_tokens: 20 }, status: "ok", timestamp: nextTimestamp(),
       }));
       ops.push(db.setModelAlias(`a-${i}`, `target-${i}`));
       ops.push(db.disableModels("openai", [`d-${i}`]));
@@ -156,7 +162,7 @@ describe("DB Concurrency — atomic safety", () => {
       promises.push(db.saveRequestUsage({
         provider: "google", model: "gemini-pro", connectionId: "cG",
         tokens: { prompt_tokens: 100, completion_tokens: 50 },
-        status: "ok",
+        status: "ok", timestamp: nextTimestamp(),
       }));
     }
     await Promise.all(promises);

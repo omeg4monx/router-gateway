@@ -93,12 +93,13 @@ describe("banner: cancel, background, and shared look", () => {
     expect(store).toMatch(/cancel\(id\)/);
   });
 
-  it("the proxy import runs store-driven under an abort controller", () => {
+  it("the proxy import runs store-driven as a cancellable server job", () => {
+    // the fork moved the import loop server-side: cancel stops the job, not a fetch
     expect(pools).toContain("PROXY_IMPORT_TASK");
-    expect(pools).toContain("AbortController");
-    expect(pools).toContain("signal: abort.signal");
-    expect(pools).toContain('"AbortError"');
-    expect(pools).not.toContain("importProgress");
+    expect(pools).toContain("startProxyImportJob(parsedEntries)");
+    expect(pools).toContain("onCancel: () => cancelProxyImportJob(jobId)");
+    expect(pools).toContain('final?.status === "cancelled"');
+    expect(pools).toContain("useTaskStore.getState().finish(PROXY_IMPORT_TASK)");
   });
 });
 

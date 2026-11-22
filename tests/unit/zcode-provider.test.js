@@ -20,6 +20,7 @@ import { getExecutor } from "open-sse/executors/index.js";
 import zcodeOAuth from "@/lib/oauth/providers/zcode.js";
 import { generateAuthData, getProvider, pollForToken, requestDeviceCode } from "@/lib/oauth/providers/index.js";
 import { ZCodeExecutor, normalizeStartPlanResponse } from "open-sse/executors/zcode.js";
+import { ZCODE_SDK_USER_AGENT } from "open-sse/config/zcodeIdentity.js";
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -257,7 +258,7 @@ describe("zcode plan selection", () => {
 
     expect(resolved.planKind).toBe("individual-coding-plan");
     expect(resolved.lane).toBe("project");
-    expect(resolved.clientVersion).toBe("3.17.1");
+    expect(resolved.clientVersion).toBe("3.17.2");
     expect(resolved.baseUrl).toBe("https://api.z.ai/api/anthropic");
     expect(resolved.apiKey).toBe("project-token");
     expect(resolved.persist.zcodeProjectToken).toBe("project-token");
@@ -335,7 +336,10 @@ describe("zcode start plan quota", () => {
   it("normalizes start-plan balances into dashboard quotas", () => {
     const parsed = parseZcodeStartPlanBalance(balanceEnvelope);
     expect(parsed.plan).toBe("ZCODE WEEKEND BUILD");
-    expect(parsed.quotas["GLM-5.3-Flash"]).toMatchObject({
+    // Event-plan buckets carry the plan name so they don't overwrite a start-plan
+    // bucket with the same show_name (CHANGELOG: GLM & ZCode gift card overwrite fix).
+    const key = "GLM-5.3-Flash (ZCODE WEEKEND BUILD)";
+    expect(parsed.quotas[key]).toMatchObject({
       used: 769128,
       total: 500000000,
       resetAt: new Date(1793581200 * 1000).toISOString(),
@@ -344,7 +348,7 @@ describe("zcode start plan quota", () => {
       recurring: false,
       absoluteReset: true,
     });
-    expect(parsed.quotas["GLM-5.3-Flash"].percentage).toBeCloseTo(
+    expect(parsed.quotas[key].percentage).toBeCloseTo(
       ((500000000 - 769128) / 500000000) * 100,
       6
     );
@@ -352,7 +356,7 @@ describe("zcode start plan quota", () => {
     const rows = parseQuotaData("zcode", parsed);
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({
-      name: "GLM-5.3-Flash",
+      name: key,
       used: 769128,
       total: 500000000,
       recurring: false,
@@ -484,8 +488,9 @@ describe("zcode executor", () => {
     const headers = executor.buildHeaders(credentials, true, "", "GLM-5.3-Flash");
     expect(headers["x-api-key"]).toBeUndefined();
     expect(headers.Authorization).toBe("Bearer zcode-jwt");
-    expect(headers["x-zcode-app-version"]).toBe(ZCODE_START_CLIENT_VERSION);
-    expect(headers["User-Agent"]).toBe(`ZCode/${ZCODE_START_CLIENT_VERSION}`);
+    // Start lane sends the lightweight profile: the version rides only in the
+    // desktop SDK user agent (a bare `ZCode/<ver>` UA is rejected by the gateway).
+    expect(headers["User-Agent"]).toBe(ZCODE_SDK_USER_AGENT(ZCODE_START_CLIENT_VERSION));
 
     const withUserSystem = executor.transformRequest(
       "GLM-5.3-Flash",
@@ -551,7 +556,13 @@ describe("zcode executor", () => {
     expect(transformed.system[1].text).toBe(ZCODE_SYSTEM_PROMPTS[1]);
     expect(transformed.system[2].text).toContain("You are Claude Code.");
     expect(transformed.system[2].text).toContain("sandbox instructions");
-    expect(transformed.metadata).toEqual({ user_id: JSON.stringify({ device_id: "fa0f00fc-de8b-4d73-9088-dfa7c8a96afa" }) });
+    // Official ZCode metadata shape (anthropic-request-metadata.ts): device mid +
+    // per-account session tag, no account uuid.
+    expect(JSON.parse(transformed.metadata.user_id)).toEqual({
+      device_id: expect.stringMatching(/\S/),
+      account_uuid: "",
+      session_id: expect.stringMatching(/^session_[0-9a-f]{32}$/),
+    });
     expect(transformed.output_config).toEqual({ effort: "high" });
   });
 
@@ -580,12 +591,12 @@ describe("zcode executor", () => {
     expect(transformed.system[2].text).toBe("aaa\n\nbbb\n\nccc\n\nddd");
   });
 
-  it("sends a UUIDv7 x-query-id like the desktop client", () => {
+  it("sends a UUIDv7 x-query-id like the desktop client on the project lane", () => {
     const executor = new ZCodeExecutor();
     const headers = executor.buildHeaders(
       {
         providerSpecificData: {
-          __zcodeAuth: { lane: "start", clientVersion: ZCODE_START_CLIENT_VERSION, baseUrl: ZCODE_START_BASE, apiKey: "zcode-jwt", headers: {} },
+          __zcodeAuth: { lane: "project", clientVersion: "3.17.2", baseUrl: "https://api.z.ai/api/anthropic", apiKey: "project-token", headers: {} },
         },
       },
       true,

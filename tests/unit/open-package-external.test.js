@@ -19,9 +19,15 @@ describe("open must not be bundled into the server build", () => {
   const config = readFileSync(path.join(repoRoot, "next.config.mjs"), "utf8");
 
   it("is declared in serverExternalPackages", () => {
-    const match = config.match(/serverExternalPackages:\s*\[([^\]]*)\]/);
-    expect(match, "serverExternalPackages not found in next.config.mjs").toBeTruthy();
-    const packages = match[1].split(",").map((s) => s.trim().replace(/^["']|["']$/g, ""));
+    // next.config.mjs passes a shared `externalPkgs` array (also reused for the
+    // legacy Next 14 key), so follow the identifier to its declaration.
+    const value = config.match(/serverExternalPackages:\s*(\[[^\]]*\]|\w+)/)?.[1];
+    expect(value, "serverExternalPackages not found in next.config.mjs").toBeTruthy();
+    const list = value.startsWith("[")
+      ? value
+      : config.match(new RegExp(`const\\s+${value}\\s*=\\s*(\\[[^\\]]*\\])`))?.[1];
+    expect(list, `${value} array not found in next.config.mjs`).toBeTruthy();
+    const packages = list.slice(1, -1).split(",").map((s) => s.trim().replace(/^["']|["']$/g, ""));
     expect(packages).toContain("open");
   });
 

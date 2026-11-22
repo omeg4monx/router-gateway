@@ -92,6 +92,10 @@ export function createDisconnectAwareStream(transformStream, streamController, o
   const reader = transformStream.readable.getReader();
   const writer = transformStream.writable.getWriter();
   let terminalEmitted = false;
+  // Only a real client cancel means nobody reads the stream any more. isConnected()
+  // alone cannot tell: the stall watchdog calls handleError() (which flips it) before
+  // aborting upstream, and the client must still get the in-band error frame then.
+  let clientCancelled = false;
 
   // Emit a synthesized terminal payload (e.g. Responses response.failed + [DONE]) once
   const emitTerminal = (controller) => {
@@ -134,10 +138,10 @@ export function createDisconnectAwareStream(transformStream, streamController, o
         // If client is still connected, mid-stream upstream failure must error the controller
         // so client sees the failure and triggers auto-retry (OmniRoute #17292).
         try {
-          if (!wasConnected) {
-            controller.close();
-          } else if (onAbortTerminal) {
+          if (onAbortTerminal && !clientCancelled) {
             emitTerminal(controller);
+            controller.close();
+          } else if (!wasConnected) {
             controller.close();
           } else {
             controller.error(error);
@@ -147,6 +151,7 @@ export function createDisconnectAwareStream(transformStream, streamController, o
     },
 
     cancel(reason) {
+      clientCancelled = true;
       streamController.handleDisconnect(reason || "cancelled");
       reader.cancel();
       writer.abort();

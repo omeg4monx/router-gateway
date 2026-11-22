@@ -229,25 +229,18 @@ export class OpenCodeZenExecutor extends DefaultExecutor {
     headers["User-Agent"] = hasValidOpencodeVersion(downstreamUa) ? downstreamUa : getOpencodeUa();
     headers["x-opencode-client"] = lower["x-opencode-client"] || "cli";
     headers["x-opencode-project"] = lower["x-opencode-project"] || "global";
-    const prepared = credentials?.[SESSION_FIELD];
-    if (prepared) {
-      headers[SESSION_HEADER] = prepared;
-      headers["x-opencode-session-id"] = prepared;
-      headers["x-session-affinity"] = prepared;
-      headers["x-session-id"] = prepared;
-      return headers;
-    }
-
-    const fallback = this.prepareRequestCredentials({ credentials });
-    const ses = fallback?.[SESSION_FIELD] || generateSessionId();
-    headers[SESSION_HEADER] = ses;
-    headers["x-opencode-session-id"] = ses;
-    headers["x-session-affinity"] = ses;
-    headers["x-session-id"] = ses;
+    // Free-tier models 403 on the keyed lane with a real key; switch them to the
+    // attested public identity whether or not a session was prepared upstream.
     if (isOpencodeFreeTierModel(model)) {
       headers["Authorization"] = "Bearer public";
       headers["x-opencode-request"] = generateRequestId();
     }
+    const prepared = credentials?.[SESSION_FIELD];
+    const ses = prepared || this.prepareRequestCredentials({ credentials })?.[SESSION_FIELD] || generateSessionId();
+    headers[SESSION_HEADER] = ses;
+    headers["x-opencode-session-id"] = ses;
+    headers["x-session-affinity"] = ses;
+    headers["x-session-id"] = ses;
     return headers;
   }
 

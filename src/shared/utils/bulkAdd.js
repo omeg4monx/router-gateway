@@ -80,13 +80,14 @@ export function planBulkAdd(lines, existingNames, opts = {}) {
 
     const base = parsed.baseName;
 
-    // Key-only lines: number immediately ("Key 1", "Key 2", ...) without a
-    // collision scan — the gap-fill loop below is skipped entirely. This keeps
-    // huge pastes (500+ keys) at O(1) per line instead of O(existing) scans.
+    // Key-only lines: a cursor that only moves forward, skipping taken names,
+    // so huge pastes (500+ keys) stay O(batch + existing) overall instead of
+    // rescanning from 1 per line. Skipping matters: a reused name overwrites.
     if (base === "Key" && !isCloudflareAi) {
-      autoKeyIdx += 1;
-      const entry = { name: `Key ${autoKeyIdx}`, apiKey: parsed.apiKey, skipped: false };
-      out.push(entry);
+      do autoKeyIdx += 1; while (used.has(`key ${autoKeyIdx}`));
+      const name = `Key ${autoKeyIdx}`;
+      used.add(name.toLowerCase());
+      out.push({ name, apiKey: parsed.apiKey, skipped: false });
       continue;
     }
 

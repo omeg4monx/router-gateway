@@ -49,12 +49,10 @@ function applyAuth(headers, desc, credentials) {
 // Provider-specific header quirks kept as small hooks (not pure auth).
 const HEADER_HOOKS = {
   // CodeBuddy: attach official plugin channel headers so requests pass upstream channel verification.
+  // X-Conversation-* ids are owned by the CodeBuddy executors (session-stable conversation id);
+  // pre-filling them here made the intl executor treat a random id as client-supplied.
   codebuddyHeaders: (h) => {
-    const requestId = randomUUID();
-    h["X-Request-ID"] = requestId;
-    h["X-Conversation-ID"] = randomUUID();
-    h["X-Conversation-Request-ID"] = requestId;
-    h["X-Conversation-Message-ID"] = requestId;
+    h["X-Request-ID"] = randomUUID();
   },
   // Stable device_id from OAuth connection (CLIProxyAPI KimiTokenStorage.DeviceID)
   kimiHeaders: (h, c) => Object.assign(h, buildKimiHeaders(c?.providerSpecificData?.deviceId)),
@@ -88,12 +86,30 @@ const REFRESH_GRANTS = Object.fromEntries(
     })
 );
 
+// Nous Portal rejects some API-key Chat Completions requests without attribution
+// tags. Decided from the real upstream URL (never the caller's body); caller tags
+// win, empty ones are dropped, missing product/client/user keys get the defaults.
+function withNousAttribution(body, url) {
+  if (!body || typeof body !== "object") return body;
+  if (url.protocol !== "https:" || url.hostname !== NOUS_ATTRIBUTION.hostname
+    || url.pathname !== NOUS_ATTRIBUTION.chatCompletionsPath) return body;
+  // Malformed caller tags are left for upstream validation.
+  if (body.tags !== undefined && !Array.isArray(body.tags)) return body;
+  const isEmptyTag = (tag) => typeof tag === "string" && tag.includes("=") && !tag.slice(tag.indexOf("=") + 1).trim();
+  const tags = (body.tags || []).filter((tag) => !isEmptyTag(tag));
+  const keys = new Set(tags.filter((tag) => typeof tag === "string").map((tag) => tag.split("=")[0]));
+  for (const tag of NOUS_ATTRIBUTION.tags) {
+    if (!keys.has(tag.split("=")[0])) tags.push(tag);
+  }
+  return { ...body, tags };
+}
+
 export class DefaultExecutor extends BaseExecutor {
   constructor(provider) {
     super(provider, PROVIDERS[provider] || PROVIDERS.openai);
   }
 
-  transformRequest(model, body) {
+  transformRequest(model, body, stream, credentials) {
     const transformed = this.applyJsonSchemaFallback(body);
 
     if (transformed && typeof transformed === "object") {
@@ -104,7 +120,15 @@ export class DefaultExecutor extends BaseExecutor {
       stripUnsupportedParams(this.provider, model, transformed);
     }
 
-    return injectReasoningContent({ provider: this.provider, model, body: transformed });
+    const result = injectReasoningContent({ provider: this.provider, model, body: transformed });
+    if (!credentials?.apiKey) return result;
+    let url;
+    try {
+      url = new URL(this.buildUrl(model, stream, 0, credentials));
+    } catch {
+      return result;
+    }
+    return withNousAttribution(result, url);
   }
 
   // Fallback json_schema → json_object for openai-compatible providers without native Structured Output.

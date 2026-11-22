@@ -1,5 +1,7 @@
-// Benchmark: SQLite vs lowdb on equivalent workloads.
-// Run: cd app/tests && npm test -- db-benchmark
+// Benchmark: SQLite vs lowdb on equivalent workloads. Timing only, no assertions,
+// and lowdb (the legacy store) is no longer a dependency, so it is opt-in:
+//   (cd tests && npm i --no-save lowdb)
+//   RUN_BENCH=1 tests/node_modules/.bin/vitest run --config tests/vitest.config.js unit/db-benchmark.test.js
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -8,6 +10,7 @@ import { describe, it, beforeAll, afterAll, vi } from "vitest";
 const N_ITEMS = 500;
 const N_QUERIES = 200;
 
+const RUN_BENCH = process.env.RUN_BENCH === "1";
 const originalDataDir = process.env.DATA_DIR;
 let tempSqlite, tempLowdb;
 let sqliteDb, lowDb;
@@ -25,6 +28,7 @@ async function bench(label, fn) {
 }
 
 beforeAll(async () => {
+  if (!RUN_BENCH) return;
   // SQLite setup
   tempSqlite = fs.mkdtempSync(path.join(os.tmpdir(), "omeg4mon-router-bench-sqlite-"));
   process.env.DATA_DIR = tempSqlite;
@@ -49,7 +53,7 @@ afterAll(() => {
   else process.env.DATA_DIR = originalDataDir;
 });
 
-describe("DB Benchmark — SQLite vs Lowdb", () => {
+describe.skipIf(!RUN_BENCH)("DB Benchmark — SQLite vs Lowdb", () => {
   it(`INSERT ${N_ITEMS} provider connections`, async () => {
     console.log(`\n[INSERT ${N_ITEMS}]`);
 

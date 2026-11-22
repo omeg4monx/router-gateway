@@ -538,6 +538,12 @@ button:disabled,
 .slide-in-right { animation: slideInFromRight 0.25s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
 .fade-in { animation: fadeIn 0.2s ease-out forwards; }
 .slide-in-top { animation: slideInFromTop 0.18s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
+/* LongTaskBanner's no-percent bar: a 40%-wide strip sweeping across its track. */
+@keyframes progressSweep {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(250%); }
+}
+.progress-indeterminate { animation: progressSweep 1.2s ease-in-out infinite; }
 .modal-in {
   animation: modalIn 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   will-change: transform, opacity;

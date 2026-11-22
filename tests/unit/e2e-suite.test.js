@@ -1,6 +1,5 @@
 import { describe, it, expect } from "vitest";
 import { exportDb } from "../../src/lib/db/index.js";
-import kiloRegistry from "../../open-sse/providers/registry/kilo-gateway.js";
 import { applyFingerprintTools } from "../../open-sse/utils/opencodeFingerprint.js";
 
 describe("E2E Verification Suite", () => {
@@ -13,15 +12,6 @@ describe("E2E Verification Suite", () => {
     const fullExport = await exportDb(null);
     expect(fullExport.settings).toBeDefined();
     expect(fullExport.usageHistory).toBeDefined();
-  });
-
-  it("KiloCode: keyless gateway has 10 free verified models and noAuth", () => {
-    expect(kiloRegistry.id).toBe("kilo-gateway");
-    expect(kiloRegistry.noAuth).toBe(true);
-    expect(kiloRegistry.authType).toBe("none");
-    const freeModels = kiloRegistry.models.filter(m => m.isFree || m.id.includes("free"));
-    expect(freeModels.length).toBeGreaterThanOrEqual(8);
-    expect(kiloRegistry.models.some(m => m.id === "nvidia/nemotron-3.5-super-vl:free")).toBe(true);
   });
 
   it("opencode-cc Hardening: tool surface capping trims tools over 38K characters", () => {

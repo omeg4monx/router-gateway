@@ -411,7 +411,7 @@ export async function buildModelsList(kindFilter, options = {}) {
     if (combo.kind === "webSearch" || combo.kind === "webFetch") {
       entry.kind = combo.kind;
     } else {
-      const comboCaps = aggregateComboCapabilities(combo.models, comboByName);
+      const comboCaps = aggregateComboCapabilities(combo.models, comboByName, null, combo.contextWindow);
       if (comboCaps) {
         entry.capabilities = comboCaps;
         // Same reason single models publish it: a client that only reads

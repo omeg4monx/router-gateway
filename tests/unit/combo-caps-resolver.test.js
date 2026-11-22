@@ -2,29 +2,32 @@ import { describe, expect, it } from "vitest";
 
 import { aggregateComboCapabilities, getCapabilitiesForModel } from "../../open-sse/providers/capabilities.js";
 
-// A combo's limits are the conservative aggregate of its members: ctx = min,
-// maxOutput = max. Resolving those members needs the synced model catalog, which
+// A combo's limits are the largest of its members (it fails over between them):
+// ctx = max, maxOutput = max. Resolving those members needs the synced model catalog, which
 // is server-only (it reads a file), so the browser bundle falls back to the
 // generic patterns. The dashboard computed its badges there and under-reported:
 // /v1/models and pi-settings (both server-side) said 1M while the badge said 200k.
 //
 // resolveCaps lets a caller hand in the server's answer. It must only override
 // what it carries - the local tables still own tools/pdf/audio/video/thinking*.
-const GLM53_FED = { vision: true, search: false, reasoning: true, contextWindow: 1_000_000, maxOutput: 131_072 };
+const GLM53_FED = { vision: true, search: false, reasoning: true, contextWindow: 2_000_000, maxOutput: 131_072 };
 
 describe("aggregateComboCapabilities: resolveCaps override", () => {
   const models = ["glm-cn/glm-5.3", "deepseek-v4.1-flash"];
 
-  it("falls back to the pattern default without a resolver", () => {
+  it("falls back to the local tables without a resolver", () => {
     const caps = aggregateComboCapabilities(models);
-    // glm-5.3 has no exact entry, so the *glm-5.3* pattern gives 200k and caps the combo.
-    expect(caps.contextWindow).toBe(200_000);
+    const local = Math.max(
+      getCapabilitiesForModel("glm-cn", "glm-5.3").contextWindow,
+      getCapabilitiesForModel(null, "deepseek-v4.1-flash").contextWindow
+    );
+    expect(caps.contextWindow).toBe(local);
   });
 
   it("uses the fed limits when a resolver supplies them", () => {
     const resolver = (fullId) => (fullId === "glm-cn/glm-5.3" ? GLM53_FED : null);
     const caps = aggregateComboCapabilities(models, null, resolver);
-    expect(caps.contextWindow).toBe(1_000_000);
+    expect(caps.contextWindow).toBe(2_000_000);
   });
 
   it("keeps the fields the override does not carry", () => {
@@ -36,13 +39,11 @@ describe("aggregateComboCapabilities: resolveCaps override", () => {
     }
   });
 
-  it("still applies the conservative rule across members", () => {
-    const resolver = (fullId) => (fullId === "glm-cn/glm-5.3" ? GLM53_FED : null);
-    const caps = aggregateComboCapabilities(models, null, resolver);
-    // Only glm-5.3 was fed 1M; deepseek-v4.1-flash resolves locally to 1M, so min stays 1M.
-    // Feeding a *smaller* value for one member must pull the aggregate down.
+  it("still takes the largest limits across members", () => {
+    // Feeding a *smaller* value for one member must not pull the aggregate below the other member.
     const smaller = aggregateComboCapabilities(models, null, (id) => (id === "glm-cn/glm-5.3" ? { ...GLM53_FED, contextWindow: 64_000 } : null));
-    expect(smaller.contextWindow).toBe(64_000);
+    expect(smaller.contextWindow).toBe(getCapabilitiesForModel(null, "deepseek-v4.1-flash").contextWindow);
+    const caps = aggregateComboCapabilities(models, null, (id) => (id === "glm-cn/glm-5.3" ? GLM53_FED : null));
     expect(caps.maxOutput).toBe(384_000); // max across members, from deepseek
   });
 
@@ -66,11 +67,11 @@ describe("aggregateComboCapabilities: resolveCaps override", () => {
   });
 
   it("claude-haiku-5-5 combo: 1M only through the provider-alias resolver", () => {
-    // Both seats are 1M in their provider tables (opencode-go/commandcode entries),
-    // but a bare `ocg/`-style alias resolves to 200k without the resolver: null
-    // provider falls to the global *claude*haiku* pattern. The server passes
-    // comboSeatCapabilities (alias → provider id); the dashboard does not.
-    const seats = ["ocg/claude-haiku-5-5", "cmc/claude-haiku-5-5"];
+    // The seat is 1M in the opencode-go provider table, but a bare `ocg/` alias
+    // resolves to 200k without the resolver: the unknown provider falls to the
+    // global *claude*haiku* pattern. Callers that know the alias → provider id
+    // map pass it as resolveCaps.
+    const seats = ["ocg/claude-haiku-5-5"];
     const seatCaps = (fullId) => {
       const slash = fullId.indexOf("/");
       if (slash <= 0) return null;

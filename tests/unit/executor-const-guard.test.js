@@ -51,23 +51,23 @@ describe("antigravity retry (intentional change: 429=6, 503=3)", () => {
 describe("OpenCode Free endpoint routing", () => {
   const MUSE = "muse-spark-1.2-contributor-free";
 
-  it("declares the Responses format only on the Muse Spark model", () => {
+  // Muse Spark 1.x free models are retired from the catalogue (registry/opencode.js),
+  // but the executor still routes any Muse Spark id to the Responses endpoint.
+  it("declares no provider-wide format (per-model routing lives in the executor)", () => {
     expect(opencode.transport.format).toBeUndefined();
-    const muse = opencode.models.find((m) => m.id === MUSE);
-    expect(muse?.targetFormat).toBe("openai-responses");
-    const muse13 = opencode.models.find((m) => m.id === "muse-spark-1.3-contributor-free");
-    expect(muse13?.targetFormat).toBe("openai-responses");
   });
 
+  // Free tier moved from /zen/v1 to /inference/openai/v1 (OpenCode v2; /zen/v1 now 403s).
   it("routes Muse Spark to /responses and every other model to /chat/completions", () => {
     const executor = new OpenCodeExecutor();
-    expect(executor.buildUrl(MUSE)).toBe("https://opencode.ai/zen/v1/responses");
-    expect(executor.buildUrl(`${MUSE}(xhigh)`)).toBe("https://opencode.ai/zen/v1/responses");
-    expect(executor.buildUrl("muse-spark-1.3-contributor-free")).toBe("https://opencode.ai/zen/v1/responses");
-    expect(executor.buildUrl("muse-spark-1.4-contributor-free")).toBe("https://opencode.ai/zen/v1/responses");
-    expect(executor.buildUrl("muse-spark-2.0-contributor-free(xhigh)")).toBe("https://opencode.ai/zen/v1/responses");
-    expect(executor.buildUrl("big-pickle")).toBe("https://opencode.ai/zen/v1/chat/completions");
-    expect(executor.buildUrl("hy3-free")).toBe("https://opencode.ai/zen/v1/chat/completions");
+    const base = "https://opencode.ai/inference/openai/v1";
+    expect(executor.buildUrl(MUSE)).toBe(`${base}/responses`);
+    expect(executor.buildUrl(`${MUSE}(xhigh)`)).toBe(`${base}/responses`);
+    expect(executor.buildUrl("muse-spark-1.3-contributor-free")).toBe(`${base}/responses`);
+    expect(executor.buildUrl("muse-spark-1.4-contributor-free")).toBe(`${base}/responses`);
+    expect(executor.buildUrl("muse-spark-2.0-contributor-free(xhigh)")).toBe(`${base}/responses`);
+    expect(executor.buildUrl("big-pickle")).toBe(`${base}/chat/completions`);
+    expect(executor.buildUrl("hy3-free")).toBe(`${base}/chat/completions`);
   });
 
   it("normalizes Chat token/thinking fields only for the Responses model", () => {

@@ -115,10 +115,15 @@ describe("response.completed output (issue #4307)", () => {
     expect(response.output[1].content[0]).toMatchObject({ type: "output_text", text: "answer" });
   });
 
-  it("reports an empty output array when nothing was produced", () => {
-    const state = newState();
-    const response = completedResponse(openaiToOpenAIResponsesResponse(null, state));
-    expect(response.output).toEqual([]);
+  // A stream that never started emits nothing: the empty-stream guard's
+  // response.failed is the terminal, not an empty "successful" turn.
+  it("emits no response.completed for a stream that never started", () => {
+    expect(openaiToOpenAIResponsesResponse(null, newState())).toEqual([]);
+  });
+
+  it("reports an empty output array when a started stream produced nothing", () => {
+    const { events } = runChunks([finishChunk({ prompt_tokens: 3, completion_tokens: 0, total_tokens: 3 })]);
+    expect(completedResponse(events).output).toEqual([]);
   });
 
   it("keeps the usage block alongside output", () => {

@@ -8,6 +8,10 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import opencodeRegistry from "../../open-sse/providers/registry/opencode.js";
+
+// The route only syncs a url+type that a registry entry declares.
+const ZEN_URL = opencodeRegistry.modelsFetcher.url;
 
 const SYNCED = {
   data: [
@@ -15,7 +19,7 @@ const SYNCED = {
     { id: "muse-spark-1.3-contributor-free", name: "muse-spark-1.3-contributor-free" },
   ],
   syncedAt: 1790000000000,
-  url: "https://opencode.ai/zen/v1/models",
+  url: ZEN_URL,
 };
 
 const syncedGet = vi.fn(async () => SYNCED);
@@ -26,8 +30,14 @@ vi.mock("@/shared/services/freeCatalogSync.js", () => ({
   startFreeCatalogSync: vi.fn(),
 }));
 
+// The route fetches through undici, not the global; route it to the per-test stub.
+vi.mock("undici", async (importOriginal) => ({
+  ...(await importOriginal()),
+  fetch: (...args) => globalThis.fetch(...args),
+}));
+
 const ROUTE_URL = "/api/providers/suggested-models?url=" +
-  encodeURIComponent("https://opencode.ai/zen/v1/models") + "&type=opencode-free";
+  encodeURIComponent(ZEN_URL) + "&type=opencode-free";
 
 function request() {
   return new Request("http://localhost" + ROUTE_URL);

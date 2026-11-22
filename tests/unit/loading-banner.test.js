@@ -9,10 +9,11 @@ const dock = fs.readFileSync(path.join(ROOT, "src/shared/components/TaskDock.js"
 const css = fs.readFileSync(path.join(ROOT, "src/app/globals.css"), "utf8");
 
 describe("loading banner theme + layout (user: 5 points)", () => {
-  it("(1) themed panel: bg-surface + backdrop-blur, no bare translucent white", () => {
-    expect(banner).toContain("bg-surface/95");
-    expect(banner).toContain("backdrop-blur-md");
-    expect(banner).not.toMatch(/bg-white\/\d|bg-black\/\d(?!.*backdrop)/);
+  it("(1) themed panel: flat bg-surface on the theme scrim, no bare translucent white/black", () => {
+    // the redesign dropped the blur on purpose (see the LongTaskBanner header comment)
+    expect(banner).toContain("bg-surface");
+    expect(banner).toContain("var(--color-scrim)");
+    expect(banner).not.toMatch(/bg-white\/\d|bg-black\/\d/);
   });
 
   it("(1) a caller with no progress still gets a bar (indeterminate sweep)", () => {
@@ -22,7 +23,7 @@ describe("loading banner theme + layout (user: 5 points)", () => {
   });
 
   it("(2) background chip carries title, message, percent AND a progress bar", () => {
-    const chip = banner.slice(banner.indexOf("function BackgroundChip"), banner.indexOf("function Panel"));
+    const chip = banner.slice(banner.indexOf("function BackgroundCard"), banner.indexOf("function Panel"));
     expect(chip).toContain("{title");
     expect(chip).toContain("{message");
     expect(chip).toContain("ProgressBar");
@@ -37,17 +38,17 @@ describe("loading banner theme + layout (user: 5 points)", () => {
   it("(3) only the full-screen overlay blocks input; chips stay pointer-transparent", () => {
     expect(banner).toContain("fixed inset-0 z-[70]");
     expect(banner).toContain("pointer-events-none fixed bottom-20");
-    expect(banner).toContain("pointer-events-auto flex");
+    expect(banner).toContain("slide-in-right pointer-events-auto");
   });
 
   it("(4) background swap fades first, then mounts the chip (no teleport)", () => {
     expect(banner).toContain("SWAP_MS");
     expect(banner).toContain("setExiting(true)");
-    expect(banner).toMatch(/setTimeout\(\(\) => \{\s*\n?\s*setBackgrounded\(true\)/);
+    expect(banner).toMatch(/setTimeout\(\(\) => \{\s*\n?\s*setBackgroundedPersisted\(true\)/);
   });
 
   it("(4) expanding the chip mounts the panel, not the reverse", () => {
-    expect(banner).toMatch(/onExpand=\{\(\) => setBackgrounded\(false\)\}/);
+    expect(banner).toMatch(/onExpand=\{\(\) => setBackgroundedPersisted\(false\)\}/);
   });
 
   it("(4) background is offered even when the caller cannot cancel", () => {
@@ -56,7 +57,7 @@ describe("loading banner theme + layout (user: 5 points)", () => {
 
   it("(5) the chip has its own Cancel button next to expand", () => {
     expect(banner).toContain("Cancel operation");
-    expect(banner).toMatch(/expand_less[\s\S]{0,400}Cancel operation/);
+    expect(banner).toMatch(/expand_more[\s\S]{0,400}Cancel operation/);
   });
 
   it("ProgressCard has no duplicate unthemed chip left", () => {

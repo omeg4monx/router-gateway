@@ -1,4 +1,4 @@
-import { describe, it } from "node:test";
+import { describe, it } from "vitest";
 import assert from "node:assert/strict";
 import { getNousUsage } from "../../open-sse/services/usage/nous.js";
 import { getUsageForProvider } from "../../open-sse/services/usage.js";

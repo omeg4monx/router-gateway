@@ -232,7 +232,7 @@ describe("GLM native event gift card claim", () => {
         method: "GET",
         headers: expect.objectContaining({
           Authorization: "Bearer mock_jwt_token",
-          "X-ZCode-App-Version": "3.16.3",
+          "X-ZCode-App-Version": "3.17.2", // coding-plan/usage lane (zcodeIdentity.js)
           "X-Platform": "linux-x64",
         }),
       }),
@@ -267,7 +267,7 @@ describe("GLM native event gift card claim", () => {
         headers: expect.objectContaining({
           Authorization: "Bearer mock_jwt_token",
           "Content-Type": "application/json",
-          "X-ZCode-App-Version": "3.16.3",
+          "X-ZCode-App-Version": "3.17.2", // coding-plan/usage lane (zcodeIdentity.js)
           "X-Platform": "linux-x64",
         }),
         body: JSON.stringify({ plan_id: "zcode_weekend_build" }),

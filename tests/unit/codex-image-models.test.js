@@ -3,6 +3,12 @@ import { getModelsByProviderId, getModelType, isValidModel } from "../../open-ss
 import { getModelInfoCore } from "../../open-sse/services/model.js";
 import { handleImageGenerationCore } from "../../open-sse/handlers/imageGenerationCore.js";
 
+// proxyAwareFetch binds the real fetch at import time; route it through the stubbed global fetch.
+vi.mock("../../open-sse/utils/proxyFetch.js", async (importOriginal) => ({
+  ...(await importOriginal()),
+  proxyAwareFetch: (url, options) => globalThis.fetch(url, options),
+}));
+
 const models = ["gpt-5.6-sol", "gpt-5.6-luna", "gpt-5.6-terra"];
 
 afterEach(() => vi.unstubAllGlobals());

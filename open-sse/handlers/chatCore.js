@@ -164,7 +164,16 @@ export async function handleChatCore({ body, modelInfo, credentials, log, onCred
   // sourceFormat-matched transport if that format is declared (opencode-go models
   // differ — kimi/glm only do /chat/completions). Undeclared models keep the
   // upstream default (use the transport), preserving behavior for glm/deepseek/...
-  const useTransport = (!modelSupportedFormats || modelSupportedFormats.includes(sourceFormat)) ? runtimeTransport : null;
+  const sourceTransport = (!modelSupportedFormats || modelSupportedFormats.includes(sourceFormat)) ? runtimeTransport : null;
+  // No usable source-matched endpoint: a declared non-default targetFormat still
+  // needs its own endpoint and auth (e.g. /messages-only claude-haiku-5-5 on
+  // opencode-go), not the provider default /chat/completions.
+  const useTransport = sourceTransport || (
+    modelTargetFormat && modelTargetFormat !== getTargetFormat(provider, credentials)
+      && (!modelSupportedFormats || modelSupportedFormats.includes(modelTargetFormat))
+      ? resolveTransport(provider, modelTargetFormat)
+      : null
+  );
   // A source-format-matched endpoint keeps the request lossless. Prefer it
   // over a model-level targetFormat, which is only the fallback for clients
   // whose wire format has no supported transport (for example MiniMax-M3:

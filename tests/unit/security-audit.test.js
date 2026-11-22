@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import fs from "fs";
 import path from "path";
+import os from "os";
 
 // ============================================================
 // AUDIT-002 (#1962): API key masking in usage stats
@@ -48,15 +49,33 @@ describe("AUDIT-002: API key masking", () => {
     expect(livePath.length).toBeGreaterThanOrEqual(1);
   });
 
-  it("byApiKey object keys should use masked key, not raw key", () => {
-    const source = fs.readFileSync(
-      path.resolve("src/lib/db/repos/usageRepo.js"),
-      "utf-8"
-    );
-    // The 24h path should use apiKeyMasked in the akKey template
-    expect(source).toContain("${apiKeyMasked}|${r.model}|${r.provider");
-    // Should NOT use raw r.apiKey in the key
-    expect(source).not.toContain("${r.apiKey}|${r.model}|${r.provider");
+  // Buckets are aggregated on the full key on purpose (prefix-sharing team keys
+  // must not collide) and re-keyed with the masked label before getUsageStats
+  // returns, so assert the returned object rather than the template string.
+  it("byApiKey object keys never carry the raw key", async () => {
+    const originalDataDir = process.env.DATA_DIR;
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "omeg4mon-router-audit-"));
+    process.env.DATA_DIR = tempDir;
+    try {
+      vi.resetModules();
+      const db = await import("@/lib/db/index.js");
+      await db.initDb();
+      const rawKey = "sk-audit-0123456789abcdef";
+      await db.saveRequestUsage({
+        provider: "openai", model: "gpt-4", apiKey: rawKey,
+        tokens: { prompt_tokens: 10, completion_tokens: 5 }, status: "ok",
+      });
+      // 24h reads usageHistory rows; 7d reads the daily rollup.
+      for (const period of ["24h", "7d"]) {
+        const { byApiKey } = await db.getUsageStats(period);
+        expect(Object.keys(byApiKey)).toHaveLength(1);
+        expect(JSON.stringify(byApiKey)).not.toContain(rawKey);
+      }
+    } finally {
+      if (originalDataDir === undefined) delete process.env.DATA_DIR;
+      else process.env.DATA_DIR = originalDataDir;
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
   });
 });
 

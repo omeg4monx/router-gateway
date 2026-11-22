@@ -4,6 +4,7 @@ import { PROVIDER_MODELS, getModelTargetFormat } from "../../open-sse/config/pro
 import { getThinkingLevels } from "../../open-sse/providers/thinkingLevels.js";
 import { FORMATS } from "../../open-sse/translator/formats.js";
 import { OpenCodeExecutor } from "../../open-sse/executors/opencode.js";
+import { OPENCODE_FINGERPRINT_TOOLS } from "../../open-sse/utils/opencodeFingerprint.js";
 import "../translator/registerAll.js";
 import { translateRequest } from "../../open-sse/translator/index.js";
 
@@ -18,8 +19,8 @@ const input = [{
 
 describe("OpenCode Free Muse Spark thinking", () => {
   it("advertises reasoning and the requested model limits", () => {
-    expect(PROVIDER_MODELS.oc?.some((model) => model.id === MODEL)).toBe(true);
-    expect(PROVIDER_MODELS.oc?.some((model) => model.id === "muse-spark-1.3-contributor-free")).toBe(true);
+    // The 1.x free contributor models are retired from the curated catalog
+    // (providers/registry/opencode.js) but stay reachable as passthrough ids.
     for (const m of [MODEL, "muse-spark-1.3-contributor-free", "muse-spark-1.4-contributor-free", "muse-spark-2.0-contributor-free"]) {
       expect(getCapabilitiesForModel(PROVIDER, m)).toMatchObject({
         reasoning: true,
@@ -63,29 +64,28 @@ describe("OpenCode Free Muse Spark thinking", () => {
     expect(out.max_tokens).toBeUndefined();
   });
 
-  it("no longer offers Union Alpha and sends every remaining free model to a live endpoint", () => {
+  it("sends every free model to its live /inference/openai/v1 endpoint", () => {
     const freeModels = PROVIDER_MODELS.oc || [];
-    expect(freeModels.some((model) => model.id === "union-alpha")).toBe(false);
-    expect(freeModels.some((model) => model.id === "union-alpha-free")).toBe(false);
+    const BASE = "https://opencode.ai/inference/openai/v1";
 
-    // With the Claude Messages path gone, the only two upstreams left are
-    // chat/completions for plain chat models and /responses for Muse Spark.
+    // chat/completions for plain chat models, /responses for Responses models,
+    // /messages (with anthropic-version) for Claude-target models such as union-alpha.
     const executor = new OpenCodeExecutor();
     for (const model of freeModels) {
       const url = executor.buildUrl(model.id);
-      expect([
-        "https://opencode.ai/zen/v1/chat/completions",
-        "https://opencode.ai/zen/v1/responses",
-      ]).toContain(url);
-      expect(executor.buildHeaders({}, true)).not.toHaveProperty("anthropic-version");
+      expect([`${BASE}/chat/completions`, `${BASE}/responses`, `${BASE}/messages`]).toContain(url);
+      const headers = executor.buildHeaders({}, true, url);
+      if (url.endsWith("/messages")) expect(headers).toHaveProperty("anthropic-version");
+      else expect(headers).not.toHaveProperty("anthropic-version");
     }
+    expect(executor.buildUrl("union-alpha")).toBe(`${BASE}/messages`);
   });
 
   it("leaves the other free models on Chat Completions", () => {
     const executor = new OpenCodeExecutor();
     const body = { messages: [{ role: "user", content: "hi" }], max_tokens: 1024 };
     executor.transformRequest("big-pickle", body, true, {});
-    expect(executor.buildUrl("big-pickle")).toBe("https://opencode.ai/zen/v1/chat/completions");
+    expect(executor.buildUrl("big-pickle")).toBe("https://opencode.ai/inference/openai/v1/chat/completions");
     expect(body.max_tokens).toBe(1024);
     expect(body.max_output_tokens).toBeUndefined();
   });
@@ -121,8 +121,8 @@ describe("OpenCode Free Muse Spark thinking", () => {
     const futureModel = "muse-spark-1.4-contributor-free";
 
     for (const m of ["muse-spark-1.3-contributor-free", futureModel]) {
-      expect(executor.buildUrl(m)).toBe("https://opencode.ai/zen/v1/responses");
-      expect(executor.buildUrl(`${m}(high)`)).toBe("https://opencode.ai/zen/v1/responses");
+      expect(executor.buildUrl(m)).toBe("https://opencode.ai/inference/openai/v1/responses");
+      expect(executor.buildUrl(`${m}(high)`)).toBe("https://opencode.ai/inference/openai/v1/responses");
       expect(getModelTargetFormat("oc", m)).toBe("openai-responses");
 
       const body = {
@@ -199,14 +199,16 @@ describe("OpenCode Free Muse Spark thinking", () => {
     // User message, function_call, function_call_output, and next user message survive
     const types = out.input.map((item) => item.type);
     expect(types).toEqual(["message", "function_call", "function_call_output", "message"]);
-    // Tools flattened and empty properties added
-    expect(out.tools).toEqual([
-      {
-        type: "function",
-        name: "shell",
-        description: "Run shell command",
-        parameters: { type: "object", properties: {} },
-      },
-    ]);
+    // Tools flattened and empty properties added. The caller's `shell` cannot carry
+    // OpenCode's schema, so it travels under an alias (history follows) and the
+    // exact fingerprint tools are appended.
+    expect(out.tools[0]).toEqual({
+      type: "function",
+      name: "shell_client",
+      description: "Run shell command",
+      parameters: { type: "object", properties: {} },
+    });
+    expect(out.tools.slice(1).map((t) => t.name)).toEqual(OPENCODE_FINGERPRINT_TOOLS);
+    expect(out.input.find((item) => item.type === "function_call").name).toBe("shell_client");
   });
 });

@@ -18,6 +18,9 @@ let ctx;
 beforeEach(async () => {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "omeg4mon-router-studio-combo-"));
   process.env.DATA_DIR = tempDir;
+  // The adapter lives on global; drop it so each test opens its own temp DB.
+  try { global._dbAdapter?.instance?.close?.(); } catch { /* already closed */ }
+  delete global._dbAdapter;
   vi.resetModules();
   const db = await import("@/lib/db/index.js");
   const editor = await import("@/lib/db/repos/modelEditorRepo.js");
@@ -29,6 +32,8 @@ beforeEach(async () => {
 }, 60_000);
 
 afterEach(() => {
+  try { global._dbAdapter?.instance?.close?.(); } catch { /* already closed */ }
+  delete global._dbAdapter;
   fs.rmSync(ctx.tempDir, { recursive: true, force: true });
   if (originalDataDir === undefined) delete process.env.DATA_DIR;
   else process.env.DATA_DIR = originalDataDir;

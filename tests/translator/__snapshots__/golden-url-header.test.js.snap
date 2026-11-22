@@ -460,26 +460,26 @@ exports[`GOLDEN buildHeaders (default executor providers) > cline → headers (a
     "Authorization": "Bearer <TOK>",
     "Content-Type": "application/json",
     "HTTP-Referer": "https://cline.bot",
-    "User-Agent": "9Router/0.5.154",
-    "X-CLIENT-TYPE": "omeg4mon-router",
-    "X-CLIENT-VERSION": "0.5.154",
-    "X-CORE-VERSION": "0.5.154",
+    "User-Agent": "9Router/<VER>",
+    "X-CLIENT-TYPE": "9router",
+    "X-CLIENT-VERSION": "<VER>",
+    "X-CORE-VERSION": "<VER>",
     "X-IS-MULTIROOT": "false",
-    "X-PLATFORM": "linux",
-    "X-PLATFORM-VERSION": "v22.23.3",
+    "X-PLATFORM": "<ENV>",
+    "X-PLATFORM-VERSION": "<ENV>",
     "X-Title": "Cline",
   },
   "nonStream": {
     "Authorization": "Bearer <TOK>",
     "Content-Type": "application/json",
     "HTTP-Referer": "https://cline.bot",
-    "User-Agent": "9Router/0.5.154",
-    "X-CLIENT-TYPE": "omeg4mon-router",
-    "X-CLIENT-VERSION": "0.5.154",
-    "X-CORE-VERSION": "0.5.154",
+    "User-Agent": "9Router/<VER>",
+    "X-CLIENT-TYPE": "9router",
+    "X-CLIENT-VERSION": "<VER>",
+    "X-CORE-VERSION": "<VER>",
     "X-IS-MULTIROOT": "false",
-    "X-PLATFORM": "linux",
-    "X-PLATFORM-VERSION": "v22.23.3",
+    "X-PLATFORM": "<ENV>",
+    "X-PLATFORM-VERSION": "<ENV>",
     "X-Title": "Cline",
   },
   "oauth": {
@@ -487,13 +487,13 @@ exports[`GOLDEN buildHeaders (default executor providers) > cline → headers (a
     "Authorization": "Bearer <TOK>",
     "Content-Type": "application/json",
     "HTTP-Referer": "https://cline.bot",
-    "User-Agent": "9Router/0.5.154",
-    "X-CLIENT-TYPE": "omeg4mon-router",
-    "X-CLIENT-VERSION": "0.5.154",
-    "X-CORE-VERSION": "0.5.154",
+    "User-Agent": "9Router/<VER>",
+    "X-CLIENT-TYPE": "9router",
+    "X-CLIENT-VERSION": "<VER>",
+    "X-CORE-VERSION": "<VER>",
     "X-IS-MULTIROOT": "false",
-    "X-PLATFORM": "linux",
-    "X-PLATFORM-VERSION": "v22.23.3",
+    "X-PLATFORM": "<ENV>",
+    "X-PLATFORM-VERSION": "<ENV>",
     "X-Title": "Cline",
   },
 }
@@ -506,26 +506,26 @@ exports[`GOLDEN buildHeaders (default executor providers) > clinepass → header
     "Authorization": "Bearer <TOK>",
     "Content-Type": "application/json",
     "HTTP-Referer": "https://cline.bot",
-    "User-Agent": "9Router/0.5.154",
-    "X-CLIENT-TYPE": "omeg4mon-router",
-    "X-CLIENT-VERSION": "0.5.154",
-    "X-CORE-VERSION": "0.5.154",
+    "User-Agent": "9Router/<VER>",
+    "X-CLIENT-TYPE": "9router",
+    "X-CLIENT-VERSION": "<VER>",
+    "X-CORE-VERSION": "<VER>",
     "X-IS-MULTIROOT": "false",
-    "X-PLATFORM": "linux",
-    "X-PLATFORM-VERSION": "v22.23.3",
+    "X-PLATFORM": "<ENV>",
+    "X-PLATFORM-VERSION": "<ENV>",
     "X-Title": "Cline",
   },
   "nonStream": {
     "Authorization": "Bearer <TOK>",
     "Content-Type": "application/json",
     "HTTP-Referer": "https://cline.bot",
-    "User-Agent": "9Router/0.5.154",
-    "X-CLIENT-TYPE": "omeg4mon-router",
-    "X-CLIENT-VERSION": "0.5.154",
-    "X-CORE-VERSION": "0.5.154",
+    "User-Agent": "9Router/<VER>",
+    "X-CLIENT-TYPE": "9router",
+    "X-CLIENT-VERSION": "<VER>",
+    "X-CORE-VERSION": "<VER>",
     "X-IS-MULTIROOT": "false",
-    "X-PLATFORM": "linux",
-    "X-PLATFORM-VERSION": "v22.23.3",
+    "X-PLATFORM": "<ENV>",
+    "X-PLATFORM-VERSION": "<ENV>",
     "X-Title": "Cline",
   },
   "oauth": {
@@ -533,13 +533,13 @@ exports[`GOLDEN buildHeaders (default executor providers) > clinepass → header
     "Authorization": "Bearer <TOK>",
     "Content-Type": "application/json",
     "HTTP-Referer": "https://cline.bot",
-    "User-Agent": "9Router/0.5.154",
-    "X-CLIENT-TYPE": "omeg4mon-router",
-    "X-CLIENT-VERSION": "0.5.154",
-    "X-CORE-VERSION": "0.5.154",
+    "User-Agent": "9Router/<VER>",
+    "X-CLIENT-TYPE": "9router",
+    "X-CLIENT-VERSION": "<VER>",
+    "X-CORE-VERSION": "<VER>",
     "X-IS-MULTIROOT": "false",
-    "X-PLATFORM": "linux",
-    "X-PLATFORM-VERSION": "v22.23.3",
+    "X-PLATFORM": "<ENV>",
+    "X-PLATFORM-VERSION": "<ENV>",
     "X-Title": "Cline",
   },
 }
@@ -574,6 +574,7 @@ exports[`GOLDEN buildHeaders (default executor providers) > codebuddy-cn → hea
     "X-IDE-Name": "CLI",
     "X-IDE-Type": "CLI",
     "X-Product": "SaaS",
+    "X-Request-ID": "<UUID>",
     "x-codebuddy-request": "1",
     "x-requested-with": "XMLHttpRequest",
   },
@@ -584,6 +585,7 @@ exports[`GOLDEN buildHeaders (default executor providers) > codebuddy-cn → hea
     "X-IDE-Name": "CLI",
     "X-IDE-Type": "CLI",
     "X-Product": "SaaS",
+    "X-Request-ID": "<UUID>",
     "x-codebuddy-request": "1",
     "x-requested-with": "XMLHttpRequest",
   },
@@ -595,6 +597,7 @@ exports[`GOLDEN buildHeaders (default executor providers) > codebuddy-cn → hea
     "X-IDE-Name": "CLI",
     "X-IDE-Type": "CLI",
     "X-Product": "SaaS",
+    "X-Request-ID": "<UUID>",
     "x-codebuddy-request": "1",
     "x-requested-with": "XMLHttpRequest",
   },
@@ -607,20 +610,22 @@ exports[`GOLDEN buildHeaders (default executor providers) > codebuddy-intl → h
     "Accept": "text/event-stream",
     "Authorization": "Bearer <TOK>",
     "Content-Type": "application/json",
-    "User-Agent": "IDE/2.108.1 CodeBuddy/2.108.1",
-    "X-IDE-Name": "IDE",
-    "X-IDE-Type": "IDE",
+    "User-Agent": "CLI/2.108.1 CodeBuddy/2.108.1",
+    "X-IDE-Name": "CLI",
+    "X-IDE-Type": "CLI",
     "X-Product": "SaaS",
+    "X-Request-ID": "<UUID>",
     "x-codebuddy-request": "1",
     "x-requested-with": "XMLHttpRequest",
   },
   "nonStream": {
     "Authorization": "Bearer <TOK>",
     "Content-Type": "application/json",
-    "User-Agent": "IDE/2.108.1 CodeBuddy/2.108.1",
-    "X-IDE-Name": "IDE",
-    "X-IDE-Type": "IDE",
+    "User-Agent": "CLI/2.108.1 CodeBuddy/2.108.1",
+    "X-IDE-Name": "CLI",
+    "X-IDE-Type": "CLI",
     "X-Product": "SaaS",
+    "X-Request-ID": "<UUID>",
     "x-codebuddy-request": "1",
     "x-requested-with": "XMLHttpRequest",
   },
@@ -628,10 +633,11 @@ exports[`GOLDEN buildHeaders (default executor providers) > codebuddy-intl → h
     "Accept": "text/event-stream",
     "Authorization": "Bearer <TOK>",
     "Content-Type": "application/json",
-    "User-Agent": "IDE/2.108.1 CodeBuddy/2.108.1",
-    "X-IDE-Name": "IDE",
-    "X-IDE-Type": "IDE",
+    "User-Agent": "CLI/2.108.1 CodeBuddy/2.108.1",
+    "X-IDE-Name": "CLI",
+    "X-IDE-Type": "CLI",
     "X-Product": "SaaS",
+    "X-Request-ID": "<UUID>",
     "x-codebuddy-request": "1",
     "x-requested-with": "XMLHttpRequest",
   },
@@ -737,17 +743,17 @@ exports[`GOLDEN buildHeaders (default executor providers) > deepseek-web → hea
 {
   "apiKey": {
     "Accept": "text/event-stream",
-    "Authorization": "Bearer <TOK>",
     "Content-Type": "application/json",
+    "Cookie": "<CRED>",
   },
   "nonStream": {
-    "Authorization": "Bearer <TOK>",
     "Content-Type": "application/json",
+    "Cookie": "<CRED>",
   },
   "oauth": {
     "Accept": "text/event-stream",
-    "Authorization": "Bearer <TOK>",
     "Content-Type": "application/json",
+    "Cookie": "<CRED>",
   },
 }
 `;
@@ -756,16 +762,13 @@ exports[`GOLDEN buildHeaders (default executor providers) > devin-cli → header
 {
   "apiKey": {
     "Accept": "text/event-stream",
-    "Authorization": "Bearer <TOK>",
     "Content-Type": "application/json",
   },
   "nonStream": {
-    "Authorization": "Bearer <TOK>",
     "Content-Type": "application/json",
   },
   "oauth": {
     "Accept": "text/event-stream",
-    "Authorization": "Bearer <TOK>",
     "Content-Type": "application/json",
   },
 }
@@ -786,25 +789,6 @@ exports[`GOLDEN buildHeaders (default executor providers) > dothoosh → headers
     "Accept": "text/event-stream",
     "Authorization": "Bearer <TOK>",
     "Content-Type": "application/json",
-  },
-}
-`;
-
-exports[`GOLDEN buildHeaders (default executor providers) > duckduckgo-web → headers (apiKey / oauth) 1`] = `
-{
-  "apiKey": {
-    "Accept": "text/event-stream",
-    "Content-Type": "application/json",
-    "Cookie": "<CRED>",
-  },
-  "nonStream": {
-    "Content-Type": "application/json",
-    "Cookie": "<CRED>",
-  },
-  "oauth": {
-    "Accept": "text/event-stream",
-    "Content-Type": "application/json",
-    "Cookie": "<CRED>",
   },
 }
 `;
@@ -847,6 +831,28 @@ exports[`GOLDEN buildHeaders (default executor providers) > fireworks → header
 }
 `;
 
+exports[`GOLDEN buildHeaders (default executor providers) > freepi → headers (apiKey / oauth) 1`] = `
+{
+  "apiKey": {
+    "Accept": "text/event-stream",
+    "Authorization": "Bearer <TOK>",
+    "Content-Type": "application/json",
+    "x-client-version": "0.6.25",
+  },
+  "nonStream": {
+    "Authorization": "Bearer <TOK>",
+    "Content-Type": "application/json",
+    "x-client-version": "0.6.25",
+  },
+  "oauth": {
+    "Accept": "text/event-stream",
+    "Authorization": "Bearer <TOK>",
+    "Content-Type": "application/json",
+    "x-client-version": "0.6.25",
+  },
+}
+`;
+
 exports[`GOLDEN buildHeaders (default executor providers) > gemini → headers (apiKey / oauth) 1`] = `
 {
   "apiKey": {
@@ -870,17 +876,17 @@ exports[`GOLDEN buildHeaders (default executor providers) > gemini-web → heade
 {
   "apiKey": {
     "Accept": "text/event-stream",
-    "Authorization": "Bearer <TOK>",
     "Content-Type": "application/json",
+    "Cookie": "<CRED>",
   },
   "nonStream": {
-    "Authorization": "Bearer <TOK>",
     "Content-Type": "application/json",
+    "Cookie": "<CRED>",
   },
   "oauth": {
     "Accept": "text/event-stream",
-    "Authorization": "Bearer <TOK>",
     "Content-Type": "application/json",
+    "Cookie": "<CRED>",
   },
 }
 `;
@@ -908,22 +914,22 @@ exports[`GOLDEN buildHeaders (default executor providers) > glm → headers (api
 {
   "apiKey": {
     "Accept": "text/event-stream",
-    "Anthropic-Beta": "claude-code-20250219,interleaved-thinking-2025-05-14",
-    "Anthropic-Version": "2023-06-01",
     "Content-Type": "application/json",
+    "User-Agent": "ZCode/3.16.3",
+    "anthropic-version": "2023-06-01",
     "x-api-key": "<CRED>",
   },
   "nonStream": {
-    "Anthropic-Beta": "claude-code-20250219,interleaved-thinking-2025-05-14",
-    "Anthropic-Version": "2023-06-01",
     "Content-Type": "application/json",
+    "User-Agent": "ZCode/3.16.3",
+    "anthropic-version": "2023-06-01",
     "x-api-key": "<CRED>",
   },
   "oauth": {
     "Accept": "text/event-stream",
-    "Anthropic-Beta": "claude-code-20250219,interleaved-thinking-2025-05-14",
-    "Anthropic-Version": "2023-06-01",
     "Content-Type": "application/json",
+    "User-Agent": "ZCode/3.16.3",
+    "anthropic-version": "2023-06-01",
     "x-api-key": "<CRED>",
   },
 }
@@ -1014,25 +1020,6 @@ exports[`GOLDEN buildHeaders (default executor providers) > hyperbolic → heade
 }
 `;
 
-exports[`GOLDEN buildHeaders (default executor providers) > kilo-gateway → headers (apiKey / oauth) 1`] = `
-{
-  "apiKey": {
-    "Accept": "text/event-stream",
-    "Authorization": "Bearer <TOK>",
-    "Content-Type": "application/json",
-  },
-  "nonStream": {
-    "Authorization": "Bearer <TOK>",
-    "Content-Type": "application/json",
-  },
-  "oauth": {
-    "Accept": "text/event-stream",
-    "Authorization": "Bearer <TOK>",
-    "Content-Type": "application/json",
-  },
-}
-`;
-
 exports[`GOLDEN buildHeaders (default executor providers) > kilocode → headers (apiKey / oauth) 1`] = `
 {
   "apiKey": {
@@ -1082,10 +1069,10 @@ exports[`GOLDEN buildHeaders (default executor providers) > kimi → headers (ap
     "Anthropic-Version": "2023-06-01",
     "Content-Type": "application/json",
     "X-Msh-Device-Id": "kimi-<TS>",
-    "X-Msh-Device-Model": "Linux x64",
-    "X-Msh-Device-Name": "ubuntu-8c4-sgp1-84",
-    "X-Msh-Platform": "omeg4mon-router",
-    "X-Msh-Version": "0.5.154",
+    "X-Msh-Device-Model": "<ENV>",
+    "X-Msh-Device-Name": "<ENV>",
+    "X-Msh-Platform": "9router",
+    "X-Msh-Version": "<VER>",
     "x-api-key": "<CRED>",
   },
   "nonStream": {
@@ -1093,10 +1080,10 @@ exports[`GOLDEN buildHeaders (default executor providers) > kimi → headers (ap
     "Anthropic-Version": "2023-06-01",
     "Content-Type": "application/json",
     "X-Msh-Device-Id": "kimi-<TS>",
-    "X-Msh-Device-Model": "Linux x64",
-    "X-Msh-Device-Name": "ubuntu-8c4-sgp1-84",
-    "X-Msh-Platform": "omeg4mon-router",
-    "X-Msh-Version": "0.5.154",
+    "X-Msh-Device-Model": "<ENV>",
+    "X-Msh-Device-Name": "<ENV>",
+    "X-Msh-Platform": "9router",
+    "X-Msh-Version": "<VER>",
     "x-api-key": "<CRED>",
   },
   "oauth": {
@@ -1105,10 +1092,10 @@ exports[`GOLDEN buildHeaders (default executor providers) > kimi → headers (ap
     "Anthropic-Version": "2023-06-01",
     "Content-Type": "application/json",
     "X-Msh-Device-Id": "kimi-<TS>",
-    "X-Msh-Device-Model": "Linux x64",
-    "X-Msh-Device-Name": "ubuntu-8c4-sgp1-84",
-    "X-Msh-Platform": "omeg4mon-router",
-    "X-Msh-Version": "0.5.154",
+    "X-Msh-Device-Model": "<ENV>",
+    "X-Msh-Device-Name": "<ENV>",
+    "X-Msh-Platform": "9router",
+    "X-Msh-Version": "<VER>",
     "x-api-key": "<CRED>",
   },
 }
@@ -1118,36 +1105,17 @@ exports[`GOLDEN buildHeaders (default executor providers) > kimi-web → headers
 {
   "apiKey": {
     "Accept": "text/event-stream",
-    "Authorization": "Bearer <TOK>",
     "Content-Type": "application/json",
+    "Cookie": "<CRED>",
   },
   "nonStream": {
-    "Authorization": "Bearer <TOK>",
     "Content-Type": "application/json",
+    "Cookie": "<CRED>",
   },
   "oauth": {
     "Accept": "text/event-stream",
-    "Authorization": "Bearer <TOK>",
     "Content-Type": "application/json",
-  },
-}
-`;
-
-exports[`GOLDEN buildHeaders (default executor providers) > koma-free → headers (apiKey / oauth) 1`] = `
-{
-  "apiKey": {
-    "Accept": "text/event-stream",
-    "Authorization": "Bearer <TOK>",
-    "Content-Type": "application/json",
-  },
-  "nonStream": {
-    "Authorization": "Bearer <TOK>",
-    "Content-Type": "application/json",
-  },
-  "oauth": {
-    "Accept": "text/event-stream",
-    "Authorization": "Bearer <TOK>",
-    "Content-Type": "application/json",
+    "Cookie": "<CRED>",
   },
 }
 `;
@@ -1167,28 +1135,6 @@ exports[`GOLDEN buildHeaders (default executor providers) > llm7 → headers (ap
     "Accept": "text/event-stream",
     "Authorization": "Bearer <TOK>",
     "Content-Type": "application/json",
-  },
-}
-`;
-
-exports[`GOLDEN buildHeaders (default executor providers) > mimocode → headers (apiKey / oauth) 1`] = `
-{
-  "apiKey": {
-    "Accept": "text/event-stream",
-    "Authorization": "Bearer <TOK>",
-    "Content-Type": "application/json",
-    "X-Mimo-Source": "mimocode-cli-free",
-  },
-  "nonStream": {
-    "Authorization": "Bearer <TOK>",
-    "Content-Type": "application/json",
-    "X-Mimo-Source": "mimocode-cli-free",
-  },
-  "oauth": {
-    "Accept": "text/event-stream",
-    "Authorization": "Bearer <TOK>",
-    "Content-Type": "application/json",
-    "X-Mimo-Source": "mimocode-cli-free",
   },
 }
 `;
@@ -1251,8 +1197,8 @@ exports[`GOLDEN buildHeaders (default executor providers) > minimax-code → hea
     "Content-Type": "application/json",
     "User-Agent": "MiniMaxAgent",
     "X-Mavis-Agent-Id": "main",
-    "X-Mavis-Session-Id": "3c016bc3-634f-4be7-90ec-95b77a90031e",
-    "X-Mavis-Timezone-Offset": "0",
+    "X-Mavis-Session-Id": "<UUID>",
+    "X-Mavis-Timezone-Offset": "<ENV>",
     "anthropic-version": "2023-06-01",
     "x-api-key": "sk-xxx",
   },
@@ -1261,8 +1207,8 @@ exports[`GOLDEN buildHeaders (default executor providers) > minimax-code → hea
     "Content-Type": "application/json",
     "User-Agent": "MiniMaxAgent",
     "X-Mavis-Agent-Id": "main",
-    "X-Mavis-Session-Id": "3cf8d78a-1568-41dc-b645-0c3c3942838a",
-    "X-Mavis-Timezone-Offset": "0",
+    "X-Mavis-Session-Id": "<UUID>",
+    "X-Mavis-Timezone-Offset": "<ENV>",
     "anthropic-version": "2023-06-01",
     "x-api-key": "sk-xxx",
   },
@@ -1272,8 +1218,8 @@ exports[`GOLDEN buildHeaders (default executor providers) > minimax-code → hea
     "Content-Type": "application/json",
     "User-Agent": "MiniMaxAgent",
     "X-Mavis-Agent-Id": "main",
-    "X-Mavis-Session-Id": "c6289718-f549-48ff-bceb-1c5d0e16596d",
-    "X-Mavis-Timezone-Offset": "0",
+    "X-Mavis-Session-Id": "<UUID>",
+    "X-Mavis-Timezone-Offset": "<ENV>",
     "anthropic-version": "2023-06-01",
     "x-api-key": "sk-xxx",
   },
@@ -1288,8 +1234,8 @@ exports[`GOLDEN buildHeaders (default executor providers) > minimax-code-global 
     "Content-Type": "application/json",
     "User-Agent": "MiniMaxAgent",
     "X-Mavis-Agent-Id": "main",
-    "X-Mavis-Session-Id": "d3c97d89-30e5-46d1-a6eb-8c1efc856935",
-    "X-Mavis-Timezone-Offset": "0",
+    "X-Mavis-Session-Id": "<UUID>",
+    "X-Mavis-Timezone-Offset": "<ENV>",
     "anthropic-version": "2023-06-01",
     "x-api-key": "sk-xxx",
   },
@@ -1298,8 +1244,8 @@ exports[`GOLDEN buildHeaders (default executor providers) > minimax-code-global 
     "Content-Type": "application/json",
     "User-Agent": "MiniMaxAgent",
     "X-Mavis-Agent-Id": "main",
-    "X-Mavis-Session-Id": "65c03bd6-d548-4aab-98d7-8791ffce2fc7",
-    "X-Mavis-Timezone-Offset": "0",
+    "X-Mavis-Session-Id": "<UUID>",
+    "X-Mavis-Timezone-Offset": "<ENV>",
     "anthropic-version": "2023-06-01",
     "x-api-key": "sk-xxx",
   },
@@ -1309,8 +1255,8 @@ exports[`GOLDEN buildHeaders (default executor providers) > minimax-code-global 
     "Content-Type": "application/json",
     "User-Agent": "MiniMaxAgent",
     "X-Mavis-Agent-Id": "main",
-    "X-Mavis-Session-Id": "ec22c7f3-c7bf-4b0c-81a7-afe8ef9a6333",
-    "X-Mavis-Timezone-Offset": "0",
+    "X-Mavis-Session-Id": "<UUID>",
+    "X-Mavis-Timezone-Offset": "<ENV>",
     "anthropic-version": "2023-06-01",
     "x-api-key": "sk-xxx",
   },
@@ -1552,20 +1498,17 @@ exports[`GOLDEN buildHeaders (default executor providers) > openrouter → heade
 }
 `;
 
-exports[`GOLDEN buildHeaders (default executor providers) > opensatan → headers (apiKey / oauth) 1`] = `
+exports[`GOLDEN buildHeaders (default executor providers) > ovh → headers (apiKey / oauth) 1`] = `
 {
   "apiKey": {
     "Accept": "text/event-stream",
-    "Authorization": "Bearer <TOK>",
     "Content-Type": "application/json",
   },
   "nonStream": {
-    "Authorization": "Bearer <TOK>",
     "Content-Type": "application/json",
   },
   "oauth": {
     "Accept": "text/event-stream",
-    "Authorization": "Bearer <TOK>",
     "Content-Type": "application/json",
   },
 }
@@ -1827,6 +1770,22 @@ exports[`GOLDEN buildHeaders (default executor providers) > venice → headers (
 }
 `;
 
+exports[`GOLDEN buildHeaders (default executor providers) > venice-free → headers (apiKey / oauth) 1`] = `
+{
+  "apiKey": {
+    "Accept": "text/event-stream",
+    "Content-Type": "application/json",
+  },
+  "nonStream": {
+    "Content-Type": "application/json",
+  },
+  "oauth": {
+    "Accept": "text/event-stream",
+    "Content-Type": "application/json",
+  },
+}
+`;
+
 exports[`GOLDEN buildHeaders (default executor providers) > vercel-ai-gateway → headers (apiKey / oauth) 1`] = `
 {
   "apiKey": {
@@ -1969,20 +1928,20 @@ exports[`GOLDEN buildHeaders (default executor providers) > zcode → headers (a
   "apiKey": {
     "Accept": "text/event-stream",
     "Content-Type": "application/json",
-    "User-Agent": "ZCode/3.17.1",
+    "User-Agent": "ZCode/3.16.3",
     "anthropic-version": "2023-06-01",
     "x-api-key": "<CRED>",
   },
   "nonStream": {
     "Content-Type": "application/json",
-    "User-Agent": "ZCode/3.17.1",
+    "User-Agent": "ZCode/3.16.3",
     "anthropic-version": "2023-06-01",
     "x-api-key": "<CRED>",
   },
   "oauth": {
     "Accept": "text/event-stream",
     "Content-Type": "application/json",
-    "User-Agent": "ZCode/3.17.1",
+    "User-Agent": "ZCode/3.16.3",
     "anthropic-version": "2023-06-01",
     "x-api-key": "<CRED>",
   },
@@ -2249,13 +2208,6 @@ exports[`GOLDEN buildUrl (default executor providers) > dothoosh → url (stream
 }
 `;
 
-exports[`GOLDEN buildUrl (default executor providers) > duckduckgo-web → url (stream + non-stream) 1`] = `
-{
-  "nonStream": "https://duckduckgo.com/duckchat/v1",
-  "stream": "https://duckduckgo.com/duckchat/v1",
-}
-`;
-
 exports[`GOLDEN buildUrl (default executor providers) > featherless → url (stream + non-stream) 1`] = `
 {
   "nonStream": "https://api.featherless.ai/v1/chat/completions",
@@ -2267,6 +2219,13 @@ exports[`GOLDEN buildUrl (default executor providers) > fireworks → url (strea
 {
   "nonStream": "https://api.fireworks.ai/inference/v1/chat/completions",
   "stream": "https://api.fireworks.ai/inference/v1/chat/completions",
+}
+`;
+
+exports[`GOLDEN buildUrl (default executor providers) > freepi → url (stream + non-stream) 1`] = `
+{
+  "nonStream": "https://api.freepi.ai/v1/chat/completions",
+  "stream": "https://api.freepi.ai/v1/chat/completions",
 }
 `;
 
@@ -2293,8 +2252,8 @@ exports[`GOLDEN buildUrl (default executor providers) > gitlab → url (stream +
 
 exports[`GOLDEN buildUrl (default executor providers) > glm → url (stream + non-stream) 1`] = `
 {
-  "nonStream": "https://api.z.ai/api/anthropic/v1/messages?beta=true",
-  "stream": "https://api.z.ai/api/anthropic/v1/messages?beta=true",
+  "nonStream": "https://zcode.z.ai/api/v1/zcode-plan/anthropic/v1/messages?beta=true",
+  "stream": "https://zcode.z.ai/api/v1/zcode-plan/anthropic/v1/messages?beta=true",
 }
 `;
 
@@ -2326,13 +2285,6 @@ exports[`GOLDEN buildUrl (default executor providers) > hyperbolic → url (stre
 }
 `;
 
-exports[`GOLDEN buildUrl (default executor providers) > kilo-gateway → url (stream + non-stream) 1`] = `
-{
-  "nonStream": "https://api.kilo.ai/api/gateway/chat/completions",
-  "stream": "https://api.kilo.ai/api/gateway/chat/completions",
-}
-`;
-
 exports[`GOLDEN buildUrl (default executor providers) > kilocode → url (stream + non-stream) 1`] = `
 {
   "nonStream": "https://api.kilo.ai/api/openrouter/chat/completions",
@@ -2361,24 +2313,10 @@ exports[`GOLDEN buildUrl (default executor providers) > kimi-web → url (stream
 }
 `;
 
-exports[`GOLDEN buildUrl (default executor providers) > koma-free → url (stream + non-stream) 1`] = `
-{
-  "nonStream": "https://koma.run/api/v1/koma-free/chat/completions",
-  "stream": "https://koma.run/api/v1/koma-free/chat/completions",
-}
-`;
-
 exports[`GOLDEN buildUrl (default executor providers) > llm7 → url (stream + non-stream) 1`] = `
 {
   "nonStream": "https://api.llm7.io/v1/chat/completions",
   "stream": "https://api.llm7.io/v1/chat/completions",
-}
-`;
-
-exports[`GOLDEN buildUrl (default executor providers) > mimocode → url (stream + non-stream) 1`] = `
-{
-  "nonStream": "https://api.xiaomimimo.com/api/free-ai/openai/chat",
-  "stream": "https://api.xiaomimimo.com/api/free-ai/openai/chat",
 }
 `;
 
@@ -2494,10 +2432,10 @@ exports[`GOLDEN buildUrl (default executor providers) > openrouter → url (stre
 }
 `;
 
-exports[`GOLDEN buildUrl (default executor providers) > opensatan → url (stream + non-stream) 1`] = `
+exports[`GOLDEN buildUrl (default executor providers) > ovh → url (stream + non-stream) 1`] = `
 {
-  "nonStream": "https://opensatan.com/api/chat",
-  "stream": "https://opensatan.com/api/chat",
+  "nonStream": "https://oai.endpoints.kepler.ai.cloud.ovh.net/v1/chat/completions",
+  "stream": "https://oai.endpoints.kepler.ai.cloud.ovh.net/v1/chat/completions",
 }
 `;
 
@@ -2592,6 +2530,13 @@ exports[`GOLDEN buildUrl (default executor providers) > venice → url (stream +
 }
 `;
 
+exports[`GOLDEN buildUrl (default executor providers) > venice-free → url (stream + non-stream) 1`] = `
+{
+  "nonStream": "https://outerface.venice.ai/api/inference/chat",
+  "stream": "https://outerface.venice.ai/api/inference/chat",
+}
+`;
+
 exports[`GOLDEN buildUrl (default executor providers) > vercel-ai-gateway → url (stream + non-stream) 1`] = `
 {
   "nonStream": "https://ai-gateway.vercel.sh/v1/chat/completions",
@@ -2643,8 +2588,8 @@ exports[`GOLDEN buildUrl (default executor providers) > zai-web → url (stream 
 
 exports[`GOLDEN buildUrl (default executor providers) > zcode → url (stream + non-stream) 1`] = `
 {
-  "nonStream": "https://api.z.ai/api/anthropic",
-  "stream": "https://api.z.ai/api/anthropic",
+  "nonStream": "https://zcode.z.ai/api/v1/zcode-plan/anthropic",
+  "stream": "https://zcode.z.ai/api/v1/zcode-plan/anthropic",
 }
 `;
 

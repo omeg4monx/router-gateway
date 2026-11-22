@@ -31,8 +31,10 @@ describe("glm registry entry (dual-auth)", () => {
     expect(PROVIDER_OAUTH.glm).toBeDefined();
   });
 
-  it("keeps the direct api.z.ai anthropic transport (no separate gateway)", () => {
-    expect(TRANSPORTS.glm.baseUrl).toBe(ANTHROPIC_URL);
+  // CHANGELOG "Fix GLM & ZCode Start-Plan Base Endpoint": the plan gateway, not
+  // the Ultra Gateway (which rejects start-plan JWTs) nor the bare api.z.ai route.
+  it("sends chat through the ZCode plan gateway anthropic transport", () => {
+    expect(TRANSPORTS.glm.baseUrl).toBe("https://zcode.z.ai/api/v1/zcode-plan/anthropic/v1/messages");
     expect(TRANSPORTS.glm.auth.header).toBe("x-api-key");
   });
 

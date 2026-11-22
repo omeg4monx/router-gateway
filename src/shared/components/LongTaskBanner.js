@@ -275,7 +275,7 @@ export default function LongTaskBanner({
   // kept covering the page. The decision is therefore stored per instance key
   // in a module map, not per mount.
   const setBackgroundedPersisted = (value) => {
-    if (value) backgroundedKeys.set(instanceKey, true);
+    if (value) backgroundedKeys.add(instanceKey);
     else backgroundedKeys.delete(instanceKey);
     setBackgrounded(value);
   };

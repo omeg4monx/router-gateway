@@ -11,7 +11,13 @@ import { openaiToKiroRequest } from "../../open-sse/translator/request/openai-to
 
 const contentOf = (result) =>
   result.conversationState.currentMessage.userInputMessage.content;
-const systemPromptOf = (result) => result.systemPrompt || "";
+// The system prompt rides in the first user turn: kiro.dev answers a top-level
+// `systemPrompt` with 400 REQUEST_BODY_INVALID, so the translator never emits it.
+const systemPromptOf = (result) => {
+  const cs = result.conversationState;
+  const first = cs.history.find((h) => h.userInputMessage)?.userInputMessage || cs.currentMessage.userInputMessage;
+  return first.content || "";
+};
 
 describe("openaiToKiroRequest", () => {
   describe("basic message conversion", () => {
@@ -532,7 +538,8 @@ describe("openaiToKiroRequest", () => {
       const result = openaiToKiroRequest("claude-sonnet-4.6", body, true, {});
 
       expect(systemPromptOf(result)).toContain("<max_thinking_length>32000</max_thinking_length>");
-      expect(result.additionalModelRequestFields?.output_config?.effort).toBe("high");
+      // Claude 4.6 accepts low|medium|high|max on Kiro (kiroConstants effort tiers).
+      expect(result.additionalModelRequestFields?.output_config?.effort).toBe("max");
     });
 
     it("clamps OpenAI Responses reasoning.effort xhigh to max_thinking_length 32000", () => {
@@ -568,23 +575,18 @@ describe("openaiToKiroRequest", () => {
       expect(systemPromptOf(result)).toContain("<max_thinking_length>16000</max_thinking_length>");
     });
 
-    it("keeps top-level systemPrompt stable across turns", () => {
-      const first = openaiToKiroRequest(
+    it("never sends a top-level systemPrompt and keeps the thinking prefix in the first user turn", () => {
+      const result = openaiToKiroRequest(
         "claude-sonnet-4.6-thinking",
         { messages: [{ role: "user", content: "first" }] },
         true,
         {}
       );
-      const second = openaiToKiroRequest(
-        "claude-sonnet-4.6-thinking",
-        { messages: [{ role: "user", content: "second" }] },
-        true,
-        {}
-      );
 
-      expect(first.systemPrompt).toBe(second.systemPrompt);
-      expect(first.systemPrompt).not.toContain("Current time");
-      expect(first.conversationState.currentMessage.userInputMessage.content).toContain("Current time");
+      expect(result).not.toHaveProperty("systemPrompt");
+      expect(contentOf(result)).toContain("<thinking_mode>enabled</thinking_mode>");
+      expect(contentOf(result)).toContain("Current time");
+      expect(contentOf(result)).toContain("first");
     });
 
     it("replays frozen msg0 for explicit Kiro sessions while keeping current time fresh", () => {

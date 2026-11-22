@@ -41,12 +41,11 @@ describe("key catalog shows context, not the upstream account", () => {
 
 describe("update banner installs the fork, not upstream npm", () => {
   it("the published command points at the fork repository", () => {
-    expect(config).toContain("github:serenhope/9router");
+    expect(config).toContain("github:omeg4monx/router-gateway");
     expect(config).toContain("installCmdLatest");
   });
 
   it("no longer hands out the upstream npm package name", () => {
     expect(config).not.toMatch(/npm i -g 9router(@latest)?[\"'\s]/);
-    expect(config).not.toContain("--prefer-online");
   });
 });

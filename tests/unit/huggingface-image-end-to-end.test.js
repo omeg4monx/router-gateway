@@ -15,6 +15,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { handleImageGenerationCore } from "../../open-sse/handlers/imageGenerationCore.js";
 
+// proxyAwareFetch binds the real fetch at import time; route it through the per-test global.fetch mock.
+vi.mock("../../open-sse/utils/proxyFetch.js", async (importOriginal) => ({
+  ...(await importOriginal()),
+  proxyAwareFetch: (url, options) => global.fetch(url, options),
+}));
+
 const originalFetch = global.fetch;
 const CREDS = { apiKey: "hf_test_token" };
 

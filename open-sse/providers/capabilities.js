@@ -145,7 +145,7 @@ export const MODEL_CAPABILITIES = {
   "glm-4.6v":          { vision: true, videoInput: true, reasoning: true, thinkingFormat: "zai", contextWindow: 128000, maxOutput: 32768 },
   "glm-4.5v":          { vision: true, videoInput: true, reasoning: true, thinkingFormat: "zai", contextWindow: 64000, maxOutput: 16384 },
   // GLM-5.2 has 1M context — pattern *glm-5* only gives 200k, so override here
-  "glm-5.2": { reasoning: true, thinkingFormat: "zai", thinkingCanDisable: false, contextWindow: 1000000, maxOutput: 131072 },
+  "glm-5.2": { reasoning: true, thinkingFormat: "zai", thinkingCanDisable: false, thinkingEffortSupported: true, contextWindow: 1000000, maxOutput: 131072 },
   // OpenCode serves glm-5.3-flash-free from its own inference service which rejects z.ai "thinking" field
   "glm-5.3-flash-free": { vision: true, videoInput: true, pdf: true, reasoning: true, thinkingFormat: "openai", thinkingCanDisable: false, contextWindow: 1000000, maxOutput: 131072 },
 
@@ -602,7 +602,8 @@ export const PATTERN_CAPABILITIES = [
  * Union:        vision, pdf, audioInput, videoInput, imageOutput, audioOutput, search
  * Intersection: tools
  * Primary:      reasoning fields from the first (primary) model
- * Conservative: contextWindow = min; maxOutput = max
+ * Limits:       contextWindow = max (a combo fails over between members, so it can use the
+ *               biggest window any of them offers) unless the combo sets its own; maxOutput = max
  *
  * @param {string[]} comboModels
  * @param {Object|null} [comboLookup] optional map of combo name → models array for nested resolution
@@ -611,19 +612,19 @@ export const PATTERN_CAPABILITIES = [
  *   limits it supplies and silently falls back to the generic patterns below. Callers that
  *   have the server's answer (/api/models, via useModelCaps) pass it here; it is merged over
  *   the local tables, so fields it does not carry (tools, pdf, audio/video, thinking*) survive.
+ * @param {number} [customContextWindow] the combo's own context window; > 0 replaces the auto value
  * @param {number} [_depth] internal recursion depth guard
  * @returns {object|null} full capabilities object, or null for empty input
  */
-export function aggregateComboCapabilities(comboModels, comboLookup = null, resolveCaps = null, _depth = 0) {
+export function aggregateComboCapabilities(comboModels, comboLookup = null, resolveCaps = null, customContextWindow = 0, _depth = 0) {
   if (!comboModels?.length) return null;
-  // If caller passes a number as 3rd arg (e.g. legacy depth or contextWindow), normalize resolveCaps to null
   const capsResolver = typeof resolveCaps === "function" ? resolveCaps : null;
-  const depth = typeof resolveCaps === "number" ? resolveCaps : (typeof _depth === "number" ? _depth : 0);
+  const depth = typeof _depth === "number" ? _depth : 0;
   if (depth > 6) return null;
   const allCaps = comboModels.map((fullId) => {
     // Nested combo: bare name (no slash) that exists in the lookup — recurse
     if (!fullId.includes("/") && comboLookup?.[fullId]) {
-      return aggregateComboCapabilities(comboLookup[fullId], comboLookup, capsResolver, depth + 1)
+      return aggregateComboCapabilities(comboLookup[fullId], comboLookup, capsResolver, 0, depth + 1)
           ?? capsResolver?.(fullId)
           ?? getCapabilitiesForModel(null, fullId);
     }
@@ -648,7 +649,7 @@ export function aggregateComboCapabilities(comboModels, comboLookup = null, reso
     thinkingFormat:     first.thinkingFormat,
     thinkingCanDisable: first.thinkingCanDisable,
     thinkingRange:      first.thinkingRange,
-    contextWindow: Math.min(...allCaps.map((c) => c.contextWindow)),
+    contextWindow: customContextWindow > 0 ? customContextWindow : Math.max(...allCaps.map((c) => c.contextWindow)),
     maxOutput:     Math.max(...allCaps.map((c) => c.maxOutput)),
   };
 }

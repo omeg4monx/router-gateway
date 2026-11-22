@@ -81,7 +81,11 @@ describe("Qoder signed inference transport", () => {
     expect(result.response.ok).toBe(true);
     await result.response.text();
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(!!fetchMock.mock.calls[0][1].dispatcher).toBe(useProxy);
+    // Direct requests also carry a dispatcher (proxyFetch's large-header Agent),
+    // so tell the lanes apart by whether it is that shared direct Agent.
+    const { getDirectDispatcher } = await import("../../open-sse/utils/proxyFetch.js");
+    const direct = await getDirectDispatcher();
+    expect(fetchMock.mock.calls[0][1].dispatcher === direct).toBe(!useProxy);
   });
 
   it("preserves caller cancellation without replaying the request", async () => {

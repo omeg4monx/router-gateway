@@ -1,4 +1,4 @@
-import test from "node:test";
+import { test } from "vitest";
 import assert from "node:assert/strict";
 import { classify429, decide429, FULL_QUOTA_COOLDOWN_MS, CAPACITY_COOLDOWN_MS, TRANSIENT_429_COOLDOWN_MS } from "../../open-sse/services/antigravity429Engine.js";
 import { normalizeAntigravitySystemInstruction, AntigravityExecutor } from "../../open-sse/executors/antigravity.js";
