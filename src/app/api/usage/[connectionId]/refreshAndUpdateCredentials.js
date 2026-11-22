@@ -102,4 +102,3 @@ export async function refreshAndUpdateCredentials(connection, force = false, pro
     refreshed: true,
   };
 }
-
