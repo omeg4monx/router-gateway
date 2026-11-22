@@ -24,6 +24,20 @@ describe("dashboard shell CSS primitives", () => {
   it("guards shell animations under prefers-reduced-motion: reduce", () => {
     expect(css).toMatch(/@media\s*\(prefers-reduced-motion:\s*reduce\)/);
   });
+
+  it("applies shell-rail backdrop-filter on ::before so position:fixed flyouts use viewport coordinates", () => {
+    const railRule = css.match(/\.shell-rail\s*\{([^}]*)\}/)?.[1] || "";
+    const darkRailRule = css.match(/\.dark\s+\.shell-rail\s*\{([^}]*)\}/)?.[1] || "";
+    const railBeforeRule = css.match(/\.shell-rail::before\s*\{([^}]*)\}/)?.[1] || "";
+    const darkRailBeforeRule = css.match(/\.dark\s+\.shell-rail::before\s*\{([^}]*)\}/)?.[1] || "";
+
+    expect(railRule).not.toContain("backdrop-filter");
+    expect(darkRailRule).not.toContain("backdrop-filter");
+    expect(railBeforeRule).toContain("backdrop-filter");
+    expect(railBeforeRule).toContain("pointer-events: none");
+    expect(railBeforeRule).toContain("z-index: -1");
+    expect(darkRailBeforeRule).toContain("background-color");
+  });
 });
 
 describe("LeftRail tactile sidebar", () => {
