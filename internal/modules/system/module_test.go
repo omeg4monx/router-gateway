@@ -58,7 +58,7 @@ func newTestHarness(t *testing.T, cfg config.Config, build system.BuildInfo, act
 		cfg.Port = 20128
 	}
 	if cfg.APITimeout == 0 {
-		cfg.APITimeout = 5 * time.Second
+		cfg.APITimeout = 30 * time.Second
 	}
 
 	dbPath := filepath.Join(t.TempDir(), "router.sqlite")

@@ -61,6 +61,7 @@ type Module struct {
 	startedMu    sync.RWMutex
 	startedAt    time.Time
 	shutdownOnce sync.Once
+	initMu       sync.Mutex
 }
 
 var _ lifecycle.Module = (*Module)(nil)
@@ -257,6 +258,19 @@ func (m *Module) handlePostInit(w http.ResponseWriter, r *http.Request) {
 	}
 
 	initialized, err := m.repo.IsInitialized(r.Context())
+	if err != nil {
+		httpserver.WriteError(w, r, http.StatusInternalServerError, "internal_error", "failed to verify initialization state")
+		return
+	}
+	if initialized {
+		httpserver.WriteError(w, r, http.StatusConflict, "already_initialized", "system is already initialized")
+		return
+	}
+
+	m.initMu.Lock()
+	defer m.initMu.Unlock()
+
+	initialized, err = m.repo.IsInitialized(r.Context())
 	if err != nil {
 		httpserver.WriteError(w, r, http.StatusInternalServerError, "internal_error", "failed to verify initialization state")
 		return
