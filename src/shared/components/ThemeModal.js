@@ -12,14 +12,14 @@ const MODES = [
     icon: "dark_mode",
     label: "Dark · Omegamon Zwart",
     desc: "Obsidian armor, gunmetal panels, electric cyan and red core",
-    swatches: ["#050608", "#101217", "#0891B2", "#FF2D3A"],
+    swatches: ["#050608", "#101217", "#0EA8CF", "#FF2D3A"],
   },
   {
     id: "light",
     icon: "light_mode",
     label: "Light · Omegamon X-Antibody",
     desc: "Pearl-white armor, Garuru blue, Grey Sword gold and red trim",
-    swatches: ["#F5F6F8", "#0A6FC2", "#E8A317", "#C8102E"],
+    swatches: ["#F5F6F8", "#0860A8", "#E8A317", "#C8102E"],
   },
 ];
 
@@ -399,7 +399,7 @@ function PhotoshopColorPicker({ color, onChange, onApply, isActive }) {
 export default function ThemeModal({ isOpen, onClose }) {
   const theme = useThemeStore((state) => state.theme);
   const accent = useThemeStore((state) => state.accent || "omegamon");
-  const customColor = useThemeStore((state) => state.customColor || "#0A6FC2");
+  const customColor = useThemeStore((state) => state.customColor || "#0860A8");
   const setTheme = useThemeStore((state) => state.setTheme);
   const setAccent = useThemeStore((state) => state.setAccent);
   const setCustomColor = useThemeStore((state) => state.setCustomColor);
@@ -509,7 +509,7 @@ export default function ThemeModal({ isOpen, onClose }) {
                     active ? "border-primary bg-primary/10 shadow-sm" : "border-border-subtle hover:bg-surface-2"
                   )}
                 >
-                  <span className="h-4 w-4 rounded-full shrink-0 shadow-sm" style={{ background: pal.swatch || pal.primary }} />
+                  <span className="h-4 w-4 rounded-full shrink-0 shadow-sm" style={{ background: pal.swatch }} />
                   <span className={cn("text-xs font-medium truncate", active ? "text-primary" : "text-text-main")}>
                     {pal.label.split(" ")[1] || pal.label}
                   </span>

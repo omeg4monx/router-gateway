@@ -152,10 +152,7 @@ export default function DefaultToolCard({ toolId, tool, isExpanded, onToggle, ba
         {renderNotes()}
         {canShowGuide() && tool.guideSteps.map((item) => (
           <div key={item.step} className="flex items-start gap-4">
-            <div 
-              className="size-8 rounded-full flex items-center justify-center shrink-0 text-sm font-semibold text-white"
-              style={{ backgroundColor: tool.color }}
-            >
+            <div className="size-8 rounded-full flex items-center justify-center shrink-0 text-sm font-semibold bg-primary text-on-primary">
               {item.step}
             </div>
             <div className="flex-1 min-w-0">

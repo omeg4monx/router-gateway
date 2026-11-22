@@ -47,7 +47,7 @@ function TimeAgo({ timestamp }) {
 function TopologyUnavailableNote() {
   return (
     <div className="rounded-lg border border-border-subtle bg-surface/40 px-3 py-2.5">
-      <span className="text-[11px] text-text-muted/70">
+      <span className="text-[11px] text-text-subtle">
         The provider map is not available for this key. The usage numbers and the request list are.
       </span>
     </div>

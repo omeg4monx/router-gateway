@@ -317,7 +317,7 @@ export default function QuotaTable({
                         </div>
                       )}
                       {resetDisplay && (
-                        <div className="text-[10px] text-text-muted/70">
+                        <div className="text-[10px] text-text-subtle">
                           {quota.neverExpires ? renderResetCell(resetSecondary) : `${resetWord} at ${renderResetCell(resetSecondary)}`}
                         </div>
                       )}

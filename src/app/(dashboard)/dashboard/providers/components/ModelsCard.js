@@ -20,7 +20,7 @@ export function ModelRow({ model, fullModel, copied, onCopy, testStatus, isCusto
         </span>
         <div className="flex flex-col gap-1 min-w-0">
           <code className="text-xs text-text-muted font-mono bg-sidebar px-1.5 py-0.5 rounded min-w-0 truncate" title={fullModel}>{fullModel}</code>
-          {model.name && <span className="text-[9px] text-text-muted/70 italic pl-1 truncate" title={model.name}>{model.name}</span>}
+          {model.name && <span className="text-[9px] text-text-subtle italic pl-1 truncate" title={model.name}>{model.name}</span>}
         </div>
         {onTest && (
           <div className="relative group/btn">

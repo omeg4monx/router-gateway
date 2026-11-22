@@ -130,7 +130,7 @@ export default function QuotaProgressBar({
 
       {/* Reset time display */}
       {resetDisplay && (
-        <div className="mt-1 text-[11px] text-text-muted/70">
+        <div className="mt-1 text-[11px] text-text-subtle">
           {resetWord} at {resetDisplay}
         </div>
       )}

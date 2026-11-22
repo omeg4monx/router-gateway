@@ -13,7 +13,7 @@ export async function GET() {
         ok: true,
         theme: "dark",
         accent: "omegamon",
-        customColor: "#0A6FC2",
+        customColor: "#0860A8",
       });
     }
     const parsed = JSON.parse(raw);
@@ -23,7 +23,7 @@ export async function GET() {
       ok: false,
       theme: "dark",
       accent: "omegamon",
-      customColor: "#0A6FC2",
+      customColor: "#0860A8",
     });
   }
 }
@@ -40,7 +40,7 @@ export async function POST(request) {
     const body = await request.json();
     const theme = body.theme || "dark";
     const accent = body.accent || "omegamon";
-    const customColor = body.customColor || "#0A6FC2";
+    const customColor = body.customColor || "#0860A8";
 
     await setMeta("global_theme_settings", JSON.stringify({ theme, accent, customColor }));
     return NextResponse.json({ ok: true, theme, accent, customColor });

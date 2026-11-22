@@ -7,22 +7,28 @@ import { THEME_CONFIG } from "@/shared/constants/config";
 export const THEME_IDS = ["dark", "light"];
 const DEFAULT_THEME = "dark";
 const DEFAULT_ACCENT = "omegamon";
-const DEFAULT_CUSTOM_COLOR = "#0A6FC2";
+const DEFAULT_CUSTOM_COLOR = "#0860A8";
 
 // Theme-native primaries; must match --color-brand-500 in globals.css (:root / .dark).
-const OMEGAMON_PRIMARY = { light: "#0A6FC2", dark: "#0891B2" };
+const OMEGAMON_PRIMARY = { light: "#0860A8", dark: "#0EA8CF" };
+
+const splitSwatch = (light, dark) => `linear-gradient(135deg, ${light} 50%, ${dark} 50%)`;
+const preset = (id, label, light, dark, filter) => ({ id, label, light, dark, filter, swatch: splitSwatch(light[0], dark[0]) });
 
 // "omegamon" sets no inline overrides, so the CSS palette of the active mode drives.
-// The rest are optional custom palettes layered over either mode.
+// The rest are optional custom palettes, each with a [primary, hover] pair per mode tuned like
+// the Omegamon ones: primary text >= 4.5:1 on /15 tints, on-primary (white / obsidian) >= 6:1.
 export const ACCENT_PALETTES = [
-  { id: "omegamon", label: "Omegamon Default", swatch: `linear-gradient(135deg, ${OMEGAMON_PRIMARY.light} 50%, ${OMEGAMON_PRIMARY.dark} 50%)` },
-  { id: "ember", label: "Ember Orange", primary: "#E56A4A", hover: "#c04a2c", filter: "none" },
-  { id: "blue", label: "Electric Blue", primary: "#2563EB", hover: "#1D4ED8", filter: "hue-rotate(195deg) saturate(1.8)" },
-  { id: "emerald", label: "Emerald Green", primary: "#059669", hover: "#047857", filter: "hue-rotate(115deg) saturate(1.5)" },
-  { id: "purple", label: "Violet Purple", primary: "#7C3AED", hover: "#6D28D9", filter: "hue-rotate(240deg) saturate(1.7)" },
-  { id: "rose", label: "Ruby Rose", primary: "#E11D48", hover: "#BE123C", filter: "hue-rotate(330deg) saturate(1.6)" },
-  { id: "cyan", label: "Cyber Cyan", primary: "#0891B2", hover: "#0E7490", filter: "hue-rotate(170deg) saturate(1.8)" },
+  { id: "omegamon", label: "Omegamon Default", swatch: splitSwatch(OMEGAMON_PRIMARY.light, OMEGAMON_PRIMARY.dark) },
+  preset("ember", "Ember Orange", ["#a93618", "#8a2c14"], ["#e67051", "#ea866c"], "none"),
+  preset("blue", "Electric Blue", ["#1451d7", "#1145b6"], ["#6591f1", "#81a5f4"], "hue-rotate(195deg) saturate(1.8)"),
+  preset("emerald", "Emerald Green", ["#046d4c", "#034b34"], ["#06a875", "#07c68a"], "hue-rotate(115deg) saturate(1.5)"),
+  preset("purple", "Violet Purple", ["#7028eb", "#5e14db"], ["#a87cf3", "#bb98f6"], "hue-rotate(240deg) saturate(1.7)"),
+  preset("rose", "Ruby Rose", ["#b5173a", "#951330"], ["#eb6583", "#ef8099"], "hue-rotate(330deg) saturate(1.6)"),
+  preset("cyan", "Cyber Cyan", ["#06677f", "#044b5d"], ["#099fc3", "#0ab7e0"], "hue-rotate(170deg) saturate(1.8)"),
 ];
+
+const ON_PRIMARY = { light: "#ffffff", dark: "#050608" };
 
 // Unknown/legacy values ("ember" mode, the old "orange" default accent) fall back to the defaults.
 const normalizeTheme = (theme) => (THEME_IDS.includes(theme) ? theme : DEFAULT_THEME);
@@ -138,10 +144,20 @@ function syncThemeToServer(theme, accent, customColor) {
 
 // Pairs of [primary, hover] custom properties written inline by non-default accents.
 const ACCENT_PROPS = ["--color-brand-500", "--color-brand-600", "--color-primary", "--color-primary-hover", "--brand-500", "--brand-600"];
-const setAccentProps = (root, primary, hover) => {
+const setAccentProps = (root, primary, hover, onPrimary) => {
   ACCENT_PROPS.forEach((prop, i) => root.style.setProperty(prop, i % 2 ? hover : primary));
-  // Preset/custom accents were designed for white text on their fill.
-  root.style.setProperty("--color-on-primary", "#ffffff");
+  root.style.setProperty("--color-on-primary", onPrimary);
+};
+
+// Relative luminance (WCAG); picks whichever of white/obsidian reads better on a user-chosen fill.
+function luminance(hex) {
+  const n = parseInt(String(hex).replace("#", ""), 16);
+  const lin = (v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4);
+  return 0.2126 * lin(((n >> 16) & 255) / 255) + 0.7152 * lin(((n >> 8) & 255) / 255) + 0.0722 * lin((n & 255) / 255);
+}
+const onColorFor = (hex) => {
+  const fill = luminance(hex) + 0.05;
+  return 1.05 / fill >= fill / (luminance(ON_PRIMARY.dark) + 0.05) ? ON_PRIMARY.light : ON_PRIMARY.dark;
 };
 
 // Apply theme & accent palette to document
@@ -155,13 +171,14 @@ function applyTheme(theme, accent = DEFAULT_ACCENT, customColor = DEFAULT_CUSTOM
   let primary;
   if (accent === "custom" && customColor) {
     primary = customColor;
-    setAccentProps(root, customColor, darkenColor(customColor, 15));
+    setAccentProps(root, customColor, darkenColor(customColor, 15), onColorFor(customColor));
     root.style.setProperty("--logo-filter", hexToHueRotate(customColor));
   } else {
     const palette = ACCENT_PALETTES.find((p) => p.id === accent) || ACCENT_PALETTES[0];
-    if (palette.primary) {
-      primary = palette.primary;
-      setAccentProps(root, palette.primary, palette.hover);
+    if (palette.light) {
+      const [main, hover] = palette[mode];
+      primary = main;
+      setAccentProps(root, main, hover, ON_PRIMARY[mode]);
       root.style.setProperty("--logo-filter", palette.filter || "none");
     } else {
       // Theme-native palette: drop inline overrides so :root / .dark tokens apply.

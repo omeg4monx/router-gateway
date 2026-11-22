@@ -23,7 +23,7 @@ function colorLine(line, index) {
 
   return (
     <div className="flex gap-2.5 hover:bg-surface-3/50 px-1.5 py-0.5 rounded transition-colors font-mono">
-      <span className="text-text-muted/60 select-none shrink-0 w-8 text-right tabular-nums">{index + 1}</span>
+      <span className="text-text-subtle select-none shrink-0 w-8 text-right tabular-nums">{index + 1}</span>
       <span className={`break-all ${levelColor}`}>{line}</span>
     </div>
   );

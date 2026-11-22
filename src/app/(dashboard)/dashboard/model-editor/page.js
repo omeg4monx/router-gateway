@@ -289,7 +289,7 @@ function CustomModelsTab({
         </Card>
       ) : models.length === 0 ? (
         <Card padding="lg" className="flex flex-col items-center gap-3 text-center py-10">
-          <span className="material-symbols-outlined text-[34px] text-text-muted/50">auto_awesome</span>
+          <span className="material-symbols-outlined text-[34px] text-text-subtle">auto_awesome</span>
           <div>
             <p className="text-sm font-medium text-text-main">No custom models yet</p>
             <p className="text-xs text-text-muted mt-1 max-w-md">
@@ -374,7 +374,7 @@ function CustomModelsTab({
 
               {model.systemPrompt && (
                 <div className="rounded-lg bg-surface-2 px-2.5 py-2">
-                  <p className="text-[10px] uppercase tracking-wide text-text-muted/70 mb-0.5">
+                  <p className="text-[10px] uppercase tracking-wide text-text-subtle mb-0.5">
                     System prompt
                   </p>
                   <p className="text-xs text-text-muted line-clamp-3 break-words">

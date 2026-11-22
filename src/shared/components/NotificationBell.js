@@ -302,7 +302,7 @@ export default function NotificationBell() {
                             {n.body}
                           </span>
                         )}
-                        <span className="block text-[10px] text-text-muted/70 mt-1">
+                        <span className="block text-[10px] text-text-subtle mt-1">
                           {new Date(n.at).toLocaleString()}
                         </span>
                       </span>

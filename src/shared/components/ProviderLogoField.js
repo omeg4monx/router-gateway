@@ -86,7 +86,7 @@ export default function ProviderLogoField({ logo, onChange, hint = DEFAULT_HINT 
             >
               Upload file
             </button>
-            <span className="text-text-muted/50 text-xs select-none">·</span>
+            <span className="text-text-subtle text-xs select-none">·</span>
             <button
               type="button"
               onClick={() => switchMode(true)}

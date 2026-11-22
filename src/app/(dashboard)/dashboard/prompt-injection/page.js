@@ -604,7 +604,7 @@ export default function PromptInjectionPage() {
         <Card padding="sm" className="flex flex-col gap-1">
           <span className="text-[11px] font-medium text-text-muted uppercase tracking-wider">Active Rules</span>
           <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-bold text-emerald-500">{stats.active}</span>
+            <span className="text-2xl font-bold text-success">{stats.active}</span>
             <span className="text-xs text-text-muted">enforced</span>
           </div>
         </Card>
@@ -612,7 +612,7 @@ export default function PromptInjectionPage() {
         <Card padding="sm" className="flex flex-col gap-1">
           <span className="text-[11px] font-medium text-text-muted uppercase tracking-wider">Combos Covered</span>
           <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-bold text-sky-500">{stats.combosCount}</span>
+            <span className="text-2xl font-bold text-info">{stats.combosCount}</span>
             <span className="text-xs text-text-muted">combos</span>
           </div>
         </Card>
@@ -637,7 +637,7 @@ export default function PromptInjectionPage() {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search by rule name, description, target combo, model pattern..."
-            className="w-full pl-9 pr-3 py-1.5 text-xs bg-transparent border-0 focus:outline-none text-text-main placeholder:text-text-muted/60"
+            className="w-full pl-9 pr-3 py-1.5 text-xs bg-transparent border-0 focus:outline-none text-text-main placeholder:text-text-subtle"
           />
         </div>
 
@@ -866,7 +866,7 @@ export default function PromptInjectionPage() {
                     })}
 
                     {(rule.targetCombos || []).length === 0 && (rule.targetModels || []).length === 0 && (
-                      <span className="text-text-muted/60 italic text-[11px]">No targets specified</span>
+                      <span className="text-text-subtle italic text-[11px]">No targets specified</span>
                     )}
                   </div>
                 )}
@@ -1140,7 +1140,7 @@ export default function PromptInjectionPage() {
           <div className="flex flex-col gap-1.5 p-3 rounded-xl border border-border-subtle bg-surface-2">
             <div className="flex items-center justify-between">
               <label className="text-xs font-medium text-text-main flex items-center gap-1.5">
-                <span className="material-symbols-outlined text-[16px] text-amber-500">key</span>
+                <span className="material-symbols-outlined text-[16px] text-warning">key</span>
                 Target API Keys (Optional)
               </label>
               <span className="text-[11px] text-text-muted">
@@ -1160,7 +1160,7 @@ export default function PromptInjectionPage() {
                     onClick={() => setFormData({ ...formData, targetKeys: [] })}
                     className={`px-2 py-0.5 rounded text-[11px] font-medium border transition-colors ${
                       formData.targetKeys.length === 0
-                        ? "bg-amber-500/20 text-amber-600 dark:text-amber-300 border-amber-500/40"
+                        ? "bg-warning-bg text-warning-fg border-warning-border"
                         : "bg-surface text-text-muted border-border-subtle hover:text-text-main"
                     }`}
                   >
@@ -1191,7 +1191,7 @@ export default function PromptInjectionPage() {
                         }}
                         className={`px-2 py-1 rounded-lg text-xs border flex items-center gap-1.5 transition-colors ${
                           isSelected
-                            ? "bg-amber-500/20 text-amber-600 dark:text-amber-300 border-amber-500/40 font-medium"
+                            ? "bg-warning-bg text-warning-fg border-warning-border font-medium"
                             : "bg-surface text-text-muted border-border-subtle hover:text-text-main"
                         }`}
                       >
@@ -1239,7 +1239,7 @@ export default function PromptInjectionPage() {
                   }
                   className={`p-2 rounded-xl border text-left flex flex-col gap-0.5 transition-all ${
                     formData.matchCondition.type === opt.type
-                      ? "border-indigo-500/50 bg-indigo-500/10 text-indigo-500 font-semibold"
+                      ? "border-primary/50 bg-primary/10 text-primary font-semibold"
                       : "border-border-subtle bg-surface text-text-muted hover:text-text-main"
                   }`}
                 >
@@ -1478,7 +1478,7 @@ export default function PromptInjectionPage() {
                       value={targetSearch}
                       onChange={(e) => setTargetSearch(e.target.value)}
                       placeholder="Filter combo or model..."
-                      className="w-full bg-transparent text-xs text-text-main focus:outline-none placeholder:text-text-muted/60"
+                      className="w-full bg-transparent text-xs text-text-main focus:outline-none placeholder:text-text-subtle"
                       autoFocus
                     />
                     {targetSearch && (
@@ -1497,7 +1497,7 @@ export default function PromptInjectionPage() {
                     {/* Combos Group */}
                     {filteredCombos.length > 0 && (
                       <div className="flex flex-col">
-                        <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-text-muted/80 flex items-center gap-1.5">
+                        <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-text-muted flex items-center gap-1.5">
                           <span className="material-symbols-outlined text-[13px] text-sky-500">alt_route</span>
                           Combos ({filteredCombos.length})
                         </div>
@@ -1535,7 +1535,7 @@ export default function PromptInjectionPage() {
                     {/* Popular Models Group */}
                     {filteredModels.length > 0 && (
                       <div className="flex flex-col mt-1 pt-1 border-t border-border-subtle">
-                        <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-text-muted/80 flex items-center gap-1.5">
+                        <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-text-muted flex items-center gap-1.5">
                           <span className="material-symbols-outlined text-[13px] text-purple-500">smart_toy</span>
                           Popular Models
                         </div>
@@ -1594,7 +1594,7 @@ export default function PromptInjectionPage() {
             {/* Custom Caller API Key Dropdown */}
             <div className="sm:col-span-4 flex flex-col gap-1.5 min-w-0 relative" ref={keyDropdownRef}>
               <label className="text-xs font-semibold text-text-main flex items-center gap-1.5">
-                <span className="material-symbols-outlined text-[15px] text-amber-500">key</span>
+                <span className="material-symbols-outlined text-[15px] text-warning">key</span>
                 Caller API Key
               </label>
 
@@ -1629,7 +1629,7 @@ export default function PromptInjectionPage() {
                         value={keySearch}
                         onChange={(e) => setKeySearch(e.target.value)}
                         placeholder="Filter API key..."
-                        className="w-full bg-transparent text-xs text-text-main focus:outline-none placeholder:text-text-muted/60"
+                        className="w-full bg-transparent text-xs text-text-main focus:outline-none placeholder:text-text-subtle"
                         autoFocus
                       />
                     </div>

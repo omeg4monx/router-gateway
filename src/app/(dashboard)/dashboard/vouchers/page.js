@@ -265,7 +265,7 @@ export default function VouchersPage() {
       ) : activeTab === "vouchers" ? (
         vouchers.length === 0 ? (
           <div className="flex flex-col items-center justify-center rounded-[6px] border border-dashed border-border p-12 text-center bg-surface">
-            <span className="material-symbols-outlined text-4xl text-text-muted/60 mb-2">loyalty</span>
+            <span className="material-symbols-outlined text-4xl text-text-subtle mb-2">loyalty</span>
             <h3 className="text-sm font-semibold text-text-main">No Vouchers Configured</h3>
             <p className="mt-1 text-xs text-text-muted max-w-sm">
               Create a voucher pass or activate a 1-click community faucet to distribute authorized access keys.
@@ -600,7 +600,7 @@ export default function VouchersPage() {
               ) : catalogModels.length === 0 ? (
                 <div className="text-center py-4 space-y-1">
                   <p className="text-xs font-mono text-text-muted">No installed provider connections found in OMEG4MON ROUTER.</p>
-                  <p className="text-[11px] text-[#777]">Connect an upstream provider in the Providers page to populate models here, or select Allow All Models (*).</p>
+                  <p className="text-[11px] text-text-subtle">Connect an upstream provider in the Providers page to populate models here, or select Allow All Models (*).</p>
                 </div>
               ) : filteredModels.length === 0 ? (
                 <div className="text-center py-4 text-text-muted text-xs font-mono">No matching installed models found.</div>

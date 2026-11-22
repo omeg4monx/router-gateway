@@ -104,13 +104,34 @@ describe("theme mode contract", () => {
   it("default Omegamon accent leaves the CSS palette in charge (no inline primary)", async () => {
     await loadStore();
     store.getState().setAccent("blue");
-    expect(inlineProps.get("--color-primary")).toBe("#2563EB");
-    expect(inlineProps.get("--color-on-primary")).toBe("#ffffff");
+    expect(inlineProps.has("--color-primary")).toBe(true);
 
     store.getState().setAccent("omegamon");
     expect(inlineProps.has("--color-primary")).toBe(false);
     expect(inlineProps.has("--color-brand-500")).toBe(false);
     expect(inlineProps.has("--color-on-primary")).toBe(false);
+  });
+
+  it("accent presets swap to a per-mode variant with matching on-primary text", async () => {
+    const { ACCENT_PALETTES } = await loadStore();
+    const blue = ACCENT_PALETTES.find((p) => p.id === "blue");
+    store.getState().setAccent("blue");
+
+    store.getState().setTheme("light");
+    expect(inlineProps.get("--color-primary")).toBe(blue.light[0]);
+    expect(inlineProps.get("--color-on-primary")).toBe("#ffffff");
+
+    store.getState().setTheme("dark");
+    expect(inlineProps.get("--color-primary")).toBe(blue.dark[0]);
+    expect(inlineProps.get("--color-on-primary")).toBe("#050608");
+  });
+
+  it("custom colors get whichever on-primary text reads better", async () => {
+    await loadStore();
+    store.getState().setCustomColor("#facc15"); // bright yellow
+    expect(inlineProps.get("--color-on-primary")).toBe("#050608");
+    store.getState().setCustomColor("#1e3a8a"); // deep navy
+    expect(inlineProps.get("--color-on-primary")).toBe("#ffffff");
   });
 
   it("migrates a persisted legacy ember/orange state on init", async () => {

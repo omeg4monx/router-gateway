@@ -34,18 +34,18 @@
            All Delete cyan, Grey Sword gold, red/black armor trim.
    Dark  = Omegamon Zwart: obsidian armor, gunmetal plates, silver
            trim, dark electric cyan energy, burning red eyes/core.
-   Contrast notes: white on --color-primary >= 4.5:1 (light) / 3.7:1
-   (dark, large/bold button text); text tokens >= 4.5:1 on bg/surface.
+   Contrast: on-primary on a primary fill >= 6:1 in both modes; primary
+   as text >= 4.5:1 on surfaces and on /10-/15 primary tints.
    ============================================================ */
 :root {
-  /* Brand scale (light) - Garuru Cannon blue, centered on #0A6FC2 */
+  /* Brand scale (light) - Garuru Cannon blue, centered on #0860A8 */
   --color-brand-50: #eaf4fc;
   --color-brand-100: #cfe5f7;
   --color-brand-200: #9fcbef;
   --color-brand-300: #67aae3;
   --color-brand-400: #2f8ad6;
-  --color-brand-500: #0A6FC2;
-  --color-brand-600: #085a9e;
+  --color-brand-500: #0860A8;
+  --color-brand-600: #07508c;
   --color-brand-700: #07497f;
   --color-brand-800: #06375f;
   --color-brand-900: #04243f;
@@ -54,7 +54,7 @@
   --color-primary: var(--color-brand-500);
   --color-primary-hover: var(--color-brand-600);
 
-  /* Text/icon color on a solid primary fill (white on Garuru blue: 5.2:1) */
+  /* Text/icon color on a solid primary fill (white on Garuru blue: 6.5:1) */
   --color-on-primary: #ffffff;
 
   /* Secondary — Grey Sword gold (fill carries dark text) */
@@ -99,12 +99,12 @@
   --color-danger-fg: #a02a22;
   --color-danger-border: #f0c4c0;
 
-  --color-success: #117444;
+  --color-success: #0f6b3f;
   --color-success-bg: #e7f4ec;
   --color-success-fg: #10693d;
   --color-success-border: #b7dfc6;
 
-  --color-warning: #a86800;
+  --color-warning: #945c00;
   --color-warning-bg: #fdf2e3;
   --color-warning-fg: #8a5500;
   --color-warning-border: #efd6ad;
@@ -156,14 +156,14 @@
 }
 
 .dark {
-  /* Brand scale (dark) - Zwart dark electric cyan, centered on #0891B2 */
+  /* Brand scale (dark) - Zwart electric cyan, centered on #0EA8CF */
   --color-brand-50: #e6fafe;
   --color-brand-100: #c2f1fa;
   --color-brand-200: #8be3f3;
   --color-brand-300: #4fd0ea;
-  --color-brand-400: #1bb5d6;
-  --color-brand-500: #0891B2;
-  --color-brand-600: #077590;
+  --color-brand-400: #3cc0e0;
+  --color-brand-500: #0EA8CF;
+  --color-brand-600: #0b8dae;
   --color-brand-700: #065d73;
   --color-brand-800: #054556;
   --color-brand-900: #032d39;
@@ -171,7 +171,7 @@
   --color-primary: var(--color-brand-500);
   --color-primary-hover: var(--color-brand-600);
 
-  /* Obsidian on electric cyan: 5.5:1 (white would be 3.7:1) */
+  /* Obsidian on electric cyan: 7.3:1 (white would be 2.6:1) */
   --color-on-primary: #050608;
 
   /* Secondary — silver trim (fill carries dark text) */
@@ -224,15 +224,15 @@
   --color-danger-fg: #f2959a;
   --color-danger-border: rgba(240, 96, 95, 0.30);
 
-  --color-success: #46a077;
+  --color-success: #4fb083;
   --color-success-bg: rgba(70, 160, 119, 0.14);
   --color-success-fg: #7fcfaa;
   --color-success-border: rgba(70, 160, 119, 0.30);
 
-  --color-warning: #c08a3e;
-  --color-warning-bg: rgba(192, 138, 62, 0.14);
+  --color-warning: #d39a4a;
+  --color-warning-bg: rgba(211, 154, 74, 0.14);
   --color-warning-fg: #e2b878;
-  --color-warning-border: rgba(192, 138, 62, 0.30);
+  --color-warning-border: rgba(211, 154, 74, 0.30);
 
   --color-info: #22a6c4;
   --color-info-bg: rgba(34, 166, 196, 0.14);
@@ -393,10 +393,10 @@ body {
   color: var(--color-brand-200);
 }
 
-/* Legacy solid primary fills hardcode `text-white`; route them through the
-   on-primary token so Zwart's bright cyan keeps readable (dark) text. Custom
-   accents set --color-on-primary back to white inline. */
-.dark :is(.bg-primary, .bg-brand-500).text-white {
+/* Solid primary fills hardcode `text-white`; route them through the on-primary
+   token so bright fills (Zwart cyan, dark-mode accent variants, light custom
+   colors) keep readable obsidian text. */
+:is(.bg-primary, .bg-brand-500).text-white {
   color: var(--color-on-primary);
 }
 

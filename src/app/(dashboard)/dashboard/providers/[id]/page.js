@@ -1396,7 +1396,7 @@ export default function ProviderDetailPage() {
                   >
                     <span className="material-symbols-outlined text-[13px]">add</span>
                     {m.id.split("/").pop()}
-                    <span className="text-[10px] font-bold text-green-600 dark:text-green-400 bg-green-500/10 px-1.5 py-0.5 rounded">FREE</span>
+                    <span className="text-[10px] font-bold text-success-fg bg-success-bg px-1.5 py-0.5 rounded">FREE</span>
                   </button>
                 ))}
               </div>
@@ -1518,7 +1518,7 @@ export default function ProviderDetailPage() {
             ) : /custom-moonshot/i.test(getHeaderIconPath()) ? (
               <CustomCompatibleIcon variant="moonshot" size={48} className="rounded-lg" />
             ) : headerImgError || !getHeaderIconPath() ? (
-              <span className="text-sm font-bold text-primary">
+              <span className="text-sm font-bold text-text-main">
                 {providerInfo.textIcon || providerInfo.id.slice(0, 2).toUpperCase()}
               </span>
             ) : (
@@ -1561,22 +1561,22 @@ export default function ProviderDetailPage() {
       </div>
 
       {providerInfo.deprecated && (
-        <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-yellow-500/10 border border-yellow-500/30">
-          <span className="material-symbols-outlined text-[16px] text-yellow-500 mt-0.5 shrink-0">warning</span>
-          <p className="text-xs text-red-600 dark:text-yellow-400 leading-relaxed">{providerInfo.deprecationNotice}</p>
+        <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-warning-bg border border-warning-border">
+          <span className="material-symbols-outlined text-[16px] text-warning mt-0.5 shrink-0">warning</span>
+          <p className="text-xs text-warning-fg leading-relaxed">{providerInfo.deprecationNotice}</p>
         </div>
       )}
 
       {providerInfo.notice?.text && !providerInfo.deprecated && (
-        <div className="flex flex-col gap-2 rounded-lg border border-blue-500/30 bg-blue-500/10 px-3 py-2 sm:flex-row sm:items-center">
-          <span className="material-symbols-outlined text-[16px] text-blue-500 shrink-0">info</span>
-          <p className="min-w-0 flex-1 text-xs leading-relaxed text-blue-600 dark:text-blue-400">{providerInfo.notice.text}</p>
+        <div className="flex flex-col gap-2 rounded-lg border border-info-border bg-info-bg px-3 py-2 sm:flex-row sm:items-center">
+          <span className="material-symbols-outlined text-[16px] text-info shrink-0">info</span>
+          <p className="min-w-0 flex-1 text-xs leading-relaxed text-info-fg">{providerInfo.notice.text}</p>
           {providerInfo.notice.apiKeyUrl && (
             <a
               href={providerInfo.notice.apiKeyUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex justify-center rounded bg-blue-500 px-2 py-1 text-xs font-medium text-white transition-colors hover:bg-blue-600 sm:py-0.5"
+              className="inline-flex justify-center rounded bg-info-solid px-2 py-1 text-xs font-medium text-white transition-colors hover:opacity-90 sm:py-0.5"
             >
               Get API Key →
             </a>

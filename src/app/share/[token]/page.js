@@ -183,7 +183,7 @@ function Plate({ label, value, unit, footnote, tone = "main", className = "" }) 
       <span className="absolute inset-y-0 left-0 w-[2px] bg-primary/70" aria-hidden="true" />
       <div className="flex items-baseline justify-between gap-2 border-b border-border py-2 pl-[18px] pr-4">
         <span className="text-[11px] uppercase tracking-[0.08em] text-text-muted">{label}</span>
-        {unit ? <span className="text-[10px] uppercase tracking-[0.08em] text-text-muted/70">{unit}</span> : null}
+        {unit ? <span className="text-[10px] uppercase tracking-[0.08em] text-text-subtle">{unit}</span> : null}
       </div>
       <div className="py-4 pl-[18px] pr-4">
         <div className={`text-[26px] font-semibold leading-none tabular-nums ${toneClass}`}>{value}</div>
@@ -198,7 +198,7 @@ function Section({ title, note, children, className = "" }) {
     <section className={`overflow-hidden rounded-[6px] border border-border bg-surface ${className}`}>
       <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-border px-[18px] py-2">
         <span className="text-[11px] uppercase tracking-[0.08em] text-text-muted">{title}</span>
-        {note ? <span className="text-[10px] text-text-muted/70">{note}</span> : null}
+        {note ? <span className="text-[10px] text-text-subtle">{note}</span> : null}
       </div>
       <div className="px-[18px] py-4">{children}</div>
     </section>

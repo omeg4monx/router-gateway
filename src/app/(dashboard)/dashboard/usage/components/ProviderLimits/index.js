@@ -1368,7 +1368,7 @@ export default function ProviderLimits() {
                         </p>
                       ) : null}
                       {getConnectionSecondaryLabel(conn) ? (
-                        <p className="text-[11px] text-text-muted/80 truncate">
+                        <p className="text-[11px] text-text-muted truncate">
                           {getConnectionSecondaryLabel(conn)}
                         </p>
                       ) : null}
