@@ -388,3 +388,27 @@ describe("providers-ux Task 2: AddCompatibleModal & ModelAvailabilityBadge", () 
     expect(withoutBlockComments).toContain("onCooldownCleared");
   });
 });
+
+describe("providers-ux Task 3: ProvidersHeader", () => {
+  it("renders studio header, ModelAvailabilityBadge, Test All, accessible Add Custom popover, and 4 telemetry cards", () => {
+    const src = readSrc(
+      "src/app/(dashboard)/dashboard/providers/components/ProvidersHeader.js",
+    );
+    expect(src).toMatch(/<h1[^>]*>[\s\S]*Providers/);
+    expect(src).toContain("<ModelAvailabilityBadge");
+    expect(src).toContain("onTestAll");
+    expect(src).toContain("activeAllCount === 0");
+    expect(src).toContain("aria-expanded");
+    expect(src).toContain("shell-popover");
+    expect(src).toContain("mousedown");
+    expect(src).toContain("Escape");
+    expect(src).toContain('"openai"');
+    expect(src).toContain('"anthropic"');
+    expect(src).toContain('"moonshot"');
+    expect(src).toContain("Active Providers");
+    expect(src).toContain("Active Connections");
+    expect(src).toContain("Needs Attention");
+    expect(src).toContain("Disabled");
+    expect(src).toContain("onSelectStatusFilter");
+  });
+});
