@@ -1066,6 +1066,6 @@ h1, h2, h3 {
 }
 
 /* Modals and dialogs: solid surface matching OMEG4MON ROUTER design language */
-[role="dialog"] {
+[role="dialog"]:not(.shell-rail) {
   background-color: var(--color-surface);
 }

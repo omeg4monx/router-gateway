@@ -38,6 +38,11 @@ describe("dashboard shell CSS primitives", () => {
     expect(railBeforeRule).toContain("z-index: -1");
     expect(darkRailBeforeRule).toContain("background-color");
   });
+
+  it("excludes .shell-rail from solid [role='dialog'] background so MobileNav frosted blur renders", () => {
+    expect(css).toContain('[role="dialog"]:not(.shell-rail)');
+    expect(css).not.toMatch(/^\[role="dialog"\]\s*\{/m);
+  });
 });
 
 describe("LeftRail tactile sidebar", () => {
@@ -82,6 +87,28 @@ describe("LeftRail tactile sidebar", () => {
     expect(rail).toContain("export function FlyoutLink");
     expect(rail).toMatch(/!isApiKeyUser \? \(\s*<HeaderMenu/);
   });
+
+  it("raises <aside> stacking layer to z-[45] above banners while staying below modals", () => {
+    const asideMatch = rail.match(/<aside[\s\S]*?className=\{cn\(\s*"([^"]*)"/);
+    expect(asideMatch).not.toBeNull();
+    expect(asideMatch[1]).toContain("z-[45]");
+    expect(asideMatch[1]).not.toContain("z-30");
+  });
+
+  it("guards rail width and group chevron transitions under prefers-reduced-motion", () => {
+    const asideMatch = rail.match(/<aside[\s\S]*?className=\{cn\(\s*"([^"]*)"/);
+    expect(asideMatch).not.toBeNull();
+    expect(asideMatch[1]).toContain("motion-reduce:transition-none");
+    const chevronMatch = rail.match(/className="([^"]*transition-transform[^"]*)"[\s\S]{0,160}chevron_right/);
+    expect(chevronMatch).not.toBeNull();
+    expect(chevronMatch[1]).toContain("motion-reduce:transition-none");
+  });
+
+  it("polishes rail footer and dismisses compact tooltips on Escape", () => {
+    expect(rail).toMatch(/className="[^"]*whitespace-nowrap[^"]*"[\s\S]{0,140}Live \{displayPort\}/);
+    expect(rail).toContain("(!isApiKeyUser || open)");
+    expect(rail).toMatch(/if\s*\(e\.key\s*===\s*"Escape"\)\s*setTooltip\(null\)/);
+  });
 });
 
 describe("NotificationBell placement and tactile popover", () => {
@@ -109,6 +136,12 @@ describe("HeaderMenu tactile popover and keyboard handling", () => {
     expect(menu).toContain("border-t border-border-subtle/80");
     const paddingMatches = menu.match(/px-2\.5 py-2/g) || [];
     expect(paddingMatches.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("restores focus to the menu trigger when closed via Escape", () => {
+    expect(menu).toContain("triggerRef");
+    expect(menu).toContain("ref={triggerRef}");
+    expect(menu).toContain("triggerRef.current?.focus()");
   });
 });
 
@@ -139,6 +172,7 @@ describe("DashboardLayout framed workspace shell", () => {
     const colClasses = colMatch[1];
     expect(colClasses).not.toContain("backdrop-blur");
     expect(colClasses).not.toContain("transform");
+    expect(colClasses).not.toContain("filter");
     expect(colClasses).not.toContain("isolate");
   });
 
@@ -191,6 +225,15 @@ describe("StatusBar brand consistency and interactive controls", () => {
     expect(bar).toContain("catch");
     expect(bar).toContain('"Copied"');
     expect(bar).toContain("clearTimeout");
+  });
+
+  it("guards ping animation under prefers-reduced-motion", () => {
+    expect(bar).toMatch(/animate-ping[^"]*motion-reduce:animate-none/);
+  });
+
+  it("exposes live status, latency, and endpoint host in button aria-labels", () => {
+    expect(bar).toMatch(/aria-label=\{\`\$\{label\}/);
+    expect(bar).toMatch(/aria-label=\{copied \? `Endpoint host \$\{host \|\| "localhost"\} copied` : `Copy endpoint host \$\{host \|\| "localhost"\}`\}/);
   });
 });
 

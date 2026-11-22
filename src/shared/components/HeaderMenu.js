@@ -43,6 +43,7 @@ export default function HeaderMenu({ onLogout }) {
   const [shutdownOpen, setShutdownOpen] = useState(false);
   const [isShuttingDown, setIsShuttingDown] = useState(false);
   const menuRef = useRef(null);
+  const triggerRef = useRef(null);
 
   const handleShutdown = async () => {
     setIsShuttingDown(true);
@@ -63,7 +64,10 @@ export default function HeaderMenu({ onLogout }) {
       }
     };
     const handleKeyDown = (e) => {
-      if (e.key === "Escape") setIsOpen(false);
+      if (e.key === "Escape") {
+        setIsOpen(false);
+        triggerRef.current?.focus();
+      }
     };
     document.addEventListener("mousedown", handleClickOutside);
     document.addEventListener("keydown", handleKeyDown);
@@ -79,6 +83,7 @@ export default function HeaderMenu({ onLogout }) {
     <>
       <div className="relative" ref={menuRef}>
         <button
+          ref={triggerRef}
           type="button"
           onClick={() => setIsOpen((v) => !v)}
           aria-haspopup="menu"

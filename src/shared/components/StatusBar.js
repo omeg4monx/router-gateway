@@ -14,7 +14,7 @@ function Dot({ state }) {
   return (
     <span className="relative flex size-2 shrink-0">
       {state === "ok" && (
-        <span className="absolute inline-flex size-full animate-ping rounded-full bg-success/60" />
+        <span className="absolute inline-flex size-full animate-ping motion-reduce:animate-none rounded-full bg-success/60" />
       )}
       <span className={`relative inline-flex size-2 rounded-full ${color}`} />
     </span>
@@ -101,7 +101,7 @@ export default function StatusBar() {
         type="button"
         onClick={runHealthCheck}
         title="Re-check gateway health"
-        aria-label="Re-check gateway health"
+        aria-label={`${label}${health === "ok" && latencyMs !== null ? `, ${latencyMs}ms` : ""}. Click to re-check gateway health`}
         className="group -ml-1.5 flex items-center gap-1.5 rounded-md px-1.5 py-0.5 transition-colors hover:bg-surface-2 hover:text-text-main cursor-pointer"
       >
         {checking ? (
@@ -126,7 +126,7 @@ export default function StatusBar() {
         type="button"
         onClick={handleCopyHost}
         title={`Copy endpoint host (${host || "localhost"})`}
-        aria-label={copied ? "Endpoint host copied" : "Copy endpoint host"}
+        aria-label={copied ? `Endpoint host ${host || "localhost"} copied` : `Copy endpoint host ${host || "localhost"}`}
         className="hidden items-center gap-1.5 rounded-md px-1.5 py-0.5 transition-colors hover:bg-surface-2 hover:text-text-main cursor-pointer sm:flex"
       >
         <span

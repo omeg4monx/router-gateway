@@ -160,7 +160,7 @@ function GroupRow({ icon, label, active, open, expanded, onClick, onHover, onLea
             {label}
           </span>
           <span
-            className="material-symbols-outlined text-[15px] leading-none text-text-subtle transition-transform duration-200 ease-[var(--ease-spring)]"
+            className="material-symbols-outlined text-[15px] leading-none text-text-subtle transition-transform duration-200 ease-[var(--ease-spring)] motion-reduce:transition-none"
             style={{ transform: expanded ? "rotate(90deg)" : "rotate(0deg)" }}
           >
             chevron_right
@@ -322,6 +322,16 @@ export default function LeftRail({ initialPinned = true }) {
     setTooltip(null);
   }, [open, pathname]);
 
+  // Dismiss compact tooltip on Escape (WCAG 1.4.13).
+  useEffect(() => {
+    if (!tooltip) return undefined;
+    const onKeyDown = (e) => {
+      if (e.key === "Escape") setTooltip(null);
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [tooltip]);
+
   // Only the compact flyout is transient; an inline group stays until toggled.
   useEffect(() => {
     if (open || !expandedGroup) return undefined;
@@ -444,7 +454,7 @@ export default function LeftRail({ initialPinned = true }) {
     <aside
       ref={railRef}
       className={cn(
-        "relative isolate hidden my-2.5 ml-2.5 h-[calc(100dvh-20px)] flex-col rounded-2xl shell-rail overflow-visible select-none lg:flex z-30 shrink-0 transition-[width] duration-250 ease-[var(--ease-spring)]",
+        "relative isolate hidden my-2.5 ml-2.5 h-[calc(100dvh-20px)] flex-col rounded-2xl shell-rail overflow-visible select-none lg:flex z-[45] shrink-0 transition-[width] duration-250 ease-[var(--ease-spring)] motion-reduce:transition-none",
         open ? "w-[228px]" : "w-[60px]"
       )}
       aria-label="Application navigation"
@@ -580,7 +590,7 @@ export default function LeftRail({ initialPinned = true }) {
               <span className="text-[11.5px] font-semibold text-text-main truncate">
                 {isApiKeyUser ? "API Session" : "Instance Admin"}
               </span>
-              <span className="text-[9.5px] text-success flex items-center gap-1 font-mono">
+              <span className="text-[9.5px] text-success flex items-center gap-1 font-mono whitespace-nowrap">
                 <span className="size-1.5 rounded-full bg-success shrink-0" />
                 Live {displayPort}
               </span>
@@ -588,20 +598,22 @@ export default function LeftRail({ initialPinned = true }) {
           )}
         </div>
 
-        <div className={cn("flex items-center gap-1 shrink-0", !open && "flex-col")}>
-          <NotificationBell placement="right-bottom" />
-          {open && isApiKeyUser && (
-            <button
-              type="button"
-              onClick={handleLogout}
-              className="flex items-center justify-center size-8 rounded-[10px] text-primary hover:bg-primary/10 transition-colors cursor-pointer active:scale-[0.97]"
-              title="Log Out"
-              aria-label="Log Out"
-            >
-              <span className="material-symbols-outlined text-[18px]">logout</span>
-            </button>
-          )}
-        </div>
+        {(!isApiKeyUser || open) && (
+          <div className={cn("flex items-center gap-1 shrink-0", !open && "flex-col")}>
+            <NotificationBell placement="right-bottom" />
+            {open && isApiKeyUser && (
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="flex items-center justify-center size-8 rounded-[10px] text-primary hover:bg-primary/10 transition-colors cursor-pointer active:scale-[0.97]"
+                title="Log Out"
+                aria-label="Log Out"
+              >
+                <span className="material-symbols-outlined text-[18px]">logout</span>
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {!open && !expandedGroup && tooltip && (
