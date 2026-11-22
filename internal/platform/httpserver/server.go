@@ -256,12 +256,17 @@ func (s *Server) Shutdown(ctx context.Context) error {
 
 func (s *Server) adminAuthMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		remoteEnforced := !s.cfg.IsLoopback() && !s.cfg.AllowInsecureRemote
 		if s.auth == nil {
+			if remoteEnforced {
+				WriteError(w, r, http.StatusUnauthorized, "unauthorized", "authentication required")
+				return
+			}
 			next.ServeHTTP(w, r)
 			return
 		}
 
-		enforced := s.auth.RequireLogin(r.Context()) || (!s.cfg.IsLoopback() && !s.cfg.AllowInsecureRemote)
+		enforced := s.auth.RequireLogin(r.Context()) || remoteEnforced
 		if !enforced {
 			next.ServeHTTP(w, r)
 			return

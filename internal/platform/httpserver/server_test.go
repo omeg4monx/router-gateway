@@ -505,6 +505,82 @@ func TestAdminAPIAuthEnforcement(t *testing.T) {
 			t.Fatalf("status = %d, want 200", rec.Code)
 		}
 	})
+
+	t.Run("non-loopback with nil Auth and AllowInsecureRemote=false fails closed with 401 JSON", func(t *testing.T) {
+		srv := httpserver.New(httpserver.Options{
+			Config: config.Config{
+				Host:                "0.0.0.0",
+				Port:                20128,
+				AllowInsecureRemote: false,
+				APITimeout:          time.Second,
+			},
+			Logger: testLogger(),
+			Auth:   nil,
+		})
+		srv.Mounts().AdminAPI.Get("/secret", func(w http.ResponseWriter, r *http.Request) {
+			httpserver.WriteJSON(w, http.StatusOK, map[string]bool{"ok": true})
+		})
+
+		rec := httptest.NewRecorder()
+		srv.Handler().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/secret", nil))
+		if rec.Code != http.StatusUnauthorized {
+			t.Fatalf("non-loopback nil Auth AdminAPI: status = %d, want 401", rec.Code)
+		}
+		if !strings.Contains(rec.Header().Get("Content-Type"), "application/json") {
+			t.Fatalf("non-loopback nil Auth AdminAPI: Content-Type = %q, want application/json", rec.Header().Get("Content-Type"))
+		}
+		var env httpserver.ErrorEnvelope
+		if err := json.Unmarshal(rec.Body.Bytes(), &env); err != nil {
+			t.Fatalf("non-loopback nil Auth AdminAPI: invalid JSON %q: %v", rec.Body.String(), err)
+		}
+		if env.Error.Code != "unauthorized" {
+			t.Fatalf("non-loopback nil Auth AdminAPI: code = %q, want unauthorized", env.Error.Code)
+		}
+	})
+
+	t.Run("loopback with nil Auth permits AdminAPI", func(t *testing.T) {
+		srv := httpserver.New(httpserver.Options{
+			Config: config.Config{
+				Host:                "127.0.0.1",
+				Port:                20128,
+				AllowInsecureRemote: false,
+				APITimeout:          time.Second,
+			},
+			Logger: testLogger(),
+			Auth:   nil,
+		})
+		srv.Mounts().AdminAPI.Get("/secret", func(w http.ResponseWriter, r *http.Request) {
+			httpserver.WriteJSON(w, http.StatusOK, map[string]bool{"ok": true})
+		})
+
+		rec := httptest.NewRecorder()
+		srv.Handler().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/secret", nil))
+		if rec.Code != http.StatusOK {
+			t.Fatalf("loopback nil Auth AdminAPI: status = %d, want 200", rec.Code)
+		}
+	})
+
+	t.Run("non-loopback with nil Auth and AllowInsecureRemote=true permits AdminAPI", func(t *testing.T) {
+		srv := httpserver.New(httpserver.Options{
+			Config: config.Config{
+				Host:                "0.0.0.0",
+				Port:                20128,
+				AllowInsecureRemote: true,
+				APITimeout:          time.Second,
+			},
+			Logger: testLogger(),
+			Auth:   nil,
+		})
+		srv.Mounts().AdminAPI.Get("/secret", func(w http.ResponseWriter, r *http.Request) {
+			httpserver.WriteJSON(w, http.StatusOK, map[string]bool{"ok": true})
+		})
+
+		rec := httptest.NewRecorder()
+		srv.Handler().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/secret", nil))
+		if rec.Code != http.StatusOK {
+			t.Fatalf("non-loopback AllowInsecureRemote nil Auth AdminAPI: status = %d, want 200", rec.Code)
+		}
+	})
 }
 
 func TestPanicRecoveryReturnsJSON500(t *testing.T) {
