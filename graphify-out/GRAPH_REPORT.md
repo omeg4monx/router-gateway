@@ -1,17 +1,17 @@
 # Graph Report - omeg4mon-router  (2026-11-23)
 
 ## Corpus Check
-- 77 files · ~44,448 words
+- 77 files · ~44,486 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 7 file(s) not represented in the graph (top: (none) 5, .lock 1, .css 1)
 
 ## Summary
-- 744 nodes · 1844 edges · 38 communities (31 shown, 7 thin omitted)
+- 744 nodes · 1845 edges · 38 communities (31 shown, 7 thin omitted)
 - Extraction: 94% EXTRACTED · 6% INFERRED · 0% AMBIGUOUS · INFERRED: 115 edges (avg confidence: 0.81)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `c5952298`
+- Built from commit: `5c449926`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -56,27 +56,27 @@
 
 ## God Nodes (most connected - your core abstractions)
 1. `buildApp()` - 29 edges
-2. `Module` - 23 edges
+2. `Module` - 24 edges
 3. `cn()` - 23 edges
 4. `App` - 22 edges
-5. `with` - 19 edges
-6. `Server` - 19 edges
+5. `Server` - 19 edges
+6. `with` - 19 edges
 7. `SystemOverview()` - 17 edges
 8. `NewRegistry()` - 17 edges
 9. `compilerOptions` - 17 edges
 10. `New()` - 16 edges
 
 ## Surprising Connections (you probably didn't know these)
+- `buildApp()` --references--> `BuildInfo`  [EXTRACTED]
+  cmd/omeg4mon-router/main.go → internal/modules/system/module.go
+- `buildApp()` --calls--> `New()`  [EXTRACTED]
+  cmd/omeg4mon-router/main.go → internal/modules/system/module.go
 - `App` --references--> `SessionSigner`  [EXTRACTED]
   cmd/omeg4mon-router/main.go → internal/platform/crypto/session.go
 - `App` --references--> `DB`  [EXTRACTED]
   cmd/omeg4mon-router/main.go → internal/platform/db/db.go
 - `App` --references--> `Bus`  [EXTRACTED]
   cmd/omeg4mon-router/main.go → internal/platform/eventbus/bus.go
-- `App` --references--> `Registry`  [EXTRACTED]
-  cmd/omeg4mon-router/main.go → internal/platform/lifecycle/registry.go
-- `App` --references--> `RingBuffer`  [EXTRACTED]
-  cmd/omeg4mon-router/main.go → internal/platform/logging/logger.go
 
 ## Import Cycles
 - None detected.
@@ -236,4 +236,4 @@ _Questions this graph is uniquely positioned to answer:_
 - **Should `Next.js 15 App & shadcn/ui Shell` be split into smaller, more focused modules?**
   _Cohesion score 0.07379979570990806 - nodes in this community are weakly interconnected._
 - **Why does `Module` connect `Module` to `Binary Entrypoint & Embedded UI`, `Embedded FS & SQL Migration Loader`, `SQLite WAL Engine & System Repo`, `Session Signing & Event Bus`, `App`, `Module Registry & Orchestration`, `Module Start/Stop Lifecycle Hooks`?**
-  _High betweenness centrality (0.018) - this node is a cross-community bridge._
+  _High betweenness centrality (0.019) - this node is a cross-community bridge._
