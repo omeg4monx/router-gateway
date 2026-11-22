@@ -5,6 +5,9 @@ import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { AlertTriangle, RefreshCw } from "lucide-react";
 import { useInitStatus } from "@/features/system/hooks";
+import { Alert, AlertDescription, AlertTitle } from "@/shared/ui/alert";
+import { Button } from "@/shared/ui/button";
+import { Card } from "@/shared/ui/card";
 import { CaduceusLogo } from "@/shared/ui/CaduceusLogo";
 import { EmberRule } from "@/shared/ui/EmberRule";
 
@@ -25,7 +28,7 @@ export default function HomePage() {
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-[var(--bg-canvas)] px-4 py-12">
-      <div className="w-full max-w-md rounded-md border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-6 sm:p-8">
+      <Card className="w-full max-w-md p-6 sm:p-8">
         <div className="flex items-center gap-3">
           <CaduceusLogo size={30} />
           <div>
@@ -42,45 +45,34 @@ export default function HomePage() {
 
         {initStatusQuery.isError ? (
           <div className="space-y-4">
-            <div
-              role="alert"
-              className="flex items-start gap-2.5 rounded-md border border-[var(--status-error-border)] bg-[var(--status-error-bg)] px-3.5 py-3 text-sm"
-            >
+            <Alert variant="destructive">
               <AlertTriangle
                 className="mt-0.5 h-4 w-4 shrink-0 text-[var(--status-error)]"
                 aria-hidden="true"
               />
               <div>
-                <p className="font-medium text-[var(--text-primary)]">
-                  Unable to reach control plane
-                </p>
-                <p className="mt-0.5 font-mono text-xs text-[var(--text-secondary)]">
+                <AlertTitle>Unable to reach control plane</AlertTitle>
+                <AlertDescription className="font-mono">
                   {initStatusQuery.error.message}
-                </p>
+                </AlertDescription>
               </div>
-            </div>
+            </Alert>
 
             <div className="flex flex-wrap items-center gap-3">
-              <button
+              <Button
                 type="button"
+                size="sm"
                 onClick={() => void initStatusQuery.refetch()}
-                className="inline-flex h-9 items-center gap-2 rounded-md bg-[#E56A4A] px-4 text-xs font-semibold text-[#0a0a0a] transition-colors hover:bg-[var(--accent-primary-hover)]"
               >
                 <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
                 <span>Retry</span>
-              </button>
-              <Link
-                href="/dashboard/"
-                className="inline-flex h-9 items-center rounded-md border border-[var(--border-strong)] bg-[var(--bg-surface-raised)] px-3.5 text-xs font-medium text-[var(--text-primary)] transition-colors hover:border-[#E56A4A]"
-              >
-                Open Dashboard
-              </Link>
-              <Link
-                href="/init/"
-                className="inline-flex h-9 items-center rounded-md border border-[var(--border-strong)] bg-[var(--bg-surface-raised)] px-3.5 text-xs font-medium text-[var(--text-primary)] transition-colors hover:border-[#E56A4A]"
-              >
-                Setup
-              </Link>
+              </Button>
+              <Button asChild variant="outline" size="sm">
+                <Link href="/dashboard/">Open Dashboard</Link>
+              </Button>
+              <Button asChild variant="outline" size="sm">
+                <Link href="/init/">Setup</Link>
+              </Button>
             </div>
           </div>
         ) : (
@@ -93,7 +85,7 @@ export default function HomePage() {
             </p>
           </div>
         )}
-      </div>
+      </Card>
     </main>
   );
 }

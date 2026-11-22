@@ -1,11 +1,87 @@
+# ==============================================================================
+# Secrets, Credentials & Local Environment
+# ==============================================================================
+.env
+.env.*
+**/.env
+**/.env.*
+!.env.example
+!**/.env.example
+master.key
+**/master.key
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+secrets.*
+credentials*.json
+
+# ==============================================================================
+# Runtime State & Local Databases
+# ==============================================================================
+*.sqlite
+*.sqlite3
+*.sqlite-shm
+*.sqlite-wal
+*.sqlite3-shm
+*.sqlite3-wal
+*.db
+*.db-shm
+*.db-wal
+data/
+
+# ==============================================================================
+# Dependencies
+# ==============================================================================
+node_modules/
+**/node_modules/
+
+# ==============================================================================
+# Build Outputs, Binaries & Generated Artifacts
+# ==============================================================================
 bin/
 dist/
-web/node_modules/
+build/
+out/
 web/.next/
 web/out/
 web/next-env.d.ts
+web/tsconfig.tsbuildinfo
 cmd/omeg4mon-router/ui_dist/
-*.sqlite*
-master.key
-.env
-.env.local
+*.exe
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+coverage.txt
+coverage.html
+
+# ==============================================================================
+# Logs & Caches
+# ==============================================================================
+*.log
+logs/
+.cache/
+.turbo/
+.eslintcache
+.bun/
+*.tsbuildinfo
+
+# ==============================================================================
+# OS, Editor & Local Tooling Scratch
+# ==============================================================================
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+.idea/
+.vscode/*
+!.vscode/settings.json
+.superpowers/
+.gemini/
+graphify-out/cache/
+graphify-out/.graphify_*
+graphify-out/cost.json

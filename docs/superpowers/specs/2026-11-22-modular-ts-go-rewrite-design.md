@@ -21,6 +21,7 @@ This rewrite starts from a clean slate on `migration/ts-go` to deliver a **moder
 ## 2. Goals, Non-Goals & Anti-Goals
 
 ### Goals
+
 - **Single-binary production runtime:** Go serves `/v1/*`, `/v1beta/*`, `/api/*`, and the embedded Next.js static export (`output: "export"`), targeting ~15–30 MB idle RAM and native goroutine SSE concurrency.
 - **True modular architecture:** Every product domain lives in an isolated vertical slice (both in Go `internal/modules/<domain>/` and in `web/src/features/<domain>/`) registered via an explicit Go `Module` interface.
 - **Full feature coverage via progressive waves:** Rebuild and improve all feature domains present in `main`, starting from a rock-solid platform foundation and core LLM gateway, then adding extended modules cleanly without touching core internals.
@@ -29,11 +30,13 @@ This rewrite starts from a clean slate on `migration/ts-go` to deliver a **moder
 - **Preserve owner brand identity:** Carry forward the owner's `DESIGN.md` direction (`#E56A4A` ember orange, charcoal `#0a0a0a` / warm off-white `#FDFAF6`, Geist Sans & Geist Mono, caduceus logo, ember-line motif, solid opaque surfaces, zero UI emojis, WCAG AA).
 
 ### Non-Goals
+
 - **Direct compatibility with legacy `main` `data.sqlite` schema:** The rewrite uses a clean, normalized, per-module SQLite schema. Migrating legacy `main` data is deferred to an optional one-way `importer` module.
 - **Production Next.js SSR / Server Actions / Node.js server:** Production runs only the Go binary.
 - **Out-of-process RPC/gRPC plugin binaries:** Modules are compiled in-process into the single binary and toggled via configuration.
 
 ### Anti-Goals (Failure Conditions)
+
 - Re-creating `main`'s spaghetti in Go (cross-module direct repo imports, god packages, shared mutable globals).
 - Placing business logic, credential handling, or upstream LLM calls in `web/`.
 - Copying upstream `decolua`-copyrighted source files or assets verbatim from `main`.
@@ -47,19 +50,19 @@ This rewrite starts from a clean slate on `migration/ts-go` to deliver a **moder
 - **Single-admin dashboard model (Owner Decision — 2A):** Dashboard authentication remains single-admin. Wave 3 `teams` operates strictly as API-key, budget, and quota grouping—no multi-user dashboard RBAC or per-tenant row isolation is required in Wave 0/1.
 - **Zero-CGO Go build:** Persistence uses pure-Go `modernc.org/sqlite` (WAL mode, low-RAM pragma profile suitable for 1 GB RAM / 1-core VPS) so cross-compilation (`linux/darwin/windows`, `amd64/arm64`) requires no C compiler.
 - **HTTP stack:** Standard library `net/http` with thin router `github.com/go-chi/chi/v5` (no heavy framework wrappers, full access to `http.ResponseController` / `http.Flusher` / HTTP/2).
-- **Frontend stack:** Next.js (App Router, `output: "export"`), React 19, strict TypeScript (`strict: true`, `noUncheckedIndexedAccess: true`), Tailwind CSS v4, Bun (`1.4+`) for workspace/scripts/build.
+- **Frontend stack:** Next.js 15 (`15.5.x`, App Router, `output: "export"` — chosen over v16 for proven static-export stability, ecosystem compatibility across React 19 / `shadcn/ui` / `react-hook-form` / `zustand` / Tailwind v4, and Bun build determinism), React 19, strict TypeScript (`strict: true`, `noUncheckedIndexedAccess: true`), Tailwind CSS v4, `shadcn/ui` (Radix UI + CVA + `cn`), `react-hook-form` + `@hookform/resolvers` + `zod`, `zustand`, TanStack Query, Bun (`1.4+`) for workspace/scripts/build.
 - **Network defaults:** Default bind `127.0.0.1:20128`, configurable via flags and environment variables (`OMEG4MON_HOST`, `OMEG4MON_PORT`, `OMEG4MON_DATA_DIR`, `OMEG4MON_DISABLED_MODULES`).
-- **Local dev prerequisite:** Go toolchain (1.24+, target 1.26) must be available on `PATH` alongside Bun (`1.4+`). *(Observed during recon: `go` is not currently on default shell `PATH` in this workspace and must be installed or added to `PATH` before running Go build/test commands.)*
+- **Local dev prerequisite:** Go toolchain (1.24+, target 1.26) must be available on `PATH` alongside Bun (`1.4+`). _(Observed during recon: `go` is not currently on default shell `PATH` in this workspace and must be installed or added to `PATH` before running Go build/test commands.)_
 
 ---
 
 ## 4. Approaches Considered
 
-| Approach | Summary | Trade-offs | Decision |
-|---|---|---|---|
-| **A. Modular Monolith + Module Registry + OpenAPI Contract** | Vertical-slice modules in `internal/modules/<domain>/` implementing a strict `Module` interface, mirrored by `web/src/features/<domain>/`, glued by `contracts/openapi/` codegen and embedded into one Go binary. | Slightly higher upfront scaffolding discipline (module interface, per-module migrations, OpenAPI pipeline), but scales cleanly across 20+ feature domains without coupling or TS/Go drift. | **Chosen** |
-| **B. Layered Monolith + Manual Types** | Traditional `handler/` + `service/` + `repo/` folders in Go with hand-written TypeScript fetch types. | Fastest in week 1, but quickly couples 20+ domains together and causes Go/TS contract drift—risking a Go repeat of `main`'s structural debt. | Rejected |
-| **C. Micro-Kernel + Out-of-Process Plugins (gRPC/`go-plugin`)** | Minimal core binary plus separate plugin binaries for extended features (`mitm`, `telegram`, `vouchers`, `arena`, etc.). | Strong crash isolation, but defeats single-binary operational simplicity and adds heavy IPC/distribution complexity. | Rejected |
+| Approach                                                        | Summary                                                                                                                                                                                                           | Trade-offs                                                                                                                                                                                 | Decision   |
+| --------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------- |
+| **A. Modular Monolith + Module Registry + OpenAPI Contract**    | Vertical-slice modules in `internal/modules/<domain>/` implementing a strict `Module` interface, mirrored by `web/src/features/<domain>/`, glued by `contracts/openapi/` codegen and embedded into one Go binary. | Slightly higher upfront scaffolding discipline (module interface, per-module migrations, OpenAPI pipeline), but scales cleanly across 20+ feature domains without coupling or TS/Go drift. | **Chosen** |
+| **B. Layered Monolith + Manual Types**                          | Traditional `handler/` + `service/` + `repo/` folders in Go with hand-written TypeScript fetch types.                                                                                                             | Fastest in week 1, but quickly couples 20+ domains together and causes Go/TS contract drift—risking a Go repeat of `main`'s structural debt.                                               | Rejected   |
+| **C. Micro-Kernel + Out-of-Process Plugins (gRPC/`go-plugin`)** | Minimal core binary plus separate plugin binaries for extended features (`mitm`, `telegram`, `vouchers`, `arena`, etc.).                                                                                          | Strong crash isolation, but defeats single-binary operational simplicity and adds heavy IPC/distribution complexity.                                                                       | Rejected   |
 
 ---
 
@@ -157,9 +160,10 @@ type RouteMounts struct {
 ```
 
 **Module boundary rules:**
+
 1. Modules **never** import another module's `internal/modules/<other>` package.
 2. Cross-module calls use narrow interfaces in `internal/contracts/` (e.g., `KeyValidator`, `ProviderResolver`, `UsageRecorder`, `ProxyDialerResolver`, `GatewayInterceptor`) wired in `cmd/omeg4mon-router/main.go`, or async events via `internal/platform/eventbus`.
-3. **Upfront Gateway Interception Hook Chain *(Architect Call)*:** `internal/contracts/` defines an ordered `GatewayInterceptor` interface (`Priority() int`, `OnRequest(ctx, *CanonicalRequest) error`, `OnResponseHeaders(ctx, *ResponseMeta) error`, `OnStreamChunk(ctx, *StreamEvent) error`) registered at startup and executed by `gateway`. This allows Wave 2 modules (`promptinjection`, `tokensaver`, `headroom`, `modelbypass`) to plug in cleanly without editing `gateway` internals.
+3. **Upfront Gateway Interception Hook Chain _(Architect Call)_:** `internal/contracts/` defines an ordered `GatewayInterceptor` interface (`Priority() int`, `OnRequest(ctx, *CanonicalRequest) error`, `OnResponseHeaders(ctx, *ResponseMeta) error`, `OnStreamChunk(ctx, *StreamEvent) error`) registered at startup and executed by `gateway`. This allows Wave 2 modules (`promptinjection`, `tokensaver`, `headroom`, `modelbypass`) to plug in cleanly without editing `gateway` internals.
 4. Every module owns its own SQL migration files (`0001_init.sql`, etc.), tracked in `schema_migrations(module TEXT, version INT, applied_at TEXT, PRIMARY KEY (module, version))`. No module reads or writes another module's tables directly.
 5. `Registry` validates dependencies via topological sort on startup, runs migrations in dependency order, mounts routes, starts background workers, and shuts down in reverse dependency order on `SIGINT`/`SIGTERM`.
 6. Optional modules (Wave 2 & Wave 3) can be disabled via `OMEG4MON_DISABLED_MODULES`; core modules (`system`, `auth`, `settings`, `providers`, `keys`, `combos`, `gateway`, `usage`) are always active.
@@ -167,23 +171,24 @@ type RouteMounts struct {
 ### 6.2 SQLite Concurrency, Secret Vault & Usage Retention (`internal/platform/db`, `internal/platform/crypto`)
 
 To keep RAM low and prevent `SQLITE_BUSY` under concurrent SSE traffic:
+
 - Pure-Go `modernc.org/sqlite` with `WAL`, `busy_timeout=10000`, `synchronous=NORMAL`, `foreign_keys=ON`, `temp_store=MEMORY`, `cache_size=-2000` (~2 MB cap), `mmap_size=0`.
 - **Split connection pools** against the same SQLite file:
   - **Writer pool:** `MaxOpenConns(1)` — serializes writes cleanly in Go without SQLite lock thrashing.
   - **Reader pool:** `MaxOpenConns(8)` (`mode=ro` or read-only query path) — concurrent WAL reads without blocking on writers.
 - **Hot-path isolation:** Gateway requests read active provider/key/combo state from an in-memory read-through cache (invalidated via `eventbus` on config mutations) and emit usage/log records into a bounded async channel flushed in batches (e.g. every 250ms or 50 records) so disk I/O never stalls token streaming.
-- **Secret Vault Master-Key Lifecycle *(Architect Call)*:** Provider secrets and OAuth tokens are encrypted at rest with AES-256-GCM using a 32-byte master key loaded from `OMEG4MON_MASTER_KEY` if provided, or auto-generated once on first boot and persisted to `<OMEG4MON_DATA_DIR>/master.key` (`0600` permissions). It is **never** derived from the admin login password so unattended VPS/Docker restarts can decrypt credentials automatically.
-- **Usage & Request Log Retention *(Architect Call)*:** `usage` persists **metadata by default** (request ID, key ID, model, provider, connection ID, input/output/cached tokens, cost, latency/TTFT, HTTP status, error summary) to protect the 15–30 MB RAM / 1 GB VPS budget. Full request/response payload logging is an **opt-in setting** (off by default) with a strict per-field truncation cap (32 KB), automatic secret/header redaction, and a scheduled retention pruning job (default 7 days for payloads, 90 days for metadata).
+- **Secret Vault Master-Key Lifecycle _(Architect Call)_:** Provider secrets and OAuth tokens are encrypted at rest with AES-256-GCM using a 32-byte master key loaded from `OMEG4MON_MASTER_KEY` if provided, or auto-generated once on first boot and persisted to `<OMEG4MON_DATA_DIR>/master.key` (`0600` permissions). It is **never** derived from the admin login password so unattended VPS/Docker restarts can decrypt credentials automatically.
+- **Usage & Request Log Retention _(Architect Call)_:** `usage` persists **metadata by default** (request ID, key ID, model, provider, connection ID, input/output/cached tokens, cost, latency/TTFT, HTTP status, error summary) to protect the 15–30 MB RAM / 1 GB VPS budget. Full request/response payload logging is an **opt-in setting** (off by default) with a strict per-field truncation cap (32 KB), automatic secret/header redaction, and a scheduled retention pruning job (default 7 days for payloads, 90 days for metadata).
 
 ### 6.3 Gateway Routing, Translation & SSE Streaming Pipeline (`internal/modules/gateway`)
 
 - **Protocol coverage:** OpenAI Chat Completions (`/v1/chat/completions`), Anthropic Messages (`/v1/messages`, `/v1/messages/count_tokens`), OpenAI Responses (`/v1/responses`, `/v1/responses/compact`), Gemini (`/v1beta/models`, `/v1beta/models/{model}:{action}`), Model Listing (`/v1/models`, `/v1/models/{id}`), plus compatibility aliases (`/codex/*` → `/v1/responses`, `/responses` → `/v1/responses`, `/models/*` → `/v1/models/*`).
-- **Model Addressing, Resolution Precedence & Key Scoping *(Architect Call)*:**
+- **Model Addressing, Resolution Precedence & Key Scoping _(Architect Call)_:**
   - Clients may pass either `<provider>/<model>` or bare `<model>` names.
   - Deterministic resolution precedence: **(1) Active Combo name → (2) Model Alias → (3) Explicit `<provider>/<model>` → (4) Bare `<model>` matched across enabled connected providers ordered by connection priority**.
   - `keys.allowed_models`: empty/wildcard (`*`) permits all enabled models; when non-empty, authorization checks the **requested identifier** (combo name, alias, or `<provider>/<model>` / bare model). Authorizing a combo authorizes its member targets for that request.
   - `/v1/models` returns the deduplicated union of active combos, aliases, and enabled connected provider models, filtered by the caller's API key `allowed_models`.
-- **Translation & Local-Compute Depth *(Architect Call)*:**
+- **Translation & Local-Compute Depth _(Architect Call)_:**
   - **Canonical Internal Representation (IR)** preserves messages, system instructions, streaming deltas, parallel tool/function calls, structured JSON outputs, multimodal image blocks, and reasoning/thinking blocks.
   - **Direct fast-path pass-through** when inbound protocol matches upstream protocol (preserving provider-specific fields such as Anthropic `cache_control` verbatim with minimal allocation).
   - **Direct pair translators** where Canonical IR would drop fidelity (e.g., Anthropic thinking/cache-control ↔ OpenAI Responses).
@@ -195,16 +200,16 @@ To keep RAM low and prevent `SQLITE_BUSY` under concurrent SSE traffic:
 - **Fallback & error classification:**
   - Distinguish **client/request-scoped errors** (400 malformed payload, context length exceeded, invalid params) from **provider/account errors** (401/403 auth, 429 rate limit, 5xx upstream outage, network timeout).
   - Client errors return immediately without burning fallback accounts; provider/account errors trigger automatic OAuth refresh (on 401), per-account cooldown backoff, account rotation, and combo fallback chain traversal.
-- **Provider OAuth & CLI Tools Runtime Modes *(Architect Call)*:**
+- **Provider OAuth & CLI Tools Runtime Modes _(Architect Call)_:**
   - **Headless-safe OAuth (`providers`):** Every OAuth flow supports both automatic local callback (via `/api/oauth/callback` or short-lived local callback listener when required by the provider) **and** manual authorization-code / callback-URL paste (or device-code flow) in the dashboard UI so headless VPS/Docker deployments work without a browser on the server.
   - **Safe `clitools` execution:** Always generates copyable/downloadable config snippets via API/UI; optional one-click local config apply (with atomic backup & rollback) is enabled **only** when running locally on loopback and automatically disabled in Docker/remote-bind deployments.
 
 ### 6.4 OpenAPI Contract, Security Posture & Static-Export Frontend (`contracts/` + `web/`)
 
 - **Contract pipeline:** Each backend module defines its endpoints/schemas in `contracts/openapi/modules/<name>.yaml`. Running `make codegen` bundles `contracts/openapi/openapi.yaml` and runs `openapi-typescript` to generate `web/src/shared/api/schema.d.ts`, consumed by a thin `openapi-fetch` client + TanStack Query hooks in `web/src/features/<module>/`.
-- **Static-export routing rule *(Architect Call)*:**
+- **Static-export routing rule _(Architect Call)_:**
   - Because `next.config.ts` uses `output: "export"`, entity detail views use static route shells + query params for dynamic entity IDs (e.g., `/dashboard/providers/detail?id=...`) so Next.js `output: "export"` works with zero build-time `generateStaticParams` hacks and direct deep-link refresh always hits a real static HTML file.
-- **Auth & Remote-Bind Posture *(Architect Call)*:**
+- **Auth & Remote-Bind Posture _(Architect Call)_:**
   - Fresh installs default to `require_login=true`, bootstrapped either via first-run `/api/init` onboarding screen or `OMEG4MON_ADMIN_PASSWORD` env var.
   - Dashboard UI authenticates via `POST /api/auth/login` returning an `HttpOnly`, `SameSite=Lax`, signed session cookie (HMAC-SHA256 backed by vault key). Setting `require_login=false` on loopback (`127.0.0.1` / `::1`) bypasses `/api/*` dashboard login **only** (never `/v1/*` API-key auth unless explicitly opted in).
   - When bound to a non-loopback address (e.g. `0.0.0.0` / Docker), the server enforces `require_login=true` and disables `/api/shutdown` unless explicitly overridden via `OMEG4MON_ALLOW_INSECURE_REMOTE=true`.
@@ -219,6 +224,7 @@ To keep RAM low and prevent `SQLITE_BUSY` under concurrent SSE traffic:
 Every feature domain from `main` is mapped to an isolated module and delivered in waves. Each wave is independently deployable, testable, and reviewable.
 
 ### Wave 0 — Platform Foundation & Build Pipeline
+
 - Repo structure, clean MIT `LICENSE`, `docs/DESIGN.md`, `Makefile`, `Dockerfile`.
 - `internal/platform/*` (config, `chi` server, SQLite split-pool WAL + modular migrator, AES-256-GCM vault, event bus, HTTP/2 client pool, `slog` logger, module registry).
 - `contracts/openapi/` + `make codegen` pipeline.
@@ -226,7 +232,8 @@ Every feature domain from `main` is mapped to an isolated module and delivered i
 - `internal/modules/system` (`/api/health`, `/api/version`, `/api/init`, `/api/shutdown`).
 - Verification: `make test` and `make build` produce a single working binary serving the embedded dashboard shell and `/api/health`.
 
-### Wave 1 — Core LLM Gateway & Essential Control Plane *(Target of Initial Implementation Plan: Waves 0–1)*
+### Wave 1 — Core LLM Gateway & Essential Control Plane _(Target of Initial Implementation Plan: Waves 0–1)_
+
 - `auth` — single-admin local password setup/login, signed session cookie, `require_login` toggle, non-loopback safety guard.
 - `settings` — typed settings store, history & rollback, theme/locale preferences.
 - `providers` — pluggable `ProviderAdapter` registry shipping in Wave 1 with:
@@ -240,7 +247,8 @@ Every feature domain from `main` is mapped to an isolated module and delivered i
 - `clitools` — stateless config generators for Claude Code, Codex CLI, OpenCode, Cline, Roo, Droid, etc., plus optional loopback-only atomic local apply with backup/rollback.
 - Matching `web/src/features/*` pages: Login / First-Run Init, Dashboard Overview, Endpoint, Providers Control Studio, Combos, API Keys, Usage & Request Logs, CLI Tools, Settings & Pricing.
 
-### Wave 2 — Routing Enhancements, Provider Expansion, Security & Developer Tools *(Subsequent Plan)*
+### Wave 2 — Routing Enhancements, Provider Expansion, Security & Developer Tools _(Subsequent Plan)_
+
 - Additional dedicated provider adapters plugged into `providers` (Qwen, GitHub Copilot, Kiro, Cursor, Antigravity, etc.).
 - `proxypools` — HTTP/SOCKS5 proxy pools, latency tester, auto-scanner, provider binding.
 - `translator` — interactive protocol translator workbench + live console log SSE stream.
@@ -249,7 +257,8 @@ Every feature domain from `main` is mapped to an isolated module and delivered i
 - `promptinjection` — configurable prompt guard/injection middleware (plugged via `GatewayInterceptor`).
 - `security` & `notifications` — security audit trail, system notifications, background dashboard job status (`jobs`).
 
-### Wave 3 — Extended Ecosystem, Key Grouping & Packaging *(Subsequent Plan)*
+### Wave 3 — Extended Ecosystem, Key Grouping & Packaging _(Subsequent Plan)_
+
 - `teams` — API-key, budget, and quota grouping under the single-admin dashboard (no multi-user RBAC).
 - `vouchers` — voucher creation, claim flow, and anti-abuse enforcement.
 - `media` — audio (`/v1/audio/*`), images (`/v1/images/*`), videos (`/v1/videos/*`), web search/fetch (`/v1/search`, `/v1/web/fetch`) and media provider combos.
@@ -262,6 +271,7 @@ Every feature domain from `main` is mapped to an isolated module and delivered i
 ## 8. Confirmed Owner Decisions & Architect Calls
 
 ### Owner Decisions
+
 1. **Stack & Runtime:** Next.js (strict TypeScript, `output: "export"`) + Go (`net/http` + `chi/v5`), packaged as a **Single Binary (`//go:embed`)**.
 2. **Architecture:** **Opsi A — Modular Monolith + Module Registry + OpenAPI Contract**, rebuilt progressively across all feature domains.
 3. **Clean-Room Rule (1A):** Reading `main` is permitted strictly as a behavioral specification reference; **0% verbatim copying** of code or upstream assets.
@@ -270,6 +280,7 @@ Every feature domain from `main` is mapped to an isolated module and delivered i
 6. **Initial Plan Horizon:** **Waves 0–1** (Platform Foundation + Core Gateway & Control Plane with generic executors + 3 core OAuth providers: Claude, Codex, Gemini); remaining providers and Waves 2–3 follow modularly.
 
 ### Architect Calls (Check While Reviewing)
+
 1. **Dynamic routes under static export:** Static route shells + query params (e.g., `/dashboard/providers/detail?id=<id>`) for refresh-safe `output: "export"` builds.
 2. **Database:** Clean per-module SQLite schema (`modernc.org/sqlite`, WAL mode, split 1-writer / 8-reader pools); legacy `data.sqlite` migration deferred to optional Wave 3 `importer`.
 3. **Secret vault master key:** Loaded from `OMEG4MON_MASTER_KEY` or auto-generated to `<DATA_DIR>/master.key` (`0600`), never derived from admin password, enabling unattended VPS/Docker restarts.

@@ -1,42 +1,28 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
 import {
   AlertTriangle,
   ArrowRight,
   KeyRound,
-  Moon,
   RefreshCw,
   ShieldCheck,
-  Sun,
 } from "lucide-react";
 import { useInitStatus, useSystemVersion } from "@/features/system/hooks";
+import { Alert, AlertDescription, AlertTitle } from "@/shared/ui/alert";
+import { Button } from "@/shared/ui/button";
+import { Card } from "@/shared/ui/card";
 import { CaduceusLogo } from "@/shared/ui/CaduceusLogo";
 import { EmberRule } from "@/shared/ui/EmberRule";
+import { Input } from "@/shared/ui/input";
+import { Label } from "@/shared/ui/label";
+import { ThemeToggle } from "@/shared/ui/ThemeToggle";
 
 export default function LoginPage() {
   const initStatusQuery = useInitStatus();
   const versionQuery = useSystemVersion();
-  const [theme, setTheme] = useState<"dark" | "light">("dark");
 
-  useEffect(() => {
-    const current = document.documentElement.getAttribute("data-theme");
-    if (current === "light" || current === "dark") {
-      setTheme(current);
-    }
-  }, []);
-
-  const toggleTheme = () => {
-    const next = theme === "dark" ? "light" : "dark";
-    setTheme(next);
-    document.documentElement.setAttribute("data-theme", next);
-    try {
-      window.localStorage.setItem("omeg4mon-theme", next);
-    } catch {
-      // Ignore storage failures.
-    }
-  };
+  const isRetrying = initStatusQuery.isFetching || versionQuery.isFetching;
 
   const handleRetry = () => {
     void Promise.all([initStatusQuery.refetch(), versionQuery.refetch()]);
@@ -76,24 +62,7 @@ export default function LoginPage() {
             </div>
           </div>
 
-          <button
-            type="button"
-            onClick={toggleTheme}
-            className="inline-flex h-9 items-center gap-2 rounded-md border border-[var(--border-subtle)] bg-[var(--bg-surface-raised)] px-3 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]"
-            aria-label={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
-          >
-            {theme === "dark" ? (
-              <>
-                <Sun className="h-3.5 w-3.5 text-[#E56A4A]" aria-hidden="true" />
-                <span>Light</span>
-              </>
-            ) : (
-              <>
-                <Moon className="h-3.5 w-3.5 text-[#E56A4A]" aria-hidden="true" />
-                <span>Dark</span>
-              </>
-            )}
-          </button>
+          <ThemeToggle />
         </div>
 
         <div className="my-10 space-y-5 lg:my-0">
@@ -135,7 +104,7 @@ export default function LoginPage() {
 
       {/* Right split configure panel */}
       <main className="flex items-center justify-center p-6 sm:p-10 lg:col-span-7">
-        <div className="w-full max-w-md rounded-md border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-6 sm:p-8">
+        <Card className="w-full max-w-md p-6 sm:p-8">
           <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-widest text-[var(--accent-text)]">
             <KeyRound className="h-3.5 w-3.5" aria-hidden="true" />
             <span>Operator Authentication</span>
@@ -157,112 +126,94 @@ export default function LoginPage() {
             </div>
           ) : initStatusQuery.isError ? (
             <div className="space-y-4">
-              <div
-                role="alert"
-                className="flex items-start gap-2.5 rounded-md border border-[var(--status-error-border)] bg-[var(--status-error-bg)] px-3.5 py-3 text-sm"
-              >
+              <Alert variant="destructive">
                 <AlertTriangle
                   className="mt-0.5 h-4 w-4 shrink-0 text-[var(--status-error)]"
                   aria-hidden="true"
                 />
                 <div>
-                  <p className="font-medium text-[var(--text-primary)]">
-                    Unable to reach control plane
-                  </p>
-                  <p className="mt-0.5 font-mono text-xs text-[var(--text-secondary)]">
+                  <AlertTitle>Unable to reach control plane</AlertTitle>
+                  <AlertDescription className="font-mono">
                     {initStatusQuery.error.message}
-                  </p>
+                  </AlertDescription>
                 </div>
-              </div>
+              </Alert>
 
               <div className="flex flex-col gap-2.5">
-                <button
+                <Button
                   type="button"
                   onClick={handleRetry}
-                  disabled={initStatusQuery.isFetching || versionQuery.isFetching}
-                  className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md bg-[#E56A4A] px-4 text-sm font-semibold text-[#0a0a0a] transition-colors hover:bg-[var(--accent-primary-hover)] disabled:opacity-60"
+                  disabled={isRetrying}
+                  className="w-full"
                 >
                   <RefreshCw className="h-4 w-4" aria-hidden="true" />
-                  <span>
-                    {initStatusQuery.isFetching ? "Retrying..." : "Retry Connection"}
-                  </span>
-                </button>
-                <Link
-                  href="/dashboard/"
-                  className="inline-flex h-10 w-full items-center justify-center rounded-md border border-[var(--border-strong)] bg-[var(--bg-surface-raised)] px-4 text-sm font-medium text-[var(--text-primary)] transition-colors hover:border-[#E56A4A]"
-                >
-                  Open Dashboard
-                </Link>
+                  <span>{isRetrying ? "Retrying..." : "Retry Connection"}</span>
+                </Button>
+                <Button asChild variant="outline" className="w-full">
+                  <Link href="/dashboard/">Open Dashboard</Link>
+                </Button>
               </div>
             </div>
           ) : !initStatus?.initialized ? (
             <div className="space-y-4">
-              <div className="rounded-md border border-[var(--status-warn-border)] bg-[var(--status-warn-bg)] px-4 py-3 text-sm text-[var(--text-primary)]">
+              <Alert variant="warning">
                 First-run initialization is required before signing in.
-              </div>
-              <Link
-                href="/init/"
-                className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md bg-[#E56A4A] px-4 text-sm font-semibold text-[#0a0a0a] transition-colors hover:bg-[var(--accent-primary-hover)]"
-              >
-                <span>Complete First-Run Setup</span>
-                <ArrowRight className="h-4 w-4" aria-hidden="true" />
-              </Link>
+              </Alert>
+              <Button asChild className="w-full">
+                <Link href="/init/">
+                  <span>Complete First-Run Setup</span>
+                  <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                </Link>
+              </Button>
             </div>
           ) : (
             <div className="space-y-5">
-              <div className="rounded-md border border-[var(--border-subtle)] bg-[var(--bg-canvas)] p-4">
-                <div className="flex items-start gap-2.5">
-                  <ShieldCheck
-                    className="mt-0.5 h-4 w-4 shrink-0 text-[#E56A4A]"
-                    aria-hidden="true"
-                  />
-                  <div className="text-xs leading-relaxed text-[var(--text-secondary)]">
-                    <p className="font-medium text-[var(--text-primary)]">
-                      Wave 0 Kernel Posture
-                    </p>
-                    <p className="mt-1">
-                      Cookie-backed operator login (<span className="font-mono">/api/auth/login</span>)
-                      is scheduled for Wave 1. Loopback control plane access is
-                      currently direct.
-                    </p>
-                  </div>
+              <Alert>
+                <ShieldCheck
+                  className="mt-0.5 h-4 w-4 shrink-0 text-[#E56A4A]"
+                  aria-hidden="true"
+                />
+                <div className="text-xs leading-relaxed text-[var(--text-secondary)]">
+                  <AlertTitle>Wave 0 Kernel Posture</AlertTitle>
+                  <AlertDescription className="mt-1">
+                    Cookie-backed operator login (
+                    <span className="font-mono">/api/auth/login</span>) is
+                    scheduled for Wave 1. Loopback control plane access is
+                    currently direct.
+                  </AlertDescription>
                 </div>
-              </div>
+              </Alert>
 
               <div>
-                <label
+                <Label
                   htmlFor="login-password-standby"
-                  className="block text-xs font-medium uppercase tracking-wider text-[var(--text-muted)]"
+                  className="text-[var(--text-muted)]"
                 >
                   Administrator Password
-                </label>
-                <input
+                </Label>
+                <Input
                   id="login-password-standby"
                   type="password"
                   disabled
                   placeholder="Enabled when Wave 1 auth module mounts"
-                  className="mt-1.5 h-10 w-full cursor-not-allowed rounded-md border border-[var(--border-subtle)] bg-[var(--bg-canvas)] px-3 text-sm text-[var(--text-muted)] placeholder:text-[var(--text-muted)]"
+                  className="mt-1.5"
                 />
               </div>
 
               <div className="flex flex-col gap-2.5 pt-1">
-                <Link
-                  href="/dashboard/"
-                  className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md bg-[#E56A4A] px-4 text-sm font-semibold text-[#0a0a0a] transition-colors hover:bg-[var(--accent-primary-hover)]"
-                >
-                  <span>Continue to Dashboard</span>
-                  <ArrowRight className="h-4 w-4" aria-hidden="true" />
-                </Link>
-                <Link
-                  href="/init/"
-                  className="inline-flex h-10 w-full items-center justify-center rounded-md border border-[var(--border-strong)] bg-[var(--bg-surface-raised)] px-4 text-sm font-medium text-[var(--text-primary)] transition-colors hover:border-[#E56A4A]"
-                >
-                  Inspect Initialization Status
-                </Link>
+                <Button asChild className="w-full">
+                  <Link href="/dashboard/">
+                    <span>Continue to Dashboard</span>
+                    <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                  </Link>
+                </Button>
+                <Button asChild variant="outline" className="w-full">
+                  <Link href="/init/">Inspect Initialization Status</Link>
+                </Button>
               </div>
             </div>
           )}
-        </div>
+        </Card>
       </main>
     </div>
   );

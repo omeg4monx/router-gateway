@@ -11,6 +11,10 @@ import {
   Server,
   ShieldCheck,
 } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/shared/ui/alert";
+import { Badge } from "@/shared/ui/badge";
+import { Button } from "@/shared/ui/button";
+import { Card, CardHeader, CardTitle } from "@/shared/ui/card";
 import { EmberRule } from "@/shared/ui/EmberRule";
 import {
   useInitStatus,
@@ -19,11 +23,13 @@ import {
 } from "./hooks";
 
 const PLANNED_WAVE1_MODULES = [
-  { name: "auth", scope: "Session cookies & RBAC" },
-  { name: "providers", scope: "Upstream LLM connections & OAuth" },
-  { name: "keys", scope: "Client API keys & scopes" },
-  { name: "router", scope: "OpenAI & Anthropic gateway translation" },
-  { name: "usage", scope: "Token accounting & cost analytics" },
+  { name: "auth", scope: "Single-admin session cookies & login policy" },
+  { name: "settings", scope: "Typed settings store, history & rollback" },
+  { name: "providers", scope: "Upstream LLM adapters, OAuth & credential vault" },
+  { name: "keys", scope: "Client API keys, allowed models & quotas" },
+  { name: "combos", scope: "Fallback chains, aliases & account cooldowns" },
+  { name: "gateway", scope: "OpenAI, Anthropic, Responses & Gemini SSE proxy" },
+  { name: "usage", scope: "Async token accounting, pricing & request telemetry" },
 ];
 
 function formatUptime(totalSeconds: number): string {
@@ -75,6 +81,11 @@ export function SystemOverview() {
   const isDegraded = health?.status === "degraded";
   const hasError = healthQuery.isError || versionQuery.isError;
 
+  const mountedSet = new Set(health?.modules ?? []);
+  const pendingWave1Modules = PLANNED_WAVE1_MODULES.filter(
+    (mod) => !mountedSet.has(mod.name),
+  );
+
   const lastSyncTimestamp = Math.max(
     healthQuery.dataUpdatedAt,
     versionQuery.dataUpdatedAt,
@@ -82,7 +93,6 @@ export function SystemOverview() {
 
   return (
     <div className="space-y-6">
-      {/* Top control strip */}
       <section className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="font-mono text-xs uppercase tracking-widest text-[var(--accent-text)]">
@@ -101,23 +111,23 @@ export function SystemOverview() {
           <span className="font-mono text-xs tabular-nums text-[var(--text-muted)]">
             Synced: {formatUpdatedAt(lastSyncTimestamp)}
           </span>
-          <button
+          <Button
             type="button"
+            variant="outline"
+            size="sm"
             onClick={handleRefresh}
             disabled={isRefreshing}
-            className="inline-flex h-9 items-center gap-2 rounded-md border border-[var(--border-strong)] bg-[var(--bg-surface-raised)] px-3.5 text-xs font-medium text-[var(--text-primary)] transition-colors hover:border-[#E56A4A] disabled:opacity-60"
           >
             <RefreshCw className="h-3.5 w-3.5 text-[#E56A4A]" aria-hidden="true" />
             <span>{isRefreshing ? "Refreshing" : "Refresh"}</span>
-          </button>
+          </Button>
         </div>
       </section>
 
-      {/* First-run initialization reminder if uninitialized */}
       {initStatus && !initStatus.initialized ? (
-        <div
-          role="status"
-          className="flex flex-col gap-3 rounded-md border border-[var(--status-warn-border)] bg-[var(--status-warn-bg)] px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between"
+        <Alert
+          variant="warning"
+          className="flex-col justify-between gap-3 px-4 py-3.5 sm:flex-row sm:items-center"
         >
           <div className="flex items-start gap-2.5">
             <AlertTriangle
@@ -125,24 +135,20 @@ export function SystemOverview() {
               aria-hidden="true"
             />
             <p className="text-sm text-[var(--text-primary)]">
-              Administrator password has not been initialized yet. Complete first-run
-              configuration before exposing this instance.
+              Administrator password has not been initialized yet. Complete
+              first-run configuration before exposing this instance.
             </p>
           </div>
-          <Link
-            href="/init/"
-            className="inline-flex shrink-0 items-center justify-center rounded-md bg-[#E56A4A] px-3.5 py-2 text-xs font-semibold text-[#0a0a0a] transition-colors hover:bg-[var(--accent-primary-hover)]"
-          >
-            Run Setup
-          </Link>
-        </div>
+          <Button asChild size="xs" className="shrink-0">
+            <Link href="/init/">Run Setup</Link>
+          </Button>
+        </Alert>
       ) : null}
 
-      {/* API unreachable banner */}
       {hasError ? (
-        <div
-          role="alert"
-          className="flex flex-col gap-3 rounded-md border border-[var(--status-error-border)] bg-[var(--status-error-bg)] px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between"
+        <Alert
+          variant="destructive"
+          className="flex-col justify-between gap-3 px-4 py-3.5 sm:flex-row sm:items-center"
         >
           <div className="flex items-start gap-2.5">
             <AlertTriangle
@@ -150,32 +156,31 @@ export function SystemOverview() {
               aria-hidden="true"
             />
             <div className="text-sm">
-              <p className="font-medium text-[var(--text-primary)]">
-                Control plane endpoint unreachable
-              </p>
-              <p className="mt-0.5 font-mono text-xs text-[var(--text-secondary)]">
+              <AlertTitle>Control plane endpoint unreachable</AlertTitle>
+              <AlertDescription className="font-mono">
                 {healthQuery.error?.message ??
                   versionQuery.error?.message ??
                   "Failed to reach gateway backend"}
-              </p>
+              </AlertDescription>
             </div>
           </div>
-          <button
+          <Button
             type="button"
+            variant="destructive"
+            size="xs"
             onClick={handleRefresh}
-            className="inline-flex shrink-0 items-center justify-center rounded-md border border-[var(--status-error-border)] bg-[var(--bg-surface)] px-3 py-1.5 text-xs font-medium text-[var(--text-primary)] transition-colors hover:border-[#E56A4A]"
+            className="shrink-0"
           >
             Retry
-          </button>
-        </div>
+          </Button>
+        </Alert>
       ) : null}
 
-      {/* Primary KPI metric cards */}
       <section
         aria-label="Key system metrics"
         className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4"
       >
-        <div className="rounded-md border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-4">
+        <Card className="p-4">
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium uppercase tracking-wider text-[var(--text-muted)]">
               Gateway Status
@@ -188,7 +193,9 @@ export function SystemOverview() {
             ) : (
               <AlertTriangle
                 className={`h-4 w-4 ${
-                  isDegraded ? "text-[var(--status-warn)]" : "text-[var(--text-muted)]"
+                  isDegraded
+                    ? "text-[var(--status-warn)]"
+                    : "text-[var(--text-muted)]"
                 }`}
                 aria-hidden="true"
               />
@@ -216,14 +223,17 @@ export function SystemOverview() {
           <p className="mt-1.5 text-xs text-[var(--text-muted)]">
             HTTP listener on local control plane
           </p>
-        </div>
+        </Card>
 
-        <div className="rounded-md border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-4">
+        <Card className="p-4">
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium uppercase tracking-wider text-[var(--text-muted)]">
               SQLite Store
             </span>
-            <Database className="h-4 w-4 text-[var(--text-muted)]" aria-hidden="true" />
+            <Database
+              className="h-4 w-4 text-[var(--text-muted)]"
+              aria-hidden="true"
+            />
           </div>
           <div className="mt-3">
             <span
@@ -245,30 +255,31 @@ export function SystemOverview() {
           <p className="mt-1.5 text-xs text-[var(--text-muted)]">
             WAL mode embedded state engine
           </p>
-        </div>
+        </Card>
 
-        <div className="rounded-md border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-4">
+        <Card className="p-4">
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium uppercase tracking-wider text-[var(--text-muted)]">
               Process Uptime
             </span>
-            <Clock className="h-4 w-4 text-[var(--text-muted)]" aria-hidden="true" />
+            <Clock
+              className="h-4 w-4 text-[var(--text-muted)]"
+              aria-hidden="true"
+            />
           </div>
           <div className="mt-3">
             <span className="font-mono text-2xl font-semibold tracking-tight tabular-nums text-[var(--text-primary)]">
-              {healthQuery.isPending
+              {healthQuery.isPending || healthQuery.isError || !health
                 ? "--:--:--"
-                : health
-                  ? formatUptime(health.uptimeSeconds)
-                  : "00h 00m 00s"}
+                : formatUptime(health.uptimeSeconds)}
             </span>
           </div>
           <p className="mt-1.5 text-xs text-[var(--text-muted)]">
             Elapsed since kernel start
           </p>
-        </div>
+        </Card>
 
-        <div className="rounded-md border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-4">
+        <Card className="p-4">
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium uppercase tracking-wider text-[var(--text-muted)]">
               Loaded Modules
@@ -286,26 +297,22 @@ export function SystemOverview() {
               ? health.modules.join(", ")
               : "Awaiting health probe"}
           </p>
-        </div>
+        </Card>
       </section>
 
       <EmberRule />
 
-      {/* Technical detail panels */}
       <section className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        {/* Kernel modules registry */}
-        <div className="rounded-md border border-[var(--border-subtle)] bg-[var(--bg-surface)]">
-          <div className="flex items-center justify-between border-b border-[var(--border-subtle)] px-5 py-3.5">
+        <Card>
+          <CardHeader>
             <div className="flex items-center gap-2">
               <Server className="h-4 w-4 text-[#E56A4A]" aria-hidden="true" />
-              <h3 className="text-sm font-semibold text-[var(--text-primary)]">
-                Registered Kernel Modules
-              </h3>
+              <CardTitle>Registered Kernel Modules</CardTitle>
             </div>
             <span className="font-mono text-xs text-[var(--text-muted)]">
               GET /api/health
             </span>
-          </div>
+          </CardHeader>
 
           <div className="divide-y divide-[var(--border-subtle)]">
             {health && health.modules.length > 0 ? (
@@ -322,9 +329,7 @@ export function SystemOverview() {
                       Active kernel control plane module
                     </p>
                   </div>
-                  <span className="rounded border border-[var(--status-ok-border)] bg-[var(--status-ok-bg)] px-2 py-0.5 font-mono text-[11px] font-medium uppercase text-[var(--status-ok)]">
-                    Mounted
-                  </span>
+                  <Badge variant="success">Mounted</Badge>
                 </div>
               ))
             ) : (
@@ -335,7 +340,7 @@ export function SystemOverview() {
               </div>
             )}
 
-            {PLANNED_WAVE1_MODULES.map((mod) => (
+            {pendingWave1Modules.map((mod) => (
               <div
                 key={mod.name}
                 className="flex items-center justify-between bg-[var(--bg-canvas)] px-5 py-2.5"
@@ -346,51 +351,57 @@ export function SystemOverview() {
                   </p>
                   <p className="text-xs text-[var(--text-muted)]">{mod.scope}</p>
                 </div>
-                <span className="rounded border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-[var(--text-muted)]">
-                  Wave 1
-                </span>
+                <Badge variant="outline">Wave 1</Badge>
               </div>
             ))}
           </div>
-        </div>
+        </Card>
 
-        {/* Build & runtime metadata */}
-        <div className="flex flex-col rounded-md border border-[var(--border-subtle)] bg-[var(--bg-surface)]">
-          <div className="flex items-center justify-between border-b border-[var(--border-subtle)] px-5 py-3.5">
+        <Card className="flex flex-col">
+          <CardHeader>
             <div className="flex items-center gap-2">
-              <ShieldCheck className="h-4 w-4 text-[#E56A4A]" aria-hidden="true" />
-              <h3 className="text-sm font-semibold text-[var(--text-primary)]">
-                Build &amp; Security Posture
-              </h3>
+              <ShieldCheck
+                className="h-4 w-4 text-[#E56A4A]"
+                aria-hidden="true"
+              />
+              <CardTitle>Build &amp; Security Posture</CardTitle>
             </div>
             <span className="font-mono text-xs text-[var(--text-muted)]">
               GET /api/version
             </span>
-          </div>
+          </CardHeader>
 
           <dl className="divide-y divide-[var(--border-subtle)] text-sm">
             <div className="grid grid-cols-3 gap-4 px-5 py-3">
               <dt className="text-[var(--text-muted)]">Version</dt>
               <dd className="col-span-2 font-mono text-[var(--text-primary)]">
-                {versionQuery.isPending ? "Loading..." : (version?.version ?? "Unavailable")}
+                {versionQuery.isPending
+                  ? "Loading..."
+                  : (version?.version ?? "Unavailable")}
               </dd>
             </div>
             <div className="grid grid-cols-3 gap-4 px-5 py-3">
               <dt className="text-[var(--text-muted)]">Git Commit</dt>
               <dd className="col-span-2 truncate font-mono text-[var(--text-primary)]">
-                {versionQuery.isPending ? "Loading..." : (version?.commit ?? "Unavailable")}
+                {versionQuery.isPending
+                  ? "Loading..."
+                  : (version?.commit ?? "Unavailable")}
               </dd>
             </div>
             <div className="grid grid-cols-3 gap-4 px-5 py-3">
               <dt className="text-[var(--text-muted)]">Build Time</dt>
               <dd className="col-span-2 font-mono text-[var(--text-primary)]">
-                {versionQuery.isPending ? "Loading..." : (version?.buildTime ?? "Unavailable")}
+                {versionQuery.isPending
+                  ? "Loading..."
+                  : (version?.buildTime ?? "Unavailable")}
               </dd>
             </div>
             <div className="grid grid-cols-3 gap-4 px-5 py-3">
               <dt className="text-[var(--text-muted)]">Go Runtime</dt>
               <dd className="col-span-2 font-mono text-[var(--text-primary)]">
-                {versionQuery.isPending ? "Loading..." : (version?.goVersion ?? "Unavailable")}
+                {versionQuery.isPending
+                  ? "Loading..."
+                  : (version?.goVersion ?? "Unavailable")}
               </dd>
             </div>
             <div className="grid grid-cols-3 gap-4 px-5 py-3">
@@ -418,7 +429,7 @@ export function SystemOverview() {
               </dd>
             </div>
           </dl>
-        </div>
+        </Card>
       </section>
     </div>
   );

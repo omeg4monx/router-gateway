@@ -1,3 +1,5 @@
+import { z } from "zod";
+
 export const MIN_PASSWORD_RUNES = 8;
 export const MAX_PASSWORD_BYTES = 72;
 
@@ -17,6 +19,32 @@ export function countPasswordRunes(value: string): number {
 export function utf8ByteLength(value: string): number {
   return new TextEncoder().encode(value).length;
 }
+
+export const initPasswordSchema = z
+  .object({
+    password: z
+      .string()
+      .refine(
+        (value) => countPasswordRunes(value) >= MIN_PASSWORD_RUNES,
+        `Password must be at least ${MIN_PASSWORD_RUNES} characters.`,
+      )
+      .refine(
+        (value) => utf8ByteLength(value) <= MAX_PASSWORD_BYTES,
+        `Password must not exceed ${MAX_PASSWORD_BYTES} UTF-8 bytes.`,
+      ),
+    confirmPassword: z.string(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.password !== data.confirmPassword) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["confirmPassword"],
+        message: "Password confirmation does not match.",
+      });
+    }
+  });
+
+export type InitPasswordValues = z.infer<typeof initPasswordSchema>;
 
 export function validateInitPassword(
   password: string,

@@ -1,32 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Moon, Sun } from "lucide-react";
 import { InitForm } from "@/features/system/InitForm";
 import { CaduceusLogo } from "@/shared/ui/CaduceusLogo";
 import { EmberRule } from "@/shared/ui/EmberRule";
+import { ThemeToggle } from "@/shared/ui/ThemeToggle";
 
 export default function InitPage() {
-  const [theme, setTheme] = useState<"dark" | "light">("dark");
-
-  useEffect(() => {
-    const current = document.documentElement.getAttribute("data-theme");
-    if (current === "light" || current === "dark") {
-      setTheme(current);
-    }
-  }, []);
-
-  const toggleTheme = () => {
-    const next = theme === "dark" ? "light" : "dark";
-    setTheme(next);
-    document.documentElement.setAttribute("data-theme", next);
-    try {
-      window.localStorage.setItem("omeg4mon-theme", next);
-    } catch {
-      // Ignore storage failures.
-    }
-  };
-
   return (
     <div className="flex min-h-screen flex-col bg-[var(--bg-canvas)] text-[var(--text-primary)]">
       <header className="bg-[var(--bg-surface)]">
@@ -43,24 +22,7 @@ export default function InitPage() {
             </div>
           </div>
 
-          <button
-            type="button"
-            onClick={toggleTheme}
-            className="inline-flex h-9 items-center gap-2 rounded-md border border-[var(--border-subtle)] bg-[var(--bg-surface-raised)] px-3 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]"
-            aria-label={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
-          >
-            {theme === "dark" ? (
-              <>
-                <Sun className="h-3.5 w-3.5 text-[#E56A4A]" aria-hidden="true" />
-                <span>Light</span>
-              </>
-            ) : (
-              <>
-                <Moon className="h-3.5 w-3.5 text-[#E56A4A]" aria-hidden="true" />
-                <span>Dark</span>
-              </>
-            )}
-          </button>
+          <ThemeToggle />
         </div>
         <EmberRule />
       </header>
