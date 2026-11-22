@@ -602,8 +602,8 @@ export const PATTERN_CAPABILITIES = [
  * Union:        vision, pdf, audioInput, videoInput, imageOutput, audioOutput, search
  * Intersection: tools
  * Primary:      reasoning fields from the first (primary) model
- * Limits:       contextWindow = max (a combo fails over between members, so it can use the
- *               biggest window any of them offers) unless the combo sets its own; maxOutput = max
+ * Limits:       contextWindow = min (a request must fit whichever member serves it)
+ *               unless the combo sets its own; maxOutput = max
  *
  * @param {string[]} comboModels
  * @param {Object|null} [comboLookup] optional map of combo name → models array for nested resolution
@@ -649,7 +649,7 @@ export function aggregateComboCapabilities(comboModels, comboLookup = null, reso
     thinkingFormat:     first.thinkingFormat,
     thinkingCanDisable: first.thinkingCanDisable,
     thinkingRange:      first.thinkingRange,
-    contextWindow: customContextWindow > 0 ? customContextWindow : Math.max(...allCaps.map((c) => c.contextWindow)),
+    contextWindow: customContextWindow > 0 ? customContextWindow : Math.min(...allCaps.map((c) => c.contextWindow)),
     maxOutput:     Math.max(...allCaps.map((c) => c.maxOutput)),
   };
 }

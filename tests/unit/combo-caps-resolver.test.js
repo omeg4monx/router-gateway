@@ -2,22 +2,23 @@ import { describe, expect, it } from "vitest";
 
 import { aggregateComboCapabilities, getCapabilitiesForModel } from "../../open-sse/providers/capabilities.js";
 
-// A combo's limits are the largest of its members (it fails over between them):
-// ctx = max, maxOutput = max. Resolving those members needs the synced model catalog, which
+// A combo's context window is the smallest of its members (a request must fit whichever
+// member serves it); maxOutput = max. Resolving those members needs the synced model catalog, which
 // is server-only (it reads a file), so the browser bundle falls back to the
 // generic patterns. The dashboard computed its badges there and under-reported:
 // /v1/models and pi-settings (both server-side) said 1M while the badge said 200k.
 //
 // resolveCaps lets a caller hand in the server's answer. It must only override
 // what it carries - the local tables still own tools/pdf/audio/video/thinking*.
-const GLM53_FED = { vision: true, search: false, reasoning: true, contextWindow: 2_000_000, maxOutput: 131_072 };
+const GLM53_FED = { vision: true, search: false, reasoning: true, contextWindow: 500_000, maxOutput: 131_072 };
+const DEEPSEEK_LOCAL_CTX = getCapabilitiesForModel(null, "deepseek-v4.1-flash").contextWindow;
 
 describe("aggregateComboCapabilities: resolveCaps override", () => {
   const models = ["glm-cn/glm-5.3", "deepseek-v4.1-flash"];
 
   it("falls back to the local tables without a resolver", () => {
     const caps = aggregateComboCapabilities(models);
-    const local = Math.max(
+    const local = Math.min(
       getCapabilitiesForModel("glm-cn", "glm-5.3").contextWindow,
       getCapabilitiesForModel(null, "deepseek-v4.1-flash").contextWindow
     );
@@ -27,7 +28,8 @@ describe("aggregateComboCapabilities: resolveCaps override", () => {
   it("uses the fed limits when a resolver supplies them", () => {
     const resolver = (fullId) => (fullId === "glm-cn/glm-5.3" ? GLM53_FED : null);
     const caps = aggregateComboCapabilities(models, null, resolver);
-    expect(caps.contextWindow).toBe(2_000_000);
+    expect(caps.contextWindow).toBe(Math.min(500_000, DEEPSEEK_LOCAL_CTX));
+    expect(caps.contextWindow).not.toBe(aggregateComboCapabilities(models).contextWindow);
   });
 
   it("keeps the fields the override does not carry", () => {
@@ -39,10 +41,10 @@ describe("aggregateComboCapabilities: resolveCaps override", () => {
     }
   });
 
-  it("still takes the largest limits across members", () => {
-    // Feeding a *smaller* value for one member must not pull the aggregate below the other member.
+  it("takes the smallest window and the largest output across members", () => {
+    // Feeding a smaller value for one member pulls the window down to it.
     const smaller = aggregateComboCapabilities(models, null, (id) => (id === "glm-cn/glm-5.3" ? { ...GLM53_FED, contextWindow: 64_000 } : null));
-    expect(smaller.contextWindow).toBe(getCapabilitiesForModel(null, "deepseek-v4.1-flash").contextWindow);
+    expect(smaller.contextWindow).toBe(64_000);
     const caps = aggregateComboCapabilities(models, null, (id) => (id === "glm-cn/glm-5.3" ? GLM53_FED : null));
     expect(caps.maxOutput).toBe(384_000); // max across members, from deepseek
   });
