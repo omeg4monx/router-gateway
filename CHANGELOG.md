@@ -1,5 +1,11 @@
 # v0.1.0 (2026-11-21)
 
+### Bug Fixes — Auth guard wrapper (`custom-server.js`)
+
+- **One loader hook per request.** `getGuardModule()` cleared its cached promise after every settle, success included, so each guarded request ran `module.register()` again and chained one more resolve hook onto every later ESM resolution for the life of the process. Only a load that settles to `null` re-arms now; a transient failure still self-heals and still answers 503 meanwhile.
+- **Malformed cookie no longer answers 503 everywhere.** The guard's `cookies.get()` shim threw on a value `decodeURIComponent` rejects; the guard reads `auth_token` on every path, so one bad cookie turned every route (including `/login` and `/v1/*`) into 503 until the browser dropped it. It now ignores an undecodable value, as Next's `RequestCookies` does. Fail-closed behaviour is unchanged.
+- Regression suite `tests/unit/auth-fail-closed.test.js` now boots the wrapper and checks behaviour (load failure, guard throw, chain rejection, load-once, bad cookie) instead of grepping source.
+
 ### Feat — Venice.ai keyless provider + Antigravity Shield hardening (adopted from xrouter 3b0f6c3)
 
 - **Venice.ai (keyless)**: new `venice-free` provider with 6 free no-auth models (`deepseek-v4-1-flash-uncensored`, `olafangensan-glm-4.7-flash-heretic`, `venice-uncensored-1-2`, `qwen3-coder-480b-a35b-instruct-turbo`, `nvidia-nemotron-3-nano-30b-a3b`, `nvidia-nemotron-3-ultra-550b-a55b`). Uses `wreq-js` Chrome 133 TLS attestation via `outerface.venice.ai`, proxy rotation (`VENICE_PROXY_FILE`), and NDJSON→SSE conversion. Registered under a distinct id so it does not shadow the existing `venice` API-key provider; aliases `venice-web` / `venice-keyless`. Added `open-sse/executors/venice.js`, `open-sse/providers/registry/venice-free.js`, static model catalog resolver, `auth.js` no-auth handling (via `FREE_PROVIDERS.noAuth`), model-test ping no-auth stream path, and icon alias to `venice.png`. Fixed an upstream bug that dropped the last NDJSON line when the stream ended without a trailing newline.

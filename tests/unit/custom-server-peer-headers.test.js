@@ -12,7 +12,13 @@ let baseUrl;
 let seenHeaders;
 
 beforeAll(async () => {
+  // custom-server.js applies the checkout's .env on load, which can point DATA_DIR
+  // at a real data dir or BASE_URL at a live port. Keep the test's environment.
+  const env = { ...process.env };
   require("../../custom-server.js");
+  const peerToken = process.env.NINEROUTER_PEER_TOKEN;
+  for (const key of Object.keys(process.env)) if (!(key in env)) delete process.env[key];
+  Object.assign(process.env, env, { NINEROUTER_PEER_TOKEN: peerToken });
   server = http.createServer((req, res) => {
     seenHeaders = req.headers;
     res.end("ok");
@@ -25,8 +31,12 @@ afterAll(async () => {
   await new Promise((resolve) => server.close(resolve));
 });
 
+// A static asset path: the wrapper sanitizes peer headers before its auth guard,
+// and the guard skips this path, so the request lands on the handler as-is. "/"
+// is redirected by the guard instead, and fetch followed that to BASE_URL.
 async function get(headers = {}) {
-  await fetch(baseUrl, { headers });
+  seenHeaders = undefined;
+  await fetch(`${baseUrl}/_next/static/peer-probe.js`, { headers, redirect: "manual" });
   return seenHeaders;
 }
 

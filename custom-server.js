@@ -257,11 +257,13 @@ function getGuardModule() {
   // A failed load must not stay cached: the promise settles to null forever,
   // and `if (!guardModulePromise)` never fires again — every later request then
   // answers 503 "Auth guard unavailable" until the process restarts. Clearing
-  // the slot from the promise's own finally re-arms the next request, so a
-  // transient failure (files mid-rebuild, a bad import once) self-heals.
+  // the slot when the load settles to null re-arms the next request, so a
+  // transient failure (files mid-rebuild, a bad import once) self-heals. A
+  // successful load stays cached: re-running register() per request chained
+  // one more loader hook onto every later module resolution.
   const pending = guardModulePromise;
-  pending.finally(() => {
-    if (guardModulePromise === pending) guardModulePromise = null;
+  pending.then((guard) => {
+    if (!guard && guardModulePromise === pending) guardModulePromise = null;
   });
   return pending;
 }
@@ -310,7 +312,14 @@ function toGuardRequest(req) {
       get(name) {
         const esc = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
         const m = rawCookies.match(new RegExp("(?:^|;\\s*)" + esc + "=([^;]*)"));
-        return m ? { name, value: decodeURIComponent(m[1]) } : undefined;
+        if (!m) return undefined;
+        // Like Next's RequestCookies, drop a value that does not decode: throwing
+        // here made one malformed cookie answer 503 on every route, /login included.
+        try {
+          return { name, value: decodeURIComponent(m[1]) };
+        } catch {
+          return undefined;
+        }
       },
     },
   };
