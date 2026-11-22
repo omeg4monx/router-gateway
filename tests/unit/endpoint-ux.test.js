@@ -252,3 +252,24 @@ describe("GatewayConsole UX contracts", () => {
     expect(src).toContain("Require API Key Authentication");
   });
 });
+
+describe("ApiKeyCard UX contracts", () => {
+  it("renders expiry chip, admin-gated checkbox, own-key guard, calm quota bar without pulse/ping or duplicate Tokens chip", () => {
+    const src = readRel("src/app/(dashboard)/dashboard/endpoint/components/ApiKeyCard.js");
+    expect(src).toContain("getExpiryMeta");
+    expect(src).toContain("canBulkSelect");
+    expect(src).toContain("isOwnKey");
+    expect(src).not.toContain("animate-pulse");
+    expect(src).not.toContain("animate-ping");
+    expect(src).not.toContain("Tokens:");
+  });
+
+  it("isolates destructive Delete into an accessible overflow menu and keeps 32px+ quick actions", () => {
+    const src = readRel("src/app/(dashboard)/dashboard/endpoint/components/ApiKeyCard.js");
+    expect(src).toContain("more_vert");
+    expect(src).toContain("Escape");
+    expect(src).toContain("onOpenSnippet");
+    expect(src).toContain("size-8");
+    expect(src).toContain("Delete Key");
+  });
+});
