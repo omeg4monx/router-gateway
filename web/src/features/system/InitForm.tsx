@@ -6,13 +6,11 @@ import { useState, type FormEvent } from "react";
 import { AlertCircle, CheckCircle2, Eye, EyeOff, Lock } from "lucide-react";
 import { EmberRule } from "@/shared/ui/EmberRule";
 import { useInitializeSystem, useInitStatus } from "./hooks";
-
-const MIN_PASSWORD_LEN = 8;
-const MAX_PASSWORD_BYTES = 72;
-
-function utf8ByteLength(value: string): number {
-  return new TextEncoder().encode(value).length;
-}
+import {
+  MAX_PASSWORD_BYTES,
+  MIN_PASSWORD_RUNES,
+  validateInitPassword,
+} from "./password";
 
 export function InitForm() {
   const router = useRouter();
@@ -24,26 +22,23 @@ export function InitForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [clientError, setClientError] = useState<string | null>(null);
 
-  const byteLen = utf8ByteLength(password);
-  const meetsMinLength = password.length >= MIN_PASSWORD_LEN;
-  const withinMaxBytes = byteLen <= MAX_PASSWORD_BYTES;
-  const passwordsMatch =
-    confirmPassword.length > 0 && password === confirmPassword;
+  const validation = validateInitPassword(password, confirmPassword);
+
+  const clearErrors = () => {
+    if (clientError) {
+      setClientError(null);
+    }
+    if (initializeMutation.error) {
+      initializeMutation.reset();
+    }
+  };
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setClientError(null);
 
-    if (!meetsMinLength) {
-      setClientError("Password must be at least 8 characters.");
-      return;
-    }
-    if (!withinMaxBytes) {
-      setClientError("Password must not exceed 72 UTF-8 bytes.");
-      return;
-    }
-    if (password !== confirmPassword) {
-      setClientError("Password confirmation does not match.");
+    if (validation.error) {
+      setClientError(validation.error);
       return;
     }
 
@@ -117,7 +112,7 @@ export function InitForm() {
       noValidate
       className="rounded-md border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-6 sm:p-8"
     >
-      <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-widest text-[#E56A4A]">
+      <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-widest text-[var(--accent-text)]">
         <Lock className="h-3.5 w-3.5" aria-hidden="true" />
         <span>First-Run Provisioning</span>
       </div>
@@ -177,14 +172,12 @@ export function InitForm() {
               type={showPassword ? "text" : "password"}
               autoComplete="new-password"
               required
-              minLength={MIN_PASSWORD_LEN}
-              maxLength={MAX_PASSWORD_BYTES}
               value={password}
               onChange={(event) => {
                 setPassword(event.target.value);
-                if (clientError) setClientError(null);
+                clearErrors();
               }}
-              placeholder="Minimum 8 characters"
+              placeholder={`Minimum ${MIN_PASSWORD_RUNES} characters`}
               className="h-10 w-full rounded-md border border-[var(--border-strong)] bg-[var(--bg-input)] px-3 pr-10 font-mono text-sm text-[var(--text-primary)] placeholder:font-sans placeholder:text-[var(--text-muted)] transition-colors focus:border-[#E56A4A]"
             />
             <button
@@ -218,7 +211,7 @@ export function InitForm() {
             value={confirmPassword}
             onChange={(event) => {
               setConfirmPassword(event.target.value);
-              if (clientError) setClientError(null);
+              clearErrors();
             }}
             placeholder="Re-enter password"
             className="mt-1.5 h-10 w-full rounded-md border border-[var(--border-strong)] bg-[var(--bg-input)] px-3 font-mono text-sm text-[var(--text-primary)] placeholder:font-sans placeholder:text-[var(--text-muted)] transition-colors focus:border-[#E56A4A]"
@@ -229,27 +222,39 @@ export function InitForm() {
         <ul className="space-y-1.5 rounded-md border border-[var(--border-subtle)] bg-[var(--bg-canvas)] px-3.5 py-3 text-xs">
           <li
             className={`flex items-center justify-between font-mono ${
-              meetsMinLength ? "text-[var(--status-ok)]" : "text-[var(--text-muted)]"
+              validation.meetsMinLength
+                ? "text-[var(--status-ok)]"
+                : "text-[var(--text-muted)]"
             }`}
           >
-            <span>At least 8 characters</span>
-            <span>{meetsMinLength ? "OK" : `${password.length}/8`}</span>
+            <span>At least {MIN_PASSWORD_RUNES} characters</span>
+            <span className="tabular-nums">
+              {validation.meetsMinLength
+                ? "OK"
+                : `${validation.runeCount}/${MIN_PASSWORD_RUNES}`}
+            </span>
           </li>
           <li
             className={`flex items-center justify-between font-mono ${
-              withinMaxBytes ? "text-[var(--status-ok)]" : "text-[var(--status-error)]"
+              validation.withinMaxBytes
+                ? "text-[var(--status-ok)]"
+                : "text-[var(--status-error)]"
             }`}
           >
-            <span>Maximum 72 UTF-8 bytes</span>
-            <span className="tabular-nums">{byteLen}/72</span>
+            <span>Maximum {MAX_PASSWORD_BYTES} UTF-8 bytes</span>
+            <span className="tabular-nums">
+              {validation.byteLength}/{MAX_PASSWORD_BYTES}
+            </span>
           </li>
           <li
             className={`flex items-center justify-between font-mono ${
-              passwordsMatch ? "text-[var(--status-ok)]" : "text-[var(--text-muted)]"
+              validation.passwordsMatch
+                ? "text-[var(--status-ok)]"
+                : "text-[var(--text-muted)]"
             }`}
           >
             <span>Confirmation matches</span>
-            <span>{passwordsMatch ? "OK" : "PENDING"}</span>
+            <span>{validation.passwordsMatch ? "OK" : "PENDING"}</span>
           </li>
         </ul>
       </div>

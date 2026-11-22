@@ -2,7 +2,15 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { ArrowRight, KeyRound, Moon, ShieldCheck, Sun } from "lucide-react";
+import {
+  AlertTriangle,
+  ArrowRight,
+  KeyRound,
+  Moon,
+  RefreshCw,
+  ShieldCheck,
+  Sun,
+} from "lucide-react";
 import { useInitStatus, useSystemVersion } from "@/features/system/hooks";
 import { CaduceusLogo } from "@/shared/ui/CaduceusLogo";
 import { EmberRule } from "@/shared/ui/EmberRule";
@@ -30,8 +38,26 @@ export default function LoginPage() {
     }
   };
 
+  const handleRetry = () => {
+    void Promise.all([initStatusQuery.refetch(), versionQuery.refetch()]);
+  };
+
   const initStatus = initStatusQuery.data;
   const version = versionQuery.data;
+
+  const buildVersionLabel = versionQuery.isPending
+    ? "Loading..."
+    : versionQuery.isError || !version
+      ? "Unavailable"
+      : version.version;
+
+  const authModuleLabel = initStatusQuery.isPending
+    ? "CHECKING"
+    : initStatusQuery.isError || !initStatus
+      ? "UNAVAILABLE"
+      : initStatus.requireLogin
+        ? "ENFORCED"
+        : "WAVE 1 STANDBY";
 
   return (
     <div className="grid min-h-screen grid-cols-1 bg-[var(--bg-canvas)] text-[var(--text-primary)] lg:grid-cols-12">
@@ -71,7 +97,7 @@ export default function LoginPage() {
         </div>
 
         <div className="my-10 space-y-5 lg:my-0">
-          <p className="font-mono text-xs uppercase tracking-widest text-[#E56A4A]">
+          <p className="font-mono text-xs uppercase tracking-widest text-[var(--accent-text)]">
             Self-Hosted LLM Gateway
           </p>
           <h1 className="text-3xl font-semibold tracking-tight text-[var(--text-primary)]">
@@ -88,7 +114,7 @@ export default function LoginPage() {
                 Build Version
               </dt>
               <dd className="mt-1 font-mono text-sm text-[var(--text-primary)]">
-                {version?.version ?? "0.1.0-dev"}
+                {buildVersionLabel}
               </dd>
             </div>
             <div>
@@ -96,7 +122,7 @@ export default function LoginPage() {
                 Auth Module
               </dt>
               <dd className="mt-1 font-mono text-sm text-[var(--text-primary)]">
-                {initStatus?.requireLogin ? "ENFORCED" : "WAVE 1 STANDBY"}
+                {authModuleLabel}
               </dd>
             </div>
           </dl>
@@ -110,7 +136,7 @@ export default function LoginPage() {
       {/* Right split configure panel */}
       <main className="flex items-center justify-center p-6 sm:p-10 lg:col-span-7">
         <div className="w-full max-w-md rounded-md border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-6 sm:p-8">
-          <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-widest text-[#E56A4A]">
+          <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-widest text-[var(--accent-text)]">
             <KeyRound className="h-3.5 w-3.5" aria-hidden="true" />
             <span>Operator Authentication</span>
           </div>
@@ -120,7 +146,56 @@ export default function LoginPage() {
 
           <EmberRule className="my-5" />
 
-          {initStatus && !initStatus.initialized ? (
+          {initStatusQuery.isPending ? (
+            <div className="space-y-2 py-2">
+              <p className="text-sm font-medium text-[var(--text-primary)]">
+                Checking authentication posture
+              </p>
+              <p className="font-mono text-xs text-[var(--text-muted)]">
+                Querying GET /api/init...
+              </p>
+            </div>
+          ) : initStatusQuery.isError ? (
+            <div className="space-y-4">
+              <div
+                role="alert"
+                className="flex items-start gap-2.5 rounded-md border border-[var(--status-error-border)] bg-[var(--status-error-bg)] px-3.5 py-3 text-sm"
+              >
+                <AlertTriangle
+                  className="mt-0.5 h-4 w-4 shrink-0 text-[var(--status-error)]"
+                  aria-hidden="true"
+                />
+                <div>
+                  <p className="font-medium text-[var(--text-primary)]">
+                    Unable to reach control plane
+                  </p>
+                  <p className="mt-0.5 font-mono text-xs text-[var(--text-secondary)]">
+                    {initStatusQuery.error.message}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-2.5">
+                <button
+                  type="button"
+                  onClick={handleRetry}
+                  disabled={initStatusQuery.isFetching || versionQuery.isFetching}
+                  className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md bg-[#E56A4A] px-4 text-sm font-semibold text-[#0a0a0a] transition-colors hover:bg-[var(--accent-primary-hover)] disabled:opacity-60"
+                >
+                  <RefreshCw className="h-4 w-4" aria-hidden="true" />
+                  <span>
+                    {initStatusQuery.isFetching ? "Retrying..." : "Retry Connection"}
+                  </span>
+                </button>
+                <Link
+                  href="/dashboard/"
+                  className="inline-flex h-10 w-full items-center justify-center rounded-md border border-[var(--border-strong)] bg-[var(--bg-surface-raised)] px-4 text-sm font-medium text-[var(--text-primary)] transition-colors hover:border-[#E56A4A]"
+                >
+                  Open Dashboard
+                </Link>
+              </div>
+            </div>
+          ) : !initStatus?.initialized ? (
             <div className="space-y-4">
               <div className="rounded-md border border-[var(--status-warn-border)] bg-[var(--status-warn-bg)] px-4 py-3 text-sm text-[var(--text-primary)]">
                 First-run initialization is required before signing in.

@@ -85,7 +85,7 @@ export function SystemOverview() {
       {/* Top control strip */}
       <section className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="font-mono text-xs uppercase tracking-widest text-[#E56A4A]">
+          <p className="font-mono text-xs uppercase tracking-widest text-[var(--accent-text)]">
             System Telemetry
           </p>
           <h2 className="mt-1 text-2xl font-semibold tracking-tight text-[var(--text-primary)]">

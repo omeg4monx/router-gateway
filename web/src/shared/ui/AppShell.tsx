@@ -89,7 +89,7 @@ export function AppShell({ children }: AppShellProps) {
       <div className="flex h-16 items-center justify-between px-5">
         <Link
           href="/dashboard/"
-          className="flex items-center gap-3 focus-visible:outline-none"
+          className="flex items-center gap-3 rounded-sm"
           onClick={() => setMobileMenuOpen(false)}
         >
           <CaduceusLogo size={26} decorative />

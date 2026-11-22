@@ -21,6 +21,7 @@
   --accent-primary: #E56A4A;
   --accent-primary-hover: #EE7A5B;
   --accent-primary-ink: #0a0a0a;
+  --accent-text: #E56A4A;
   --status-ok: #34D399;
   --status-ok-bg: #0D261D;
   --status-ok-border: #1C4A38;
@@ -46,6 +47,7 @@
   --accent-primary: #E56A4A;
   --accent-primary-hover: #D45838;
   --accent-primary-ink: #0a0a0a;
+  --accent-text: #B84222;
   --status-ok: #047857;
   --status-ok-bg: #ECFDF5;
   --status-ok-border: #A7F3D0;

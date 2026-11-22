@@ -5,6 +5,7 @@ const isStaticExport = process.env.NEXT_OUTPUT_EXPORT === "true";
 const nextConfig: NextConfig = {
   output: isStaticExport ? "export" : undefined,
   trailingSlash: true,
+  skipTrailingSlashRedirect: !isStaticExport,
   images: {
     unoptimized: true,
   },

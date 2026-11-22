@@ -3,6 +3,7 @@ dist/
 web/node_modules/
 web/.next/
 web/out/
+web/next-env.d.ts
 cmd/omeg4mon-router/ui_dist/
 *.sqlite*
 master.key
