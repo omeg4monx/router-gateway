@@ -3,9 +3,13 @@
 import { useState } from "react";
 import PropTypes from "prop-types";
 import { Button, Modal, Input } from "@/shared/components";
+import { BULK_RESET_INTERVAL_OPTIONS } from "../endpointUtils";
+
+const QUOTA_FIELDS = ["tokenLimit", "resetInterval", "rpmLimit", "tpmLimit"];
+const ACCESS_FIELDS = ["allowedModels", "deniedModels", "allowedProviders", "ipWhitelist", "expiresAt", "isActive"];
 
 /**
- * Bulk edit keys: write one field to every selected key in one call.
+ * Bulk edit keys: write one or more fields to every selected key in one call.
  * Each field is opt-in (checkbox): fields left off are not touched, so the
  * form never rewrites what the user did not mean to change.
  */
@@ -79,69 +83,101 @@ export default function BulkEditKeys({ selectedCount, onApply, onClose }) {
     }
   };
 
-  const rows = ["tokenLimit", "resetInterval", "rpmLimit", "tpmLimit", "allowedModels", "deniedModels", "allowedProviders", "ipWhitelist", "expiresAt", "isActive"];
+  const enabledCount = Object.values(fields).filter((f) => f.on).length;
+
+  const renderRow = (name) => (
+    <div
+      key={name}
+      className="flex items-start gap-3 rounded-xl border border-border-subtle bg-surface-2/50 p-3 transition-colors"
+    >
+      <input
+        type="checkbox"
+        checked={fields[name].on}
+        onChange={() => toggle(name)}
+        className="mt-1 size-4 accent-[var(--color-primary)] shrink-0 cursor-pointer"
+        aria-label={`Change ${labelFor(name)}`}
+      />
+      <div className="flex-1 min-w-0">
+        <label className="text-xs font-medium text-text-main block mb-1.5">{labelFor(name)}</label>
+        {name === "resetInterval" ? (
+          <select
+            value={fields[name].value}
+            onChange={(e) => setValue(name, e.target.value)}
+            disabled={!fields[name].on}
+            className="field-control w-full h-9 px-3 text-sm disabled:opacity-40"
+          >
+            {BULK_RESET_INTERVAL_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+        ) : name === "isActive" ? (
+          <select
+            value={fields[name].value}
+            onChange={(e) => setValue(name, e.target.value)}
+            disabled={!fields[name].on}
+            className="field-control w-full h-9 px-3 text-sm disabled:opacity-40"
+          >
+            <option value="true">Active</option>
+            <option value="false">Disabled</option>
+          </select>
+        ) : (
+          <Input
+            value={fields[name].value}
+            onChange={(e) => setValue(name, e.target.value)}
+            disabled={!fields[name].on}
+            placeholder={placeholderFor(name)}
+            type={name === "expiresAt" ? "date" : "text"}
+          />
+        )}
+      </div>
+    </div>
+  );
 
   return (
-    <Modal isOpen onClose={onClose} title={`Bulk edit ${selectedCount} key${selectedCount === 1 ? "" : "s"}`}>
-      <div className="flex flex-col gap-3">
-        {rows.map((name) => (
-          <div key={name} className="flex items-start gap-3">
-            <input
-              type="checkbox"
-              checked={fields[name].on}
-              onChange={() => toggle(name)}
-              className="mt-1.5 size-4 accent-brand-500"
-              aria-label={`Change ${labelFor(name)}`}
-            />
-            <div className="flex-1 min-w-0">
-              <label className="text-sm font-medium text-text-main block mb-1">{labelFor(name)}</label>
-              {name === "resetInterval" ? (
-                <select
-                  value={fields[name].value}
-                  onChange={(e) => setValue(name, e.target.value)}
-                  disabled={!fields[name].on}
-                  className="w-full h-9 px-3 rounded-lg border border-black/10 dark:border-white/10 bg-surface text-sm text-text-main disabled:opacity-40"
-                >
-                  <option value="never">No reset</option>
-                  <option value="hourly">Hourly</option>
-                  <option value="daily">Daily</option>
-                  <option value="weekly">Weekly</option>
-                  <option value="monthly">Monthly</option>
-                </select>
-              ) : name === "isActive" ? (
-                <select
-                  value={fields[name].value}
-                  onChange={(e) => setValue(name, e.target.value)}
-                  disabled={!fields[name].on}
-                  className="w-full h-9 px-3 rounded-lg border border-black/10 dark:border-white/10 bg-surface text-sm text-text-main disabled:opacity-40"
-                >
-                  <option value="true">Active</option>
-                  <option value="false">Disabled</option>
-                </select>
-              ) : (
-                <Input
-                  value={fields[name].value}
-                  onChange={(e) => setValue(name, e.target.value)}
-                  disabled={!fields[name].on}
-                  placeholder={placeholderFor(name)}
-                  type={name === "expiresAt" ? "date" : "text"}
-                />
-              )}
-            </div>
-          </div>
-        ))}
-
-        {error && (
-          <p className="text-xs text-red-500" role="alert">{error}</p>
-        )}
-
-        <div className="flex justify-end gap-2 pt-2">
-          <Button variant="secondary" onClick={onClose} disabled={applying}>
+    <Modal
+      isOpen
+      onClose={onClose}
+      size="lg"
+      title={`Bulk edit ${selectedCount} key${selectedCount === 1 ? "" : "s"}`}
+      footer={
+        <>
+          <Button variant="ghost" onClick={onClose} disabled={applying}>
             Cancel
           </Button>
-          <Button onClick={handleApply} loading={applying}>
+          <Button onClick={handleApply} loading={applying} disabled={enabledCount === 0}>
             Apply to {selectedCount} key{selectedCount === 1 ? "" : "s"}
           </Button>
+        </>
+      }
+    >
+      <div className="flex flex-col gap-4">
+        <p className="text-xs text-text-muted">
+          Check only the fields you want to overwrite. Unchecked fields remain untouched on every selected key.
+        </p>
+
+        {error && (
+          <div
+            role="alert"
+            className="rounded-lg border border-danger-border bg-danger-bg px-3 py-2 text-xs text-danger-fg"
+          >
+            {error}
+          </div>
+        )}
+
+        <div className="space-y-2">
+          <p className="micro-label">Quota &amp; Rate Limits</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            {QUOTA_FIELDS.map(renderRow)}
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <p className="micro-label">Access &amp; Lifecycle</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            {ACCESS_FIELDS.map(renderRow)}
+          </div>
         </div>
       </div>
     </Modal>
@@ -151,7 +187,7 @@ export default function BulkEditKeys({ selectedCount, onApply, onClose }) {
 function labelFor(name) {
   return {
     tokenLimit: "Token limit (0 = unlimited)",
-    resetInterval: "Reset interval",
+    resetInterval: "Auto-reset interval",
     rpmLimit: "Requests per minute (0 = unlimited)",
     tpmLimit: "Tokens per minute (0 = unlimited)",
     allowedModels: "Allowed models pattern",
@@ -169,7 +205,7 @@ function placeholderFor(name) {
     rpmLimit: "e.g. 60",
     tpmLimit: "e.g. 100000",
     allowedModels: "e.g. anthropic/*, openai/gpt-4o",
-    deniedModels: "e.g. gpt-4*, *opus  (same pattern rules as allowed)",
+    deniedModels: "e.g. gpt-4*, *opus",
     allowedProviders: "e.g. opencode, anthropic, glm",
     ipWhitelist: "e.g. 203.0.113.5, 198.51.100.0/24",
     expiresAt: "leave blank for no expiry",

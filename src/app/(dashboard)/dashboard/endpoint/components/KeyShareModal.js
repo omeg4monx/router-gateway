@@ -100,7 +100,16 @@ export default function KeyShareModal({ keyId, keyName, onClose }) {
   };
 
   return (
-    <Modal isOpen onClose={onClose} title={`Share usage — ${keyName || "key"}`}>
+    <Modal
+      isOpen
+      onClose={onClose}
+      title={`Share usage — ${keyName || "key"}`}
+      footer={
+        <Button variant="secondary" onClick={onClose}>
+          Done
+        </Button>
+      }
+    >
       <div className="flex flex-col gap-4">
         <p className="text-xs text-text-muted">
           Each link opens a read-only totals page for this key (<code>/share/&lt;token&gt;</code>). No credential is
@@ -108,22 +117,26 @@ export default function KeyShareModal({ keyId, keyName, onClose }) {
         </p>
 
         <div className="flex items-end gap-2">
-          <div className="w-40">
+          <div className="w-44">
             <label className="text-xs text-text-muted block mb-1">Lifetime (days, 0 = never)</label>
             <Input value={ttlDays} onChange={(e) => setTtlDays(e.target.value)} type="number" min="0" />
           </div>
-          <Button size="sm" icon="add_link" onClick={create} disabled={busy === "create"}>
-            {busy === "create" ? "Creating…" : "Create link"}
+          <Button size="md" icon="add_link" onClick={create} loading={busy === "create"}>
+            Create link
           </Button>
         </div>
 
-        {error ? <p className="text-xs text-danger">{error}</p> : null}
+        {error ? (
+          <p role="alert" className="rounded-lg border border-danger-border bg-danger-bg px-3 py-2 text-xs text-danger-fg">
+            {error}
+          </p>
+        ) : null}
 
-        <div className="border border-border rounded-lg divide-y divide-border max-h-64 overflow-y-auto">
+        <div className="border border-border-subtle rounded-xl divide-y divide-border-subtle bg-surface-2/40 max-h-64 overflow-y-auto">
           {loading ? (
-            <p className="p-3 text-xs text-text-muted">Loading…</p>
+            <p className="p-3.5 text-xs text-text-muted">Loading…</p>
           ) : shares.length === 0 ? (
-            <p className="p-3 text-xs text-text-muted">No share links yet.</p>
+            <p className="p-3.5 text-xs text-text-muted">No share links yet.</p>
           ) : (
             shares.map((s) => (
               <div key={s.token} className="p-3 flex items-center gap-2">

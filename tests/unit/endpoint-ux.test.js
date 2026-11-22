@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
+import fs from "node:fs";
+import path from "node:path";
 import { parseIntervalMs } from "@/shared/utils/interval";
+
+const ROOT = path.resolve(process.cwd());
+const readRel = (rel) => fs.readFileSync(path.join(ROOT, rel), "utf8");
 import {
   RESET_INTERVAL_OPTIONS,
   BULK_RESET_INTERVAL_OPTIONS,
@@ -176,5 +181,24 @@ describe("endpointSnippets", () => {
     expect(curl).toContain("https://demo.trycloudflare.com/v1/messages");
     expect(curl).toContain("x-api-key: sk-claude-key");
     expect(curl).toContain("anthropic-version: 2023-06-01");
+  });
+});
+
+describe("BulkEditKeys and KeyShareModal UX contracts", () => {
+  it("uses valid parseIntervalMs reset intervals and sticky Modal footer in BulkEditKeys", () => {
+    const src = readRel("src/app/(dashboard)/dashboard/endpoint/components/BulkEditKeys.js");
+    expect(src).toContain("BULK_RESET_INTERVAL_OPTIONS");
+    for (const broken of ['"hourly"', '"daily"', '"weekly"', '"monthly"']) {
+      expect(src).not.toContain(broken);
+    }
+    expect(src).toContain("footer={");
+    expect(src).toContain("accent-[var(--color-primary)]");
+    expect(src).toContain("selectedCount");
+  });
+
+  it("uses sticky Modal footer and soft rounded-xl list surface in KeyShareModal", () => {
+    const src = readRel("src/app/(dashboard)/dashboard/endpoint/components/KeyShareModal.js");
+    expect(src).toContain("footer={");
+    expect(src).toContain("rounded-xl");
   });
 });
