@@ -76,7 +76,7 @@ function loadComponent(file) {
     "--platform=node",
     "--loader:.js=jsx",
     "--jsx=automatic",
-    // Same aliases jsconfig.json declares, so the component's own imports resolve.
+    // Match the aliases in tsconfig.json so the component's imports resolve.
     `--alias:@=${path.resolve(here, "../../../../../../..")}/src`,
     `--alias:open-sse=${path.resolve(here, "../../../../../../..")}/open-sse`,
     `--alias:react=${stubPath}`,

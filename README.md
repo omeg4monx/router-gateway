@@ -33,7 +33,7 @@ Local AI routing gateway with a web dashboard. It exposes one OpenAI- and Anthro
 ## Requirements
 
 - Node.js `26.13.1` for source builds (see `.nvmrc`). The CLI accepts Node ≥ 18.
-- Bun `1.4.5` is required for source installs and scripts. The Next.js server and Vitest still execute on Node.js. Docker publishing and global CLI packaging use their separate npm workflows.
+- Bun `1.4.5` is required for source installs and scripts. The Next.js server and Vitest still execute on Node.js. Docker publishing, `install.sh`, and global CLI packaging retain separate npm workflows outside the Bun lock guarantees.
 - Optional: Docker, Go `1.27.4` for the experimental Go core.
 
 ---
@@ -223,7 +223,7 @@ bun run typecheck
 CGO_ENABLED=0 GOTOOLCHAIN=local go test -mod=readonly ./...
 ```
 
-Run these commands from the repository root. To focus Vitest, run `bun run test tests/unit/auth-fail-closed.test.js`. Live-provider tests require explicit `RUN_REAL=1` and the relevant credentials; default CI keeps them off.
+Run these commands from the repository root. Use `bun run test`, not `bun test`, so Vitest isolates the test database. To focus Vitest, run `bun run test tests/unit/auth-fail-closed.test.js`. Live-provider tests require explicit `RUN_REAL=1` and the relevant credentials; default CI keeps them off.
 
 ---
 

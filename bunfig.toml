@@ -1,0 +1,2 @@
+[test]
+preload = ["./scripts/block-direct-bun-test.mjs"]

@@ -9,6 +9,10 @@ describe("gateway browser health probes", () => {
 
   beforeAll(async () => {
     server = createServer((request, response) => {
+      if (request.url === "/disconnected/api/health") {
+        request.socket.destroy();
+        return;
+      }
       response.writeHead(request.url === "/online/api/health" ? 200 : 503).end();
     });
     server.listen(0, "127.0.0.1");
@@ -27,6 +31,11 @@ describe("gateway browser health probes", () => {
   it("reports an unsuccessful response or missing URL as unreachable", async () => {
     await expect(clientPingUrl(`${origin}/offline`)).resolves.toBe(false);
     await expect(clientPingUrl(undefined)).resolves.toBe(false);
+  });
+
+  it("reports a dropped connection as unreachable", async () => {
+    await expect(clientPingUrl(`${origin}/disconnected`)).resolves.toBe(false);
+    await expect(clientPingAny(`${origin}/disconnected`, `${origin}/offline`)).resolves.toBe(false);
   });
 
   it("reports reachability when any candidate succeeds", async () => {
