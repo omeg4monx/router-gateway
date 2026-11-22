@@ -219,6 +219,7 @@ tests/          Vitest suite (independent package)
 bun install --frozen-lockfile
 (cd tests && bun install --frozen-lockfile)
 RUN_REAL=0 bun run test
+bun run typecheck
 CGO_ENABLED=0 GOTOOLCHAIN=local go test -mod=readonly ./...
 ```
 

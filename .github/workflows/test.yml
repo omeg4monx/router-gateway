@@ -49,6 +49,9 @@ jobs:
       - name: Unit tests
         run: RUN_REAL=0 bun run test
 
+      - name: Typecheck web
+        run: bun run typecheck
+
       - name: Build Next.js
         run: DATA_DIR="$(mktemp -d)" bun run build
 
