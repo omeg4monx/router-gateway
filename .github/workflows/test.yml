@@ -20,15 +20,13 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version-file: .nvmrc
-          cache: npm
-          cache-dependency-path: tests/package-lock.json
 
-      # No root lockfile (package-lock.json is gitignored); install like the Dockerfile does.
+      # No lockfiles are tracked (both are gitignored); install like the Dockerfile does.
       - name: Install app deps
         run: npm install --no-audit --no-fund
 
       - name: Install test deps
-        run: npm ci --no-audit --no-fund
+        run: npm install --no-audit --no-fund
         working-directory: tests
 
       # Run from the repo root: several tests resolve files from process.cwd().
