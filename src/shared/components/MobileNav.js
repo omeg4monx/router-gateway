@@ -8,7 +8,6 @@ import { cn } from "@/shared/utils/cn";
 import { APP_CONFIG } from "@/shared/constants/config";
 import { useNavigation } from "@/shared/hooks/useNavigation";
 import { MEDIA_ITEMS, COMBINED_WEB_ITEM, CORE_ROUTING_HREFS } from "@/shared/constants/navigation";
-import HeaderMenu from "@/shared/components/HeaderMenu";
 import ThemeModal from "@/shared/components/ThemeModal";
 import NotificationBell from "@/shared/components/NotificationBell";
 import LogoMark from "@/shared/components/LogoMark";
@@ -38,17 +37,32 @@ function Row({ href, icon, label, active, onClick, badge = null }) {
     <Link
       href={href}
       onClick={onClick}
+      aria-current={active ? "page" : undefined}
       className={cn(
-        "flex items-center gap-2.5 rounded-[7px] px-2.5 py-2 transition-colors",
-        active ? "bg-primary/15 text-primary font-medium" : "text-text-main/80 hover:bg-surface-2 hover:text-text-main"
+        "relative flex items-center gap-2.5 rounded-[10px] border px-3 py-2.5 transition-[background-color,border-color,color,transform] duration-150 active:scale-[0.98]",
+        active
+          ? "bg-primary/12 border-primary/20 text-primary font-medium"
+          : "border-transparent text-text-main/80 hover:bg-surface-2/80 hover:text-text-main"
       )}
     >
-      <span className={cn("material-symbols-outlined shrink-0 text-[18px] leading-none transition-colors", active ? "text-primary" : "text-text-main/70")}>
+      <span
+        className={cn(
+          "material-symbols-outlined rail-icon shrink-0 text-[18px] leading-none",
+          active ? "text-primary fill-1" : "text-text-main/70"
+        )}
+      >
         {icon}
       </span>
-      <span className={cn("flex-1 truncate text-[12.5px] leading-none", active && "font-semibold text-primary")}>{label}</span>
+      <span className={cn("flex-1 truncate text-[12.5px] leading-none", active ? "font-semibold text-primary" : "text-text-main/80")}>
+        {label}
+      </span>
       {badge}
-      {active && <span className="h-3.5 w-[2px] rounded-full bg-primary" aria-hidden="true" />}
+      {active && (
+        <span
+          className="absolute left-0 top-1/2 h-4 w-[3px] -translate-y-1/2 rounded-r-full bg-primary shadow-[0_0_10px_color-mix(in_srgb,var(--color-primary)_65%,transparent)]"
+          aria-hidden="true"
+        />
+      )}
     </Link>
   );
 }
@@ -127,12 +141,9 @@ export default function MobileNav() {
   return (
     <>
       {/* Mobile Top Bar — docked at top of viewport so it never scrolls away or disappears */}
-      <header className="sticky top-0 z-40 flex h-12 w-full items-center justify-between border-b border-border bg-surface px-4 lg:hidden shrink-0 shadow-xs">
+      <header className="sticky top-0 z-40 flex h-13 w-full items-center justify-between border-b border-border/80 bg-surface/85 backdrop-blur-md px-4 lg:hidden shrink-0 shadow-xs">
         <Link href="/dashboard/endpoint" className="flex items-center gap-2.5">
-          <div
-            className="size-7 rounded-[6px] border bg-surface-2 flex items-center justify-center shrink-0 shadow-xs overflow-hidden p-0.5"
-            style={{ borderColor: "var(--color-primary, #E56A4A)" }}
-          >
+          <div className="size-8 rounded-xl border border-primary/25 bg-primary/10 flex items-center justify-center shrink-0 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.25)] overflow-hidden p-1">
             <LogoMark className="size-full" />
           </div>
           <div className="flex flex-col">
@@ -154,7 +165,7 @@ export default function MobileNav() {
             aria-haspopup="dialog"
             aria-expanded={open}
             aria-label="Open navigation menu"
-            className="flex h-8 items-center gap-1.5 rounded-[5px] border border-brand-500/40 bg-surface-2 px-3 text-text-main hover:border-brand-500 hover:bg-surface-3 transition-colors cursor-pointer shadow-xs active:scale-95"
+            className="flex h-8 items-center gap-1.5 rounded-[10px] border border-primary/35 bg-surface-2/85 px-3 text-text-main hover:border-primary hover:bg-surface-3 transition-colors cursor-pointer shadow-xs active:scale-95"
           >
             <span className="material-symbols-outlined text-primary text-[19px] leading-none">menu</span>
             <span className="text-xs font-semibold tracking-wider uppercase text-text-main">MENU</span>
@@ -168,17 +179,17 @@ export default function MobileNav() {
             type="button"
             aria-label="Close navigation"
             onClick={() => setOpen(false)}
-            className="absolute inset-0 bg-black/70"
+            className="absolute inset-0 bg-black/55 backdrop-blur-[3px] backdrop-fade-in"
           />
           <div
             ref={panelRef}
             role="dialog"
             aria-modal="true"
             aria-label="Navigation menu"
-            className="slide-in-right absolute right-0 top-0 flex h-full w-[min(86vw,330px)] flex-col border-l border-border bg-surface"
+            className="slide-in-right absolute right-0 top-0 flex h-full w-[min(86vw,330px)] flex-col rounded-l-2xl shell-rail shadow-[var(--shadow-elev)]"
           >
-            <div className="flex h-14 shrink-0 items-center gap-2.5 border-b border-border-subtle px-3">
-              <span className="relative flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-[8px] border border-primary/40 bg-surface-2 p-1 shadow-xs">
+            <div className="flex h-14 shrink-0 items-center gap-2.5 border-b border-border-subtle/80 px-3">
+              <span className="relative flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-primary/25 bg-primary/10 p-1 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.25)]">
                 <LogoMark className="size-full" />
               </span>
               <span className="flex min-w-0 flex-col">
@@ -193,7 +204,7 @@ export default function MobileNav() {
                 type="button"
                 onClick={() => setOpen(false)}
                 aria-label="Close"
-                className="ml-auto rounded-[6px] p-1.5 text-text-muted hover:bg-surface-2 hover:text-text-main"
+                className="ml-auto rounded-[10px] p-1.5 text-text-muted hover:bg-surface-2/80 hover:text-text-main transition-colors cursor-pointer active:scale-95"
               >
                 <span className="material-symbols-outlined text-[19px] leading-none">close</span>
               </button>
@@ -244,7 +255,7 @@ export default function MobileNav() {
                         active={isActive(item.href)}
                         badge={
                           item.href === COMBINED_WEB_ITEM.href && hasMediaNew ? (
-                            <span className="rounded-[3px] bg-brand-500/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-primary">
+                            <span className="rounded-[4px] bg-primary/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-primary">
                               New
                             </span>
                           ) : null
@@ -261,12 +272,12 @@ export default function MobileNav() {
               )}
             </div>
 
-            <div className="flex shrink-0 items-center gap-2 border-t border-border-subtle px-3 py-2.5">
+            <div className="flex shrink-0 items-center gap-2 border-t border-border-subtle/80 bg-surface-2/45 px-3 py-2.5 rounded-bl-2xl">
               <a
                 href="https://github.com/omeg4monx/router-gateway"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="rounded-[6px] p-2 text-text-muted hover:bg-surface-2 hover:text-text-main"
+                className="rounded-[10px] p-2 text-text-muted hover:bg-surface-2/80 hover:text-text-main transition-colors active:scale-[0.97]"
                 title="GitHub Repository"
               >
                 <svg className="size-[17px] shrink-0 fill-current" viewBox="0 0 24 24" aria-hidden="true">
@@ -279,7 +290,7 @@ export default function MobileNav() {
                     type="button"
                     onClick={() => { setOpen(false); setThemeModalOpen(true); }}
                     aria-label="Theme & Appearance"
-                    className="flex items-center justify-center p-2 rounded-[6px] text-text-muted hover:text-text-main hover:bg-surface-2 transition-colors cursor-pointer"
+                    className="flex items-center justify-center p-2 rounded-[10px] text-text-muted hover:text-text-main hover:bg-surface-2/80 transition-colors cursor-pointer active:scale-[0.97]"
                     title="Theme & Appearance"
                   >
                     <span className="material-symbols-outlined text-primary text-[20px] leading-none">palette</span>
@@ -289,7 +300,7 @@ export default function MobileNav() {
                   type="button"
                   onClick={handleLogout}
                   aria-label="Log Out"
-                  className="flex items-center justify-center p-2 rounded-[6px] text-primary hover:bg-primary/10 transition-colors"
+                  className="flex items-center justify-center p-2 rounded-[10px] text-primary hover:bg-primary/10 transition-colors cursor-pointer active:scale-[0.97]"
                   title="Log Out"
                 >
                   <span className="material-symbols-outlined text-[18px]">logout</span>

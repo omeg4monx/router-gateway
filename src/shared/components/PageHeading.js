@@ -21,6 +21,7 @@ export default function PageHeading({
   actions,
   tabs,
   bare = false,
+  showBell = true,
   className = "",
 }) {
   const pathname = usePathname();
@@ -37,7 +38,7 @@ export default function PageHeading({
   if (!resolvedTitle && !hasCrumbs) return null;
 
   return (
-    <div className={cn("relative z-20 border-b border-border bg-surface/40 backdrop-blur-sm", className)}>
+    <div className={cn("relative z-20 border-b border-border/80 bg-surface/65 backdrop-blur-md", className)}>
       <div className="flex flex-wrap items-end justify-between gap-3 px-4 pb-3 pt-3.5 lg:px-7">
         <div className="min-w-0">
           {/* Eyebrow: ember tick + crumb path, or the section label. */}
@@ -55,7 +56,7 @@ export default function PageHeading({
                     {crumb.href ? (
                       <Link
                         href={crumb.href}
-                        className="truncate text-[11px] uppercase tracking-[0.06em] text-text-muted transition-colors hover:text-primary"
+                        className="truncate rounded px-1 -mx-1 py-0.5 text-[11px] uppercase tracking-[0.06em] text-text-muted transition-colors hover:bg-surface-2/70 hover:text-primary"
                       >
                         {translate(crumb.label)}
                       </Link>
@@ -81,10 +82,12 @@ export default function PageHeading({
             )}
           </div>
 
-          <div className="flex min-w-0 items-center gap-2.5 py-0.5">
+          <div className="flex min-w-0 items-center gap-3 py-0.5">
             {resolvedIcon && (
-              <span className="material-symbols-outlined shrink-0 text-[22px] leading-none text-primary">
-                {resolvedIcon}
+              <span className="size-9 rounded-xl bg-primary/10 border border-primary/20 text-primary flex items-center justify-center shadow-xs shrink-0">
+                <span className="material-symbols-outlined text-[20px] leading-none">
+                  {resolvedIcon}
+                </span>
               </span>
             )}
             <h1 className="truncate text-[20px] font-semibold leading-normal tracking-tight text-text-main lg:text-[22px] py-0.5">
@@ -100,12 +103,12 @@ export default function PageHeading({
         </div>
 
         {/* NotificationBell in PageHeading actions or docked */}
-        <div className="flex shrink-0 items-center gap-2">
-          {actions ? <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div> : null}
-          <div className="hidden lg:block shrink-0">
-            <NotificationBell />
+        {(actions || showBell) ? (
+          <div className="flex shrink-0 items-center gap-2">
+            {actions ? <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div> : null}
+            {showBell ? <div className="hidden lg:block shrink-0"><NotificationBell /></div> : null}
           </div>
-        </div>
+        ) : null}
       </div>
 
       {/* Optional Page-Specific Sub-tabs (Level-2 navigation) */}
@@ -114,6 +117,8 @@ export default function PageHeading({
           {tabs}
         </div>
       )}
+
+      <span className="ember-rule pointer-events-none absolute inset-x-0 bottom-0 opacity-45" aria-hidden="true" />
     </div>
   );
 }
@@ -126,5 +131,6 @@ PageHeading.propTypes = {
   actions: PropTypes.node,
   tabs: PropTypes.node,
   bare: PropTypes.bool,
+  showBell: PropTypes.bool,
   className: PropTypes.string,
 };
