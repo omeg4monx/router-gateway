@@ -273,3 +273,31 @@ describe("ApiKeyCard UX contracts", () => {
     expect(src).toContain("Delete Key");
   });
 });
+
+describe("EndpointPageClient integration and bug-fix contracts", () => {
+  it("removes loadSettings ReferenceError, eliminates alert(), and uses real /api/health probe", () => {
+    const src = readRel("src/app/(dashboard)/dashboard/endpoint/EndpointPageClient.js");
+    expect(src).not.toContain("setRequireLogin");
+    expect(src).not.toContain("setHasPassword");
+    expect(src).not.toMatch(/\balert\s*\(/);
+    expect(src).toContain("useNotificationStore");
+    expect(src).not.toContain("ONLINE · 200 OK");
+    expect(src).toContain("/api/health");
+    expect(src).toContain("performance.now()");
+    expect(src).not.toContain("Klik tombol di bawah ini");
+  });
+
+  it("wires GatewayConsole, ApiKeyCard, KeyFormModal, KeySnippetModal, admin Select All, status filters, and Copy cURL on Created Key", () => {
+    const src = readRel("src/app/(dashboard)/dashboard/endpoint/EndpointPageClient.js");
+    expect(src).toContain("<GatewayConsole");
+    expect(src).toContain("<ApiKeyCard");
+    expect(src).toContain("<KeyFormModal");
+    expect(src).toContain("<KeySnippetModal");
+    expect(src).toContain("<BulkEditKeys");
+    expect(src).toContain("selectedKeyIds");
+    expect(src).toContain("toggleSelectAllKeys");
+    expect(src).toContain("statusFilter");
+    expect(src).not.toContain("shown only once");
+    expect(src).toContain("Copy cURL");
+  });
+});
