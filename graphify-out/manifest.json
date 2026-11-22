@@ -676,5 +676,47 @@
     "seen": 1795381587.6634078,
     "ast_hash": "931d8155c9e5dba818e081140af1b971",
     "semantic_hash": ""
+  },
+  "contracts/openapi/modules/providers.yaml": {
+    "mtime": 1795382249.543215,
+    "seen": 1795382350.841607,
+    "ast_hash": "6e2a5f54c980dc756fa9bbdae74009b3",
+    "semantic_hash": ""
+  },
+  "internal/modules/providers/adapter.go": {
+    "mtime": 1795382306.899035,
+    "seen": 1795382350.84193,
+    "ast_hash": "937e6e1aa38b932345ec3d9844fff3b3",
+    "semantic_hash": ""
+  },
+  "internal/modules/providers/handlers.go": {
+    "mtime": 1795382247.4481852,
+    "seen": 1795382350.8419318,
+    "ast_hash": "064fc362f47bbb26a4a03514007be436",
+    "semantic_hash": ""
+  },
+  "internal/modules/providers/module.go": {
+    "mtime": 1795382309.276069,
+    "seen": 1795382350.8419328,
+    "ast_hash": "c8357ee90b69ec903b24b1e27d6a2b84",
+    "semantic_hash": ""
+  },
+  "internal/modules/providers/module_test.go": {
+    "mtime": 1795382332.7694046,
+    "seen": 1795382350.841934,
+    "ast_hash": "dadfece3b62166af4ff71338b43cd0b8",
+    "semantic_hash": ""
+  },
+  "internal/modules/providers/oauth.go": {
+    "mtime": 1795382312.223111,
+    "seen": 1795382350.8419352,
+    "ast_hash": "87f3699132e2c8934d142cbb00639e08",
+    "semantic_hash": ""
+  },
+  "internal/modules/providers/repo.go": {
+    "mtime": 1795382241.3390977,
+    "seen": 1795382350.841936,
+    "ast_hash": "9f4ac3a80e5f9b9352110e3d76432dbf",
+    "semantic_hash": ""
   }
 }

@@ -1,0 +1,931 @@
+openapi: 3.1.0
+info:
+  title: omeg4mon-router Providers Module API
+  version: 0.1.0
+paths:
+  /api/providers/catalog:
+    get:
+      operationId: getProvidersCatalog
+      summary: List registered built-in provider adapters and custom compatible provider nodes
+      tags:
+        - providers
+      responses:
+        '200':
+          description: Registered provider adapters and custom compatible provider nodes.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProvidersCatalogResponse'
+        '401':
+          description: Administrative authentication is required.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '500':
+          description: Failed to load provider catalog.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+  /api/providers/nodes:
+    get:
+      operationId: listProviderNodes
+      summary: List custom compatible provider nodes
+      tags:
+        - providers
+      responses:
+        '200':
+          description: Custom provider nodes.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListProviderNodesResponse'
+        '401':
+          description: Administrative authentication is required.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '500':
+          description: Failed to load custom provider nodes.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+    post:
+      operationId: createProviderNode
+      summary: Register a new custom compatible provider node
+      tags:
+        - providers
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateProviderNodeRequest'
+      responses:
+        '201':
+          description: Custom provider node created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProviderNode'
+        '400':
+          description: Malformed request body or validation error.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Administrative authentication is required.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '409':
+          description: Node identifier already exists or conflicts with a built-in adapter.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '413':
+          description: Request body exceeds maximum allowed size.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '500':
+          description: Failed to create custom provider node.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+  /api/providers/nodes/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: Unique custom provider node identifier.
+        schema:
+          type: string
+    delete:
+      operationId: deleteProviderNode
+      summary: Delete a custom compatible provider node
+      tags:
+        - providers
+      responses:
+        '204':
+          description: Custom provider node deleted.
+        '401':
+          description: Administrative authentication is required.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Custom provider node not found.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '500':
+          description: Failed to delete custom provider node.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+  /api/providers/connections:
+    get:
+      operationId: listProviderConnections
+      summary: List upstream provider connections (metadata only, never plaintext credentials)
+      tags:
+        - providers
+      responses:
+        '200':
+          description: Provider connection summaries ordered by priority.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListProviderConnectionsResponse'
+        '401':
+          description: Administrative authentication is required.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '500':
+          description: Failed to load provider connections.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+    post:
+      operationId: createProviderConnection
+      summary: Create a vaulted upstream provider connection
+      tags:
+        - providers
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateProviderConnectionRequest'
+      responses:
+        '201':
+          description: Provider connection created with AES-256-GCM encrypted credentials.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProviderConnectionSummary'
+        '400':
+          description: Malformed request body, unknown provider, or validation error.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Administrative authentication is required.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '413':
+          description: Request body exceeds maximum allowed size.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '500':
+          description: Failed to create provider connection.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+  /api/providers/connections/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: Unique provider connection identifier.
+        schema:
+          type: string
+    get:
+      operationId: getProviderConnection
+      summary: Retrieve metadata for a single upstream provider connection
+      tags:
+        - providers
+      responses:
+        '200':
+          description: Provider connection summary (never includes plaintext credentials).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProviderConnectionSummary'
+        '401':
+          description: Administrative authentication is required.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Provider connection not found.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '500':
+          description: Failed to load provider connection.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+    patch:
+      operationId: updateProviderConnection
+      summary: Update provider connection metadata, routing priority, enabled state, or vaulted credentials
+      tags:
+        - providers
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateProviderConnectionRequest'
+      responses:
+        '200':
+          description: Provider connection updated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProviderConnectionSummary'
+        '400':
+          description: Malformed request body or validation error.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Administrative authentication is required.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Provider connection not found.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '413':
+          description: Request body exceeds maximum allowed size.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '500':
+          description: Failed to update provider connection.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+    delete:
+      operationId: deleteProviderConnection
+      summary: Permanently delete a provider connection and its vaulted credentials
+      tags:
+        - providers
+      responses:
+        '204':
+          description: Provider connection deleted.
+        '401':
+          description: Administrative authentication is required.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Provider connection not found.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '500':
+          description: Failed to delete provider connection.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+  /api/providers/connections/{id}/test:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: Unique provider connection identifier.
+        schema:
+          type: string
+    post:
+      operationId: testProviderConnection
+      summary: Execute a live connectivity quick-test against the upstream provider
+      tags:
+        - providers
+      responses:
+        '200':
+          description: Quick-test outcome and latency metrics.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TestProviderConnectionResponse'
+        '400':
+          description: Invalid connection configuration for probe construction.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Administrative authentication is required.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Provider connection not found.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '500':
+          description: Failed to resolve credentials or execute connectivity test.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+  /api/providers/oauth/{provider}/start:
+    parameters:
+      - name: provider
+        in: path
+        required: true
+        description: OAuth-capable provider adapter identifier (e.g., claude, codex, gemini-oauth).
+        schema:
+          type: string
+    post:
+      operationId: startProviderOAuth
+      summary: Initiate a headless-safe PKCE S256 OAuth authorization session
+      tags:
+        - providers
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OAuthStartRequest'
+      responses:
+        '200':
+          description: Pending PKCE OAuth session created with authorization URL.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OAuthStartResponse'
+        '400':
+          description: Provider does not support OAuth, missing client_id, or invalid parameters.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Administrative authentication is required.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Provider adapter not found.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '500':
+          description: Failed to initialize OAuth session.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+  /api/providers/oauth/{provider}/exchange:
+    parameters:
+      - name: provider
+        in: path
+        required: true
+        description: OAuth-capable provider adapter identifier.
+        schema:
+          type: string
+    post:
+      operationId: exchangeProviderOAuth
+      summary: Exchange an authorization code or pasted callback URL for vaulted OAuth tokens
+      tags:
+        - providers
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OAuthExchangeRequest'
+      responses:
+        '201':
+          description: OAuth tokens sealed in vault and connection created or updated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProviderConnectionSummary'
+        '400':
+          description: Invalid callback_url, missing code/state, expired session, or state mismatch.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Administrative authentication is required.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Provider adapter or target connection not found.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '502':
+          description: Upstream OAuth token endpoint rejected or failed the exchange.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '500':
+          description: Internal error persisting OAuth connection.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+  /api/oauth/callback:
+    get:
+      operationId: oauthCallbackHandoff
+      summary: Public browser OAuth redirect receiver rendering escaped handoff instructions or JSON parameters
+      tags:
+        - providers
+      parameters:
+        - name: code
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: state
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: error
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: error_description
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Safe HTML handoff page (default) or JSON callback parameters when Accept requests application/json.
+          content:
+            text/html:
+              schema:
+                type: string
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OAuthCallbackJSONResponse'
+components:
+  schemas:
+    ProviderProtocol:
+      type: string
+      enum:
+        - openai-chat
+        - openai-responses
+        - anthropic
+        - gemini
+    ProviderAuthType:
+      type: string
+      enum:
+        - api_key
+        - oauth
+    CatalogOAuthDescriptor:
+      type: object
+      additionalProperties: false
+      required:
+        - authorize_url
+        - token_url
+        - scopes
+        - default_redirect_uri
+        - client_id_configured
+      properties:
+        authorize_url:
+          type: string
+          format: uri
+        token_url:
+          type: string
+          format: uri
+        scopes:
+          type: array
+          items:
+            type: string
+        default_redirect_uri:
+          type: string
+          format: uri
+        client_id_configured:
+          type: boolean
+    CatalogAdapterDescriptor:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - display_name
+        - category
+        - protocol
+        - auth_type
+        - default_base_url
+        - default_models
+        - oauth
+      properties:
+        id:
+          type: string
+        display_name:
+          type: string
+        category:
+          type: string
+        protocol:
+          $ref: '#/components/schemas/ProviderProtocol'
+        auth_type:
+          $ref: '#/components/schemas/ProviderAuthType'
+        default_base_url:
+          type: string
+        default_models:
+          type: array
+          items:
+            type: string
+        oauth:
+          oneOf:
+            - $ref: '#/components/schemas/CatalogOAuthDescriptor'
+            - type: 'null'
+    ProviderNode:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - name
+        - protocol
+        - base_url
+        - models
+        - headers
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        protocol:
+          $ref: '#/components/schemas/ProviderProtocol'
+        base_url:
+          type: string
+          format: uri
+        models:
+          type: array
+          items:
+            type: string
+        headers:
+          type: object
+          additionalProperties:
+            type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    ProvidersCatalogResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - adapters
+        - custom_nodes
+      properties:
+        adapters:
+          type: array
+          items:
+            $ref: '#/components/schemas/CatalogAdapterDescriptor'
+        custom_nodes:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProviderNode'
+    ListProviderNodesResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - nodes
+      properties:
+        nodes:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProviderNode'
+    CreateProviderNodeRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - name
+        - protocol
+        - base_url
+      properties:
+        id:
+          type: string
+          maxLength: 64
+        name:
+          type: string
+          minLength: 1
+          maxLength: 128
+        protocol:
+          $ref: '#/components/schemas/ProviderProtocol'
+        base_url:
+          type: string
+          format: uri
+        models:
+          type: array
+          items:
+            type: string
+        headers:
+          type: object
+          additionalProperties:
+            type: string
+    ProviderConnectionSummary:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - provider_id
+        - name
+        - protocol
+        - base_url
+        - auth_type
+        - priority
+        - enabled
+        - models
+        - headers
+        - has_credentials
+        - token_expires_at
+        - last_tested_at
+        - last_test_status
+        - last_test_error
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+        provider_id:
+          type: string
+        name:
+          type: string
+        protocol:
+          $ref: '#/components/schemas/ProviderProtocol'
+        base_url:
+          type: string
+          format: uri
+        auth_type:
+          $ref: '#/components/schemas/ProviderAuthType'
+        priority:
+          type: integer
+          minimum: 0
+        enabled:
+          type: boolean
+        models:
+          type: array
+          items:
+            type: string
+        headers:
+          type: object
+          additionalProperties:
+            type: string
+        has_credentials:
+          type: boolean
+        token_expires_at:
+          type:
+            - string
+            - 'null'
+          format: date-time
+        last_tested_at:
+          type:
+            - string
+            - 'null'
+          format: date-time
+        last_test_status:
+          type: string
+        last_test_error:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    ListProviderConnectionsResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - connections
+      properties:
+        connections:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProviderConnectionSummary'
+    CreateProviderConnectionRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - provider_id
+        - name
+      properties:
+        provider_id:
+          type: string
+        name:
+          type: string
+          minLength: 1
+          maxLength: 128
+        protocol:
+          $ref: '#/components/schemas/ProviderProtocol'
+        base_url:
+          type: string
+          format: uri
+        auth_type:
+          $ref: '#/components/schemas/ProviderAuthType'
+        api_key:
+          type: string
+          writeOnly: true
+        access_token:
+          type: string
+          writeOnly: true
+        refresh_token:
+          type: string
+          writeOnly: true
+        priority:
+          type: integer
+          minimum: 0
+          default: 100
+        enabled:
+          type: boolean
+          default: true
+        models:
+          type: array
+          items:
+            type: string
+        headers:
+          type: object
+          additionalProperties:
+            type: string
+    UpdateProviderConnectionRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 128
+        base_url:
+          type: string
+          format: uri
+        api_key:
+          type: string
+          writeOnly: true
+        access_token:
+          type: string
+          writeOnly: true
+        refresh_token:
+          type: string
+          writeOnly: true
+        priority:
+          type: integer
+          minimum: 0
+        enabled:
+          type: boolean
+        models:
+          type: array
+          items:
+            type: string
+        headers:
+          type: object
+          additionalProperties:
+            type: string
+    TestProviderConnectionResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - ok
+        - status_code
+        - latency_ms
+        - error
+      properties:
+        ok:
+          type: boolean
+        status_code:
+          type: integer
+        latency_ms:
+          type: integer
+          format: int64
+        error:
+          type: string
+    OAuthStartRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        connection_name:
+          type: string
+          maxLength: 128
+        redirect_uri:
+          type: string
+          format: uri
+        client_id:
+          type: string
+        client_secret:
+          type: string
+          writeOnly: true
+        base_url:
+          type: string
+          format: uri
+        models:
+          type: array
+          items:
+            type: string
+    OAuthStartResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - state
+        - authorize_url
+        - redirect_uri
+        - expires_at
+      properties:
+        state:
+          type: string
+        authorize_url:
+          type: string
+          format: uri
+        redirect_uri:
+          type: string
+          format: uri
+        expires_at:
+          type: string
+          format: date-time
+    OAuthExchangeRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        state:
+          type: string
+        code:
+          type: string
+        callback_url:
+          type: string
+          format: uri
+        connection_id:
+          type: string
+        connection_name:
+          type: string
+          maxLength: 128
+        priority:
+          type: integer
+          minimum: 0
+          default: 100
+        enabled:
+          type: boolean
+          default: true
+        headers:
+          type: object
+          additionalProperties:
+            type: string
+    OAuthCallbackJSONResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - provider_id
+        - state
+        - code
+        - error
+        - error_description
+      properties:
+        status:
+          type: string
+        provider_id:
+          type: string
+        state:
+          type: string
+        code:
+          type: string
+        error:
+          type: string
+        error_description:
+          type: string
