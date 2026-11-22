@@ -754,5 +754,47 @@
     "seen": 1795383721.4014926,
     "ast_hash": "71bb5a15600bd7449aec4ef27194b2cf",
     "semantic_hash": ""
+  },
+  "internal/modules/gateway/ir.go": {
+    "mtime": 1795384659.848239,
+    "seen": 1795384677.3009646,
+    "ast_hash": "5e75b9498607dc5a4e46464df7a55e03",
+    "semantic_hash": ""
+  },
+  "internal/modules/gateway/tokens.go": {
+    "mtime": 1795384359.9836895,
+    "seen": 1795384677.30097,
+    "ast_hash": "e6c01af896d7ee004923488df476fea4",
+    "semantic_hash": ""
+  },
+  "internal/modules/gateway/translate_anthropic.go": {
+    "mtime": 1795384667.4023535,
+    "seen": 1795384677.3009734,
+    "ast_hash": "a50c924946a95e07251eee4d638fec6f",
+    "semantic_hash": ""
+  },
+  "internal/modules/gateway/translate_gemini.go": {
+    "mtime": 1795384667.434354,
+    "seen": 1795384677.3009758,
+    "ast_hash": "a2cd9324a8ce25e707a6155180bf115f",
+    "semantic_hash": ""
+  },
+  "internal/modules/gateway/translate_openai.go": {
+    "mtime": 1795384661.698267,
+    "seen": 1795384677.300979,
+    "ast_hash": "ada703b4d20fd5446bf87e3fc987751a",
+    "semantic_hash": ""
+  },
+  "internal/modules/gateway/translate_responses.go": {
+    "mtime": 1795384667.496355,
+    "seen": 1795384677.300982,
+    "ast_hash": "1a5e5b96cb3376b67a72002cc8a92916",
+    "semantic_hash": ""
+  },
+  "internal/modules/gateway/translate_test.go": {
+    "mtime": 1795384058.7001185,
+    "seen": 1795384677.300985,
+    "ast_hash": "1faa2e6c3f1351eb17cb336248ff9f7f",
+    "semantic_hash": ""
   }
 }
