@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/omeg4monx/router-gateway/internal/contracts"
 	"github.com/omeg4monx/router-gateway/internal/platform/db"
 )
 
@@ -164,6 +165,99 @@ func (r *repository) insertAdminPassword(ctx context.Context, passwordHash strin
 	if err := tx.Commit(); err != nil {
 		_ = tx.Rollback()
 		return fmt.Errorf("system: commit init transaction: %w", err)
+	}
+	return nil
+}
+
+func (r *repository) AdminPasswordHash(ctx context.Context) (string, error) {
+	if r == nil || r.db == nil {
+		return "", errors.New("system: database is not initialized")
+	}
+
+	var val string
+	err := r.db.Reader().QueryRowContext(
+		ctx,
+		`SELECT value FROM system_state WHERE key = ?`,
+		keyAdminPasswordHash,
+	).Scan(&val)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", contracts.ErrNotInitialized
+	}
+	if err != nil {
+		return "", fmt.Errorf("system: query admin password hash: %w", err)
+	}
+	if strings.TrimSpace(val) == "" {
+		return "", contracts.ErrNotInitialized
+	}
+	return val, nil
+}
+
+func (r *repository) UpdateAdminPasswordHash(ctx context.Context, hash string) error {
+	if r == nil || r.db == nil {
+		return errors.New("system: database is not initialized")
+	}
+
+	now := time.Now().UTC().Format(time.RFC3339Nano)
+	res, err := r.db.Writer().ExecContext(
+		ctx,
+		`UPDATE system_state SET value = ?, updated_at = ? WHERE key = ?`,
+		hash,
+		now,
+		keyAdminPasswordHash,
+	)
+	if err != nil {
+		return fmt.Errorf("system: update admin password hash: %w", err)
+	}
+
+	affected, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("system: check updated admin password rows: %w", err)
+	}
+	if affected == 0 {
+		return contracts.ErrNotInitialized
+	}
+	return nil
+}
+
+func (r *repository) RequireLogin(ctx context.Context) (bool, error) {
+	if r == nil || r.db == nil {
+		return true, errors.New("system: database is not initialized")
+	}
+
+	var val string
+	err := r.db.Reader().QueryRowContext(
+		ctx,
+		`SELECT value FROM system_state WHERE key = ?`,
+		keyRequireLogin,
+	).Scan(&val)
+	if errors.Is(err, sql.ErrNoRows) {
+		return true, nil
+	}
+	if err != nil {
+		return true, fmt.Errorf("system: query require_login: %w", err)
+	}
+	return !strings.EqualFold(strings.TrimSpace(val), "false"), nil
+}
+
+func (r *repository) SetRequireLogin(ctx context.Context, required bool) error {
+	if r == nil || r.db == nil {
+		return errors.New("system: database is not initialized")
+	}
+
+	val := "false"
+	if required {
+		val = "true"
+	}
+	now := time.Now().UTC().Format(time.RFC3339Nano)
+	if _, err := r.db.Writer().ExecContext(
+		ctx,
+		`INSERT INTO system_state (key, value, updated_at) VALUES (?, ?, ?)
+		 ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`,
+		keyRequireLogin,
+		val,
+		now,
+	); err != nil {
+		return fmt.Errorf("system: set require_login: %w", err)
 	}
 	return nil
 }

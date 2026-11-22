@@ -18,14 +18,22 @@ import { Card, CardHeader, CardTitle } from "@/shared/ui/card";
 import { EmberRule } from "@/shared/ui/EmberRule";
 import { useInitStatus, useSystemHealth, useSystemVersion } from "./hooks";
 
+const MODULE_SCOPES: Record<string, string> = {
+  system: "Health probe, build metadata, initialization & graceful lifecycle",
+  auth: "Single-admin session cookies, password rotation & remote-bind policy",
+  settings: "Typed runtime settings store, revision history & atomic rollback",
+  keys: "Gateway API keys, SHA-256 hash validation, model scopes & rotation",
+};
+
 const PLANNED_WAVE1_MODULES = [
-  { name: "auth", scope: "Single-admin session cookies & login policy" },
-  { name: "settings", scope: "Typed settings store, history & rollback" },
+  { name: "auth", scope: MODULE_SCOPES.auth },
+  { name: "settings", scope: MODULE_SCOPES.settings },
+  { name: "keys", scope: MODULE_SCOPES.keys },
   { name: "providers", scope: "Upstream LLM adapters, OAuth & credential vault" },
-  { name: "keys", scope: "Client API keys, allowed models & quotas" },
   { name: "combos", scope: "Fallback chains, aliases & account cooldowns" },
   { name: "gateway", scope: "OpenAI, Anthropic, Responses & Gemini SSE proxy" },
   { name: "usage", scope: "Async token accounting, pricing & request telemetry" },
+  { name: "clitools", scope: "CLI client integrations & local developer profiles" },
 ];
 
 function formatUptime(totalSeconds: number): string {
@@ -288,7 +296,7 @@ export function SystemOverview() {
                       {mod}
                     </p>
                     <p className="text-xs text-[var(--text-muted)]">
-                      Active kernel control plane module
+                      {MODULE_SCOPES[mod] ?? "Active kernel control plane module"}
                     </p>
                   </div>
                   <Badge variant="success">Mounted</Badge>

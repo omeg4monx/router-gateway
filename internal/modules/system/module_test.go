@@ -17,6 +17,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/omeg4monx/router-gateway/internal/contracts"
 	"github.com/omeg4monx/router-gateway/internal/modules/system"
 	"github.com/omeg4monx/router-gateway/internal/platform/config"
 	"github.com/omeg4monx/router-gateway/internal/platform/crypto"
@@ -611,4 +612,92 @@ func TestSystemShutdownRemoteBindGuard(t *testing.T) {
 			t.Fatalf("shutdown callback was not invoked with AllowInsecureRemote=true")
 		}
 	})
+}
+
+func TestSystemAdminCredentialStore(t *testing.T) {
+	h := newTestHarness(t, config.Config{Host: "127.0.0.1"}, system.BuildInfo{}, nil, nil, nil)
+	ctx := context.Background()
+	if err := h.reg.StartAll(ctx); err != nil {
+		t.Fatalf("StartAll: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = h.reg.StopAll(context.Background())
+	})
+
+	var store contracts.AdminCredentialStore = h.mod
+
+	// Before init: AdminPasswordHash and UpdateAdminPasswordHash return ErrNotInitialized; RequireLogin returns true, nil.
+	if _, err := store.AdminPasswordHash(ctx); !errors.Is(err, contracts.ErrNotInitialized) {
+		t.Fatalf("AdminPasswordHash before init err = %v, want contracts.ErrNotInitialized", err)
+	}
+	if err := store.UpdateAdminPasswordHash(ctx, "$2a$10$notinitializedplaceholderhash"); !errors.Is(err, contracts.ErrNotInitialized) {
+		t.Fatalf("UpdateAdminPasswordHash before init err = %v, want contracts.ErrNotInitialized", err)
+	}
+	reqLogin, err := store.RequireLogin(ctx)
+	if err != nil || !reqLogin {
+		t.Fatalf("RequireLogin before init = (%v, %v), want (true, nil)", reqLogin, err)
+	}
+
+	// Initialize via POST /api/init.
+	const initialPass = "initial-admin-password-2026"
+	req := httptest.NewRequest(http.MethodPost, "/api/init", strings.NewReader(`{"password":"`+initialPass+`"}`))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	h.server.Handler().ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("POST /api/init status = %d, want 200 (body=%s)", rec.Code, rec.Body.String())
+	}
+
+	hash, err := store.AdminPasswordHash(ctx)
+	if err != nil {
+		t.Fatalf("AdminPasswordHash after init err = %v", err)
+	}
+	if !crypto.VerifyPassword(hash, initialPass) {
+		t.Fatalf("AdminPasswordHash returned hash that does not verify initial password")
+	}
+
+	// UpdateAdminPasswordHash updates stored hash atomically.
+	const updatedPass = "updated-admin-password-2026"
+	newHash, err := crypto.HashPassword(updatedPass)
+	if err != nil {
+		t.Fatalf("crypto.HashPassword: %v", err)
+	}
+	if err := store.UpdateAdminPasswordHash(ctx, newHash); err != nil {
+		t.Fatalf("UpdateAdminPasswordHash err = %v", err)
+	}
+	gotHash, err := store.AdminPasswordHash(ctx)
+	if err != nil {
+		t.Fatalf("AdminPasswordHash after update err = %v", err)
+	}
+	if gotHash != newHash {
+		t.Fatalf("AdminPasswordHash after update = %q, want %q", gotHash, newHash)
+	}
+	if !crypto.VerifyPassword(gotHash, updatedPass) {
+		t.Fatalf("updated hash does not verify updated password")
+	}
+
+	// SetRequireLogin(false) updates system_state to "false" and RequireLogin returns false, nil.
+	if err := store.SetRequireLogin(ctx, false); err != nil {
+		t.Fatalf("SetRequireLogin(false) err = %v", err)
+	}
+	var rawRequireLogin string
+	if err := h.db.Reader().QueryRowContext(ctx, `SELECT value FROM system_state WHERE key = 'require_login'`).Scan(&rawRequireLogin); err != nil {
+		t.Fatalf("query require_login after SetRequireLogin(false): %v", err)
+	}
+	if rawRequireLogin != "false" {
+		t.Fatalf("system_state require_login = %q, want %q", rawRequireLogin, "false")
+	}
+	reqLogin, err = store.RequireLogin(ctx)
+	if err != nil || reqLogin {
+		t.Fatalf("RequireLogin after SetRequireLogin(false) = (%v, %v), want (false, nil)", reqLogin, err)
+	}
+
+	// SetRequireLogin(true) restores true, nil.
+	if err := store.SetRequireLogin(ctx, true); err != nil {
+		t.Fatalf("SetRequireLogin(true) err = %v", err)
+	}
+	reqLogin, err = store.RequireLogin(ctx)
+	if err != nil || !reqLogin {
+		t.Fatalf("RequireLogin after SetRequireLogin(true) = (%v, %v), want (true, nil)", reqLogin, err)
+	}
 }

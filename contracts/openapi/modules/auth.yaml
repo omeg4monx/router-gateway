@@ -1,0 +1,280 @@
+openapi: 3.1.0
+info:
+  title: omeg4mon-router Auth Module API
+  version: 0.1.0
+paths:
+  /api/auth/login:
+    post:
+      operationId: loginAdmin
+      summary: Authenticate with the single-admin password and issue a signed session cookie
+      tags:
+        - auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Authentication succeeded and an HttpOnly session cookie was issued.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '400':
+          description: Malformed JSON request body.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Admin password verification failed.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '409':
+          description: System has not been initialized yet.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '413':
+          description: Request body exceeds maximum allowed size.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '500':
+          description: Internal error while verifying credentials or signing session.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+  /api/auth/logout:
+    post:
+      operationId: logoutAdmin
+      summary: Clear the admin session cookie
+      tags:
+        - auth
+      responses:
+        '200':
+          description: Session cookie cleared.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LogoutResponse'
+  /api/auth/me:
+    get:
+      operationId: getAuthMe
+      summary: Inspect current admin authentication session and login policy posture
+      tags:
+        - auth
+      responses:
+        '200':
+          description: Current session and login enforcement status.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthMeResponse'
+        '500':
+          description: Failed to read initialization or login policy state.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+  /api/auth/password:
+    put:
+      operationId: changeAdminPassword
+      summary: Rotate the admin password and refresh the signed session cookie
+      tags:
+        - auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangePasswordRequest'
+      responses:
+        '200':
+          description: Admin password updated and fresh session cookie issued.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChangePasswordResponse'
+        '400':
+          description: Malformed request body or new password failed validation rules.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Administrative authentication required or current password is incorrect.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '409':
+          description: System has not been initialized yet.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '413':
+          description: Request body exceeds maximum allowed size.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '500':
+          description: Internal error while updating password or refreshing session.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+  /api/auth/policy:
+    put:
+      operationId: updateAuthPolicy
+      summary: Update dashboard login enforcement policy
+      tags:
+        - auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateAuthPolicyRequest'
+      responses:
+        '200':
+          description: Login policy updated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthPolicyResponse'
+        '400':
+          description: Malformed JSON request body or missing require_login field.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Administrative authentication is required.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Disabling login is forbidden on non-loopback bind addresses unless OMEG4MON_ALLOW_INSECURE_REMOTE is enabled.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '413':
+          description: Request body exceeds maximum allowed size.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '500':
+          description: Failed to persist login policy.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+components:
+  schemas:
+    LoginRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - password
+      properties:
+        password:
+          type: string
+          format: password
+    LoginResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - authenticated
+        - subject
+        - expires_at
+      properties:
+        authenticated:
+          type: boolean
+        subject:
+          type: string
+        expires_at:
+          type: string
+          format: date-time
+    LogoutResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - authenticated
+      properties:
+        authenticated:
+          type: boolean
+    AuthMeResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - authenticated
+        - subject
+        - require_login
+        - remote_enforced
+        - initialized
+      properties:
+        authenticated:
+          type: boolean
+        subject:
+          type: string
+        require_login:
+          type: boolean
+        remote_enforced:
+          type: boolean
+        initialized:
+          type: boolean
+    ChangePasswordRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - current_password
+        - new_password
+      properties:
+        current_password:
+          type: string
+          format: password
+        new_password:
+          type: string
+          format: password
+          minLength: 8
+          maxLength: 72
+    ChangePasswordResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - updated
+      properties:
+        updated:
+          type: boolean
+    UpdateAuthPolicyRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - require_login
+      properties:
+        require_login:
+          type: boolean
+    AuthPolicyResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - require_login
+        - remote_enforced
+      properties:
+        require_login:
+          type: boolean
+        remote_enforced:
+          type: boolean

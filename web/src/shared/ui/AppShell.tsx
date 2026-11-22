@@ -6,6 +6,7 @@ import {
   KeyRound,
   Layers,
   LogIn,
+  LogOut,
   Menu,
   PanelLeftClose,
   PanelLeftOpen,
@@ -15,8 +16,9 @@ import {
   X,
 } from "lucide-react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { type ReactNode, useEffect } from "react";
+import { useAuthSession, useLogoutMutation } from "@/features/auth/hooks";
 import { cn } from "@/shared/lib/utils";
 import { useUIStore } from "@/shared/store/uiStore";
 import { Badge } from "./badge";
@@ -43,14 +45,14 @@ interface PlannedNavItem {
 
 const ACTIVE_NAV_ITEMS: ActiveNavItem[] = [
   { label: "System Overview", href: "/dashboard/", icon: Activity },
+  { label: "API Keys", href: "/dashboard/keys/", icon: KeyRound },
+  { label: "Settings", href: "/dashboard/settings/", icon: SlidersHorizontal },
 ];
 
 const PLANNED_NAV_ITEMS: PlannedNavItem[] = [
   { label: "Providers", icon: Server, phase: "Wave 1" },
   { label: "Models & Routing", icon: Layers, phase: "Wave 1" },
-  { label: "API Keys", icon: KeyRound, phase: "Wave 1" },
   { label: "Usage & Telemetry", icon: Cpu, phase: "Wave 1" },
-  { label: "Settings", icon: SlidersHorizontal, phase: "Wave 1" },
 ];
 
 const ACCESS_NAV_ITEMS: ActiveNavItem[] = [
@@ -64,11 +66,25 @@ function normalizeRoute(path: string): string {
 
 export function AppShell({ children }: AppShellProps) {
   const pathname = usePathname();
+  const router = useRouter();
+  const authSessionQuery = useAuthSession();
+  const logoutMutation = useLogoutMutation();
   const mobileNavOpen = useUIStore((state) => state.mobileNavOpen);
   const setMobileNavOpen = useUIStore((state) => state.setMobileNavOpen);
   const closeMobileNav = useUIStore((state) => state.closeMobileNav);
   const sidebarCollapsed = useUIStore((state) => state.sidebarCollapsed);
   const toggleSidebarCollapsed = useUIStore((state) => state.toggleSidebarCollapsed);
+
+  const isAuthenticated = Boolean(authSessionQuery.data?.authenticated);
+
+  const handleSignOut = () => {
+    logoutMutation.mutate(undefined, {
+      onSuccess: () => {
+        closeMobileNav();
+        router.replace("/login/");
+      },
+    });
+  };
 
   useEffect(() => {
     if (!mobileNavOpen) {
@@ -84,6 +100,9 @@ export function AppShell({ children }: AppShellProps) {
   }, [mobileNavOpen, closeMobileNav]);
 
   const normalizedPathname = normalizeRoute(pathname);
+  const activeRouteLabel =
+    ACTIVE_NAV_ITEMS.find((item) => normalizeRoute(item.href) === normalizedPathname)?.label ??
+    "Gateway Monitor";
 
   const renderSidebar = (compact: boolean) => (
     <div className="flex h-full flex-col bg-[var(--bg-surface)] text-[var(--text-primary)]">
@@ -239,11 +258,11 @@ export function AppShell({ children }: AppShellProps) {
           )}
         >
           {compact ? (
-            <span className="text-[var(--text-secondary)]">W0</span>
+            <span className="text-[var(--text-secondary)]">W1A</span>
           ) : (
             <>
               <span>KERNEL</span>
-              <span className="text-[var(--text-secondary)]">WAVE 0</span>
+              <span className="text-[var(--text-secondary)]">WAVE 1A</span>
             </>
           )}
         </div>
@@ -317,12 +336,25 @@ export function AppShell({ children }: AppShellProps) {
                   Control Plane
                 </p>
                 <h1 className="text-base font-semibold tracking-tight text-[var(--text-primary)]">
-                  Gateway Monitor
+                  {activeRouteLabel}
                 </h1>
               </div>
             </div>
 
             <div className="flex items-center gap-2.5">
+              {isAuthenticated ? (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={handleSignOut}
+                  disabled={logoutMutation.isPending}
+                  title={logoutMutation.error?.message}
+                >
+                  <LogOut className="h-3.5 w-3.5" aria-hidden="true" />
+                  <span>{logoutMutation.isPending ? "Signing out..." : "Sign Out"}</span>
+                </Button>
+              ) : null}
               <ThemeToggle />
             </div>
           </div>

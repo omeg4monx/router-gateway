@@ -1,29 +1,43 @@
 "use client";
 
-import { AlertTriangle, ArrowRight, KeyRound, RefreshCw, ShieldCheck } from "lucide-react";
+import { AlertTriangle, ArrowRight, KeyRound, RefreshCw } from "lucide-react";
 import Link from "next/link";
-import { useInitStatus, useSystemVersion } from "@/features/system/hooks";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
+import { useAuthSession } from "@/features/auth/hooks";
+import { LoginForm } from "@/features/auth/LoginForm";
+import { authSessionToRouteState, resolvePostAuthRedirect } from "@/features/auth/schemas";
+import { useSystemVersion } from "@/features/system/hooks";
 import { Alert, AlertDescription, AlertTitle } from "@/shared/ui/alert";
 import { Button } from "@/shared/ui/button";
 import { CaduceusLogo } from "@/shared/ui/CaduceusLogo";
 import { Card } from "@/shared/ui/card";
 import { EmberRule } from "@/shared/ui/EmberRule";
-import { Input } from "@/shared/ui/input";
-import { Label } from "@/shared/ui/label";
 import { ThemeToggle } from "@/shared/ui/ThemeToggle";
 
 export default function LoginPage() {
-  const initStatusQuery = useInitStatus();
+  const router = useRouter();
+  const authSessionQuery = useAuthSession();
   const versionQuery = useSystemVersion();
 
-  const isRetrying = initStatusQuery.isFetching || versionQuery.isFetching;
+  const session = authSessionQuery.data;
+  const version = versionQuery.data;
+
+  const redirectTarget = session
+    ? resolvePostAuthRedirect(authSessionToRouteState(session), "/login/")
+    : null;
+
+  useEffect(() => {
+    if (redirectTarget && !authSessionQuery.isFetching) {
+      router.replace(redirectTarget);
+    }
+  }, [authSessionQuery.isFetching, redirectTarget, router]);
+
+  const isRetrying = authSessionQuery.isFetching || versionQuery.isFetching;
 
   const handleRetry = () => {
-    void Promise.all([initStatusQuery.refetch(), versionQuery.refetch()]);
+    void Promise.all([authSessionQuery.refetch(), versionQuery.refetch()]);
   };
-
-  const initStatus = initStatusQuery.data;
-  const version = versionQuery.data;
 
   const buildVersionLabel = versionQuery.isPending
     ? "Loading..."
@@ -31,13 +45,17 @@ export default function LoginPage() {
       ? "Unavailable"
       : version.version;
 
-  const authModuleLabel = initStatusQuery.isPending
+  const authPostureLabel = authSessionQuery.isPending
     ? "CHECKING"
-    : initStatusQuery.isError || !initStatus
+    : authSessionQuery.isError || !session
       ? "UNAVAILABLE"
-      : initStatus.requireLogin
-        ? "ENFORCED"
-        : "WAVE 1 STANDBY";
+      : !session.initialized
+        ? "UNINITIALIZED"
+        : session.remote_enforced
+          ? "REMOTE ENFORCED"
+          : session.require_login
+            ? "ENFORCED"
+            : "LOOPBACK OPEN";
 
   return (
     <div className="grid min-h-screen grid-cols-1 bg-[var(--bg-canvas)] text-[var(--text-primary)] lg:grid-cols-12">
@@ -77,9 +95,9 @@ export default function LoginPage() {
               </dd>
             </div>
             <div>
-              <dt className="uppercase tracking-wider text-[var(--text-muted)]">Auth Module</dt>
+              <dt className="uppercase tracking-wider text-[var(--text-muted)]">Auth Posture</dt>
               <dd className="mt-1 font-mono text-sm text-[var(--text-primary)]">
-                {authModuleLabel}
+                {authPostureLabel}
               </dd>
             </div>
           </dl>
@@ -103,16 +121,16 @@ export default function LoginPage() {
 
           <EmberRule className="my-5" />
 
-          {initStatusQuery.isPending ? (
+          {authSessionQuery.isPending ? (
             <div className="space-y-2 py-2">
               <p className="text-sm font-medium text-[var(--text-primary)]">
                 Checking authentication posture
               </p>
               <p className="font-mono text-xs text-[var(--text-muted)]">
-                Querying GET /api/init...
+                Querying GET /api/auth/me...
               </p>
             </div>
-          ) : initStatusQuery.isError ? (
+          ) : authSessionQuery.isError ? (
             <div className="space-y-4">
               <Alert variant="destructive">
                 <AlertTriangle
@@ -122,7 +140,7 @@ export default function LoginPage() {
                 <div>
                   <AlertTitle>Unable to reach control plane</AlertTitle>
                   <AlertDescription className="font-mono">
-                    {initStatusQuery.error.message}
+                    {authSessionQuery.error.message}
                   </AlertDescription>
                 </div>
               </Alert>
@@ -142,7 +160,7 @@ export default function LoginPage() {
                 </Button>
               </div>
             </div>
-          ) : !initStatus?.initialized ? (
+          ) : !session?.initialized ? (
             <div className="space-y-4">
               <Alert variant="warning">
                 First-run initialization is required before signing in.
@@ -154,47 +172,22 @@ export default function LoginPage() {
                 </Link>
               </Button>
             </div>
-          ) : (
-            <div className="space-y-5">
-              <Alert>
-                <ShieldCheck
-                  className="mt-0.5 h-4 w-4 shrink-0 text-[#E56A4A]"
-                  aria-hidden="true"
-                />
-                <div className="text-xs leading-relaxed text-[var(--text-secondary)]">
-                  <AlertTitle>Wave 0 Kernel Posture</AlertTitle>
-                  <AlertDescription className="mt-1">
-                    Cookie-backed operator login (<span className="font-mono">/api/auth/login</span>
-                    ) is scheduled for Wave 1. Loopback control plane access is currently direct.
-                  </AlertDescription>
-                </div>
-              </Alert>
-
-              <div>
-                <Label htmlFor="login-password-standby" className="text-[var(--text-muted)]">
-                  Administrator Password
-                </Label>
-                <Input
-                  id="login-password-standby"
-                  type="password"
-                  disabled
-                  placeholder="Enabled when Wave 1 auth module mounts"
-                  className="mt-1.5"
-                />
-              </div>
-
-              <div className="flex flex-col gap-2.5 pt-1">
-                <Button asChild className="w-full">
-                  <Link href="/dashboard/">
-                    <span>Continue to Dashboard</span>
-                    <ArrowRight className="h-4 w-4" aria-hidden="true" />
-                  </Link>
-                </Button>
-                <Button asChild variant="outline" className="w-full">
-                  <Link href="/init/">Inspect Initialization Status</Link>
-                </Button>
-              </div>
+          ) : redirectTarget === "/dashboard/" ? (
+            <div className="space-y-4">
+              <p className="text-sm text-[var(--text-secondary)]">
+                {session.authenticated
+                  ? "Operator session active. Redirecting to dashboard..."
+                  : "Loopback access is active. Redirecting to dashboard..."}
+              </p>
+              <Button asChild className="w-full">
+                <Link href="/dashboard/">
+                  <span>Continue to Dashboard</span>
+                  <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                </Link>
+              </Button>
             </div>
+          ) : (
+            <LoginForm remoteEnforced={session.remote_enforced} />
           )}
         </Card>
       </main>
