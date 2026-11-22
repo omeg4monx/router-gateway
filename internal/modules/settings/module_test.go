@@ -678,3 +678,75 @@ func TestSettingsPublishesEventBus(t *testing.T) {
 		t.Fatalf("timed out waiting for settings.updated event on rollback")
 	}
 }
+
+func TestSettingsTimestampsFixedWidthUTC(t *testing.T) {
+	const fixedLayout = "2006-01-02T15:04:05.000000000Z"
+
+	assertFixedWidthUTC := func(t *testing.T, label, ts string) {
+		t.Helper()
+		if len(ts) != len(fixedLayout) {
+			t.Fatalf("%s = %q (len=%d), want fixed width len=%d", label, ts, len(ts), len(fixedLayout))
+		}
+		if !strings.HasSuffix(ts, "Z") {
+			t.Fatalf("%s = %q, want UTC suffix Z", label, ts)
+		}
+		if ts[19] != '.' {
+			t.Fatalf("%s = %q, want fractional dot at index 19", label, ts)
+		}
+		if _, err := time.Parse(time.RFC3339Nano, ts); err != nil {
+			t.Fatalf("%s = %q is not valid RFC3339: %v", label, ts, err)
+		}
+	}
+
+	h := newTestHarness(t, nil)
+
+	rec := h.doJSON(t, http.MethodPatch, "/api/settings", `{"updates":{"ui.theme":"light"},"reason":"check timestamp"}`)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("PATCH status = %d (body=%s)", rec.Code, rec.Body.String())
+	}
+	var patched settingsListResp
+	if err := json.Unmarshal(rec.Body.Bytes(), &patched); err != nil {
+		t.Fatalf("unmarshal PATCH: %v", err)
+	}
+	byKey := indexByKey(patched.Settings)
+	assertFixedWidthUTC(t, "settings.updated_at", byKey["ui.theme"].UpdatedAt)
+
+	histRec := h.doJSON(t, http.MethodGet, "/api/settings/history?key=ui.theme", "")
+	if histRec.Code != http.StatusOK {
+		t.Fatalf("GET history status = %d (body=%s)", histRec.Code, histRec.Body.String())
+	}
+	var hist historyListResp
+	if err := json.Unmarshal(histRec.Body.Bytes(), &hist); err != nil {
+		t.Fatalf("unmarshal history: %v", err)
+	}
+	if len(hist.Items) != 1 {
+		t.Fatalf("history len = %d, want 1", len(hist.Items))
+	}
+	assertFixedWidthUTC(t, "history.created_at (patch)", hist.Items[0].CreatedAt)
+
+	rbRec := h.doJSON(t, http.MethodPost, "/api/settings/rollback", `{"history_id":`+strconv.FormatInt(hist.Items[0].ID, 10)+`}`)
+	if rbRec.Code != http.StatusOK {
+		t.Fatalf("rollback status = %d (body=%s)", rbRec.Code, rbRec.Body.String())
+	}
+	var rolled settings.SettingItem
+	if err := json.Unmarshal(rbRec.Body.Bytes(), &rolled); err != nil {
+		t.Fatalf("unmarshal rollback: %v", err)
+	}
+	assertFixedWidthUTC(t, "rollback.updated_at", rolled.UpdatedAt)
+
+	histAfterRec := h.doJSON(t, http.MethodGet, "/api/settings/history?key=ui.theme", "")
+	if histAfterRec.Code != http.StatusOK {
+		t.Fatalf("GET history after rollback status = %d", histAfterRec.Code)
+	}
+	var histAfter historyListResp
+	if err := json.Unmarshal(histAfterRec.Body.Bytes(), &histAfter); err != nil {
+		t.Fatalf("unmarshal history after rollback: %v", err)
+	}
+	if len(histAfter.Items) != 2 {
+		t.Fatalf("history len = %d, want 2", len(histAfter.Items))
+	}
+	assertFixedWidthUTC(t, "history.created_at (rollback)", histAfter.Items[0].CreatedAt)
+	if histAfter.Items[0].CreatedAt < histAfter.Items[1].CreatedAt {
+		t.Fatalf("expected newest-first lexicographical order: %q < %q", histAfter.Items[0].CreatedAt, histAfter.Items[1].CreatedAt)
+	}
+}

@@ -522,15 +522,15 @@
     "semantic_hash": ""
   },
   "internal/modules/settings/module_test.go": {
-    "mtime": 1795376910.6444964,
-    "seen": 1795376955.4036887,
-    "ast_hash": "123a0e75c45047ddf46fd0a3f3425779",
+    "mtime": 1795377197.0332158,
+    "seen": 1795377210.5327775,
+    "ast_hash": "e9fe94a57efb97d0c7ceed50860a31ad",
     "semantic_hash": ""
   },
   "internal/modules/settings/repo.go": {
-    "mtime": 1795376923.060986,
-    "seen": 1795376955.40369,
-    "ast_hash": "9f68f4acb6d2b5c3bbd3afc539ffbbff",
+    "mtime": 1795377195.2701929,
+    "seen": 1795377210.5327792,
+    "ast_hash": "52a26d91b3e7fc9679d0eb904bb0392d",
     "semantic_hash": ""
   },
   "internal/modules/settings/schema.go": {

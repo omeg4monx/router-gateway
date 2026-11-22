@@ -13,6 +13,8 @@ import (
 	"github.com/omeg4monx/router-gateway/internal/platform/db"
 )
 
+const rfc3339NanoFixed = "2006-01-02T15:04:05.000000000Z"
+
 var (
 	// ErrEmptyUpdates indicates a PATCH request supplied no setting updates.
 	ErrEmptyUpdates = errors.New("settings: updates must contain at least one key")
@@ -150,7 +152,7 @@ func (r *repository) ApplyUpdates(ctx context.Context, rawUpdates map[string]jso
 		updatedValues[def.Key] = val
 	}
 
-	now := time.Now().UTC().Format(time.RFC3339Nano)
+	now := time.Now().UTC().Format(rfc3339NanoFixed)
 	cleanReason := strings.TrimSpace(reason)
 
 	for _, upd := range validated {
@@ -377,7 +379,7 @@ func (r *repository) Rollback(ctx context.Context, historyID int64, changedBy, r
 		nextRevision = existingRev + 1
 	}
 
-	now := time.Now().UTC().Format(time.RFC3339Nano)
+	now := time.Now().UTC().Format(rfc3339NanoFixed)
 	effectiveReason := strings.TrimSpace(reason)
 	if effectiveReason == "" {
 		effectiveReason = fmt.Sprintf("rollback history #%d", historyID)
