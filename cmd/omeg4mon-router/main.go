@@ -16,7 +16,10 @@ import (
 	"time"
 
 	"github.com/omeg4monx/router-gateway/internal/modules/auth"
+	"github.com/omeg4monx/router-gateway/internal/modules/combos"
+	"github.com/omeg4monx/router-gateway/internal/modules/gateway"
 	"github.com/omeg4monx/router-gateway/internal/modules/keys"
+	"github.com/omeg4monx/router-gateway/internal/modules/providers"
 	"github.com/omeg4monx/router-gateway/internal/modules/settings"
 	"github.com/omeg4monx/router-gateway/internal/modules/system"
 	"github.com/omeg4monx/router-gateway/internal/platform/config"
@@ -177,6 +180,27 @@ func buildApp(ctx context.Context, cfg config.Config, build system.BuildInfo) (*
 		DB:  database,
 		Bus: bus,
 	})
+	providersMod := providers.New(providers.Options{
+		DB:         database,
+		Vault:      vault,
+		HTTPClient: httpClient,
+		Bus:        bus,
+	})
+	combosMod := combos.New(combos.Options{
+		DB:        database,
+		Providers: providersMod,
+		Bus:       bus,
+	})
+	gatewayMod := gateway.New(gateway.Options{
+		DB:         database,
+		HTTPClient: httpClient,
+		Keys:       keysMod,
+		Resolver:   combosMod,
+		Models:     combosMod,
+		Providers:  providersMod,
+		Health:     combosMod,
+		Logger:     logger,
+	})
 
 	if err := registry.Register(sysMod); err != nil {
 		return nil, fmt.Errorf("register system module: %w", err)
@@ -189,6 +213,15 @@ func buildApp(ctx context.Context, cfg config.Config, build system.BuildInfo) (*
 	}
 	if err := registry.Register(keysMod); err != nil {
 		return nil, fmt.Errorf("register keys module: %w", err)
+	}
+	if err := registry.Register(providersMod); err != nil {
+		return nil, fmt.Errorf("register providers module: %w", err)
+	}
+	if err := registry.Register(combosMod); err != nil {
+		return nil, fmt.Errorf("register combos module: %w", err)
+	}
+	if err := registry.Register(gatewayMod); err != nil {
+		return nil, fmt.Errorf("register gateway module: %w", err)
 	}
 
 	if err := registry.MigrateAll(ctx, database); err != nil {
