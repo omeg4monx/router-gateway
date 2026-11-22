@@ -412,3 +412,31 @@ describe("providers-ux Task 3: ProvidersHeader", () => {
     expect(src).toContain("onSelectStatusFilter");
   });
 });
+
+describe("providers-ux Task 4: ProvidersToolbar & TestResultsModal", () => {
+  it("ProvidersToolbar binds / focus shortcut, Escape clear, status pills without raw select, category tabs, and reset", () => {
+    const src = readSrc(
+      "src/app/(dashboard)/dashboard/providers/components/ProvidersToolbar.js",
+    );
+    expect(src).toMatch(/e\.key\s*[!=]==\s*"\/"/);
+    expect(src).toContain("isContentEditable");
+    expect(src).toContain("Escape");
+    expect(src).toContain("PROVIDER_STATUS_PILLS");
+    expect(src).toContain("CATEGORY_TABS");
+    expect(src).not.toMatch(/<select[\s>]/);
+    expect(src).toContain("hasActiveFilters");
+    expect(src).toContain("onResetFilters");
+  });
+
+  it("TestResultsModal uses shared Modal with footer, failed-only filter, latency, error details, and Re-run Test", () => {
+    const src = readSrc(
+      "src/app/(dashboard)/dashboard/providers/components/TestResultsModal.js",
+    );
+    expect(src).toMatch(/<Modal[\s\S]*footer=/);
+    expect(src).toContain("failedOnly");
+    expect(src).toContain("latencyMs");
+    expect(src).toContain("r.error");
+    expect(src).toContain("onRerun");
+    expect(src).toContain("Re-run Test");
+  });
+});
