@@ -12,18 +12,38 @@ import UpdateBanner from "../UpdateBanner";
 import TaskDock from "../TaskDock";
 
 /* Toast variants pull from the semantic token triplet, so the same toast is
-   legible in Ember dark and in light without a dark: override per variant. */
+   legible in Omegamon light and Zwart dark without a dark: override per variant. */
 function getToastStyle(type) {
   if (type === "success") {
-    return { wrapper: "border-success/40 bg-success/12 text-success", icon: "check_circle" };
+    return {
+      accent: "bg-success",
+      iconWrap: "text-success",
+      border: "border-success/35",
+      icon: "check_circle",
+    };
   }
   if (type === "error") {
-    return { wrapper: "border-danger/40 bg-danger/12 text-danger", icon: "error" };
+    return {
+      accent: "bg-danger",
+      iconWrap: "text-danger",
+      border: "border-danger/35",
+      icon: "error",
+    };
   }
   if (type === "warning") {
-    return { wrapper: "border-warning/40 bg-warning/12 text-warning", icon: "warning" };
+    return {
+      accent: "bg-warning",
+      iconWrap: "text-warning",
+      border: "border-warning/35",
+      icon: "warning",
+    };
   }
-  return { wrapper: "border-border bg-surface text-text-main", icon: "info" };
+  return {
+    accent: "bg-primary",
+    iconWrap: "text-primary",
+    border: "border-border",
+    icon: "info",
+  };
 }
 
 /* Pages that render their own hero / heading block, so the layout heading band
@@ -108,22 +128,28 @@ export default function DashboardLayout({ children, railPinned = true }) {
             <div
               key={n.id}
               role="status"
-              className={`slide-in-right pointer-events-auto rounded-[6px] border px-3.5 py-2.5 shadow-[var(--shadow-elev)] ${style.wrapper}`}
+              className={`slide-in-right pointer-events-auto relative overflow-hidden rounded-xl shell-popover px-3.5 py-2.5 text-text-main ${style.border}`}
             >
-              <div className="flex items-start gap-2">
-                <span className="material-symbols-outlined mt-0.5 shrink-0 text-[18px] leading-5">{style.icon}</span>
+              <span
+                className={`pointer-events-none absolute inset-y-2 left-0 w-[3px] rounded-r-full ${style.accent}`}
+                aria-hidden="true"
+              />
+              <div className="flex items-start gap-2.5 pl-1">
+                <span className={`material-symbols-outlined mt-0.5 shrink-0 text-[18px] leading-5 ${style.iconWrap}`}>
+                  {style.icon}
+                </span>
                 <div className="min-w-0 flex-1">
-                  {n.title ? <p className="mb-0.5 text-xs font-semibold">{n.title}</p> : null}
-                  <p className="whitespace-pre-wrap break-words text-xs">{n.message}</p>
+                  {n.title ? <p className="mb-0.5 text-xs font-semibold text-text-main">{n.title}</p> : null}
+                  <p className="whitespace-pre-wrap break-words text-xs text-text-muted">{n.message}</p>
                 </div>
                 {n.dismissible ? (
                   <button
                     type="button"
                     onClick={() => removeNotification(n.id)}
-                    className="opacity-70 transition-opacity hover:opacity-100"
+                    className="flex size-6 shrink-0 items-center justify-center rounded-md text-text-subtle transition-colors hover:bg-surface-2 hover:text-text-main cursor-pointer"
                     aria-label="Dismiss notification"
                   >
-                    <span className="material-symbols-outlined text-[16px]">close</span>
+                    <span className="material-symbols-outlined text-[15px]">close</span>
                   </button>
                 ) : null}
               </div>
@@ -137,17 +163,17 @@ export default function DashboardLayout({ children, railPinned = true }) {
       <LeftRail initialPinned={railPinned} />
 
       {/* Content column */}
-      <div className="flex min-w-0 flex-1 flex-col">
-      <TaskDock />
+      <div className="flex min-w-0 flex-1 flex-col lg:my-2.5 lg:mr-2.5 lg:ml-2 lg:rounded-2xl lg:border lg:border-border/75 lg:bg-surface/45 lg:shadow-[var(--shadow-soft)] lg:overflow-hidden">
+        <TaskDock />
 
-      {/* Docked mobile top bar */}
-      <div className="relative z-50">
-        <MobileNav />
-      </div>
+        {/* Docked mobile top bar */}
+        <div className="relative z-50">
+          <MobileNav />
+        </div>
 
-      <div className="relative z-40">
-        <UpdateBanner />
-      </div>
+        <div className="relative z-40">
+          <UpdateBanner />
+        </div>
 
         {/* No `isolate` here on purpose. `isolate` opens a stacking context,
             which traps every `fixed inset-0 z-50` overlay declared inside the
@@ -157,7 +183,7 @@ export default function DashboardLayout({ children, railPinned = true }) {
             `-z-10` against the root stacking context. */}
         <main className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
           <div className="ember-veil pointer-events-none absolute inset-0 -z-10" aria-hidden="true" />
-          {showHeading ? <PageHeading className="shrink-0" /> : null}
+          {showHeading ? <PageHeading className="shrink-0" showBell={false} /> : null}
           <div
             className={
               isChat

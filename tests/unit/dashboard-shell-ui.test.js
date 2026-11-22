@@ -111,3 +111,85 @@ describe("HeaderMenu tactile popover and keyboard handling", () => {
     expect(paddingMatches.length).toBeGreaterThanOrEqual(2);
   });
 });
+
+describe("DashboardLayout framed workspace shell", () => {
+  const layout = read("src/shared/components/layouts/DashboardLayout.js");
+
+  it("frames the desktop workspace column and upgrades toasts to shell-popover cards", () => {
+    expect(layout).toContain("lg:rounded-2xl");
+    expect(layout).toContain("lg:my-2.5");
+    expect(layout).toContain("lg:mr-2.5");
+    expect(layout).toContain("lg:overflow-hidden");
+    expect(layout).toContain("shell-popover");
+    expect(layout).toContain("rounded-xl");
+    expect(layout).toContain("showBell={false}");
+  });
+
+  it("keeps <main> and the desktop column wrapper free of modal-trapping stacking contexts", () => {
+    const mainMatch = layout.match(/<main\s+className="([^"]*)"/);
+    expect(mainMatch).not.toBeNull();
+    const mainClasses = mainMatch[1];
+    expect(mainClasses).not.toContain("isolate");
+    expect(mainClasses).not.toContain("transform");
+    expect(mainClasses).not.toContain("filter");
+    expect(mainClasses).not.toContain("backdrop-blur");
+
+    const colMatch = layout.match(/\{\/\*\s*Content column\s*\*\/\}\s*<div\s+className="([^"]*)"/);
+    expect(colMatch).not.toBeNull();
+    const colClasses = colMatch[1];
+    expect(colClasses).not.toContain("backdrop-blur");
+    expect(colClasses).not.toContain("transform");
+    expect(colClasses).not.toContain("isolate");
+  });
+
+  it("preserves TaskDock mounted once in the content column", () => {
+    const dockMatches = layout.match(/<TaskDock\s*\/>/g) || [];
+    expect(dockMatches).toHaveLength(1);
+  });
+});
+
+describe("PageHeading frosted header and icon chip", () => {
+  const heading = read("src/shared/components/PageHeading.js");
+
+  it("uses frosted backdrop-blur-md header, bottom ember-rule, and rounded icon chip", () => {
+    expect(heading).toContain("backdrop-blur-md");
+    expect(heading).toContain("bg-surface/65");
+    expect(heading).toContain("ember-rule");
+    expect(heading).toContain("rounded-xl");
+    expect(heading).toContain("bg-primary/10");
+    expect(heading).toContain("size-9");
+  });
+
+  it("preserves NotificationBell with optional showBell prop defaulting to true", () => {
+    expect(heading).toContain("NotificationBell");
+    expect(heading).toMatch(/showBell\s*=\s*true/);
+    expect(heading).toContain("showBell ?");
+  });
+});
+
+describe("StatusBar brand consistency and interactive controls", () => {
+  const bar = read("src/shared/components/StatusBar.js");
+
+  it("replaces legacy local_fire_department icon with LogoMark", () => {
+    expect(bar).not.toContain("local_fire_department");
+    expect(bar).toContain("LogoMark");
+    expect(bar).toContain('className="size-3.5"');
+  });
+
+  it("exposes interactive health re-check button with latency measurement", () => {
+    expect(bar).toContain('type="button"');
+    expect(bar).toContain("performance.now()");
+    expect(bar).toMatch(/latencyMs/);
+    expect(bar).toMatch(/ms</);
+    expect(bar).toContain("animate-spin");
+  });
+
+  it("exposes click-to-copy host button with guarded clipboard call and timer cleanup", () => {
+    expect(bar).toContain("navigator.clipboard");
+    expect(bar).toContain("writeText");
+    expect(bar).toContain("try {");
+    expect(bar).toContain("catch");
+    expect(bar).toContain('"Copied"');
+    expect(bar).toContain("clearTimeout");
+  });
+});
