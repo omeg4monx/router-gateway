@@ -160,7 +160,7 @@ docker build \
   -t omeg4mon-router .
 ```
 
-`Dockerfile.go` builds the experimental Go core. That core is not feature-complete and is not used by `docker-compose.yml`.
+`docker build -f Dockerfile.gateway -t omeg4mon-router-go .` builds the experimental Go core. That core is not feature-complete and is not used by `docker-compose.yml`.
 
 ## Publish (CI)
 
