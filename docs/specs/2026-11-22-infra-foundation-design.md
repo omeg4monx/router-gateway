@@ -2,7 +2,13 @@
 
 ## Intent and scope
 
-Keep `main` at the existing behavioral baseline (`3be429e` for this work). Build the first migration stage on `infra/foundation`; integrate it into `migration/next-go`, not `main`. The foundation gives the later Next.js TypeScript and Go stages a reproducible dependency install, independent PR checks and a safe local startup recipe. It does not move production traffic or claim a performance gain.
+Keep `main` untouched at `3be429e` for this work. Use it as a reference for existing user workflows and as a benchmark comparison, not as a specification for feature or implementation parity. Build the first rewrite stage on `infra/foundation`; integrate it into `migration/next-go`, not `main`. The foundation gives the later Next.js TypeScript and Go stages a reproducible dependency install, independent PR checks and a safe local startup recipe. Its lack of product behavior changes is a stage boundary, not a constraint on the rewrite.
+
+## Rewrite direction beyond this stage
+
+- **Gateway:** Go owns LLM request handling and backend business logic. Compare gateway overhead, time to first token, p95 latency under concurrent streaming, and RSS using the same hardware, workload, and controlled upstream. Set numerical targets after establishing a baseline.
+- **Dashboard:** build an interactive, accessible Next.js/TypeScript UI. Prefer useful operational information over visual churn: provider health, fallback reasons, errors, and usage should be easy to find and understand. Validate key flows at desktop and mobile sizes, including keyboard and failure states.
+- **Maintainability:** choose modern tooling for a concrete benefit: fewer overlapping responsibilities, repeatable builds, easier debugging, or simpler deployment. Existing behavior can be redesigned or removed. For intentional changes to public APIs or persisted data, document the impact and provide a versioning or migration path; do not copy bugs or internal designs for parity.
 
 ## Current state
 

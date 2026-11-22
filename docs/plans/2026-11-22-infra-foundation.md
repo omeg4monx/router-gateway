@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Give the Next.js and Go migration a repeatable source build, two CI gates, and a safe local development recipe without changing app behavior.
+**Goal:** Give the Next.js TypeScript and Go rewrite a repeatable source build, two CI gates, and a safe local development recipe. This foundation stage does not change app behavior; later stages are not bound to `main`'s feature set, UI, or implementation.
 
 **Architecture:** Keep the existing Node and Go entry points and run their checks independently in the same PR workflow. Keep npm resolution locked at both package roots; loopback-only dev processes use separate temporary SQLite paths.
 
@@ -15,7 +15,7 @@
 - Work only on `infra/foundation`; `main` remains at `3be429e` for this work. Integrate into `migration/next-go` only with separate authorization. No push, release, or deployment in this plan.
 - Keep Node `22.23.4` and Go `1.26.0`; use npm `11.20.0` for the supported local and CI path. Preserve direct dependency ranges, Bun lock, and Go module declarations.
 - No production traffic, app source, auth, API contracts, SQLite schema, image build, or release workflow changes. No real database, credentials, or live-provider tests. Use a fresh checkout with no `.env` file for verification.
-- Before edits, record baseline results on the existing branch for the current root-scoped Vitest command, Node build, and Go checks. Use the toolchain above and the current install instructions until locked installs exist. Attribute failures to the baseline only when observed; baseline failures block acceptance and must not be hidden by changing or excluding tests. Do not fix unrelated failures without explicit scope approval.
+- Before edits, record baseline results on the existing branch for the current root-scoped Vitest command, Node build, and Go checks. This is a baseline for the infrastructure checks, not a parity gate for future product work. Use the toolchain above and the current install instructions until locked installs exist. Attribute failures to the baseline only when observed; baseline failures block acceptance and must not be hidden by changing or excluding tests. Do not fix unrelated failures without explicit scope approval.
 
 ## Review Focus
 
@@ -67,3 +67,5 @@
 ## Integration gate
 
 Complete the whole-branch review and require Task 2 command results plus the dev smoke result. Verify only approved infra files changed and the baseline `main` ref has not moved due to this work. Report any failed or unrun checks. Roll back before integration by leaving the branch unmerged; after integration, revert the task commits on `migration/next-go` in reverse order. No database, deployment, or release rollback is part of this stage.
+
+Subsequent stages use `main` for comparison and define their own acceptance criteria before implementation. The gateway stage records controlled measurements for gateway overhead, time to first token, p95 latency under concurrent streaming, and RSS; the dashboard stage verifies task flows and useful operational feedback. Numerical performance thresholds and UI designs are not deliverables of `infra/foundation`.
