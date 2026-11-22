@@ -20,7 +20,7 @@ if (!global._autoProxyScannerState) {
 
 const scannerState = global._autoProxyScannerState;
 
-export async function executeAutoScanCycle() {
+async function executeAutoScanCycle() {
   if (scannerState.inCycle) return;
   scannerState.inCycle = true;
   scannerState.lastRunAt = new Date().toISOString();

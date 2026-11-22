@@ -1,8 +1,12 @@
 "use client";
 
-/** Reusable status alert */
-export default function StatusAlert({ status, className = "" }) {
-  const renderMessage = (msg) => {
+type StatusAlertProps = {
+  status: { type: "success" | "warning" | "info" | "error"; message: string };
+  className?: string;
+};
+
+export default function StatusAlert({ status, className = "" }: StatusAlertProps) {
+  const renderMessage = (msg: string) => {
     const parts = msg.split(/(https?:\/\/[^\s]+)/g);
     return parts.map((part, i) =>
       /^https?:\/\//.test(part)

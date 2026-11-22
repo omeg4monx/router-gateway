@@ -82,7 +82,7 @@ const PLUGINS = [
 ];
 
 // Anti Slop ships three intensities, mirroring Ponytail's levels.
-export const ANTISLOP_LEVELS = [
+const ANTISLOP_LEVELS = [
   { id: "lite", label: "Lite", desc: "Purpose test plus a scan for the obvious AI patterns." },
   { id: "full", label: "Full", desc: "Adds the Hard Gate rules, the craftsmanship standard and the swap test." },
   { id: "ultra", label: "Ultra", desc: "Adds the mandatory four-block PASS/FAIL delivery report." },

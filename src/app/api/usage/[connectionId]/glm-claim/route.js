@@ -2,7 +2,7 @@ import "open-sse/index.js";
 import { getProviderConnectionById, getProviderConnections, updateProviderConnection } from "@/lib/db/index.js";
 import { getGlmClaimablePlans, claimGlmPlan, getGlmBalance, checkAndClaimZcodeStartPlan, ZCODE_START_PLAN_ID } from "open-sse/services/usage.js";
 import { resolveConnectionProxyConfig } from "@/lib/network/connectionProxy";
-import { refreshAndUpdateCredentials } from "../route.js";
+import { refreshAndUpdateCredentials } from "../refreshAndUpdateCredentials.js";
 
 const inFlight = new Set();
 const resolveToken = (connection, request) => {

@@ -1,7 +1,8 @@
 # v0.2.0 (2026-11-22)
 
-> **Unreleased (rewrite foundation, not part of v0.2.0):** locked npm installs for the app and tests, independent Next.js and Go CI checks, and a local workflow with isolated data paths. For the experimental Go image, use `docker build -f Dockerfile.gateway .` instead of `-f Dockerfile.go`. Default deployments are unchanged.
+> **Unreleased (rewrite foundation, not part of v0.2.0):** independent Next.js and Go CI checks and a local workflow with isolated data paths. For the experimental Go image, use `docker build -f Dockerfile.gateway .` instead of `-f Dockerfile.go`. Default deployments are unchanged.
 > The rewrite also pins Node.js `26.13.1` LTS and Go `1.27.4` for source builds and CI.
+> Web source installs and CI now require Bun `1.4.5`; Next.js and Vitest still run on Node. Strict TypeScript checks cover the initial `/dashboard/endpoint` status slice.
 
 ### Breaking — Omegamon theme system
 

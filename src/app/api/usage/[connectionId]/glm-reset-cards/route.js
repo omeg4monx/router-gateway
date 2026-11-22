@@ -2,7 +2,7 @@ import "open-sse/index.js";
 import { getProviderConnectionById } from "@/lib/db/index.js";
 import { getGlmResetCards, redeemGlmResetCard } from "open-sse/services/usage.js";
 import { resolveConnectionProxyConfig } from "@/lib/network/connectionProxy";
-import { refreshAndUpdateCredentials } from "../route.js";
+import { refreshAndUpdateCredentials } from "../refreshAndUpdateCredentials.js";
 
 const inFlight = new Set();
 const credential = (connection) => connection.apiKey || connection.accessToken || "";

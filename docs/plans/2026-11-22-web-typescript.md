@@ -48,6 +48,8 @@
 - [ ] Read the installed Next.js TypeScript guide. Adopt its bundler-resolution JSX settings, Next TS plugin and generated declaration includes (including the dev directory when generated), add `allowJs: true`, `checkJs: false`, `strict: true`, `noEmit: true`, and migrate `jsconfig.json` aliases into the single `tsconfig.json`. Do not commit generated `.next*` or `next-env.d.ts`. Keep TypeScript at a Next-verified patch in the 5.9 line; update Node 26 and React/DOM 19 ambient types with Bun. No unrelated library upgrade.
 - [ ] Add `typecheck` using `next typegen` then the pinned TypeScript compiler and make it a required step in the existing unit job before build. Prove the gate fails by adding a temporary included `src` `.ts` file assigning a string to a `number`, seeing the compiler error, then removing only that fixture. Prove typecheck from a fresh checkout without generated declarations, rerun after a dev start, and run the production build. Verify a JS route and the typed pilot can coexist without `ignoreBuildErrors` or global declaration shims. Commit via eval `commit`.
 
+The production Webpack build also validates legacy JS route exports. It rejected non-route exports in the plugins page and the pricing, auto-scan, usage and count-tokens handlers. Keep private values private, remove unused `GET_DEFAULTS` (not a registered route), and move the existing credential refresh helper verbatim to a sibling JS module with all its consumers updated. This does not migrate backend code or change HTTP routes; keep validation enabled.
+
 ### Task 3: Migrate a gateway status slice and record next waves
 
 **Files:** under `src/app/(dashboard)/dashboard/endpoint/`, rename `page.js` to `page.tsx`, `endpointPing.js` to `endpointPing.ts`, and `components/StatusAlert.js` to `components/StatusAlert.tsx`; update only affected importers and tests. Add `tests/unit/endpoint-ping.test.js` if no existing behavioral coverage covers the probe. Update `CHANGELOG.md` with the small initial scope.
@@ -58,6 +60,17 @@
 - [ ] Port the three files with strict types and update only real consumers. Keep the status markup, link safety, theme tokens and current request timeout. Use typed nullable URL input instead of unchecked casts. Do not convert the large `EndpointPageClient.js` or unrelated shared components.
 - [ ] Verify typecheck, focused probe tests, root Vitest, and production build. In the browser, use a disposable loopback instance: open `/dashboard/endpoint`, verify online/offline status text with the health path available/unavailable, keyboard reachability and copying of the displayed local URL, and no clipping at mobile and desktop widths. Exercise status links with a disposable local fixture only; do not enable a real tunnel or expose API keys. Record QA and commit via eval `commit`.
 - [ ] Inventory remaining JSX-bearing frontend files from tracked paths. Split follow-on slices into dashboard shell/shared UI, provider/config screens, usage/observability, then remaining dashboard and public screens. For each slice record route paths, client contracts, and verification flows before conversion. No claim that this pilot completes the whole frontend migration.
+
+### Follow-on slice inventory
+
+The baseline has 33 grouped dashboard page modules, seven other App Router page modules, and 65 JavaScript files under `src/shared/components`. This stage converts one dashboard page entry and two local files. The remaining candidates start with these contracts; enumerate each slice's full file list before changing it:
+
+| Slice | Current routes or entry points | Client contract and verification |
+| --- | --- | --- |
+| Dashboard shell and shared UI | `src/app/(dashboard)/layout.js`, `/dashboard` | Navigation, theme, focus, and mobile menu; verify keyboard travel and responsive layout. |
+| Provider and configuration UI | `/dashboard/providers`, `/dashboard/connection`, `/dashboard/combos` | Provider lists, form payloads and validation; verify empty, validation-error, and success states with disposable data. |
+| Usage and observability | `/dashboard/usage`, `/dashboard/api-key-usage`, `/dashboard/console-log` | Usage filters, chart/empty states and log limits; verify data refresh, failures and narrow layouts. |
+| Remaining dashboard and public UI | `/dashboard/endpoint` remainder, `/dashboard/basic-chat`, `/login`, `/share/[token]`, `/claim`, other tracked `page.js` entries | One workflow per conversion; verify streaming/cancellation or auth and expired-link cases where applicable. Keep server-side policy in its current backend until the Go stage. |
 
 ## Handoff gate
 
