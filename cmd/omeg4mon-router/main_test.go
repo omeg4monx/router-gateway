@@ -853,3 +853,280 @@ func TestAppWave1BGatewayEndToEnd(t *testing.T) {
 		t.Fatalf("unauthorized model status = %d, want 403 (body: %s)", status, string(unauthModelBody))
 	}
 }
+
+func TestAppWave1CUsageAndCLIToolsEndToEnd(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	cfg := config.Config{
+		Host:          "127.0.0.1",
+		Port:          0,
+		DataDir:       t.TempDir(),
+		AdminPassword: "test-admin-pass-wave1c",
+		LogLevel:      "error",
+		APITimeout:    5 * time.Second,
+	}
+	build := system.BuildInfo{
+		Version:   "test",
+		Commit:    "wave1c",
+		BuildTime: "2026-11-23T00:00:00Z",
+	}
+
+	app, err := buildApp(ctx, cfg, build)
+	if err != nil {
+		t.Fatalf("buildApp() error = %v", err)
+	}
+	t.Cleanup(func() {
+		_ = app.Close(context.Background())
+	})
+
+	ts := httptest.NewServer(app.Handler())
+	defer ts.Close()
+
+	jar, err := cookiejar.New(nil)
+	if err != nil {
+		t.Fatalf("cookiejar.New() error = %v", err)
+	}
+	client := &http.Client{
+		Jar:     jar,
+		Timeout: 5 * time.Second,
+	}
+
+	doJSON := func(method, url string, payload any, headers map[string]string) (int, []byte) {
+		t.Helper()
+		var bodyReader io.Reader
+		if payload != nil {
+			raw, mErr := json.Marshal(payload)
+			if mErr != nil {
+				t.Fatalf("marshal %s %s payload: %v", method, url, mErr)
+			}
+			bodyReader = bytes.NewReader(raw)
+		}
+		req, rErr := http.NewRequestWithContext(ctx, method, url, bodyReader)
+		if rErr != nil {
+			t.Fatalf("new request %s %s: %v", method, url, rErr)
+		}
+		if payload != nil {
+			req.Header.Set("Content-Type", "application/json")
+		}
+		for k, v := range headers {
+			req.Header.Set(k, v)
+		}
+		resp, dErr := client.Do(req)
+		if dErr != nil {
+			t.Fatalf("%s %s failed: %v", method, url, dErr)
+		}
+		defer resp.Body.Close()
+		respBody, readErr := io.ReadAll(resp.Body)
+		if readErr != nil {
+			t.Fatalf("read %s %s body: %v", method, url, readErr)
+		}
+		return resp.StatusCode, respBody
+	}
+
+	// 1) GET /api/health lists all 9 Wave 1 modules.
+	status, healthBody := doJSON(http.MethodGet, ts.URL+"/api/health", nil, nil)
+	if status != http.StatusOK {
+		t.Fatalf("GET /api/health status = %d, want 200 (body: %s)", status, string(healthBody))
+	}
+	var health struct {
+		Status  string   `json:"status"`
+		DB      string   `json:"db"`
+		Modules []string `json:"modules"`
+	}
+	if err := json.Unmarshal(healthBody, &health); err != nil {
+		t.Fatalf("decode /api/health JSON: %v", err)
+	}
+	wantModules := []string{"auth", "clitools", "combos", "gateway", "keys", "providers", "settings", "system", "usage"}
+	for _, wantMod := range wantModules {
+		if !slices.Contains(health.Modules, wantMod) {
+			t.Fatalf("GET /api/health modules = %v, missing %q", health.Modules, wantMod)
+		}
+	}
+	if len(health.Modules) != len(wantModules) {
+		t.Fatalf("GET /api/health modules count = %d (%v), want %d (%v)", len(health.Modules), health.Modules, len(wantModules), wantModules)
+	}
+
+	// 2) Authenticate admin.
+	status, loginBody := doJSON(http.MethodPost, ts.URL+"/api/auth/login", map[string]string{
+		"password": "test-admin-pass-wave1c",
+	}, nil)
+	if status != http.StatusOK {
+		t.Fatalf("POST /api/auth/login status = %d, want 200 (body: %s)", status, string(loginBody))
+	}
+
+	// 3) Mock OpenAI upstream returning usage: prompt_tokens=120, completion_tokens=45.
+	openaiMock := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/chat/completions" {
+			t.Errorf("openai mock path = %q, want /chat/completions", r.URL.Path)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, _ = io.WriteString(w, `{"id":"chatcmpl-wave1c","object":"chat.completion","created":1732320000,"model":"gpt-4o","choices":[{"index":0,"message":{"role":"assistant","content":"wave1c telemetry ok"},"finish_reason":"stop"}],"usage":{"prompt_tokens":120,"completion_tokens":45,"total_tokens":165}}`)
+	}))
+	defer openaiMock.Close()
+
+	status, connBody := doJSON(http.MethodPost, ts.URL+"/api/providers/connections", map[string]any{
+		"provider_id": "openai",
+		"name":        "wave1c-openai-mock",
+		"base_url":    openaiMock.URL,
+		"api_key":     "oai-wave1c-key",
+		"priority":    1,
+		"enabled":     true,
+		"models":      []string{"gpt-4o"},
+	}, nil)
+	if status != http.StatusCreated {
+		t.Fatalf("POST /api/providers/connections status = %d, want 201 (body: %s)", status, string(connBody))
+	}
+
+	status, keyBody := doJSON(http.MethodPost, ts.URL+"/api/keys", map[string]any{
+		"name": "wave1c-e2e-key",
+	}, nil)
+	if status != http.StatusCreated {
+		t.Fatalf("POST /api/keys status = %d, want 201 (body: %s)", status, string(keyBody))
+	}
+	var createdKey struct {
+		Key struct {
+			ID string `json:"id"`
+		} `json:"key"`
+		Secret string `json:"secret"`
+	}
+	if err := json.Unmarshal(keyBody, &createdKey); err != nil {
+		t.Fatalf("decode POST /api/keys JSON: %v", err)
+	}
+	if createdKey.Key.ID == "" || !strings.HasPrefix(createdKey.Secret, "sk-om4-") {
+		t.Fatalf("unexpected POST /api/keys response: %+v", createdKey)
+	}
+
+	status, chatBody := doJSON(http.MethodPost, ts.URL+"/v1/chat/completions", map[string]any{
+		"model":  "openai/gpt-4o",
+		"stream": false,
+		"messages": []map[string]string{
+			{"role": "user", "content": "Hello Wave 1C"},
+		},
+	}, map[string]string{
+		"Authorization": "Bearer " + createdKey.Secret,
+	})
+	if status != http.StatusOK {
+		t.Fatalf("POST /v1/chat/completions status = %d, want 200 (body: %s)", status, string(chatBody))
+	}
+
+	// 4) Poll GET /api/usage/logs until async batcher flushes, then verify log and summary.
+	type usageLog struct {
+		Model        string  `json:"model"`
+		ProviderID   string  `json:"provider_id"`
+		KeyID        string  `json:"key_id"`
+		InputTokens  int64   `json:"input_tokens"`
+		OutputTokens int64   `json:"output_tokens"`
+		CostUSD      float64 `json:"cost_usd"`
+		StatusCode   int     `json:"status_code"`
+	}
+	type usageLogsResp struct {
+		Logs  []usageLog `json:"logs"`
+		Total int64      `json:"total"`
+	}
+
+	var logsPayload usageLogsResp
+	pollDeadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(pollDeadline) {
+		lStatus, lBody := doJSON(http.MethodGet, ts.URL+"/api/usage/logs", nil, nil)
+		if lStatus != http.StatusOK {
+			t.Fatalf("GET /api/usage/logs status = %d, want 200 (body: %s)", lStatus, string(lBody))
+		}
+		if err := json.Unmarshal(lBody, &logsPayload); err != nil {
+			t.Fatalf("decode GET /api/usage/logs JSON: %v", err)
+		}
+		if len(logsPayload.Logs) > 0 {
+			break
+		}
+		time.Sleep(25 * time.Millisecond)
+	}
+	if len(logsPayload.Logs) == 0 {
+		t.Fatalf("timed out waiting for async usage batcher to flush logs")
+	}
+	gotLog := logsPayload.Logs[0]
+	if gotLog.Model != "openai/gpt-4o" ||
+		gotLog.ProviderID != "openai" ||
+		gotLog.KeyID != createdKey.Key.ID ||
+		gotLog.InputTokens != 120 ||
+		gotLog.OutputTokens != 45 ||
+		gotLog.StatusCode != http.StatusOK ||
+		gotLog.CostUSD <= 0 {
+		t.Fatalf("unexpected usage log entry: %+v", gotLog)
+	}
+
+	status, summaryBody := doJSON(http.MethodGet, ts.URL+"/api/usage/summary?range=24h", nil, nil)
+	if status != http.StatusOK {
+		t.Fatalf("GET /api/usage/summary status = %d, want 200 (body: %s)", status, string(summaryBody))
+	}
+	var summary struct {
+		Totals struct {
+			Requests     int64   `json:"requests"`
+			InputTokens  int64   `json:"input_tokens"`
+			OutputTokens int64   `json:"output_tokens"`
+			CostUSD      float64 `json:"cost_usd"`
+		} `json:"totals"`
+	}
+	if err := json.Unmarshal(summaryBody, &summary); err != nil {
+		t.Fatalf("decode GET /api/usage/summary JSON: %v", err)
+	}
+	if summary.Totals.Requests < 1 ||
+		summary.Totals.InputTokens < 120 ||
+		summary.Totals.OutputTokens < 45 ||
+		summary.Totals.CostUSD <= 0 {
+		t.Fatalf("unexpected usage summary totals: %+v", summary.Totals)
+	}
+
+	// 5) Verify GET /api/clitools and POST /api/clitools/claude-code/generate.
+	status, toolsBody := doJSON(http.MethodGet, ts.URL+"/api/clitools", nil, nil)
+	if status != http.StatusOK {
+		t.Fatalf("GET /api/clitools status = %d, want 200 (body: %s)", status, string(toolsBody))
+	}
+	var toolsCatalog struct {
+		LocalApplyEnabled bool `json:"local_apply_enabled"`
+		Tools             []struct {
+			Tool string `json:"tool"`
+		} `json:"tools"`
+	}
+	if err := json.Unmarshal(toolsBody, &toolsCatalog); err != nil {
+		t.Fatalf("decode GET /api/clitools JSON: %v", err)
+	}
+	if !toolsCatalog.LocalApplyEnabled {
+		t.Fatalf("expected local_apply_enabled=true for loopback host")
+	}
+	if len(toolsCatalog.Tools) != 6 {
+		t.Fatalf("GET /api/clitools count = %d, want 6 (%+v)", len(toolsCatalog.Tools), toolsCatalog.Tools)
+	}
+
+	status, genBody := doJSON(http.MethodPost, ts.URL+"/api/clitools/claude-code/generate", map[string]any{
+		"base_url": ts.URL,
+		"api_key":  createdKey.Secret,
+		"model":    "openai/gpt-4o",
+	}, nil)
+	if status != http.StatusOK {
+		t.Fatalf("POST /api/clitools/claude-code/generate status = %d, want 200 (body: %s)", status, string(genBody))
+	}
+	var genResp struct {
+		Tool    string `json:"tool"`
+		Format  string `json:"format"`
+		Content string `json:"content"`
+	}
+	if err := json.Unmarshal(genBody, &genResp); err != nil {
+		t.Fatalf("decode POST /api/clitools/claude-code/generate JSON: %v", err)
+	}
+	if genResp.Tool != "claude-code" || genResp.Format != "json" {
+		t.Fatalf("unexpected generate response metadata: %+v", genResp)
+	}
+	var claudeCfg struct {
+		Env map[string]string `json:"env"`
+	}
+	if err := json.Unmarshal([]byte(genResp.Content), &claudeCfg); err != nil {
+		t.Fatalf("generated claude-code content is not valid JSON: %v (content: %s)", err, genResp.Content)
+	}
+	if claudeCfg.Env["ANTHROPIC_BASE_URL"] != ts.URL {
+		t.Fatalf("ANTHROPIC_BASE_URL = %q, want %q", claudeCfg.Env["ANTHROPIC_BASE_URL"], ts.URL)
+	}
+	if claudeCfg.Env["ANTHROPIC_AUTH_TOKEN"] != createdKey.Secret {
+		t.Fatalf("ANTHROPIC_AUTH_TOKEN = %q, want %q", claudeCfg.Env["ANTHROPIC_AUTH_TOKEN"], createdKey.Secret)
+	}
+}

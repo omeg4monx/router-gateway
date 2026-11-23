@@ -576,6 +576,172 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/usage/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Aggregate request volume, token counts, cost, latency, leaderboards, and time-series buckets */
+        get: operations["getUsageSummary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/usage/logs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List paginated metadata-first gateway request logs with optional filters */
+        get: operations["listUsageLogs"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/usage/stream": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Subscribe to live Server-Sent Events (SSE) for newly recorded gateway usage logs */
+        get: operations["streamUsageEvents"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/usage/pricing": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List built-in default and custom model pricing rates per million tokens */
+        get: operations["listModelPricing"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/usage/pricing/{model}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Model identifier (percent-encode '/' if present). */
+                model: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        /** Create or update custom per-million-token pricing for a model */
+        put: operations["upsertModelPricing"];
+        post?: never;
+        /** Remove a custom model pricing override and restore built-in defaults if applicable */
+        delete: operations["deleteModelPricing"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/clitools": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List supported CLI coding tools and whether loopback-only local apply is enabled */
+        get: operations["listCLITools"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/clitools/{tool}/generate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Supported CLI tool identifier. */
+                tool: components["schemas"]["CLIToolID"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Generate configuration file content and setup instructions for a CLI tool */
+        post: operations["generateCLIToolConfig"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/clitools/{tool}/apply": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Supported CLI tool identifier. */
+                tool: components["schemas"]["CLIToolID"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Atomically write generated configuration to the local user home directory (loopback-only) */
+        post: operations["applyCLIToolConfig"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/clitools/{tool}/rollback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Supported CLI tool identifier. */
+                tool: components["schemas"]["CLIToolID"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Atomically restore the newest timestamped backup of a local CLI tool config (loopback-only) */
+        post: operations["rollbackCLIToolConfig"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1008,6 +1174,188 @@ export interface components {
         };
         ListCooldownsResponse: {
             cooldowns: components["schemas"]["CooldownEntry"][];
+        };
+        UsageLog: {
+            /** Format: int64 */
+            id: number;
+            request_id: string;
+            key_id: string;
+            model: string;
+            provider_id: string;
+            connection_id: string;
+            protocol: string;
+            /** Format: int64 */
+            input_tokens: number;
+            /** Format: int64 */
+            output_tokens: number;
+            /** Format: int64 */
+            cached_tokens: number;
+            /** Format: double */
+            cost_usd: number;
+            /** Format: int64 */
+            latency_ms: number;
+            /** Format: int64 */
+            ttft_ms: number;
+            status_code: number;
+            error_summary: string;
+            stream: boolean;
+            /** Format: date-time */
+            created_at: string;
+        };
+        UsageLogsResponse: {
+            logs: components["schemas"]["UsageLog"][];
+            /** Format: int64 */
+            total: number;
+            limit: number;
+            offset: number;
+        };
+        UsageSummaryTotals: {
+            /** Format: int64 */
+            requests: number;
+            /** Format: int64 */
+            input_tokens: number;
+            /** Format: int64 */
+            output_tokens: number;
+            /** Format: int64 */
+            cached_tokens: number;
+            /** Format: double */
+            cost_usd: number;
+            /** Format: double */
+            avg_latency_ms: number;
+            /** Format: double */
+            avg_ttft_ms: number;
+            /** Format: int64 */
+            error_count: number;
+            /** Format: double */
+            error_rate: number;
+        };
+        ModelUsageBreakdown: {
+            model: string;
+            /** Format: int64 */
+            requests: number;
+            /** Format: int64 */
+            input_tokens: number;
+            /** Format: int64 */
+            output_tokens: number;
+            /** Format: int64 */
+            cached_tokens: number;
+            /** Format: double */
+            cost_usd: number;
+            /** Format: double */
+            avg_latency_ms: number;
+            /** Format: int64 */
+            error_count: number;
+        };
+        ProviderUsageBreakdown: {
+            provider_id: string;
+            /** Format: int64 */
+            requests: number;
+            /** Format: int64 */
+            input_tokens: number;
+            /** Format: int64 */
+            output_tokens: number;
+            /** Format: int64 */
+            cached_tokens: number;
+            /** Format: double */
+            cost_usd: number;
+            /** Format: double */
+            avg_latency_ms: number;
+            /** Format: int64 */
+            error_count: number;
+        };
+        UsageSeriesBucket: {
+            bucket: string;
+            /** Format: int64 */
+            requests: number;
+            /** Format: int64 */
+            input_tokens: number;
+            /** Format: int64 */
+            output_tokens: number;
+            /** Format: int64 */
+            cached_tokens: number;
+            /** Format: double */
+            cost_usd: number;
+            /** Format: int64 */
+            error_count: number;
+        };
+        UsageSummaryResponse: {
+            /** @enum {string} */
+            range: "24h" | "7d" | "30d" | "all";
+            totals: components["schemas"]["UsageSummaryTotals"];
+            by_model: components["schemas"]["ModelUsageBreakdown"][];
+            by_provider: components["schemas"]["ProviderUsageBreakdown"][];
+            series: components["schemas"]["UsageSeriesBucket"][];
+        };
+        /** @enum {string} */
+        ModelPricingSource: "builtin" | "custom";
+        ModelPricing: {
+            model: string;
+            /** Format: double */
+            input_per_million: number;
+            /** Format: double */
+            output_per_million: number;
+            /** Format: double */
+            cached_per_million: number;
+            source: components["schemas"]["ModelPricingSource"];
+            /** Format: date-time */
+            updated_at?: string;
+        };
+        ListModelPricingResponse: {
+            pricing: components["schemas"]["ModelPricing"][];
+        };
+        UpsertModelPricingRequest: {
+            /** Format: double */
+            input_per_million: number;
+            /** Format: double */
+            output_per_million: number;
+            /**
+             * Format: double
+             * @default 0
+             */
+            cached_per_million: number;
+        };
+        /** @enum {string} */
+        CLIToolID: "claude-code" | "codex-cli" | "opencode" | "cline" | "roo-code" | "droid";
+        /** @enum {string} */
+        CLIToolFormat: "json" | "toml";
+        CLIToolDescriptor: {
+            tool: components["schemas"]["CLIToolID"];
+            name: string;
+            format: components["schemas"]["CLIToolFormat"];
+            filename: string;
+            target_path: string;
+            description: string;
+        };
+        CLIToolsCatalogResponse: {
+            local_apply_enabled: boolean;
+            tools: components["schemas"]["CLIToolDescriptor"][];
+        };
+        CLIToolConfigRequest: {
+            /** Format: uri */
+            base_url: string;
+            api_key?: string;
+            model?: string;
+        };
+        GenerateCLIToolConfigResponse: {
+            tool: components["schemas"]["CLIToolID"];
+            name: string;
+            format: components["schemas"]["CLIToolFormat"];
+            filename: string;
+            target_path: string;
+            content: string;
+            instructions: string;
+        };
+        ApplyCLIToolConfigResponse: {
+            applied: boolean;
+            tool: components["schemas"]["CLIToolID"];
+            target_path: string;
+            backup_path: string;
+        };
+        RollbackCLIToolConfigResponse: {
+            restored: boolean;
+            tool: components["schemas"]["CLIToolID"];
+            target_path: string;
+            backup_path: string;
         };
     };
     responses: never;
@@ -3330,6 +3678,526 @@ export interface operations {
             };
             /** @description Administrative authentication is required. */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    getUsageSummary: {
+        parameters: {
+            query?: {
+                /** @description Time window for aggregation. */
+                range?: "24h" | "7d" | "30d" | "all";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Usage summary statistics for the requested time window. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UsageSummaryResponse"];
+                };
+            };
+            /** @description Invalid range query parameter. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Administrative authentication is required. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Failed to compute usage summary. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    listUsageLogs: {
+        parameters: {
+            query?: {
+                /** @description Filter by exact model identifier. */
+                model?: string;
+                /** @description Filter by exact provider identifier. */
+                provider?: string;
+                /** @description Filter by gateway API key ID. */
+                key_id?: string;
+                /** @description Filter by 'success', 'error', or exact HTTP status code. */
+                status?: string;
+                /** @description Maximum number of log entries to return (1..200). */
+                limit?: number;
+                /** @description Pagination offset. */
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Paginated request usage logs ordered newest-first. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UsageLogsResponse"];
+                };
+            };
+            /** @description Invalid query filter or pagination parameter. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Administrative authentication is required. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Failed to load usage logs. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    streamUsageEvents: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description SSE stream emitting 'event: usage' frames with UsageLog JSON payloads. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/event-stream": string;
+                };
+            };
+            /** @description Administrative authentication is required. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    listModelPricing: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Merged model pricing catalog ordered alphabetically. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListModelPricingResponse"];
+                };
+            };
+            /** @description Administrative authentication is required. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    upsertModelPricing: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Model identifier (percent-encode '/' if present). */
+                model: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpsertModelPricingRequest"];
+            };
+        };
+        responses: {
+            /** @description Custom model pricing saved. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModelPricing"];
+                };
+            };
+            /** @description Invalid model parameter, malformed JSON body, or negative/non-finite rate. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Administrative authentication is required. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Request body exceeds maximum allowed size. */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Failed to persist custom model pricing. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    deleteModelPricing: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Model identifier (percent-encode '/' if present). */
+                model: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Custom model pricing override removed. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Invalid model path parameter. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Administrative authentication is required. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Custom model pricing override not found. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Failed to delete custom model pricing override. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    listCLITools: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Supported CLI tool catalog and local apply availability. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CLIToolsCatalogResponse"];
+                };
+            };
+            /** @description Administrative authentication is required. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    generateCLIToolConfig: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Supported CLI tool identifier. */
+                tool: components["schemas"]["CLIToolID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CLIToolConfigRequest"];
+            };
+        };
+        responses: {
+            /** @description Generated CLI tool configuration and setup instructions. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GenerateCLIToolConfigResponse"];
+                };
+            };
+            /** @description Invalid base_url or malformed JSON request body. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Administrative authentication is required. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Unknown CLI tool identifier. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Request body exceeds maximum allowed size. */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    applyCLIToolConfig: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Supported CLI tool identifier. */
+                tool: components["schemas"]["CLIToolID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CLIToolConfigRequest"];
+            };
+        };
+        responses: {
+            /** @description Configuration atomically applied to disk with optional timestamped backup. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplyCLIToolConfigResponse"];
+                };
+            };
+            /** @description Invalid base_url or malformed JSON request body. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Administrative authentication is required. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Local apply is disabled because the router is not bound to a loopback address. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Unknown CLI tool identifier. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Request body exceeds maximum allowed size. */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Failed to apply local tool configuration. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    rollbackCLIToolConfig: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Supported CLI tool identifier. */
+                tool: components["schemas"]["CLIToolID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Configuration atomically restored from the newest backup file. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RollbackCLIToolConfigResponse"];
+                };
+            };
+            /** @description Administrative authentication is required. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Local rollback is disabled because the router is not bound to a loopback address. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Unknown CLI tool identifier or no backup file found. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Failed to rollback local tool configuration. */
+            500: {
                 headers: {
                     [name: string]: unknown;
                 };
