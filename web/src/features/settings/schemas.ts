@@ -44,7 +44,7 @@ export const settingsFormSchema = z.object({
 export type SettingsFormValues = z.infer<typeof settingsFormSchema>;
 
 export const DEFAULT_SETTINGS_FORM_VALUES: SettingsFormValues = {
-  ui_theme: "dark",
+  ui_theme: "light",
   ui_locale: "en",
   payload_logging_enabled: false,
   payload_retention_days: 7,

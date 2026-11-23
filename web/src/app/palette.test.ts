@@ -59,7 +59,7 @@ describe("Omegamon color palette contract (main parity)", () => {
   const css = readFileSync(GLOBALS_CSS_PATH, "utf8");
 
   test("dark theme implements Omegamon Zwart palette from main", () => {
-    const darkBlock = extractCssBlock(css, /:root,\s*\[data-theme="dark"\]\s*\{/);
+    const darkBlock = extractCssBlock(css, /\[data-theme="dark"\]\s*\{/);
     const props = parseCustomProps(darkBlock);
 
     expect(props["--bg-canvas"]?.toLowerCase()).toBe("#050608");
@@ -83,8 +83,8 @@ describe("Omegamon color palette contract (main parity)", () => {
     expect(props["--color-highlight"]?.toLowerCase()).toBe("#22d3ee");
   });
 
-  test("light theme implements Omegamon X-Antibody palette from main", () => {
-    const lightBlock = extractCssBlock(css, /\[data-theme="light"\]\s*\{/);
+  test("light theme implements Omegamon X-Antibody palette from main as :root default", () => {
+    const lightBlock = extractCssBlock(css, /:root,\s*\[data-theme="light"\]\s*\{/);
     const props = parseCustomProps(lightBlock);
 
     expect(props["--bg-canvas"]?.toLowerCase()).toBe("#f5f6f8");

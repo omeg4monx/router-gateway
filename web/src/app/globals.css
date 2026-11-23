@@ -76,7 +76,6 @@
    Contrast: on-primary on a primary fill >= 6:1 in both modes; primary
    as text >= 4.5:1 on surfaces.
    ============================================================ */
-:root,
 [data-theme="dark"] {
   color-scheme: dark;
 
@@ -179,6 +178,7 @@
   --status-warn-border: rgba(211, 154, 74, 0.3);
 }
 
+:root,
 [data-theme="light"] {
   color-scheme: light;
 
@@ -295,13 +295,13 @@ body {
 }
 
 ::selection {
-  background-color: color-mix(in srgb, var(--color-primary) 32%, transparent);
-  color: var(--color-brand-200);
-}
-
-[data-theme="light"] ::selection {
   background-color: color-mix(in srgb, var(--color-primary) 22%, transparent);
   color: var(--color-primary);
+}
+
+[data-theme="dark"] ::selection {
+  background-color: color-mix(in srgb, var(--color-primary) 32%, transparent);
+  color: var(--color-brand-200);
 }
 
 input,
@@ -310,7 +310,7 @@ textarea {
 }
 
 select {
-  color-scheme: dark;
+  color-scheme: light;
 }
 
 select option {
@@ -318,8 +318,8 @@ select option {
   color: var(--text-primary);
 }
 
-[data-theme="light"] select {
-  color-scheme: light;
+[data-theme="dark"] select {
+  color-scheme: dark;
 }
 
 a:focus-visible,

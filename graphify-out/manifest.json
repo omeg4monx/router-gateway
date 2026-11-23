@@ -288,15 +288,15 @@
     "semantic_hash": "5a9ed799ecb36c0cf1c0f3131597c87b"
   },
   "web/src/app/layout.tsx": {
-    "mtime": 1795375751.9745793,
-    "seen": 1795454269.471303,
-    "ast_hash": "9aedcdde5a863742b66087e774c9e24a",
+    "mtime": 1795457451.9473221,
+    "seen": 1795457490.1836152,
+    "ast_hash": "5a978b630e85e0efaf0a31691e16af75",
     "semantic_hash": ""
   },
   "web/src/app/login/page.tsx": {
-    "mtime": 1795381385.550771,
-    "seen": 1795454269.4713044,
-    "ast_hash": "408436a1c9cda70b1401bde1e5aa8cf0",
+    "mtime": 1795457224.4262643,
+    "seen": 1795457255.2919917,
+    "ast_hash": "c38973ddb5044ec9db03314e2c62000d",
     "semantic_hash": ""
   },
   "web/src/app/page.tsx": {
@@ -372,15 +372,15 @@
     "semantic_hash": ""
   },
   "web/src/shared/store/uiStore.test.ts": {
-    "mtime": 1795371333.0266242,
-    "seen": 1795454269.4714649,
-    "ast_hash": "755e50d9cab4ae5d0991e44484eb7654",
-    "semantic_hash": "755e50d9cab4ae5d0991e44484eb7654"
+    "mtime": 1795457422.00892,
+    "seen": 1795457490.1880934,
+    "ast_hash": "ff7ca818ba521ddb47b14412e24b9741",
+    "semantic_hash": ""
   },
   "web/src/shared/store/uiStore.ts": {
-    "mtime": 1795375751.9745793,
-    "seen": 1795454269.4714663,
-    "ast_hash": "19204d882905d4ea4b1b390439fc9422",
+    "mtime": 1795457450.2632995,
+    "seen": 1795457490.1880963,
+    "ast_hash": "2384af36170aa5305bc3c7de6760413c",
     "semantic_hash": ""
   },
   "web/src/shared/ui/AppShell.tsx": {
@@ -582,9 +582,9 @@
     "semantic_hash": ""
   },
   "web/src/features/auth/LoginForm.tsx": {
-    "mtime": 1795455739.8733766,
-    "seen": 1795455772.3265748,
-    "ast_hash": "42412077831319056974c296564553e4",
+    "mtime": 1795457224.4262643,
+    "seen": 1795457255.2922425,
+    "ast_hash": "d3cc84ea104ae91f7421ec3e81c0e7d1",
     "semantic_hash": ""
   },
   "web/src/features/auth/hooks.ts": {
@@ -660,9 +660,9 @@
     "semantic_hash": ""
   },
   "web/src/features/settings/schemas.ts": {
-    "mtime": 1795381385.5531905,
-    "seen": 1795454269.4714077,
-    "ast_hash": "f3b7041bbbffef1f1a7cc138a5c752f4",
+    "mtime": 1795457459.060418,
+    "seen": 1795457490.1866274,
+    "ast_hash": "a35f1b98a1c2c072b800e77d4a2186b9",
     "semantic_hash": ""
   },
   "internal/modules/settings/schema_test.go": {
@@ -2226,9 +2226,39 @@
     "semantic_hash": ""
   },
   "web/src/app/palette.test.ts": {
-    "mtime": 1795456093.0030982,
-    "seen": 1795456159.775421,
-    "ast_hash": "31541e3fb2d6499e5d7221b751cc6334",
+    "mtime": 1795457426.5369806,
+    "seen": 1795457490.1836898,
+    "ast_hash": "9ade83d70eb364dde37bfad9d7201071",
+    "semantic_hash": ""
+  },
+  "web/src/features/auth/i18n.test.ts": {
+    "mtime": 1795457224.4272645,
+    "seen": 1795457255.2922783,
+    "ast_hash": "573287291921dd7a8b5e370c67676fa9",
+    "semantic_hash": ""
+  },
+  "web/src/features/auth/i18n.ts": {
+    "mtime": 1795457101.5316126,
+    "seen": 1795457255.2922812,
+    "ast_hash": "71dfda18f492839ef8769ab1f31185fe",
+    "semantic_hash": ""
+  },
+  "web/src/shared/ui/LocaleToggle.tsx": {
+    "mtime": 1795457217.7511747,
+    "seen": 1795457255.2953382,
+    "ast_hash": "d5011978ddc87a078e46a8d2ea4fb2e0",
+    "semantic_hash": ""
+  },
+  "docs/superpowers/plans/2026-11-24-login-ui-ux-redesign.md": {
+    "mtime": 1795457044.6548483,
+    "seen": 1795457255.2960005,
+    "ast_hash": "4b76a4bb78673ab4d0990c7c5168f6fb",
+    "semantic_hash": ""
+  },
+  "docs/superpowers/specs/2026-11-24-login-ui-ux-design.md": {
+    "mtime": 1795457006.6123369,
+    "seen": 1795457255.2960305,
+    "ast_hash": "a63e723c0655e21176d531ad1262186e",
     "semantic_hash": ""
   }
 }
