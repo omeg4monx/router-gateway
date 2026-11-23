@@ -976,5 +976,35 @@
     "seen": 1795404624.3699992,
     "ast_hash": "a0ccded36f3d9f3c4acd7e10917127bb",
     "semantic_hash": ""
+  },
+  "web/src/app/(dashboard)/dashboard/usage/page.tsx": {
+    "mtime": 1795405308.9429219,
+    "seen": 1795405384.6757872,
+    "ast_hash": "e758870aa363160069bfe1cae63f9097",
+    "semantic_hash": ""
+  },
+  "web/src/features/usage/UsageConsole.tsx": {
+    "mtime": 1795405348.3259857,
+    "seen": 1795405384.6766782,
+    "ast_hash": "b15ef8a58f0fd245aae668255fd0de79",
+    "semantic_hash": ""
+  },
+  "web/src/features/usage/hooks.ts": {
+    "mtime": 1795405306.1835098,
+    "seen": 1795405384.6766806,
+    "ast_hash": "fe9e1ed84da328b78c71a2122c581c28",
+    "semantic_hash": ""
+  },
+  "web/src/features/usage/schemas.test.ts": {
+    "mtime": 1795405331.792799,
+    "seen": 1795405384.676682,
+    "ast_hash": "0e5daa5b14345920de739c94b4ab677f",
+    "semantic_hash": ""
+  },
+  "web/src/features/usage/schemas.ts": {
+    "mtime": 1795405304.4534903,
+    "seen": 1795405384.6766834,
+    "ast_hash": "c16deeba71da1b965c449513f4aee525",
+    "semantic_hash": ""
   }
 }
