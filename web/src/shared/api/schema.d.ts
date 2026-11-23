@@ -1500,6 +1500,163 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/media/providers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List configured media providers */
+        get: operations["listMediaProviders"];
+        put?: never;
+        /** Create a media provider */
+        post: operations["createMediaProvider"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/media/providers/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete a media provider */
+        delete: operations["deleteMediaProvider"];
+        options?: never;
+        head?: never;
+        /** Update a media provider */
+        patch: operations["updateMediaProvider"];
+        trace?: never;
+    };
+    "/api/media/combos": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List configured media provider combos */
+        get: operations["listMediaCombos"];
+        put?: never;
+        /** Create a media provider fallback combo */
+        post: operations["createMediaCombo"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/media/combos/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete a media provider combo */
+        delete: operations["deleteMediaCombo"];
+        options?: never;
+        head?: never;
+        /** Update a media provider combo */
+        patch: operations["updateMediaCombo"];
+        trace?: never;
+    };
+    "/api/tunnel/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get live tunnel status, configuration, and binary availability */
+        get: operations["getTunnelStatus"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tunnel/config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update persisted tunnel configuration */
+        patch: operations["updateTunnelConfig"];
+        trace?: never;
+    };
+    "/api/tunnel/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Start the configured Cloudflare or Tailscale tunnel */
+        post: operations["startTunnel"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tunnel/stop": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Stop the active tunnel */
+        post: operations["stopTunnel"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tunnel/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List recent tunnel lifecycle events */
+        get: operations["listTunnelEvents"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -2735,6 +2892,131 @@ export interface components {
             team_id: string;
             quota_usd: number;
             redeemed_at: string;
+        };
+        /** @enum {string} */
+        MediaCapability: "audio" | "image" | "video" | "search" | "fetch";
+        /** @enum {string} */
+        MediaDriver: "openai_compatible" | "generic_http" | "builtin_fetch";
+        MediaProvider: {
+            id: string;
+            name: string;
+            capability: components["schemas"]["MediaCapability"];
+            driver: components["schemas"]["MediaDriver"];
+            base_url: string;
+            has_api_key: boolean;
+            default_model: string;
+            extra_headers: {
+                [key: string]: string;
+            };
+            priority: number;
+            enabled: boolean;
+            created_at: string;
+            updated_at: string;
+        };
+        MediaProviderListResponse: {
+            providers: components["schemas"]["MediaProvider"][];
+        };
+        CreateMediaProviderRequest: {
+            name: string;
+            capability: components["schemas"]["MediaCapability"];
+            driver: components["schemas"]["MediaDriver"];
+            base_url?: string;
+            api_key?: string;
+            default_model?: string;
+            extra_headers?: {
+                [key: string]: string;
+            };
+            priority?: number;
+            enabled?: boolean;
+        };
+        UpdateMediaProviderRequest: {
+            name?: string;
+            capability?: components["schemas"]["MediaCapability"];
+            driver?: components["schemas"]["MediaDriver"];
+            base_url?: string;
+            api_key?: string;
+            clear_api_key?: boolean;
+            default_model?: string;
+            extra_headers?: {
+                [key: string]: string;
+            };
+            priority?: number;
+            enabled?: boolean;
+        };
+        MediaCombo: {
+            id: string;
+            name: string;
+            capability: components["schemas"]["MediaCapability"];
+            targets: string[];
+            enabled: boolean;
+            created_at: string;
+            updated_at: string;
+        };
+        MediaComboListResponse: {
+            combos: components["schemas"]["MediaCombo"][];
+        };
+        CreateMediaComboRequest: {
+            name: string;
+            capability: components["schemas"]["MediaCapability"];
+            targets: string[];
+            enabled?: boolean;
+        };
+        UpdateMediaComboRequest: {
+            name?: string;
+            capability?: components["schemas"]["MediaCapability"];
+            targets?: string[];
+            enabled?: boolean;
+        };
+        DeleteMediaResourceResponse: {
+            deleted: boolean;
+        };
+        /** @enum {string} */
+        TunnelProvider: "cloudflare" | "tailscale";
+        /** @enum {string} */
+        TailscaleMode: "funnel" | "serve";
+        /** @enum {string} */
+        TunnelState: "stopped" | "starting" | "running" | "error";
+        TunnelBinaryStatus: {
+            available: boolean;
+            path: string;
+        };
+        TunnelBinariesStatus: {
+            cloudflared: components["schemas"]["TunnelBinaryStatus"];
+            tailscale: components["schemas"]["TunnelBinaryStatus"];
+        };
+        TunnelStatus: {
+            status: components["schemas"]["TunnelState"];
+            provider: components["schemas"]["TunnelProvider"];
+            public_url: string;
+            local_url: string;
+            tailscale_mode: components["schemas"]["TailscaleMode"];
+            auto_start: boolean;
+            pid: number;
+            started_at: string;
+            last_error: string;
+            binaries: components["schemas"]["TunnelBinariesStatus"];
+        };
+        UpdateTunnelConfigRequest: {
+            provider?: components["schemas"]["TunnelProvider"];
+            local_url?: string;
+            tailscale_mode?: components["schemas"]["TailscaleMode"];
+            auto_start?: boolean;
+        };
+        StartTunnelRequest: {
+            provider?: components["schemas"]["TunnelProvider"];
+            local_url?: string;
+            tailscale_mode?: components["schemas"]["TailscaleMode"];
+        };
+        TunnelEvent: {
+            id: string;
+            provider: string;
+            event_type: string;
+            message: string;
+            public_url: string;
+            created_at: string;
+        };
+        TunnelEventListResponse: {
+            events: components["schemas"]["TunnelEvent"][];
         };
     };
     responses: never;
@@ -7604,6 +7886,471 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    listMediaProviders: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Configured media providers */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MediaProviderListResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    createMediaProvider: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateMediaProviderRequest"];
+            };
+        };
+        responses: {
+            /** @description Media provider created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MediaProvider"];
+                };
+            };
+            /** @description Validation error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Duplicate provider name */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    deleteMediaProvider: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Media provider deleted */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeleteMediaResourceResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    updateMediaProvider: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateMediaProviderRequest"];
+            };
+        };
+        responses: {
+            /** @description Media provider updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MediaProvider"];
+                };
+            };
+            /** @description Validation error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Duplicate provider name */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    listMediaCombos: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Configured media combos */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MediaComboListResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    createMediaCombo: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateMediaComboRequest"];
+            };
+        };
+        responses: {
+            /** @description Media combo created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MediaCombo"];
+                };
+            };
+            /** @description Validation error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Duplicate combo name */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    deleteMediaCombo: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Media combo deleted */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeleteMediaResourceResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    updateMediaCombo: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateMediaComboRequest"];
+            };
+        };
+        responses: {
+            /** @description Media combo updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MediaCombo"];
+                };
+            };
+            /** @description Validation error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Duplicate combo name */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    getTunnelStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Tunnel status */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TunnelStatus"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    updateTunnelConfig: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateTunnelConfigRequest"];
+            };
+        };
+        responses: {
+            /** @description Updated tunnel status and configuration */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TunnelStatus"];
+                };
+            };
+            /** @description Validation error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    startTunnel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["StartTunnelRequest"];
+            };
+        };
+        responses: {
+            /** @description Tunnel started */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TunnelStatus"];
+                };
+            };
+            /** @description Invalid parameters */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Tunnel already running */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Tunnel binary missing */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    stopTunnel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Tunnel stopped */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TunnelStatus"];
+                };
+            };
+        };
+    };
+    listTunnelEvents: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Recent tunnel events */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TunnelEventListResponse"];
                 };
             };
         };

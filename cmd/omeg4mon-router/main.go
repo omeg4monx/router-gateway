@@ -23,6 +23,7 @@ import (
 	"github.com/omeg4monx/router-gateway/internal/modules/combos"
 	"github.com/omeg4monx/router-gateway/internal/modules/gateway"
 	"github.com/omeg4monx/router-gateway/internal/modules/keys"
+	"github.com/omeg4monx/router-gateway/internal/modules/media"
 	"github.com/omeg4monx/router-gateway/internal/modules/modeleditor"
 	"github.com/omeg4monx/router-gateway/internal/modules/notifications"
 	"github.com/omeg4monx/router-gateway/internal/modules/promptinjection"
@@ -34,6 +35,7 @@ import (
 	"github.com/omeg4monx/router-gateway/internal/modules/teams"
 	"github.com/omeg4monx/router-gateway/internal/modules/tokensaver"
 	"github.com/omeg4monx/router-gateway/internal/modules/translator"
+	"github.com/omeg4monx/router-gateway/internal/modules/tunnel"
 	"github.com/omeg4monx/router-gateway/internal/modules/usage"
 	"github.com/omeg4monx/router-gateway/internal/modules/vouchers"
 	"github.com/omeg4monx/router-gateway/internal/platform/config"
@@ -359,6 +361,21 @@ func buildApp(ctx context.Context, cfg config.Config, build system.BuildInfo) (*
 		Logger: logger,
 		Jobs:   &jobInspectorAdapter{runner: jobRunner},
 	})
+	mediaMod := media.New(media.Options{
+		DB:         database,
+		Vault:      vault,
+		HTTPClient: httpClient,
+		Keys:       keysMod,
+		Usage:      usageMod,
+		Bus:        bus,
+		Logger:     logger,
+	})
+	tunnelMod := tunnel.New(tunnel.Options{
+		DB:     database,
+		Config: cfg,
+		Bus:    bus,
+		Logger: logger,
+	})
 
 	if err := registry.Register(sysMod); err != nil {
 		return nil, fmt.Errorf("register system module: %w", err)
@@ -413,6 +430,12 @@ func buildApp(ctx context.Context, cfg config.Config, build system.BuildInfo) (*
 	}
 	if err := registry.Register(vouchersMod); err != nil {
 		return nil, fmt.Errorf("register vouchers module: %w", err)
+	}
+	if err := registry.Register(mediaMod); err != nil {
+		return nil, fmt.Errorf("register media module: %w", err)
+	}
+	if err := registry.Register(tunnelMod); err != nil {
+		return nil, fmt.Errorf("register tunnel module: %w", err)
 	}
 
 	if err := registry.MigrateAll(ctx, database); err != nil {
