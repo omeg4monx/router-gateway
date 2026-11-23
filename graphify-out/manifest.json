@@ -312,9 +312,9 @@
     "semantic_hash": ""
   },
   "web/src/features/system/SystemOverview.tsx": {
-    "mtime": 1795414563.2693994,
-    "seen": 1795415008.7739336,
-    "ast_hash": "1f7aa1dc977aec1120135214d5eb87c2",
+    "mtime": 1795415785.725622,
+    "seen": 1795415893.8767736,
+    "ast_hash": "36d813c3d81cd0c855009f2b7e97d7d0",
     "semantic_hash": ""
   },
   "web/src/features/system/hooks.ts": {
@@ -354,8 +354,8 @@
     "semantic_hash": "bb80d375646eeb2d8c259c26500224b0"
   },
   "web/src/shared/api/schema.d.ts": {
-    "mtime": 1795415462.5151446,
-    "seen": 1795415552.8301694,
+    "mtime": 1795415856.933388,
+    "seen": 1795415893.8772006,
     "ast_hash": "a4fcf3ec58ed624279984861d1724376",
     "semantic_hash": ""
   },
@@ -384,9 +384,9 @@
     "semantic_hash": ""
   },
   "web/src/shared/ui/AppShell.tsx": {
-    "mtime": 1795414563.2710183,
-    "seen": 1795415008.7739546,
-    "ast_hash": "f03c497a42c9ffca5e4372a7f4d5d0ad",
+    "mtime": 1795415784.2286057,
+    "seen": 1795415893.8773108,
+    "ast_hash": "4f739d8b17975564040674abf08ec435",
     "semantic_hash": ""
   },
   "web/src/shared/ui/CaduceusLogo.tsx": {
@@ -1317,6 +1317,30 @@
     "mtime": 1795415710.6538553,
     "seen": 1795415728.8219857,
     "ast_hash": "49f8000d69db47664ea58d86ee13b3b5",
+    "semantic_hash": ""
+  },
+  "web/src/app/(dashboard)/dashboard/token-saver/page.tsx": {
+    "mtime": 1795415781.447146,
+    "seen": 1795415893.8755047,
+    "ast_hash": "3fce78f13046110e3d4309597de652da",
+    "semantic_hash": ""
+  },
+  "web/src/features/tokensaver/TokenSaverConsole.tsx": {
+    "mtime": 1795415780.1845622,
+    "seen": 1795415893.8768606,
+    "ast_hash": "5d55650a1beb5980ed220d6c4e3af26c",
+    "semantic_hash": ""
+  },
+  "web/src/features/tokensaver/hooks.ts": {
+    "mtime": 1795415778.8015473,
+    "seen": 1795415893.8768625,
+    "ast_hash": "defabb81bfce694ed56a7779e4f51fa4",
+    "semantic_hash": ""
+  },
+  "web/src/features/tokensaver/schemas.ts": {
+    "mtime": 1795415777.4225326,
+    "seen": 1795415893.8768935,
+    "ast_hash": "7bcb9b09b005d57ba603c7adb8b95138",
     "semantic_hash": ""
   }
 }

@@ -13,10 +13,13 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Server,
+  ShieldAlert,
   ShieldCheck,
+  Sliders,
   SlidersHorizontal,
   Terminal,
   X,
+  Zap,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -46,6 +49,9 @@ const ACTIVE_NAV_ITEMS: ActiveNavItem[] = [
   { label: "Proxy Pools", href: "/dashboard/proxy-pools/", icon: Network },
   { label: "API Keys", href: "/dashboard/keys/", icon: KeyRound },
   { label: "Usage & Telemetry", href: "/dashboard/usage/", icon: Cpu },
+  { label: "Prompt Guard", href: "/dashboard/prompt-guard/", icon: ShieldAlert },
+  { label: "Model Editor", href: "/dashboard/model-editor/", icon: Sliders },
+  { label: "Token Saver", href: "/dashboard/token-saver/", icon: Zap },
   { label: "Translator", href: "/dashboard/translator/", icon: ArrowRightLeft },
   { label: "CLI Tools", href: "/dashboard/cli-tools/", icon: Terminal },
   { label: "Settings", href: "/dashboard/settings/", icon: SlidersHorizontal },
