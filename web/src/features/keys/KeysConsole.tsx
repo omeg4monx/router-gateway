@@ -235,17 +235,17 @@ export function KeysConsole() {
             onClick={() => void keysQuery.refetch()}
             disabled={keysQuery.isFetching}
           >
-            <RefreshCw className="h-3.5 w-3.5 text-[#E56A4A]" aria-hidden="true" />
+            <RefreshCw className="h-3.5 w-3.5 text-[var(--accent-primary)]" aria-hidden="true" />
             <span>{keysQuery.isFetching ? "Refreshing" : "Refresh"}</span>
           </Button>
         </div>
       </section>
 
       {revealedSecret ? (
-        <Card className="border-[#E56A4A] bg-[var(--bg-surface-raised)]">
+        <Card className="border-[var(--accent-primary)] bg-[var(--bg-surface-raised)]">
           <CardHeader className="border-[var(--border-strong)]">
             <div className="flex items-center gap-2">
-              <ShieldAlert className="h-4 w-4 text-[#E56A4A]" aria-hidden="true" />
+              <ShieldAlert className="h-4 w-4 text-[var(--accent-primary)]" aria-hidden="true" />
               <CardTitle>
                 {revealedSecret.action === "created"
                   ? "One-Time API Key Secret Created"
@@ -300,7 +300,7 @@ export function KeysConsole() {
         <CardHeader>
           <div>
             <div className="flex items-center gap-2">
-              <Plus className="h-4 w-4 text-[#E56A4A]" aria-hidden="true" />
+              <Plus className="h-4 w-4 text-[var(--accent-primary)]" aria-hidden="true" />
               <CardTitle>Create Gateway API Key</CardTitle>
             </div>
             <CardDescription className="mt-0.5">
@@ -478,7 +478,7 @@ export function KeysConsole() {
       <Card>
         <CardHeader>
           <div className="flex items-center gap-2">
-            <KeyRound className="h-4 w-4 text-[#E56A4A]" aria-hidden="true" />
+            <KeyRound className="h-4 w-4 text-[var(--accent-primary)]" aria-hidden="true" />
             <CardTitle>Issued API Keys</CardTitle>
           </div>
           <span className="font-mono text-xs text-[var(--text-muted)]">GET /api/keys</span>

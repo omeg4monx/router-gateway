@@ -8,15 +8,16 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default: "bg-[#E56A4A] font-semibold text-[#0a0a0a] hover:bg-[var(--accent-primary-hover)]",
+        default:
+          "bg-[var(--accent-primary)] font-semibold text-[var(--accent-primary-ink)] hover:bg-[var(--accent-primary-hover)]",
         secondary:
           "border border-[var(--border-subtle)] bg-[var(--bg-surface-raised)] text-[var(--text-secondary)] hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]",
         outline:
-          "border border-[var(--border-strong)] bg-[var(--bg-surface-raised)] text-[var(--text-primary)] hover:border-[#E56A4A]",
+          "border border-[var(--border-strong)] bg-[var(--bg-surface-raised)] text-[var(--text-primary)] hover:border-[var(--accent-primary)]",
         ghost:
           "text-[var(--text-muted)] hover:bg-[var(--bg-surface-raised)] hover:text-[var(--text-primary)]",
         destructive:
-          "border border-[var(--status-error-border)] bg-[var(--bg-surface)] text-[var(--text-primary)] hover:border-[#E56A4A]",
+          "border border-[var(--status-error-border)] bg-[var(--bg-surface)] text-[var(--text-primary)] hover:border-[var(--accent-primary)]",
       },
       size: {
         default: "h-10 px-4 py-2",

@@ -81,10 +81,10 @@ interface ActiveOAuthSession {
 }
 
 const SELECT_CLASS_NAME =
-  "flex h-10 w-full rounded-md border border-[var(--border-strong)] bg-[var(--bg-input)] px-3 py-2 font-mono text-sm text-[var(--text-primary)] transition-colors focus:border-[#E56A4A] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#E56A4A]";
+  "flex h-10 w-full rounded-md border border-[var(--border-strong)] bg-[var(--bg-input)] px-3 py-2 font-mono text-sm text-[var(--text-primary)] transition-colors focus:border-[var(--accent-primary)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent-primary)]";
 
 const TEXTAREA_CLASS_NAME =
-  "flex min-h-[82px] w-full rounded-md border border-[var(--border-strong)] bg-[var(--bg-input)] px-3 py-2 font-mono text-xs text-[var(--text-primary)] placeholder:font-sans placeholder:text-[var(--text-muted)] transition-colors focus:border-[#E56A4A] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#E56A4A]";
+  "flex min-h-[82px] w-full rounded-md border border-[var(--border-strong)] bg-[var(--bg-input)] px-3 py-2 font-mono text-xs text-[var(--text-primary)] placeholder:font-sans placeholder:text-[var(--text-muted)] transition-colors focus:border-[var(--accent-primary)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent-primary)]";
 
 function formatTimestamp(iso: string | null): string {
   if (!iso) {
@@ -423,7 +423,7 @@ export function ProvidersConsole() {
             onClick={handleRefreshAll}
             disabled={isRefreshing}
           >
-            <RefreshCw className="h-3.5 w-3.5 text-[#E56A4A]" aria-hidden="true" />
+            <RefreshCw className="h-3.5 w-3.5 text-[var(--accent-primary)]" aria-hidden="true" />
             <span>{isRefreshing ? "Refreshing" : "Refresh"}</span>
           </Button>
         </div>
@@ -454,7 +454,7 @@ export function ProvidersConsole() {
       <Card>
         <CardHeader>
           <div className="flex items-center gap-2">
-            <Server className="h-4 w-4 text-[#E56A4A]" aria-hidden="true" />
+            <Server className="h-4 w-4 text-[var(--accent-primary)]" aria-hidden="true" />
             <CardTitle>Connected Upstream Accounts</CardTitle>
           </div>
           <span className="font-mono text-xs text-[var(--text-muted)]">
@@ -680,7 +680,7 @@ export function ProvidersConsole() {
           <CardHeader>
             <div>
               <div className="flex items-center gap-2">
-                <KeyRound className="h-4 w-4 text-[#E56A4A]" aria-hidden="true" />
+                <KeyRound className="h-4 w-4 text-[var(--accent-primary)]" aria-hidden="true" />
                 <CardTitle>Create API-Key Connection</CardTitle>
               </div>
               <CardDescription className="mt-0.5">
@@ -898,7 +898,7 @@ export function ProvidersConsole() {
                 <input
                   id="conn-enabled"
                   type="checkbox"
-                  className="h-4 w-4 accent-[#E56A4A]"
+                  className="h-4 w-4 accent-[var(--accent-primary)]"
                   {...createConnForm.register("enabled")}
                 />
               </label>
@@ -931,7 +931,7 @@ export function ProvidersConsole() {
           <CardHeader>
             <div>
               <div className="flex items-center gap-2">
-                <ShieldCheck className="h-4 w-4 text-[#E56A4A]" aria-hidden="true" />
+                <ShieldCheck className="h-4 w-4 text-[var(--accent-primary)]" aria-hidden="true" />
                 <CardTitle>Headless-Safe OAuth PKCE Wizard</CardTitle>
               </div>
               <CardDescription className="mt-0.5">
@@ -1101,7 +1101,7 @@ export function ProvidersConsole() {
             </form>
 
             {activeOAuth ? (
-              <div className="space-y-3 rounded-md border border-[#E56A4A] bg-[var(--bg-surface-raised)] p-4">
+              <div className="space-y-3 rounded-md border border-[var(--accent-primary)] bg-[var(--bg-surface-raised)] p-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <span className="font-mono text-xs font-medium uppercase tracking-wider text-[var(--accent-text)]">
                     Authorize URL Ready ({activeOAuth.provider})
@@ -1297,7 +1297,7 @@ export function ProvidersConsole() {
                   <input
                     id="oauth-exchange-enabled"
                     type="checkbox"
-                    className="h-4 w-4 accent-[#E56A4A]"
+                    className="h-4 w-4 accent-[var(--accent-primary)]"
                     {...oauthExchangeForm.register("enabled")}
                   />
                   <span>Enable connection after exchange</span>
@@ -1324,7 +1324,7 @@ export function ProvidersConsole() {
           <CardHeader>
             <div>
               <div className="flex items-center gap-2">
-                <Layers className="h-4 w-4 text-[#E56A4A]" aria-hidden="true" />
+                <Layers className="h-4 w-4 text-[var(--accent-primary)]" aria-hidden="true" />
                 <CardTitle>Custom Compatible Provider Nodes</CardTitle>
               </div>
               <CardDescription className="mt-0.5">
@@ -1587,7 +1587,7 @@ export function ProvidersConsole() {
           <CardHeader>
             <div>
               <div className="flex items-center gap-2">
-                <Server className="h-4 w-4 text-[#E56A4A]" aria-hidden="true" />
+                <Server className="h-4 w-4 text-[var(--accent-primary)]" aria-hidden="true" />
                 <CardTitle>Built-in Provider Adapter Catalog</CardTitle>
               </div>
               <CardDescription className="mt-0.5">

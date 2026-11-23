@@ -5,7 +5,7 @@ interface EmberRuleProps {
 export function EmberRule({ className = "" }: EmberRuleProps) {
   return (
     <hr
-      className={`h-px w-full border-0 bg-gradient-to-r from-transparent via-[#E56A4A] to-transparent ${className}`.trim()}
+      className={`h-px w-full border-0 bg-gradient-to-r from-transparent via-[var(--accent-primary)] to-transparent ${className}`.trim()}
     />
   );
 }

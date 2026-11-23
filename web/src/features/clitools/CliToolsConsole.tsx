@@ -275,7 +275,7 @@ export function CliToolsConsole() {
             onClick={() => void catalogQuery.refetch()}
             disabled={catalogQuery.isFetching}
           >
-            <RefreshCw className="h-3.5 w-3.5 text-[#E56A4A]" aria-hidden="true" />
+            <RefreshCw className="h-3.5 w-3.5 text-[var(--accent-primary)]" aria-hidden="true" />
             <span>{catalogQuery.isFetching ? "Syncing" : "Refresh"}</span>
           </Button>
         </div>
@@ -299,7 +299,7 @@ export function CliToolsConsole() {
       <section aria-label="Supported CLI coding tools" className="space-y-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Terminal className="h-4 w-4 text-[#E56A4A]" aria-hidden="true" />
+            <Terminal className="h-4 w-4 text-[var(--accent-primary)]" aria-hidden="true" />
             <h3 className="text-sm font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
               1. Select Coding Client
             </h3>
@@ -327,7 +327,7 @@ export function CliToolsConsole() {
                   aria-pressed={isSelected}
                   className={`flex h-full flex-col justify-between rounded-lg border p-4 text-left transition-colors ${
                     isSelected
-                      ? "border-[#E56A4A] bg-[var(--bg-surface-raised)]"
+                      ? "border-[var(--accent-primary)] bg-[var(--bg-surface-raised)]"
                       : "border-[var(--border-subtle)] bg-[var(--bg-surface)] hover:border-[var(--border-strong)] hover:bg-[var(--bg-surface-raised)]"
                   }`}
                 >
@@ -368,7 +368,7 @@ export function CliToolsConsole() {
             <CardHeader>
               <div>
                 <div className="flex items-center gap-2">
-                  <FolderCog className="h-4 w-4 text-[#E56A4A]" aria-hidden="true" />
+                  <FolderCog className="h-4 w-4 text-[var(--accent-primary)]" aria-hidden="true" />
                   <CardTitle>2. Profile Parameters</CardTitle>
                 </div>
                 <CardDescription className="mt-1">
@@ -462,7 +462,10 @@ export function CliToolsConsole() {
             <CardHeader>
               <div>
                 <div className="flex items-center gap-2">
-                  <HardDriveUpload className="h-4 w-4 text-[#E56A4A]" aria-hidden="true" />
+                  <HardDriveUpload
+                    className="h-4 w-4 text-[var(--accent-primary)]"
+                    aria-hidden="true"
+                  />
                   <CardTitle>Local Apply &amp; Rollback</CardTitle>
                 </div>
                 <CardDescription className="mt-1 font-mono text-xs">
@@ -591,11 +594,14 @@ export function CliToolsConsole() {
                           setConfirmApply(true);
                         }}
                       >
-                        <HardDriveUpload className="h-4 w-4 text-[#E56A4A]" aria-hidden="true" />
+                        <HardDriveUpload
+                          className="h-4 w-4 text-[var(--accent-primary)]"
+                          aria-hidden="true"
+                        />
                         <span>Apply Locally</span>
                       </Button>
                     ) : (
-                      <div className="rounded-md border border-[#E56A4A] bg-[var(--bg-surface-raised)] p-3">
+                      <div className="rounded-md border border-[var(--accent-primary)] bg-[var(--bg-surface-raised)] p-3">
                         <p className="text-xs font-medium text-[var(--text-primary)]">
                           Overwrite local config for {activeDescriptor?.name ?? selectedTool}?
                         </p>
@@ -678,7 +684,7 @@ export function CliToolsConsole() {
             <CardHeader className="flex-wrap gap-3">
               <div>
                 <div className="flex items-center gap-2">
-                  <FileCode2 className="h-4 w-4 text-[#E56A4A]" aria-hidden="true" />
+                  <FileCode2 className="h-4 w-4 text-[var(--accent-primary)]" aria-hidden="true" />
                   <CardTitle>3. Generated Configuration Preview</CardTitle>
                 </div>
                 <CardDescription className="mt-1 font-mono text-xs">
@@ -719,7 +725,10 @@ export function CliToolsConsole() {
                   disabled={!activePreview}
                   onClick={handleDownloadConfig}
                 >
-                  <Download className="h-3.5 w-3.5 text-[#E56A4A]" aria-hidden="true" />
+                  <Download
+                    className="h-3.5 w-3.5 text-[var(--accent-primary)]"
+                    aria-hidden="true"
+                  />
                   <span>
                     Download {activePreview?.filename ?? activeDescriptor?.filename ?? "File"}
                   </span>

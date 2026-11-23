@@ -6,19 +6,34 @@ Direction ini berasal dari pemilik produk (joshz), ditulis apa adanya. Ini **buk
 
 - **Produk:** OMEG4MON ROUTER, gateway LLM (OpenAI + Anthropic compatible) yang di-host sendiri.
 - **Karakter:** tool infrastruktur yang hangat, bukan dashboard korporat dingin. Tegas, presisi, tapi tidak steril.
-- **Motif identitas:** **garis ember** — aturan gradient oranye tipis (`from-transparent via-primary to-transparent`) yang berulang sebagai pemisah dan aksen brand. Satu gesture, dipakai konsisten.
+- **Motif identitas:** garis aksen tipis (`from-transparent via-[var(--accent-primary)] to-transparent`) yang mengikuti aksen **Ruby Rose** dari custom palette `main` (`#b5173a` di Light, `#eb6583` di Dark). Satu gesture, dipakai konsisten.
 - **Logo:** caduceus (tongkat Hermes). Keputusan pemilik, jangan diganti.
 
-## Palette
+## Palette (Parity dengan `main` + Custom Accent `rose` / Ruby Rose)
 
-| Peran | Nilai | Alasan |
+Palet warna mengikuti sistem tema **Omegamon** dari branch `main` dengan aksen **Ruby Rose** (`preset("rose", "Ruby Rose", ["#b5173a", "#951330"], ["#eb6583", "#ef8099"])`):
+
+### Light — Omegamon X-Antibody + Ruby Rose
+| Peran | Nilai | Keterangan |
 |---|---|---|
-| Brand / accent | `#E56A4A` (ember orange) | Identitas pemilik. Hangat, jarang dipakai produk lain, jadi pembeda langsung dari default biru-ungu AI. |
-| Base dark | charcoal solid (`#0a0a0a` family) | Produk developer; tema gelap punya alasan fungsional (R-21), dan menahan oranye agar terbaca. |
-| Base light | `#FDFAF6` (warm off-white) | Versi terang yang tetap hangat, bukan putih dingin generik. |
-| Neutral | abu netral (`#6B7280` family) | Untuk teks sekunder, border, permukaan. Netral tidak dihitung ke palet inti. |
+| Primary (Brand / Ruby Rose) | `#b5173a` (hover `#951330`) | Custom palette `rose` light; `on-primary` `#ffffff` (kontras >= 6:1) |
+| Secondary | `#E8A317` (bg `#fdf4e0`, fg `#8a5200`) | Grey Sword gold |
+| Accent | `#C8102E` (bg `#fce8eb`, fg `#a50d26`) | Red armor trim |
+| Highlight | `#00B8E6` | All Delete cyan (decorative / glow) |
+| Surfaces | `#F5F6F8` canvas, `#ffffff` surface, `#eef1f5` raised | Pearl-white armor |
+| Borders | `#e8ebf0` subtle, `#d9dee6` strong | Cool pearl seams |
+| Text | `#0B0D12` primary, `#4a5260` secondary, `#5f6775` muted | Black armor plates |
 
-Palet inti: 1 base + 1 accent. Sesuai R-29.
+### Dark — Omegamon Zwart (Zwart X) + Ruby Rose
+| Peran | Nilai | Keterangan |
+|---|---|---|
+| Primary (Brand / Ruby Rose) | `#eb6583` (hover `#ef8099`) | Custom palette `rose` dark; `on-primary` `#050608` (kontras >= 6:1) |
+| Secondary | `#C0C6CF` (fg `#d5dae1`) | Silver trim |
+| Accent | `#FF2D3A` (fg `#ff7a82`) | Burning red eyes / energy core |
+| Highlight | `#22D3EE` | Electric cyan glow |
+| Surfaces | `#050608` canvas, `#101217` surface, `#171a20` raised, `#0a0c10` input | Obsidian armor & gunmetal plates |
+| Borders | `#171a20` subtle, `#262a33` strong | Gunmetal seams |
+| Text | `#E6E9EE` primary, `#a3aab6` secondary, `#7e8592` muted | Silver |
 
 ## Typography
 

@@ -135,7 +135,7 @@ export function ChatConsole() {
         <Card className="lg:col-span-1">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
-              <MessageSquare className="h-4 w-4 text-[#E56A4A]" aria-hidden="true" />
+              <MessageSquare className="h-4 w-4 text-[var(--accent-primary)]" aria-hidden="true" />
               Sessions
             </CardTitle>
             <CardDescription>Create or switch persistent chat threads.</CardDescription>
@@ -180,7 +180,7 @@ export function ChatConsole() {
                     key={s.id}
                     className={`flex items-center justify-between gap-2 rounded-md border px-2.5 py-2 ${
                       activeSessionId === s.id
-                        ? "border-[#E56A4A] bg-[var(--bg-surface-raised)]"
+                        ? "border-[var(--accent-primary)] bg-[var(--bg-surface-raised)]"
                         : "border-[var(--border-subtle)] bg-[var(--bg-canvas)]"
                     }`}
                   >
@@ -251,7 +251,7 @@ export function ChatConsole() {
                     key={msg.id}
                     className={`rounded-md border p-3 ${
                       msg.role === "user"
-                        ? "border-[#E56A4A] bg-[var(--bg-surface-raised)]"
+                        ? "border-[var(--accent-primary)] bg-[var(--bg-surface-raised)]"
                         : "border-[var(--border-subtle)] bg-[var(--bg-canvas)]"
                     }`}
                   >

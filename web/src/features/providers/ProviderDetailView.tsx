@@ -42,7 +42,7 @@ import {
 } from "./schemas";
 
 const TEXTAREA_CLASS_NAME =
-  "flex min-h-[92px] w-full rounded-md border border-[var(--border-strong)] bg-[var(--bg-input)] px-3 py-2 font-mono text-xs text-[var(--text-primary)] placeholder:font-sans placeholder:text-[var(--text-muted)] transition-colors focus:border-[#E56A4A] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#E56A4A]";
+  "flex min-h-[92px] w-full rounded-md border border-[var(--border-strong)] bg-[var(--bg-input)] px-3 py-2 font-mono text-xs text-[var(--text-primary)] placeholder:font-sans placeholder:text-[var(--text-muted)] transition-colors focus:border-[var(--accent-primary)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent-primary)]";
 
 function formatTimestamp(iso: string | null): string {
   if (!iso) {
@@ -203,7 +203,7 @@ export function ProviderDetailView() {
           onClick={() => void connectionQuery.refetch()}
           disabled={connectionQuery.isFetching}
         >
-          <RefreshCw className="h-3.5 w-3.5 text-[#E56A4A]" aria-hidden="true" />
+          <RefreshCw className="h-3.5 w-3.5 text-[var(--accent-primary)]" aria-hidden="true" />
           <span>{connectionQuery.isFetching ? "Refreshing" : "Refresh"}</span>
         </Button>
       </section>
@@ -232,7 +232,7 @@ export function ProviderDetailView() {
           <Card>
             <CardHeader>
               <div className="flex items-center gap-2">
-                <Server className="h-4 w-4 text-[#E56A4A]" aria-hidden="true" />
+                <Server className="h-4 w-4 text-[var(--accent-primary)]" aria-hidden="true" />
                 <CardTitle>Connection Telemetry &amp; Connectivity</CardTitle>
               </div>
               <Button
@@ -375,7 +375,7 @@ export function ProviderDetailView() {
             <CardHeader>
               <div>
                 <div className="flex items-center gap-2">
-                  <KeyRound className="h-4 w-4 text-[#E56A4A]" aria-hidden="true" />
+                  <KeyRound className="h-4 w-4 text-[var(--accent-primary)]" aria-hidden="true" />
                   <CardTitle>Configuration &amp; Credential Rotation</CardTitle>
                 </div>
                 <CardDescription className="mt-0.5">
@@ -617,7 +617,7 @@ export function ProviderDetailView() {
                   <input
                     id="detail-enabled"
                     type="checkbox"
-                    className="h-4 w-4 accent-[#E56A4A]"
+                    className="h-4 w-4 accent-[var(--accent-primary)]"
                     {...editForm.register("enabled")}
                   />
                 </label>

@@ -101,7 +101,7 @@ export function TeamsConsole() {
             onClick={() => void Promise.all([teamsQuery.refetch(), keysQuery.refetch()])}
             disabled={teamsQuery.isFetching}
           >
-            <RefreshCw className="h-3.5 w-3.5 text-[#E56A4A]" aria-hidden="true" />
+            <RefreshCw className="h-3.5 w-3.5 text-[var(--accent-primary)]" aria-hidden="true" />
             <span>{teamsQuery.isFetching ? "Refreshing" : "Refresh"}</span>
           </Button>
           <Button type="button" size="sm" onClick={() => setShowCreateForm((prev) => !prev)}>
@@ -218,7 +218,10 @@ export function TeamsConsole() {
                 <CardHeader className="flex flex-row items-start justify-between gap-3">
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
-                      <Users className="h-4 w-4 shrink-0 text-[#E56A4A]" aria-hidden="true" />
+                      <Users
+                        className="h-4 w-4 shrink-0 text-[var(--accent-primary)]"
+                        aria-hidden="true"
+                      />
                       <CardTitle className="truncate">{team.name}</CardTitle>
                       <Badge variant={team.enabled ? "success" : "destructive"}>
                         {team.enabled ? "Active" : "Disabled"}
@@ -265,7 +268,10 @@ export function TeamsConsole() {
                       </p>
                       {team.budget_usd > 0 ? (
                         <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-[var(--bg-surface-raised)]">
-                          <div className="h-full bg-[#E56A4A]" style={{ width: `${pct}%` }} />
+                          <div
+                            className="h-full bg-[var(--accent-primary)]"
+                            style={{ width: `${pct}%` }}
+                          />
                         </div>
                       ) : null}
                     </div>
@@ -302,7 +308,10 @@ export function TeamsConsole() {
                             key={kid}
                             className="inline-flex items-center gap-1.5 rounded border border-[var(--border-subtle)] bg-[var(--bg-surface-raised)] px-2 py-1 font-mono text-xs text-[var(--text-primary)]"
                           >
-                            <KeyRound className="h-3 w-3 text-[#E56A4A]" aria-hidden="true" />
+                            <KeyRound
+                              className="h-3 w-3 text-[var(--accent-primary)]"
+                              aria-hidden="true"
+                            />
                             <span>{keyNameMap.get(kid) ?? kid}</span>
                             <button
                               type="button"

@@ -201,7 +201,7 @@ export function MitmConsole() {
         <Card>
           <CardHeader>
             <div className="flex items-center gap-2">
-              <Shield className="h-4 w-4 text-[#E56A4A]" aria-hidden="true" />
+              <Shield className="h-4 w-4 text-[var(--accent-primary)]" aria-hidden="true" />
               <CardTitle>Proxy Configuration</CardTitle>
             </div>
             <span className="font-mono text-xs text-[var(--text-muted)]">
@@ -271,7 +271,7 @@ export function MitmConsole() {
                         type="checkbox"
                         checked={checked}
                         onChange={() => toggleTool(toolId)}
-                        className="h-4 w-4 accent-[#E56A4A]"
+                        className="h-4 w-4 accent-[var(--accent-primary)]"
                       />
                       <span className="font-mono text-xs uppercase">{toolId}</span>
                     </label>
@@ -284,7 +284,7 @@ export function MitmConsole() {
               <input
                 type="checkbox"
                 {...configForm.register("auto_start")}
-                className="h-4 w-4 accent-[#E56A4A]"
+                className="h-4 w-4 accent-[var(--accent-primary)]"
               />
               <span>Auto-start MITM proxy on router boot</span>
             </label>
@@ -312,7 +312,10 @@ export function MitmConsole() {
                 onClick={() => generateCA.mutate({ force: false })}
                 disabled={generateCA.isPending}
               >
-                <RefreshCw className="h-3.5 w-3.5 text-[#E56A4A]" aria-hidden="true" />
+                <RefreshCw
+                  className="h-3.5 w-3.5 text-[var(--accent-primary)]"
+                  aria-hidden="true"
+                />
                 <span>{status?.ca.exists ? "Verify CA" : "Generate Root CA"}</span>
               </Button>
               <Button

@@ -208,7 +208,7 @@ export function ProxyPoolsConsole() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
-              <Plus className="h-4 w-4 text-[#E56A4A]" aria-hidden="true" />
+              <Plus className="h-4 w-4 text-[var(--accent-primary)]" aria-hidden="true" />
               Add Proxy Pool
             </CardTitle>
             <CardDescription>
@@ -262,7 +262,7 @@ export function ProxyPoolsConsole() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
-              <Radar className="h-4 w-4 text-[#E56A4A]" aria-hidden="true" />
+              <Radar className="h-4 w-4 text-[var(--accent-primary)]" aria-hidden="true" />
               Batch Auto-Scanner
             </CardTitle>
             <CardDescription>
@@ -278,7 +278,7 @@ export function ProxyPoolsConsole() {
                   id="scan-candidates"
                   rows={4}
                   placeholder={"http://127.0.0.1:8080\nsocks5h://127.0.0.1:1080"}
-                  className="w-full rounded-md border border-[var(--border-subtle)] bg-[var(--bg-canvas)] px-3 py-2 font-mono text-xs text-[var(--text-primary)] focus:border-[#E56A4A] focus:outline-none"
+                  className="w-full rounded-md border border-[var(--border-subtle)] bg-[var(--bg-canvas)] px-3 py-2 font-mono text-xs text-[var(--text-primary)] focus:border-[var(--accent-primary)] focus:outline-none"
                   {...scanForm.register("candidatesText")}
                 />
                 {scanForm.formState.errors.candidatesText ? (
@@ -340,7 +340,7 @@ export function ProxyPoolsConsole() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
-            <Network className="h-4 w-4 text-[#E56A4A]" aria-hidden="true" />
+            <Network className="h-4 w-4 text-[var(--accent-primary)]" aria-hidden="true" />
             Configured Proxy Pools
           </CardTitle>
         </CardHeader>
@@ -556,7 +556,7 @@ export function ProxyPoolsConsole() {
                     aria-label={`Proxy pool for ${provider.label}`}
                     value={boundPoolId}
                     onChange={(e) => handleBindingChange(provider.id, e.target.value)}
-                    className="rounded-md border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-2.5 py-1.5 text-xs text-[var(--text-primary)] focus:border-[#E56A4A] focus:outline-none"
+                    className="rounded-md border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-2.5 py-1.5 text-xs text-[var(--text-primary)] focus:border-[var(--accent-primary)] focus:outline-none"
                   >
                     <option value="">Direct (No Proxy)</option>
                     {pools.map((pool) => (

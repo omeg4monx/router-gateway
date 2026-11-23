@@ -206,7 +206,7 @@ export function AppShell({ children }: AppShellProps) {
                   "flex items-center rounded-md border px-2.5 py-2 text-sm font-medium transition-colors",
                   compact ? "justify-center" : "justify-between",
                   isActive
-                    ? "border-[#E56A4A] bg-[var(--bg-surface-raised)] text-[var(--text-primary)]"
+                    ? "border-[var(--accent-primary)] bg-[var(--bg-surface-raised)] text-[var(--text-primary)]"
                     : "border-transparent text-[var(--text-secondary)] hover:border-[var(--border-subtle)] hover:bg-[var(--bg-surface-raised)] hover:text-[var(--text-primary)]",
                 )}
                 aria-current={isActive ? "page" : undefined}
@@ -215,7 +215,7 @@ export function AppShell({ children }: AppShellProps) {
                   <Icon
                     className={cn(
                       "h-4 w-4 shrink-0",
-                      isActive ? "text-[#E56A4A]" : "text-[var(--text-muted)]",
+                      isActive ? "text-[var(--accent-primary)]" : "text-[var(--text-muted)]",
                     )}
                     aria-hidden="true"
                   />
@@ -246,7 +246,7 @@ export function AppShell({ children }: AppShellProps) {
                   "flex items-center gap-2.5 rounded-md border px-2.5 py-2 text-sm font-medium transition-colors",
                   compact ? "justify-center" : "",
                   isActive
-                    ? "border-[#E56A4A] bg-[var(--bg-surface-raised)] text-[var(--text-primary)]"
+                    ? "border-[var(--accent-primary)] bg-[var(--bg-surface-raised)] text-[var(--text-primary)]"
                     : "border-transparent text-[var(--text-secondary)] hover:border-[var(--border-subtle)] hover:bg-[var(--bg-surface-raised)] hover:text-[var(--text-primary)]",
                 )}
               >

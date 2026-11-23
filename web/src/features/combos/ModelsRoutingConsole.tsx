@@ -580,7 +580,7 @@ export function ModelsRoutingConsole() {
             onClick={handleRefreshAll}
             disabled={isRefreshing}
           >
-            <RefreshCw className="h-3.5 w-3.5 text-[#E56A4A]" aria-hidden="true" />
+            <RefreshCw className="h-3.5 w-3.5 text-[var(--accent-primary)]" aria-hidden="true" />
             <span>{isRefreshing ? "Refreshing" : "Refresh"}</span>
           </Button>
         </div>
@@ -591,7 +591,7 @@ export function ModelsRoutingConsole() {
         <CardHeader>
           <div>
             <div className="flex items-center gap-2">
-              <Globe className="h-4 w-4 text-[#E56A4A]" aria-hidden="true" />
+              <Globe className="h-4 w-4 text-[var(--accent-primary)]" aria-hidden="true" />
               <CardTitle>Gateway Endpoint Quick-Reference</CardTitle>
             </div>
             <CardDescription className="mt-0.5">
@@ -659,7 +659,10 @@ export function ModelsRoutingConsole() {
           <div className="rounded-md border border-[var(--border-strong)] bg-[var(--bg-canvas)] p-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex flex-wrap items-center gap-1.5">
-                <Terminal className="mr-1 h-4 w-4 text-[#E56A4A]" aria-hidden="true" />
+                <Terminal
+                  className="mr-1 h-4 w-4 text-[var(--accent-primary)]"
+                  aria-hidden="true"
+                />
                 {GATEWAY_ENDPOINTS.map((endpoint) => (
                   <Button
                     key={endpoint.id}
@@ -701,7 +704,7 @@ export function ModelsRoutingConsole() {
           <CardHeader>
             <div>
               <div className="flex items-center gap-2">
-                <GitFork className="h-4 w-4 text-[#E56A4A]" aria-hidden="true" />
+                <GitFork className="h-4 w-4 text-[var(--accent-primary)]" aria-hidden="true" />
                 <CardTitle>Ordered Fallback Combo Builder</CardTitle>
               </div>
               <CardDescription className="mt-0.5">
@@ -793,7 +796,7 @@ export function ModelsRoutingConsole() {
                   <label className="flex cursor-pointer items-center gap-2 text-sm text-[var(--text-primary)]">
                     <input
                       type="checkbox"
-                      className="h-4 w-4 accent-[#E56A4A]"
+                      className="h-4 w-4 accent-[var(--accent-primary)]"
                       {...createComboForm.register("enabled")}
                     />
                     <span>Enabled immediately</span>
@@ -957,7 +960,7 @@ export function ModelsRoutingConsole() {
           <CardHeader>
             <div>
               <div className="flex items-center gap-2">
-                <Layers className="h-4 w-4 text-[#E56A4A]" aria-hidden="true" />
+                <Layers className="h-4 w-4 text-[var(--accent-primary)]" aria-hidden="true" />
                 <CardTitle>Configured Fallback Combos</CardTitle>
               </div>
               <CardDescription className="mt-0.5">
@@ -1124,7 +1127,7 @@ export function ModelsRoutingConsole() {
           <CardHeader>
             <div>
               <div className="flex items-center gap-2">
-                <Tag className="h-4 w-4 text-[#E56A4A]" aria-hidden="true" />
+                <Tag className="h-4 w-4 text-[var(--accent-primary)]" aria-hidden="true" />
                 <CardTitle>Model Aliases Editor</CardTitle>
               </div>
               <CardDescription className="mt-0.5">
@@ -1365,7 +1368,7 @@ export function ModelsRoutingConsole() {
           <CardHeader>
             <div>
               <div className="flex items-center gap-2">
-                <Ban className="h-4 w-4 text-[#E56A4A]" aria-hidden="true" />
+                <Ban className="h-4 w-4 text-[var(--accent-primary)]" aria-hidden="true" />
                 <CardTitle>Disabled Models Panel</CardTitle>
               </div>
               <CardDescription className="mt-0.5">
@@ -1542,7 +1545,7 @@ export function ModelsRoutingConsole() {
         <CardHeader>
           <div>
             <div className="flex items-center gap-2">
-              <ShieldAlert className="h-4 w-4 text-[#E56A4A]" aria-hidden="true" />
+              <ShieldAlert className="h-4 w-4 text-[var(--accent-primary)]" aria-hidden="true" />
               <CardTitle>Account Cooldowns Monitor</CardTitle>
             </div>
             <CardDescription className="mt-0.5">

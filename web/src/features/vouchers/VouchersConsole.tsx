@@ -152,7 +152,7 @@ export function VouchersConsole() {
             onClick={() => void vouchersQuery.refetch()}
             disabled={vouchersQuery.isFetching}
           >
-            <RefreshCw className="h-3.5 w-3.5 text-[#E56A4A]" aria-hidden="true" />
+            <RefreshCw className="h-3.5 w-3.5 text-[var(--accent-primary)]" aria-hidden="true" />
             <span>{vouchersQuery.isFetching ? "Refreshing" : "Refresh"}</span>
           </Button>
           <Button type="button" size="sm" onClick={() => setShowCreateForm((prev) => !prev)}>
@@ -297,7 +297,7 @@ export function VouchersConsole() {
       <Card className="p-5">
         <div className="mb-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Ticket className="h-4 w-4 text-[#E56A4A]" aria-hidden="true" />
+            <Ticket className="h-4 w-4 text-[var(--accent-primary)]" aria-hidden="true" />
             <h3 className="text-sm font-semibold text-[var(--text-primary)]">
               Redeem Voucher (Test / Operator Claim)
             </h3>
@@ -336,7 +336,7 @@ export function VouchersConsole() {
         </form>
 
         {claimedResult ? (
-          <div className="mt-4 rounded-md border border-[#E56A4A] bg-[var(--bg-canvas)] p-3">
+          <div className="mt-4 rounded-md border border-[var(--accent-primary)] bg-[var(--bg-canvas)] p-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="text-xs font-semibold text-[var(--text-primary)]">
                 Provisioned API Key (shown once)

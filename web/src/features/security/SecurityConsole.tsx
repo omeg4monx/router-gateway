@@ -126,7 +126,7 @@ export function SecurityConsole() {
             onClick={handleRefresh}
             disabled={isRefreshing}
           >
-            <RefreshCw className="h-3.5 w-3.5 text-[#E56A4A]" aria-hidden="true" />
+            <RefreshCw className="h-3.5 w-3.5 text-[var(--accent-primary)]" aria-hidden="true" />
             <span>{isRefreshing ? "Refreshing" : "Refresh"}</span>
           </Button>
           <Button asChild variant="outline" size="sm">
@@ -165,7 +165,7 @@ export function SecurityConsole() {
             <span className="text-xs font-medium uppercase tracking-wider text-[var(--text-muted)]">
               Bind Scope
             </span>
-            <ShieldCheck className="h-4 w-4 text-[#E56A4A]" aria-hidden="true" />
+            <ShieldCheck className="h-4 w-4 text-[var(--accent-primary)]" aria-hidden="true" />
           </div>
           <p className="mt-3 font-mono text-lg font-semibold text-[var(--text-primary)]">
             {posture ? posture.bind_addr : "--"}

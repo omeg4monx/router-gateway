@@ -171,7 +171,7 @@ export function PxpipeConsole() {
             onClick={() => restartPipe.mutate()}
             disabled={restartPipe.isPending}
           >
-            <RotateCcw className="h-3.5 w-3.5 text-[#E56A4A]" aria-hidden="true" />
+            <RotateCcw className="h-3.5 w-3.5 text-[var(--accent-primary)]" aria-hidden="true" />
             <span>Restart</span>
           </Button>
         </div>
@@ -226,7 +226,7 @@ export function PxpipeConsole() {
         <Card>
           <CardHeader>
             <div className="flex items-center gap-2">
-              <Workflow className="h-4 w-4 text-[#E56A4A]" aria-hidden="true" />
+              <Workflow className="h-4 w-4 text-[var(--accent-primary)]" aria-hidden="true" />
               <CardTitle>Pipeline Stages</CardTitle>
             </div>
             <Button
@@ -262,7 +262,7 @@ export function PxpipeConsole() {
               <input
                 type="checkbox"
                 {...configForm.register("enabled")}
-                className="h-4 w-4 accent-[#E56A4A]"
+                className="h-4 w-4 accent-[var(--accent-primary)]"
               />
               <span>Enable gateway request transforms</span>
             </label>
@@ -270,7 +270,7 @@ export function PxpipeConsole() {
               <input
                 type="checkbox"
                 {...configForm.register("auto_start")}
-                className="h-4 w-4 accent-[#E56A4A]"
+                className="h-4 w-4 accent-[var(--accent-primary)]"
               />
               <span>Auto-start pipeline on boot</span>
             </label>
@@ -278,7 +278,7 @@ export function PxpipeConsole() {
               <input
                 type="checkbox"
                 {...configForm.register("strip_null_fields")}
-                className="h-4 w-4 accent-[#E56A4A]"
+                className="h-4 w-4 accent-[var(--accent-primary)]"
               />
               <span>Strip null JSON fields</span>
             </label>
@@ -286,7 +286,7 @@ export function PxpipeConsole() {
               <input
                 type="checkbox"
                 {...configForm.register("collapse_whitespace")}
-                className="h-4 w-4 accent-[#E56A4A]"
+                className="h-4 w-4 accent-[var(--accent-primary)]"
               />
               <span>Collapse repeated message whitespace</span>
             </label>
@@ -294,7 +294,7 @@ export function PxpipeConsole() {
               <input
                 type="checkbox"
                 {...configForm.register("dedupe_system_prompts")}
-                className="h-4 w-4 accent-[#E56A4A]"
+                className="h-4 w-4 accent-[var(--accent-primary)]"
               />
               <span>Deduplicate identical system prompts</span>
             </label>

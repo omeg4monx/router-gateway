@@ -149,7 +149,7 @@ export function NotificationsConsole() {
             onClick={handleRefresh}
             disabled={isRefreshing}
           >
-            <RefreshCw className="h-3.5 w-3.5 text-[#E56A4A]" aria-hidden="true" />
+            <RefreshCw className="h-3.5 w-3.5 text-[var(--accent-primary)]" aria-hidden="true" />
             <span>{isRefreshing ? "Refreshing" : "Refresh"}</span>
           </Button>
           <Button type="button" size="sm" onClick={() => setShowCreateForm((prev) => !prev)}>
@@ -253,7 +253,7 @@ export function NotificationsConsole() {
       <Card>
         <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-2.5">
-            <Bell className="h-4 w-4 text-[#E56A4A]" aria-hidden="true" />
+            <Bell className="h-4 w-4 text-[var(--accent-primary)]" aria-hidden="true" />
             <div>
               <CardTitle>System Notifications</CardTitle>
               <p className="mt-0.5 font-mono text-xs text-[var(--text-muted)]">
@@ -378,7 +378,7 @@ export function NotificationsConsole() {
       <Card>
         <CardHeader>
           <div className="flex items-center gap-2.5">
-            <Clock className="h-4 w-4 text-[#E56A4A]" aria-hidden="true" />
+            <Clock className="h-4 w-4 text-[var(--accent-primary)]" aria-hidden="true" />
             <div>
               <CardTitle>Background Jobs</CardTitle>
               <p className="mt-0.5 font-mono text-xs text-[var(--text-muted)]">
@@ -456,7 +456,7 @@ export function NotificationsConsole() {
                         disabled={job.running || triggerJobMutation.isPending}
                         onClick={() => triggerJobMutation.mutate(job.name)}
                       >
-                        <Play className="h-3 w-3 text-[#E56A4A]" aria-hidden="true" />
+                        <Play className="h-3 w-3 text-[var(--accent-primary)]" aria-hidden="true" />
                         <span>Run Now</span>
                       </Button>
                     </td>

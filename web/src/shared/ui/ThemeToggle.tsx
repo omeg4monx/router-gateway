@@ -20,16 +20,20 @@ export function ThemeToggle() {
       variant="secondary"
       size="sm"
       onClick={toggleTheme}
-      aria-label={theme === "dark" ? "Switch to warm light theme" : "Switch to charcoal dark theme"}
+      aria-label={
+        theme === "dark"
+          ? "Switch to Omegamon X-Antibody light theme"
+          : "Switch to Omegamon Zwart dark theme"
+      }
     >
       {theme === "dark" ? (
         <>
-          <Sun className="h-3.5 w-3.5 text-[#E56A4A]" aria-hidden="true" />
+          <Sun className="h-3.5 w-3.5 text-[var(--accent-primary)]" aria-hidden="true" />
           <span>Light</span>
         </>
       ) : (
         <>
-          <Moon className="h-3.5 w-3.5 text-[#E56A4A]" aria-hidden="true" />
+          <Moon className="h-3.5 w-3.5 text-[var(--accent-primary)]" aria-hidden="true" />
           <span>Dark</span>
         </>
       )}

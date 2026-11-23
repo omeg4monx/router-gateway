@@ -118,7 +118,7 @@ export function SystemOverview() {
             onClick={handleRefresh}
             disabled={isRefreshing}
           >
-            <RefreshCw className="h-3.5 w-3.5 text-[#E56A4A]" aria-hidden="true" />
+            <RefreshCw className="h-3.5 w-3.5 text-[var(--accent-primary)]" aria-hidden="true" />
             <span>{isRefreshing ? "Refreshing" : "Refresh"}</span>
           </Button>
         </div>
@@ -265,7 +265,7 @@ export function SystemOverview() {
             <span className="text-xs font-medium uppercase tracking-wider text-[var(--text-muted)]">
               Loaded Modules
             </span>
-            <Layers className="h-4 w-4 text-[#E56A4A]" aria-hidden="true" />
+            <Layers className="h-4 w-4 text-[var(--accent-primary)]" aria-hidden="true" />
           </div>
           <div className="mt-3 flex items-baseline gap-2">
             <span className="font-mono text-2xl font-semibold tracking-tight tabular-nums text-[var(--text-primary)]">
@@ -287,7 +287,7 @@ export function SystemOverview() {
         <Card>
           <CardHeader>
             <div className="flex items-center gap-2">
-              <Server className="h-4 w-4 text-[#E56A4A]" aria-hidden="true" />
+              <Server className="h-4 w-4 text-[var(--accent-primary)]" aria-hidden="true" />
               <CardTitle>Registered Kernel Modules</CardTitle>
             </div>
             <span className="font-mono text-xs text-[var(--text-muted)]">GET /api/health</span>
@@ -321,7 +321,7 @@ export function SystemOverview() {
         <Card className="flex flex-col">
           <CardHeader>
             <div className="flex items-center gap-2">
-              <ShieldCheck className="h-4 w-4 text-[#E56A4A]" aria-hidden="true" />
+              <ShieldCheck className="h-4 w-4 text-[var(--accent-primary)]" aria-hidden="true" />
               <CardTitle>Build &amp; Security Posture</CardTitle>
             </div>
             <span className="font-mono text-xs text-[var(--text-muted)]">GET /api/version</span>

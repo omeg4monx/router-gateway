@@ -191,7 +191,7 @@ export function TranslatorConsole() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
-            <ArrowRightLeft className="h-4 w-4 text-[#E56A4A]" aria-hidden="true" />
+            <ArrowRightLeft className="h-4 w-4 text-[var(--accent-primary)]" aria-hidden="true" />
             Interactive Protocol Workbench
           </CardTitle>
           <CardDescription>
@@ -211,7 +211,7 @@ export function TranslatorConsole() {
                     form.setValue("mode", nextMode);
                     handleLoadSample(nextMode, watchedFrom);
                   }}
-                  className="w-full rounded-md border border-[var(--border-subtle)] bg-[var(--bg-canvas)] px-2.5 py-2 text-sm text-[var(--text-primary)] focus:border-[#E56A4A] focus:outline-none"
+                  className="w-full rounded-md border border-[var(--border-subtle)] bg-[var(--bg-canvas)] px-2.5 py-2 text-sm text-[var(--text-primary)] focus:border-[var(--accent-primary)] focus:outline-none"
                 >
                   {TRANSLATOR_MODES.map((m) => (
                     <option key={m} value={m}>
@@ -231,7 +231,7 @@ export function TranslatorConsole() {
                     form.setValue("from_protocol", nextFrom);
                     handleLoadSample(watchedMode, nextFrom);
                   }}
-                  className="w-full rounded-md border border-[var(--border-subtle)] bg-[var(--bg-canvas)] px-2.5 py-2 font-mono text-xs text-[var(--text-primary)] focus:border-[#E56A4A] focus:outline-none"
+                  className="w-full rounded-md border border-[var(--border-subtle)] bg-[var(--bg-canvas)] px-2.5 py-2 font-mono text-xs text-[var(--text-primary)] focus:border-[var(--accent-primary)] focus:outline-none"
                 >
                   {TRANSLATOR_PROTOCOLS.map((p) => (
                     <option key={p} value={p}>
@@ -246,7 +246,7 @@ export function TranslatorConsole() {
                 <select
                   id="tr-to"
                   {...form.register("to_protocol")}
-                  className="w-full rounded-md border border-[var(--border-subtle)] bg-[var(--bg-canvas)] px-2.5 py-2 font-mono text-xs text-[var(--text-primary)] focus:border-[#E56A4A] focus:outline-none"
+                  className="w-full rounded-md border border-[var(--border-subtle)] bg-[var(--bg-canvas)] px-2.5 py-2 font-mono text-xs text-[var(--text-primary)] focus:border-[var(--accent-primary)] focus:outline-none"
                 >
                   {TRANSLATOR_PROTOCOLS.map((p) => (
                     <option key={p} value={p}>
@@ -279,7 +279,7 @@ export function TranslatorConsole() {
                   id="tr-input"
                   rows={12}
                   spellCheck={false}
-                  className="w-full rounded-md border border-[var(--border-subtle)] bg-[var(--bg-canvas)] p-3 font-mono text-xs text-[var(--text-primary)] focus:border-[#E56A4A] focus:outline-none"
+                  className="w-full rounded-md border border-[var(--border-subtle)] bg-[var(--bg-canvas)] p-3 font-mono text-xs text-[var(--text-primary)] focus:border-[var(--accent-primary)] focus:outline-none"
                   {...form.register("payloadText")}
                 />
                 {form.formState.errors.payloadText ? (
@@ -334,7 +334,10 @@ export function TranslatorConsole() {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <CardTitle className="flex items-center gap-2 text-base">
-                <TerminalSquare className="h-4 w-4 text-[#E56A4A]" aria-hidden="true" />
+                <TerminalSquare
+                  className="h-4 w-4 text-[var(--accent-primary)]"
+                  aria-hidden="true"
+                />
                 Live Server Console Stream
               </CardTitle>
               <CardDescription>

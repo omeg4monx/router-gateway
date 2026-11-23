@@ -310,7 +310,7 @@ export function UsageConsole() {
                   onClick={() => setRange(item)}
                   className={
                     active
-                      ? "rounded px-3 py-1.5 font-mono text-xs font-semibold bg-[#E56A4A] text-[#0a0a0a] transition-colors"
+                      ? "rounded px-3 py-1.5 font-mono text-xs font-semibold bg-[var(--accent-primary)] text-[var(--accent-primary-ink)] transition-colors"
                       : "rounded px-3 py-1.5 font-mono text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
                   }
                 >
@@ -340,7 +340,7 @@ export function UsageConsole() {
             onClick={handleRefreshAll}
             disabled={isRefreshing}
           >
-            <RefreshCw className="h-3.5 w-3.5 text-[#E56A4A]" aria-hidden="true" />
+            <RefreshCw className="h-3.5 w-3.5 text-[var(--accent-primary)]" aria-hidden="true" />
             <span>{isRefreshing ? "Refreshing" : "Refresh"}</span>
           </Button>
         </div>
@@ -369,7 +369,7 @@ export function UsageConsole() {
               <span className="font-mono text-[11px] uppercase tracking-wider text-[var(--text-muted)]">
                 Requests
               </span>
-              <Activity className="h-4 w-4 text-[#E56A4A]" aria-hidden="true" />
+              <Activity className="h-4 w-4 text-[var(--accent-primary)]" aria-hidden="true" />
             </div>
             <p className="mt-2 font-mono text-2xl font-semibold tracking-tight text-[var(--text-primary)] tabular-nums">
               {summaryQuery.isPending ? "--" : (totals?.requests ?? 0).toLocaleString("en-US")}
@@ -388,7 +388,7 @@ export function UsageConsole() {
               <span className="font-mono text-[11px] uppercase tracking-wider text-[var(--text-muted)]">
                 Total Tokens
               </span>
-              <Cpu className="h-4 w-4 text-[#E56A4A]" aria-hidden="true" />
+              <Cpu className="h-4 w-4 text-[var(--accent-primary)]" aria-hidden="true" />
             </div>
             <p className="mt-2 font-mono text-2xl font-semibold tracking-tight text-[var(--text-primary)] tabular-nums">
               {summaryQuery.isPending ? "--" : formatCompactTokens(totalTokens)}
@@ -407,7 +407,7 @@ export function UsageConsole() {
               <span className="font-mono text-[11px] uppercase tracking-wider text-[var(--text-muted)]">
                 Est. Cost USD
               </span>
-              <DollarSign className="h-4 w-4 text-[#E56A4A]" aria-hidden="true" />
+              <DollarSign className="h-4 w-4 text-[var(--accent-primary)]" aria-hidden="true" />
             </div>
             <p className="mt-2 font-mono text-2xl font-semibold tracking-tight text-[var(--text-primary)] tabular-nums">
               {summaryQuery.isPending ? "--" : formatUSD(totals?.cost_usd ?? 0)}
@@ -424,7 +424,7 @@ export function UsageConsole() {
               <span className="font-mono text-[11px] uppercase tracking-wider text-[var(--text-muted)]">
                 Avg Latency / TTFT
               </span>
-              <Gauge className="h-4 w-4 text-[#E56A4A]" aria-hidden="true" />
+              <Gauge className="h-4 w-4 text-[var(--accent-primary)]" aria-hidden="true" />
             </div>
             <p className="mt-2 font-mono text-2xl font-semibold tracking-tight text-[var(--text-primary)] tabular-nums">
               {summaryQuery.isPending
@@ -443,7 +443,7 @@ export function UsageConsole() {
               <span className="font-mono text-[11px] uppercase tracking-wider text-[var(--text-muted)]">
                 Error Rate
               </span>
-              <ShieldAlert className="h-4 w-4 text-[#E56A4A]" aria-hidden="true" />
+              <ShieldAlert className="h-4 w-4 text-[var(--accent-primary)]" aria-hidden="true" />
             </div>
             <p
               className={`mt-2 font-mono text-2xl font-semibold tracking-tight tabular-nums ${
@@ -466,7 +466,7 @@ export function UsageConsole() {
           <CardHeader>
             <div>
               <div className="flex items-center gap-2">
-                <BarChart3 className="h-4 w-4 text-[#E56A4A]" aria-hidden="true" />
+                <BarChart3 className="h-4 w-4 text-[var(--accent-primary)]" aria-hidden="true" />
                 <CardTitle>Top Models</CardTitle>
               </div>
               <CardDescription className="mt-0.5">
@@ -516,7 +516,7 @@ export function UsageConsole() {
                       </div>
                       <div className="h-2 w-full overflow-hidden rounded-sm border border-[var(--border-subtle)] bg-[var(--bg-surface-raised)]">
                         <div
-                          className="h-full bg-[#E56A4A] transition-all"
+                          className="h-full bg-[var(--accent-primary)] transition-all"
                           style={{ width: `${barPct}%` }}
                         />
                       </div>
@@ -542,7 +542,7 @@ export function UsageConsole() {
           <CardHeader>
             <div>
               <div className="flex items-center gap-2">
-                <Server className="h-4 w-4 text-[#E56A4A]" aria-hidden="true" />
+                <Server className="h-4 w-4 text-[var(--accent-primary)]" aria-hidden="true" />
                 <CardTitle>Top Providers</CardTitle>
               </div>
               <CardDescription className="mt-0.5">
@@ -592,7 +592,7 @@ export function UsageConsole() {
                       </div>
                       <div className="h-2 w-full overflow-hidden rounded-sm border border-[var(--border-subtle)] bg-[var(--bg-surface-raised)]">
                         <div
-                          className="h-full bg-[#E56A4A] transition-all"
+                          className="h-full bg-[var(--accent-primary)] transition-all"
                           style={{ width: `${barPct}%` }}
                         />
                       </div>
@@ -621,7 +621,7 @@ export function UsageConsole() {
         <CardHeader className="flex-col items-start gap-3 sm:flex-row sm:items-center">
           <div>
             <div className="flex items-center gap-2">
-              <ScrollText className="h-4 w-4 text-[#E56A4A]" aria-hidden="true" />
+              <ScrollText className="h-4 w-4 text-[var(--accent-primary)]" aria-hidden="true" />
               <CardTitle>Request Logs</CardTitle>
             </div>
             <CardDescription className="mt-0.5">
@@ -666,7 +666,7 @@ export function UsageConsole() {
                   setStatusFilter(e.target.value);
                   setOffset(0);
                 }}
-                className="mt-1.5 flex h-9 w-full rounded-md border border-[var(--border-strong)] bg-[var(--bg-input)] px-3 py-1.5 font-mono text-xs text-[var(--text-primary)] transition-colors focus:border-[#E56A4A]"
+                className="mt-1.5 flex h-9 w-full rounded-md border border-[var(--border-strong)] bg-[var(--bg-input)] px-3 py-1.5 font-mono text-xs text-[var(--text-primary)] transition-colors focus:border-[var(--accent-primary)]"
               >
                 {STATUS_FILTER_OPTIONS.map((opt) => (
                   <option key={opt.value || "all"} value={opt.value}>
@@ -686,7 +686,7 @@ export function UsageConsole() {
                     setLimit(Number(e.target.value));
                     setOffset(0);
                   }}
-                  className="mt-1.5 flex h-9 w-full rounded-md border border-[var(--border-strong)] bg-[var(--bg-input)] px-3 py-1.5 font-mono text-xs text-[var(--text-primary)] tabular-nums transition-colors focus:border-[#E56A4A]"
+                  className="mt-1.5 flex h-9 w-full rounded-md border border-[var(--border-strong)] bg-[var(--bg-input)] px-3 py-1.5 font-mono text-xs text-[var(--text-primary)] tabular-nums transition-colors focus:border-[var(--accent-primary)]"
                 >
                   {LOG_PAGE_SIZES.map((size) => (
                     <option key={size} value={size}>
@@ -883,7 +883,7 @@ export function UsageConsole() {
         <CardHeader>
           <div>
             <div className="flex items-center gap-2">
-              <Coins className="h-4 w-4 text-[#E56A4A]" aria-hidden="true" />
+              <Coins className="h-4 w-4 text-[var(--accent-primary)]" aria-hidden="true" />
               <CardTitle>Model Pricing Editor</CardTitle>
             </div>
             <CardDescription className="mt-0.5">
@@ -1046,7 +1046,7 @@ export function UsageConsole() {
         <CardHeader className="flex-col items-start gap-3 sm:flex-row sm:items-center">
           <div>
             <div className="flex items-center gap-2">
-              <Coins className="h-4 w-4 text-[#E56A4A]" aria-hidden="true" />
+              <Coins className="h-4 w-4 text-[var(--accent-primary)]" aria-hidden="true" />
               <CardTitle>Active Model Pricing Catalog</CardTitle>
             </div>
             <CardDescription className="mt-0.5">

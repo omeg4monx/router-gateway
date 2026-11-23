@@ -187,7 +187,7 @@ export function MediaConsole() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
-            <Globe className="h-4 w-4 text-[#E56A4A]" aria-hidden="true" />
+            <Globe className="h-4 w-4 text-[var(--accent-primary)]" aria-hidden="true" />
             <span>Gateway Media Endpoints</span>
           </CardTitle>
           <CardDescription>
@@ -222,7 +222,7 @@ export function MediaConsole() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
-              <Image className="h-4 w-4 text-[#E56A4A]" aria-hidden="true" />
+              <Image className="h-4 w-4 text-[var(--accent-primary)]" aria-hidden="true" />
               <span>Add Media Provider</span>
             </CardTitle>
             <CardDescription>
@@ -341,7 +341,7 @@ export function MediaConsole() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
-              <Layers className="h-4 w-4 text-[#E56A4A]" aria-hidden="true" />
+              <Layers className="h-4 w-4 text-[var(--accent-primary)]" aria-hidden="true" />
               <span>Create Media Combo</span>
             </CardTitle>
             <CardDescription>

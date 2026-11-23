@@ -282,7 +282,7 @@ export function SettingsConsole() {
           onClick={handleRefreshAll}
           disabled={isRefreshing}
         >
-          <RefreshCw className="h-3.5 w-3.5 text-[#E56A4A]" aria-hidden="true" />
+          <RefreshCw className="h-3.5 w-3.5 text-[var(--accent-primary)]" aria-hidden="true" />
           <span>{isRefreshing ? "Refreshing" : "Refresh"}</span>
         </Button>
       </section>
@@ -291,7 +291,10 @@ export function SettingsConsole() {
         <CardHeader>
           <div>
             <div className="flex items-center gap-2">
-              <SlidersHorizontal className="h-4 w-4 text-[#E56A4A]" aria-hidden="true" />
+              <SlidersHorizontal
+                className="h-4 w-4 text-[var(--accent-primary)]"
+                aria-hidden="true"
+              />
               <CardTitle>Typed Runtime Settings</CardTitle>
             </div>
             <CardDescription className="mt-0.5">
@@ -359,7 +362,7 @@ export function SettingsConsole() {
                   </div>
                   <select
                     id="setting-ui-theme"
-                    className="flex h-10 w-full rounded-md border border-[var(--border-strong)] bg-[var(--bg-input)] px-3 py-2 font-mono text-sm text-[var(--text-primary)] transition-colors focus:border-[#E56A4A] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#E56A4A]"
+                    className="flex h-10 w-full rounded-md border border-[var(--border-strong)] bg-[var(--bg-input)] px-3 py-2 font-mono text-sm text-[var(--text-primary)] transition-colors focus:border-[var(--accent-primary)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent-primary)]"
                     {...settingsForm.register("ui_theme")}
                   >
                     <option value="dark">dark</option>
@@ -380,7 +383,7 @@ export function SettingsConsole() {
                   </div>
                   <select
                     id="setting-ui-locale"
-                    className="flex h-10 w-full rounded-md border border-[var(--border-strong)] bg-[var(--bg-input)] px-3 py-2 font-mono text-sm text-[var(--text-primary)] transition-colors focus:border-[#E56A4A] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#E56A4A]"
+                    className="flex h-10 w-full rounded-md border border-[var(--border-strong)] bg-[var(--bg-input)] px-3 py-2 font-mono text-sm text-[var(--text-primary)] transition-colors focus:border-[var(--accent-primary)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent-primary)]"
                     {...settingsForm.register("ui_locale")}
                   >
                     <option value="en">en (English)</option>
@@ -523,7 +526,7 @@ export function SettingsConsole() {
                   <input
                     id="setting-payload-logging"
                     type="checkbox"
-                    className="mt-1 h-4 w-4 accent-[#E56A4A]"
+                    className="mt-1 h-4 w-4 accent-[var(--accent-primary)]"
                     {...settingsForm.register("payload_logging_enabled")}
                   />
                 </label>
@@ -549,7 +552,7 @@ export function SettingsConsole() {
                   <input
                     id="setting-chain-fallback"
                     type="checkbox"
-                    className="mt-1 h-4 w-4 accent-[#E56A4A]"
+                    className="mt-1 h-4 w-4 accent-[var(--accent-primary)]"
                     {...settingsForm.register("allow_response_chain_fallback")}
                   />
                 </label>
@@ -590,7 +593,7 @@ export function SettingsConsole() {
         <Card>
           <CardHeader>
             <div className="flex items-center gap-2">
-              <ShieldCheck className="h-4 w-4 text-[#E56A4A]" aria-hidden="true" />
+              <ShieldCheck className="h-4 w-4 text-[var(--accent-primary)]" aria-hidden="true" />
               <CardTitle>Login Enforcement Policy</CardTitle>
             </div>
             <span className="font-mono text-xs text-[var(--text-muted)]">PUT /api/auth/policy</span>
@@ -738,7 +741,7 @@ export function SettingsConsole() {
         <Card>
           <CardHeader>
             <div className="flex items-center gap-2">
-              <KeyRound className="h-4 w-4 text-[#E56A4A]" aria-hidden="true" />
+              <KeyRound className="h-4 w-4 text-[var(--accent-primary)]" aria-hidden="true" />
               <CardTitle>Change Admin Password</CardTitle>
             </div>
             <span className="font-mono text-xs text-[var(--text-muted)]">
@@ -891,7 +894,7 @@ export function SettingsConsole() {
       <Card>
         <CardHeader>
           <div className="flex items-center gap-2">
-            <History className="h-4 w-4 text-[#E56A4A]" aria-hidden="true" />
+            <History className="h-4 w-4 text-[var(--accent-primary)]" aria-hidden="true" />
             <CardTitle>Settings Revision History</CardTitle>
           </div>
           <span className="font-mono text-xs text-[var(--text-muted)]">

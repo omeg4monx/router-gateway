@@ -161,7 +161,7 @@ export function TunnelConsole() {
           <CardHeader className="pb-2">
             <CardDescription>Live State</CardDescription>
             <CardTitle className="flex items-center gap-2 text-lg">
-              <Radio className="h-4 w-4 text-[#E56A4A]" aria-hidden="true" />
+              <Radio className="h-4 w-4 text-[var(--accent-primary)]" aria-hidden="true" />
               <span className="uppercase">{status?.status ?? "loading"}</span>
             </CardTitle>
           </CardHeader>
@@ -179,7 +179,7 @@ export function TunnelConsole() {
                   href={status.public_url}
                   target="_blank"
                   rel="noreferrer"
-                  className="text-[#E56A4A] underline-offset-4 hover:underline"
+                  className="text-[var(--accent-primary)] underline-offset-4 hover:underline"
                 >
                   {status.public_url}
                 </a>
@@ -305,7 +305,9 @@ export function TunnelConsole() {
                     </Badge>
                     <span className="text-sm text-[var(--text-primary)]">{ev.message}</span>
                     {ev.public_url ? (
-                      <span className="font-mono text-xs text-[#E56A4A]">{ev.public_url}</span>
+                      <span className="font-mono text-xs text-[var(--accent-primary)]">
+                        {ev.public_url}
+                      </span>
                     ) : null}
                   </div>
                   <span className="font-mono text-xs text-[var(--text-muted)]">

@@ -234,7 +234,7 @@ export function TelegramConsole() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
-              <Shield className="h-4 w-4 text-[#E56A4A]" aria-hidden="true" />
+              <Shield className="h-4 w-4 text-[var(--accent-primary)]" aria-hidden="true" />
               Credentials &amp; Webhook Security
             </CardTitle>
             <CardDescription>
@@ -251,7 +251,7 @@ export function TelegramConsole() {
                 <input
                   type="checkbox"
                   {...configForm.register("enabled")}
-                  className="h-4 w-4 accent-[#E56A4A]"
+                  className="h-4 w-4 accent-[var(--accent-primary)]"
                 />
               </label>
 
@@ -303,7 +303,7 @@ export function TelegramConsole() {
 
               <div className="space-y-2 rounded-md border border-[var(--border-subtle)] bg-[var(--bg-surface-raised)] p-3">
                 <p className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-[var(--text-muted)]">
-                  <Bell className="h-3.5 w-3.5 text-[#E56A4A]" aria-hidden="true" />
+                  <Bell className="h-3.5 w-3.5 text-[var(--accent-primary)]" aria-hidden="true" />
                   EventBus Alert Forwarding
                 </p>
                 <label className="flex items-center justify-between text-sm">
@@ -311,7 +311,7 @@ export function TelegramConsole() {
                   <input
                     type="checkbox"
                     {...configForm.register("notify_on_job_failure")}
-                    className="h-4 w-4 accent-[#E56A4A]"
+                    className="h-4 w-4 accent-[var(--accent-primary)]"
                   />
                 </label>
                 <label className="flex items-center justify-between text-sm">
@@ -319,7 +319,7 @@ export function TelegramConsole() {
                   <input
                     type="checkbox"
                     {...configForm.register("notify_on_auth_change")}
-                    className="h-4 w-4 accent-[#E56A4A]"
+                    className="h-4 w-4 accent-[var(--accent-primary)]"
                   />
                 </label>
                 <label className="flex items-center justify-between text-sm">
@@ -327,7 +327,7 @@ export function TelegramConsole() {
                   <input
                     type="checkbox"
                     {...configForm.register("notify_on_emit")}
-                    className="h-4 w-4 accent-[#E56A4A]"
+                    className="h-4 w-4 accent-[var(--accent-primary)]"
                   />
                 </label>
               </div>
@@ -391,7 +391,7 @@ export function TelegramConsole() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
-                <Terminal className="h-4 w-4 text-[#E56A4A]" aria-hidden="true" />
+                <Terminal className="h-4 w-4 text-[var(--accent-primary)]" aria-hidden="true" />
                 In-Process Command Simulator
               </CardTitle>
               <CardDescription>
@@ -456,7 +456,7 @@ export function TelegramConsole() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
-                <Send className="h-4 w-4 text-[#E56A4A]" aria-hidden="true" />
+                <Send className="h-4 w-4 text-[var(--accent-primary)]" aria-hidden="true" />
                 Outbound Delivery Probe
               </CardTitle>
               <CardDescription>

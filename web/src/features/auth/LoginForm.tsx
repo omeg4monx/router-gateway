@@ -61,7 +61,10 @@ export function LoginForm({ remoteEnforced = false }: LoginFormProps) {
     <form onSubmit={handleSubmit(onValidSubmit)} noValidate className="space-y-5">
       {remoteEnforced ? (
         <Alert>
-          <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-[#E56A4A]" aria-hidden="true" />
+          <ShieldCheck
+            className="mt-0.5 h-4 w-4 shrink-0 text-[var(--accent-primary)]"
+            aria-hidden="true"
+          />
           <div>
             <AlertTitle>Remote Bind Enforcement Active</AlertTitle>
             <AlertDescription>

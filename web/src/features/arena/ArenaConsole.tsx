@@ -146,7 +146,7 @@ export function ArenaConsole() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
-            <Flame className="h-4 w-4 text-[#E56A4A]" aria-hidden="true" />
+            <Flame className="h-4 w-4 text-[var(--accent-primary)]" aria-hidden="true" />
             Configure Contenders &amp; Prompt
           </CardTitle>
           <CardDescription>
@@ -254,7 +254,7 @@ export function ArenaConsole() {
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
                 placeholder="Enter a prompt to run concurrently across all selected contenders..."
-                className="w-full rounded-md border border-[var(--border-subtle)] bg-[var(--bg-canvas)] px-3 py-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:border-[#E56A4A] focus:outline-none"
+                className="w-full rounded-md border border-[var(--border-subtle)] bg-[var(--bg-canvas)] px-3 py-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:border-[var(--accent-primary)] focus:outline-none"
               />
             </div>
 
@@ -310,7 +310,7 @@ export function ArenaConsole() {
                     key={c.id}
                     className={`flex flex-col justify-between rounded-md border p-4 ${
                       isWinner
-                        ? "border-[#E56A4A] bg-[var(--bg-surface-raised)]"
+                        ? "border-[var(--accent-primary)] bg-[var(--bg-surface-raised)]"
                         : "border-[var(--border-subtle)] bg-[var(--bg-canvas)]"
                     }`}
                   >
@@ -368,7 +368,7 @@ export function ArenaConsole() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
-              <Trophy className="h-4 w-4 text-[#E56A4A]" aria-hidden="true" />
+              <Trophy className="h-4 w-4 text-[var(--accent-primary)]" aria-hidden="true" />
               Model Leaderboard
             </CardTitle>
             <CardDescription>
@@ -430,7 +430,7 @@ export function ArenaConsole() {
                     onClick={() => setActiveBattleId(b.id)}
                     className={`w-full rounded-md border px-3 py-2.5 text-left transition-colors ${
                       activeBattle?.id === b.id
-                        ? "border-[#E56A4A] bg-[var(--bg-surface-raised)]"
+                        ? "border-[var(--accent-primary)] bg-[var(--bg-surface-raised)]"
                         : "border-[var(--border-subtle)] bg-[var(--bg-canvas)] hover:bg-[var(--bg-surface-raised)]"
                     }`}
                   >
