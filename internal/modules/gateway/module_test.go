@@ -1232,6 +1232,59 @@ func TestGatewayInterceptorsPriorityOrdering(t *testing.T) {
 	}
 }
 
+func TestGatewayInterceptorMetadataPropagatesToResponseHeaders(t *testing.T) {
+	var seenMeta any
+	ic := &recordingInterceptor{
+		name:     "meta-prop",
+		priority: 10,
+		onRequestFn: func(_ context.Context, req *contracts.CanonicalRequest) error {
+			req.Metadata["test_trace_token"] = "propagated-ok"
+			return nil
+		},
+		onResponseHeadersFn: func(_ context.Context, meta *contracts.ResponseMeta) error {
+			seenMeta = meta.Metadata["test_trace_token"]
+			if v, ok := seenMeta.(string); ok {
+				meta.Headers.Set("X-Meta-Trace", v)
+			}
+			return nil
+		},
+	}
+
+	env := setupGatewayTest(t, []contracts.GatewayInterceptor{ic}, time.Hour, true)
+	up := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, `{"id":"c1","object":"chat.completion","model":"gpt-4o","choices":[{"index":0,"message":{"role":"assistant","content":"ok"},"finish_reason":"stop"}]}`)
+	}))
+	defer up.Close()
+
+	env.providers.creds["c1"] = contracts.UpstreamCredentials{
+		ConnectionID: "c1", ProviderID: "openai", Protocol: "openai-chat",
+		BaseURL: up.URL, AuthType: "api_key", APIKey: "k1",
+	}
+	env.resolver.fn = func(context.Context, string, []string) ([]contracts.ResolvedTarget, error) {
+		return []contracts.ResolvedTarget{{
+			ProviderID: "openai", ProviderType: "openai-chat", ConnectionID: "c1",
+			Model: "gpt-4o", UpstreamModel: "gpt-4o", Endpoint: up.URL,
+		}}, nil
+	}
+
+	req, _ := http.NewRequest(http.MethodPost, env.baseURL+"/v1/chat/completions", strings.NewReader(`{"model":"gpt-4o","messages":[{"role":"user","content":"hello"}]}`))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer sk-valid")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("Do: %v", err)
+	}
+	_ = resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+	if seenMeta != "propagated-ok" || resp.Header.Get("X-Meta-Trace") != "propagated-ok" {
+		t.Fatalf("expected metadata to propagate to OnResponseHeaders, got seenMeta=%v header=%q", seenMeta, resp.Header.Get("X-Meta-Trace"))
+	}
+}
+
 func TestGatewayModelsCountTokensResponseChainsAndAliases(t *testing.T) {
 	env := setupGatewayTest(t, nil, time.Hour, true)
 

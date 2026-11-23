@@ -577,6 +577,7 @@ func (m *Module) handleInference(w http.ResponseWriter, r *http.Request, inProto
 				reqID,
 				keyInfo.ID,
 				icReq.Model,
+				icReq.Metadata,
 				inProto,
 				outProto,
 				icReq.Stream,
@@ -711,6 +712,7 @@ func (m *Module) executeCandidateAttempt(
 	reqID string,
 	keyID string,
 	requestedModel string,
+	reqMeta map[string]any,
 	inProto string,
 	outProto string,
 	stream bool,
@@ -750,6 +752,10 @@ func (m *Module) executeCandidateAttempt(
 	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
 		m.health.RecordSuccess(cand.ConnectionID)
 
+		metaMap := make(map[string]any, len(reqMeta))
+		for k, v := range reqMeta {
+			metaMap[k] = v
+		}
 		meta := &contracts.ResponseMeta{
 			RequestID:    reqID,
 			StatusCode:   resp.StatusCode,
@@ -757,7 +763,7 @@ func (m *Module) executeCandidateAttempt(
 			ProviderID:   cand.ProviderID,
 			ConnectionID: cand.ConnectionID,
 			Model:        requestedModel,
-			Metadata:     make(map[string]any),
+			Metadata:     metaMap,
 		}
 		for _, ic := range m.interceptors {
 			if icErr := ic.OnResponseHeaders(ctx, meta); icErr != nil {
