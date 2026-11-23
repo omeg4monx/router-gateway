@@ -1,17 +1,17 @@
-# Graph Report - wave2c-omeg4mon-router  (2026-11-23)
+# Graph Report - wave3a-omeg4mon-router  (2026-11-23)
 
 ## Corpus Check
-- 256 files · ~257,820 words
+- 277 files · ~274,968 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 9 file(s) not represented in the graph (top: (none) 7, .lock 1, .css 1)
 
 ## Summary
-- 3016 nodes · 9797 edges · 139 communities (114 shown, 25 thin omitted)
-- Extraction: 91% EXTRACTED · 9% INFERRED · 0% AMBIGUOUS · INFERRED: 930 edges (avg confidence: 0.83)
+- 3194 nodes · 10526 edges · 127 communities (107 shown, 20 thin omitted)
+- Extraction: 91% EXTRACTED · 9% INFERRED · 0% AMBIGUOUS · INFERRED: 998 edges (avg confidence: 0.83)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `e0d53270`
+- Built from commit: `c1e6bfc7`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -31,7 +31,7 @@
 - components.json
 - KeysConsole.tsx
 - resolver.go
-- Card
+- Badge
 - catalog.go
 - System Module & OpenAPI 3.1 Spec
 - net/http/httptest.ResponseRecorder
@@ -40,13 +40,13 @@
 - SettingsConsole.tsx
 - with
 - jobs
-- RingBuffer
+- Module
 - steps
 - web-check
 - on
 - cross-compile
 - Module
-- providers/schemas.ts
+- ProvidersConsole.tsx
 - schema.d.ts
 - docker-build
 - go-check
@@ -54,7 +54,7 @@
 - postcss.config.mjs
 - github.com/omeg4monx/router-gateway
 - CanonicalUsage
-- net/http.Request
+- net/http.ResponseWriter
 - UsageConsole.tsx
 - translate_anthropic.go
 - teeHandler
@@ -62,110 +62,97 @@
 - translate_gemini.go
 - context.Context
 - repository
-- newTestHarness
+- VouchersConsole.tsx
 - translate_openai.go
 - lifecycle.Registry
 - PromptGuardConsole.tsx
 - ModelsRoutingConsole.tsx
 - encoding/json.RawMessage
-- net/http.ResponseWriter
-- client.ts
+- net/http.Request
+- CardTitle
 - RouteMounts
 - WriteError
-- SecurityConsole.tsx
+- Label
 - repository
 - ProxyPoolsConsole.tsx
-- repository
-- setupNotificationsTest
+- modeleditor/repo.go
+- sync.Mutex
 - Server
 - Module
 - Module
 - listSettingsWithQueryer
-- TestContractInterfacesSatisfied
+- .OnResponseHeaders
 - repository
 - ModelEditorConsole.tsx
 - Module
-- Module
-- DB
-- newTestHarness
+- TeamsConsole.tsx
+- .Reader
+- .AuthenticateAdmin
 - scripts
 - time.Time
 - WriteJSON
-- newTestHarness
-- New
-- crypto.SessionSigner
+- .OnRequest
+- dependencies
 - Module
-- Open
-- CliToolsConsole.tsx
-- ProviderAdapter
-- repository
 - Module
-- repository
-- batcher
 - testEnv
-- NewStreamTranslator
+- CliToolsConsole.tsx
+- customTestAdapter
+- repository
+- testEnv
+- Module
+- batcher
+- File Map
+- repo
 - net/url.URL
-- buildApp
+- DB
 - TranslatorConsole.tsx
 - repo
-- newTestHarness
-- ProvidersConsole.tsx
-- stubModule
-- stubSystemModule
+- app/layout.tsx
+- File Map
+- repository
 - stubDepModule
 - stubModule
-- Vault
-- time.Duration
-- .postTokenEndpoint
+- io/fs.FS
+- TestContractInterfacesSatisfied
+- openapi-fetch
 - settingDefinition
 - setupPromptGuardTest
 - CanonicalStreamChunk
 - setupTokenSaverTest
 - .StatusCode
-- NewStaticUIHandler
-- ProvidersConsole
 - stubModule
-- stubModule
-- Runner
-- NewClient
-- Bus
+- New
+- Module
 - Config
 - stubDep
-- providers/hooks.ts
-- headroomCache
 - .executeCandidateAttempt
-- collectMigrations
-- syncBuffer
 - modeleditor/engine.go
 - promptinjection/engine.go
 - OAuthConfig
 - repo
 - compressor.go
-- Module
-- providers/schemas.test.ts
+- ProviderAdapter
 - redact.go
-- .Name
-- orderStubModule
-- .OnRequest
-- nameMinHeap
+- Module
 
 ## God Nodes (most connected - your core abstractions)
-1. `extractErrorMessage()` - 116 edges
-2. `WriteError()` - 112 edges
-3. `WriteJSON()` - 98 edges
-4. `DB` - 67 edges
-5. `buildApp()` - 58 edges
-6. `Bus` - 47 edges
-7. `Button` - 47 edges
-8. `Module` - 44 edges
-9. `Alert` - 43 edges
-10. `AlertDescription` - 42 edges
+1. `extractErrorMessage()` - 131 edges
+2. `WriteError()` - 126 edges
+3. `WriteJSON()` - 112 edges
+4. `DB` - 73 edges
+5. `buildApp()` - 62 edges
+6. `Bus` - 54 edges
+7. `Button` - 51 edges
+8. `Module` - 47 edges
+9. `Alert` - 47 edges
+10. `AlertDescription` - 46 edges
 
 ## Surprising Connections (you probably didn't know these)
 - `Task 6: Binary Wiring (`cmd/omeg4mon-router/main.go`), Root OpenAPI Aggregation, `make codegen` & Live E2E Gateway Tests` --references--> `buildApp()`  [INFERRED]
   docs/superpowers/plans/2026-11-23-wave1b-providers-combos-gateway.md → cmd/omeg4mon-router/main.go
-- `Review Focus` --references--> `KeyValidator`  [INFERRED]
-  docs/superpowers/plans/2026-11-23-wave1a-auth-settings-keys.md → internal/contracts/contracts.go
+- `Review Focus` --references--> `buildApp()`  [INFERRED]
+  docs/superpowers/plans/2026-11-23-wave1c-usage-clitools.md → cmd/omeg4mon-router/main.go
 - `Task 7: Frontend API Keys & Settings Control Plane Pages + Full Single-Binary Verification` --references--> `AppShell()`  [INFERRED]
   docs/superpowers/plans/2026-11-23-wave1a-auth-settings-keys.md → web/src/shared/ui/AppShell.tsx
 - `Task 2: `clitools` Module (Stateless Config Generators & Loopback-Only Atomic Local Apply/Rollback) & OpenAPI Fragment` --references--> `Config`  [INFERRED]
@@ -184,11 +171,11 @@
 - **Wave 0 Go Platform Foundation Infrastructure** — docs_superpowers_plans_2026_11_22_wave0_platform_foundation_platform_config, docs_superpowers_plans_2026_11_22_wave0_platform_foundation_logging_and_eventbus, docs_superpowers_plans_2026_11_22_wave0_platform_foundation_platform_crypto, docs_superpowers_plans_2026_11_22_wave0_platform_foundation_platform_db, docs_superpowers_plans_2026_11_22_wave0_platform_foundation_httpclient_and_jobs, docs_superpowers_plans_2026_11_22_wave0_platform_foundation_contracts_and_registry, docs_superpowers_plans_2026_11_22_wave0_platform_foundation_httpserver [EXTRACTED 1.00]
 - **Waves 0-3 Phased Modular Delivery Roadmap** — docs_superpowers_specs_2026_11_22_modular_ts_go_rewrite_design_wave_0_platform_foundation, docs_superpowers_specs_2026_11_22_modular_ts_go_rewrite_design_wave_1_core_gateway, docs_superpowers_specs_2026_11_22_modular_ts_go_rewrite_design_wave_2_routing_security_devtools, docs_superpowers_specs_2026_11_22_modular_ts_go_rewrite_design_wave_3_extended_ecosystem [EXTRACTED 1.00]
 
-## Communities (139 total, 25 thin omitted)
+## Communities (127 total, 20 thin omitted)
 
 ### Community 0 - "main.go"
-Cohesion: 0.05
-Nodes (89): changePasswordRequest, changePasswordResponse, loginRequest, loginResponse, logoutResponse, meResponse, PolicyChangedEvent, policyResponse (+81 more)
+Cohesion: 0.06
+Nodes (91): changePasswordRequest, changePasswordResponse, loginRequest, loginResponse, logoutResponse, meResponse, PolicyChangedEvent, policyResponse (+83 more)
 
 ### Community 1 - "Module"
 Cohesion: 0.24
@@ -207,48 +194,48 @@ Cohesion: 0.13
 Nodes (19): Single-Admin Auth & Remote-Bind Posture, Canonical IR & Direct Protocol Translators, CLI Tools Generator & Loopback-Only Apply, OMEG4MON Design System (docs/DESIGN.md), In-Process Typed EventBus, Gateway Routing & SSE Streaming Pipeline, Internal Contracts & GatewayInterceptor Chain, Next.js 15 Static Export & Feature-Modular UI (+11 more)
 
 ### Community 5 - "APIKeySummary"
-Cohesion: 0.08
-Nodes (26): cloneCachedEntry(), cloneKeyInfo(), cloneStringSlice(), newKeyCache(), New(), decodeStringSlice(), encodeStringSlice(), APIKeySummary (+18 more)
+Cohesion: 0.09
+Nodes (21): cloneCachedEntry(), cloneKeyInfo(), cloneStringSlice(), decodeStringSlice(), encodeStringSlice(), APIKeySummary, newRepository(), scanSummary() (+13 more)
 
 ### Community 6 - "package.json"
-Cohesion: 0.05
-Nodes (54): @biomejs/biome, class-variance-authority, clsx, geist, openapi-typescript, @radix-ui/react-label, @radix-ui/react-slot, react-dom (+46 more)
+Cohesion: 0.12
+Nodes (22): @biomejs/biome, openapi-typescript, tailwindcss, @tailwindcss/postcss, @types/bun, @types/node, @types/react, @types/react-dom (+14 more)
 
 ### Community 7 - "translate_test.go"
-Cohesion: 0.18
-Nodes (14): ProtocolTranslator, CanFastPath(), DecodeRequest(), DecodeResponse(), EncodeRequest(), IsSupportedProtocol(), RewriteModelField(), TestAnthropicToOpenAIChatRoundTrip() (+6 more)
+Cohesion: 0.11
+Nodes (17): ProtocolTranslator, CanFastPath(), IsSupportedProtocol(), NewStreamTranslator(), RewriteModelField(), estimateBlocks(), EstimateTokens(), newAnthropicStreamEncoder() (+9 more)
 
 ### Community 8 - "compilerOptions"
 Cohesion: 0.10
 Nodes (19): compilerOptions, allowJs, esModuleInterop, incremental, isolatedModules, jsx, lib, module (+11 more)
 
 ### Community 9 - "extractErrorMessage"
-Cohesion: 0.17
-Nodes (25): NotificationsPage(), notificationsQueryKeys, useBackgroundJobs(), useClearNotificationsMutation(), useCreateNotificationMutation(), useDeleteNotificationMutation(), useMarkAllNotificationsReadMutation(), useMarkNotificationReadMutation() (+17 more)
+Cohesion: 0.15
+Nodes (26): NotificationsPage(), notificationsQueryKeys, useBackgroundJobs(), useClearNotificationsMutation(), useCreateNotificationMutation(), useDeleteNotificationMutation(), useMarkAllNotificationsReadMutation(), useMarkNotificationReadMutation() (+18 more)
 
 ### Community 10 - "Button"
-Cohesion: 0.08
-Nodes (58): Task 6: Frontend Auth Flow (`web/src/features/auth/`, Live `/login/`, `AuthGuard`, Sign-Out), lucide-react, next, nextConfig, DashboardLayout(), DashboardLayoutProps, DashboardPage(), InitPage() (+50 more)
+Cohesion: 0.09
+Nodes (56): class-variance-authority, lucide-react, next, react, nextConfig, DashboardLayout(), DashboardLayoutProps, InitPage() (+48 more)
 
 ### Community 11 - "testing.T"
-Cohesion: 0.07
-Nodes (55): TestSentinelErrorsDistinct(), decodeJSON(), newTestHarness(), TestCLIToolsCatalogAndGenerateAllTools(), TestCLIToolsLoopbackAtomicApplyAndRollback(), TestCLIToolsModuleContract(), TestCLIToolsNonLoopbackRejectsApplyAndRollback(), newChainStore() (+47 more)
+Cohesion: 0.04
+Nodes (106): TestSentinelErrorsDistinct(), decodeJSON(), newTestHarness(), TestCombosAliasesDisabledCRUDAndAuth(), TestCooldownConcurrency(), TestDisabledModelsAndCooldownStateMachine(), TestListModelsDeduplicationAndFiltering(), TestProviderQualifiedModelsListAndBareResolveSymmetry() (+98 more)
 
 ### Community 12 - "components.json"
 Cohesion: 0.11
 Nodes (17): aliases, components, hooks, lib, ui, utils, iconLibrary, rsc (+9 more)
 
 ### Community 13 - "KeysConsole.tsx"
-Cohesion: 0.12
-Nodes (29): DashboardKeysPage(), keysQueryKeys, ListApiKeysResponse, UpdateApiKeyVariables, useApiKeys(), useCreateApiKeyMutation(), useDeleteApiKeyMutation(), useRotateApiKeyMutation() (+21 more)
+Cohesion: 0.11
+Nodes (29): @hookform/resolvers, DashboardKeysPage(), keysQueryKeys, ListApiKeysResponse, UpdateApiKeyVariables, useCreateApiKeyMutation(), useDeleteApiKeyMutation(), useRotateApiKeyMutation() (+21 more)
 
 ### Community 14 - "resolver.go"
-Cohesion: 0.16
-Nodes (13): resolveSnapshot, targetKey, ModelDescriptor, ModelLister, stubModelLister, stubModelLister, buildResolvedTarget(), connectionSupportsBare() (+5 more)
+Cohesion: 0.18
+Nodes (11): resolveSnapshot, targetKey, ResolvedTarget, stubProviderResolver, buildResolvedTarget(), connectionSupportsBare(), connectionSupportsExplicit(), Module (+3 more)
 
-### Community 15 - "Card"
-Cohesion: 0.11
-Nodes (39): react, DashboardProviderDetailPage(), TokenSaverPage(), DashboardTranslatorPage(), useProviderConnection(), formatTimestamp(), ProviderDetailView(), toUpdateConnectionRequest() (+31 more)
+### Community 15 - "Badge"
+Cohesion: 0.16
+Nodes (21): TokenSaverPage(), tokenSaverQueryKeys, useClearHeadroomCacheMutation(), usePreviewTokenSaverMutation(), useResetTokenSaverStatsMutation(), useTokenSaverConfig(), useTokenSaverStats(), useUpdateTokenSaverConfigMutation() (+13 more)
 
 ### Community 16 - "catalog.go"
 Cohesion: 0.20
@@ -259,20 +246,20 @@ Cohesion: 0.19
 Nodes (13): Brand Identity (Caduceus & Ember Line), OMEG4MON ROUTER Design Direction, Cross-Module Contracts & Topological Module Registry, Streaming HTTP/2 Client Pool & Panic-Safe Job Runner, Chi HTTP Server, Streaming Timeout Split & SPA Static Handler, Structured Logging RingBuffer & Non-Blocking EventBus, Platform Config Loader (internal/platform/config), Platform Crypto Vault, Bcrypt & Session Signer (+5 more)
 
 ### Community 18 - "net/http/httptest.ResponseRecorder"
-Cohesion: 0.15
-Nodes (17): Options, testHarness, New(), decodeErrorCode(), doRequest(), findCookie(), newAuthHarness(), newFakeStore() (+9 more)
+Cohesion: 0.10
+Nodes (23): Options, testHarness, New(), decodeErrorCode(), doRequest(), findCookie(), newAuthHarness(), newFakeStore() (+15 more)
 
 ### Community 19 - "updates"
 Cohesion: 0.13
 Nodes (14): patterns, patterns, actions, go-dependencies, web-dependencies, interval, updates, directory (+6 more)
 
 ### Community 20 - "ir.go"
-Cohesion: 0.16
-Nodes (28): CacheControl, CanonicalChatRequest, CanonicalMessage, ContentBlock, ImageSource, ResponseFormat, SystemBlock, ToolChoice (+20 more)
+Cohesion: 0.14
+Nodes (34): CacheControl, CanonicalChatRequest, CanonicalMessage, ContentBlock, ImageSource, ResponseFormat, SystemBlock, ToolChoice (+26 more)
 
 ### Community 21 - "SettingsConsole.tsx"
 Cohesion: 0.08
-Nodes (47): @hookform/resolvers, DashboardSettingsPage(), authKeys, AuthMeResponse, LoginRequest, LoginResponse, LogoutResponse, AuthPolicyResponse (+39 more)
+Nodes (43): DashboardSettingsPage(), authKeys, AuthPolicyResponse, ChangePasswordRequest, ChangePasswordResponse, settingsQueryKeys, UpdateAuthPolicyRequest, useChangePasswordMutation() (+35 more)
 
 ### Community 22 - "with"
 Cohesion: 0.12
@@ -282,9 +269,9 @@ Nodes (16): with, bun-version, cache, cache-from, cache-to, check-latest, contex
 Cohesion: 0.15
 Nodes (12): concurrency, cancel-in-progress, group, jobs, single-binary, name, permissions, contents (+4 more)
 
-### Community 24 - "RingBuffer"
-Cohesion: 0.18
-Nodes (12): File Map, Global Constraints, Review Focus, Task 2: `httpclient` Provider-Context Proxy Hook & `proxypools` Module (HTTP/SOCKS5 Pools, Latency Tester, Auto-Scanner, Provider Binding), Task 3: Live Log Streaming (`logging`), `contracts.ProtocolTranslator` & `translator` Module, Task 4: Wire `proxypools` & `translator` in `cmd/omeg4mon-router`, OpenAPI Codegen & E2E Tests, Task 5: Web UI — Proxy Pools Studio (`/dashboard/proxy-pools/`), Task 6: Web UI — Translator Workbench & Live Console (`/dashboard/translator/`), Navigation Update & Single-Binary Verification (+4 more)
+### Community 24 - "Module"
+Cohesion: 0.13
+Nodes (11): Task 2: `providers` Module (Pluggable Adapters, Vaulted Connections, Custom Nodes & Headless-Safe OAuth) & OpenAPI Fragment, Review Focus, Task 3: Live Log Streaming (`logging`), `contracts.ProtocolTranslator` & `translator` Module, Module, Vault, cloneAttrMap(), RingBuffer, LogEntry (+3 more)
 
 ### Community 25 - "steps"
 Cohesion: 0.50
@@ -306,9 +293,9 @@ Nodes (5): name, needs, runs-on, timeout-minutes, cross-compile
 Cohesion: 0.19
 Nodes (9): actorFromContext(), decodeJSONBody(), decodePathModelParam(), generateID(), Module, validateComboTargets(), validateDescription(), validateModelIdentifier() (+1 more)
 
-### Community 30 - "providers/schemas.ts"
-Cohesion: 0.08
-Nodes (26): CatalogOAuthDescriptor, commaListSchema(), DEFAULT_PRIORITY, DEFAULT_UPDATE_CONNECTION_VALUES, headersTextSchema, isValidHttpUrl(), ListProviderConnectionsResponse, ListProviderNodesResponse (+18 more)
+### Community 30 - "ProvidersConsole.tsx"
+Cohesion: 0.05
+Nodes (92): DashboardProviderDetailPage(), DashboardProvidersPage(), ExchangeProviderOAuthVariables, providersQueryKeys, StartProviderOAuthVariables, UpdateProviderConnectionVariables, useCreateProviderConnectionMutation(), useCreateProviderNodeMutation() (+84 more)
 
 ### Community 31 - "schema.d.ts"
 Cohesion: 0.33
@@ -323,12 +310,12 @@ Cohesion: 0.50
 Nodes (4): name, runs-on, timeout-minutes, go-check
 
 ### Community 38 - "CanonicalUsage"
-Cohesion: 0.13
-Nodes (15): anthropicStreamEncoder, CanonicalUsage, composedStreamTranslator, openAIStreamEncoder, responsesStreamBlockState, responsesStreamEncoder, streamEncoder, streamResult (+7 more)
+Cohesion: 0.10
+Nodes (19): anthropicStreamEncoder, CanonicalUsage, composedStreamTranslator, geminiPendingTool, geminiStreamEncoder, openAIStreamEncoder, responsesStreamBlockState, responsesStreamEncoder (+11 more)
 
-### Community 39 - "net/http.Request"
-Cohesion: 0.11
-Nodes (16): clearSessionCookie(), isSecureRequest(), anthropicErrorType(), extractAPIKey(), geminiErrorStatus(), openAIErrorType(), writeGatewayError(), writeResolutionError() (+8 more)
+### Community 39 - "net/http.ResponseWriter"
+Cohesion: 0.15
+Nodes (11): setSessionCookie(), decodeJSONBody(), anthropicErrorType(), geminiErrorStatus(), openAIErrorType(), writeGatewayError(), writeResolutionError(), Module (+3 more)
 
 ### Community 40 - "UsageConsole.tsx"
 Cohesion: 0.08
@@ -336,7 +323,7 @@ Nodes (47): DashboardUsagePage(), buildLogsQueryParams(), UpsertModelPricingVari
 
 ### Community 41 - "translate_anthropic.go"
 Cohesion: 0.19
-Nodes (18): anthropicChoice, anthropicContentBlock, anthropicImageSource, anthropicMessage, anthropicRequest, anthropicResponse, anthropicStreamDecoder, anthropicThinking (+10 more)
+Nodes (17): anthropicChoice, anthropicContentBlock, anthropicImageSource, anthropicMessage, anthropicRequest, anthropicResponse, anthropicStreamDecoder, anthropicThinking (+9 more)
 
 ### Community 42 - "teeHandler"
 Cohesion: 0.17
@@ -351,24 +338,24 @@ Cohesion: 0.16
 Nodes (21): geminiCandidate, geminiContent, geminiFileData, geminiFunctionCall, geminiFunctionCallingConfig, geminiFunctionDecl, geminiFunctionResponse, geminiGenConfig (+13 more)
 
 ### Community 45 - "context.Context"
-Cohesion: 0.04
-Nodes (13): stubAdminAuth, stubAdminCredentialStore, stubAuthVerifier, stubAuthVerifier, AdminCredentialStore, actorFromContext(), TestSystemAdminCredentialStore(), validatePassword() (+5 more)
+Cohesion: 0.05
+Nodes (11): actorFromContext(), boolToInt(), validatePassword(), stubSystemModule, stubModule, orderStubModule, oauthTokenResponse, BindingSummary (+3 more)
 
 ### Community 46 - "repository"
 Cohesion: 0.13
 Nodes (11): buildLogsWhere(), newRepository(), LogsFilter, LogsResponse, ModelBreakdown, ProviderBreakdown, repository, SeriesBucket (+3 more)
 
-### Community 47 - "newTestHarness"
-Cohesion: 0.20
-Nodes (11): fakeCredentialStore, Task 2: `auth` Module & OpenAPI Fragment, newTestHarness(), TestSystemHealthAndVersion(), TestSystemInitConcurrentRace(), TestSystemInitLifecycle(), TestSystemShutdownRemoteBindGuard(), TestPasswordHashAndVerify() (+3 more)
+### Community 47 - "VouchersConsole.tsx"
+Cohesion: 0.16
+Nodes (21): VouchersPage(), useClaimVoucherMutation(), useCreateVoucherMutation(), useDeleteVoucherMutation(), useUpdateVoucherMutation(), useVoucherRedemptions(), useVouchersList(), vouchersQueryKeys (+13 more)
 
 ### Community 48 - "translate_openai.go"
 Cohesion: 0.18
 Nodes (20): openAIChatChoice, openAIChatContentPart, openAIChatFunctionCall, openAIChatMessage, openAIChatOutMessage, openAIChatRequest, openAIChatResponse, openAIChatTool (+12 more)
 
 ### Community 49 - "lifecycle.Registry"
-Cohesion: 0.16
-Nodes (8): File Map, Task 2: `modeleditor` Module (Custom Model Parameter Overrides & Conditional Bypass Rules), Task 3: `tokensaver` Module (Go-Native Token Compression & Headroom Cache-Aware Affinity), Task 4: Wire Wave 2B Modules in `cmd/omeg4mon-router`, OpenAPI Codegen & Live E2E Tests, Task 5: Web Studio UI for Prompt Guard & Model Editor / Bypass, Task 6: Web Studio UI for Token Saver & Headroom, Navigation, System Overview & Single-Binary Verification, normalizeName(), registryState
+Cohesion: 0.18
+Nodes (3): normalizeName(), nameMinHeap, registryState
 
 ### Community 50 - "PromptGuardConsole.tsx"
 Cohesion: 0.12
@@ -382,49 +369,49 @@ Nodes (58): DashboardModelsPage(), combosQueryKeys, UpdateComboVariables, Upsert
 Cohesion: 0.16
 Nodes (23): openAIChatFunctionSpec, responsesContentPart, responsesFormat, responsesIncompleteDetails, responsesInputTokensDetails, responsesItem, responsesReason, responsesRequest (+15 more)
 
-### Community 53 - "net/http.ResponseWriter"
-Cohesion: 0.14
-Nodes (13): trackedResponseWriter, isValidAuthType(), isValidProtocol(), validateHTTPURL(), decodeJSONBody(), decodeOptionalJSONBody(), validateHeaders(), validateName() (+5 more)
+### Community 53 - "net/http.Request"
+Cohesion: 0.08
+Nodes (23): clearSessionCookie(), isSecureRequest(), readSessionCookie(), extractAPIKey(), ensureRequestID(), buildProtocolTestRequest(), isValidAuthType(), isValidProtocol() (+15 more)
 
-### Community 54 - "client.ts"
-Cohesion: 0.12
-Nodes (16): openapi-fetch, openapi-fetch@^0.14.0, systemKeys, useInitializeSystem(), apiClient, createApiClient(), ErrorDetail, ErrorEnvelope (+8 more)
+### Community 54 - "CardTitle"
+Cohesion: 0.11
+Nodes (24): Task 6: Frontend Auth Flow (`web/src/features/auth/`, Live `/login/`, `AuthGuard`, Sign-Out), Task 4: Web Studio UI for Teams & Vouchers, Navigation, System Overview & Single-Binary Verification, DashboardPage(), isHealthResponse(), useInitStatus(), useSystemHealth(), useSystemVersion(), formatUpdatedAt() (+16 more)
 
 ### Community 55 - "RouteMounts"
-Cohesion: 0.11
-Nodes (7): authHarness, readSessionCookie(), Module, actorFromContext(), decodeJSONBody(), Module, RouteMounts
+Cohesion: 0.14
+Nodes (5): actorFromContext(), decodeJSONBody(), Module, Module, RouteMounts
 
 ### Community 56 - "WriteError"
-Cohesion: 0.17
-Nodes (11): setSessionCookie(), decodeJSONBody(), decodeJSONBody(), isValidMode(), isValidSensitivity(), validateRule(), WriteError(), AdminSubject() (+3 more)
+Cohesion: 0.19
+Nodes (9): decodeJSONBody(), isValidMode(), isValidSensitivity(), validateRule(), decodeJSONBody(), decodePathModelParam(), isValidRate(), WriteError() (+1 more)
 
-### Community 57 - "SecurityConsole.tsx"
-Cohesion: 0.20
-Nodes (17): SecurityPage(), securityQueryKeys, useClearSecurityAuditMutation(), useCreateSecurityAuditMutation(), useSecurityAuditEvents(), useSecurityPosture(), AUDIT_SEVERITIES, ClearSecurityAuditResponse (+9 more)
+### Community 57 - "Label"
+Cohesion: 0.18
+Nodes (18): SecurityPage(), securityQueryKeys, useClearSecurityAuditMutation(), useCreateSecurityAuditMutation(), useSecurityAuditEvents(), useSecurityPosture(), AUDIT_SEVERITIES, ClearSecurityAuditResponse (+10 more)
 
 ### Community 58 - "repository"
 Cohesion: 0.10
-Nodes (20): cloneStringMap(), cloneUpstreamCredentials(), decodeStringMap(), decodeStringSlice(), encodeStringMap(), encodeStringSlice(), insertConnectionTx(), isUniqueConstraintError() (+12 more)
+Nodes (21): cloneStringMap(), cloneUpstreamCredentials(), decodeStringMap(), decodeStringSlice(), encodeStringMap(), encodeStringSlice(), insertConnectionTx(), isUniqueConstraintError() (+13 more)
 
 ### Community 59 - "ProxyPoolsConsole.tsx"
 Cohesion: 0.11
 Nodes (33): DashboardProxyPoolsPage(), proxyPoolsQueryKeys, useCreateProxyPoolMutation(), useDeleteProxyBindingMutation(), useDeleteProxyPoolMutation(), useProxyPools(), useScanProxyCandidatesMutation(), useTestProxyPoolMutation() (+25 more)
 
-### Community 60 - "repository"
-Cohesion: 0.16
+### Community 60 - "modeleditor/repo.go"
+Cohesion: 0.18
 Nodes (11): boolToInt(), marshalOverrideJSON(), newRepository(), nullFloat(), nullInt(), scanBypass(), scanOverride(), BypassRule (+3 more)
 
-### Community 61 - "setupNotificationsTest"
-Cohesion: 0.13
-Nodes (19): File Map, Global Constraints, Review Focus, Task 1: Platform Jobs Observability, Overlap Guard & `contracts.JobInspector`, Task 3: `notifications` Module (System Notifications Inbox, SSE Stream & `/api/jobs` Control), Task 5: Web Studio UI for Security & Notifications/Jobs, Navigation, System Overview & Single-Binary Verification, Wave 2C — Security Audit Trail, System Notifications & Background Jobs Implementation Plan, JobInspector (+11 more)
+### Community 61 - "sync.Mutex"
+Cohesion: 0.08
+Nodes (23): JobInspector, File Map, Task 1: Platform Jobs Observability, Overlap Guard & `contracts.JobInspector`, Task 3: `notifications` Module (System Notifications Inbox, SSE Stream & `/api/jobs` Control), Task 5: Web Studio UI for Security & Notifications/Jobs, Navigation, System Overview & Single-Binary Verification, JobStatus, setupNotificationsTest(), TestNotificationsCRUDReadUnreadAndPrune() (+15 more)
 
 ### Community 62 - "Server"
-Cohesion: 0.08
-Nodes (18): TestAppCloseTeardownOrderIsLIFO(), loadUI(), loadUI(), AuthVerifier, Options, apiTimeoutMiddleware(), Server, New() (+10 more)
+Cohesion: 0.07
+Nodes (21): TestAppCloseTeardownOrderIsLIFO(), loadUI(), loadUI(), AuthVerifier, Options, trackedResponseWriter, apiTimeoutMiddleware(), Server (+13 more)
 
 ### Community 63 - "Module"
-Cohesion: 0.28
-Nodes (8): actorFromContext(), decodeJSONBody(), Module, normalizeExpiresAt(), validateName(), validateStringSlice(), generateKeyID(), generateToken()
+Cohesion: 0.23
+Nodes (8): actorFromContext(), decodeJSONBody(), normalizeExpiresAt(), validateName(), validateStringSlice(), generateKeyID(), generateToken(), Module
 
 ### Community 64 - "Module"
 Cohesion: 0.30
@@ -434,192 +421,168 @@ Nodes (4): generateInput, decodeJSONBody(), Module, writeGenerateError()
 Cohesion: 0.23
 Nodes (8): listSettingsWithQueryer(), decodeStoredValue(), lookupDefinition(), applyResult, repository, rollbackResult, rowQueryer, UpdatedEvent
 
-### Community 66 - "TestContractInterfacesSatisfied"
-Cohesion: 0.08
-Nodes (9): CanonicalRequest, GatewayInterceptor, ResolvedTarget, ResponseMeta, StreamEvent, stubInterceptor, stubProviderResolver, recordingInterceptor (+1 more)
+### Community 66 - ".OnResponseHeaders"
+Cohesion: 0.07
+Nodes (4): stubInterceptor, recordingInterceptor, ResponseMeta, StreamEvent
 
 ### Community 67 - "repository"
 Cohesion: 0.16
 Nodes (8): builtinRules(), boolToInt(), defaultConfig(), newRepository(), Config, GuardEvent, repository, Rule
 
 ### Community 68 - "ModelEditorConsole.tsx"
-Cohesion: 0.13
-Nodes (29): ModelEditorPage(), modelEditorQueryKeys, useCreateBypassRuleMutation(), useCreateModelOverrideMutation(), useDeleteBypassRuleMutation(), useDeleteModelOverrideMutation(), useModelBypassRules(), useModelOverrides() (+21 more)
+Cohesion: 0.12
+Nodes (31): ModelEditorPage(), modelEditorQueryKeys, useCreateBypassRuleMutation(), useCreateModelOverrideMutation(), useDeleteBypassRuleMutation(), useDeleteModelOverrideMutation(), useModelBypassRules(), useModelOverrides() (+23 more)
 
 ### Community 69 - "Module"
 Cohesion: 0.21
 Nodes (5): decodeStrictJSON(), matchesLevel(), normalizeLevelFilter(), parseIntParam(), Module
 
-### Community 70 - "Module"
-Cohesion: 0.14
-Nodes (4): decodeJSONBody(), decodePathModelParam(), isValidRate(), Module
+### Community 70 - "TeamsConsole.tsx"
+Cohesion: 0.19
+Nodes (18): zod, TeamsPage(), useApiKeys(), teamsQueryKeys, useAssignTeamKeyMutation(), useCreateTeamMutation(), useDeleteTeamMutation(), useRemoveTeamKeyMutation() (+10 more)
 
-### Community 71 - "DB"
-Cohesion: 0.09
-Nodes (16): Task 1: `usage` Module (Async Batched Writer, Pricing, Logs, Summary, Live SSE & Retention Pruning) & OpenAPI Fragment, Global Constraints, Review Focus, Wave 2B — Gateway Interceptors (`promptinjection`, `modeleditor` / `modelbypass`, `tokensaver` / `headroom`) Implementation Plan, chainStore, newRepository(), New(), newRepository() (+8 more)
+### Community 71 - ".Reader"
+Cohesion: 0.07
+Nodes (30): main(), runMain(), File Map, Global Constraints, Review Focus, Task 1: Cross-Module `AdminCredentialStore` Contract & `system` Adapter, Task 3: `settings` Module (Typed Store, Revision History & Rollback) & OpenAPI Fragment, Task 4: `keys` Module (API Keys CRUD, SHA-256 Cache & `contracts.KeyValidator`) & OpenAPI Fragment (+22 more)
 
-### Community 72 - "newTestHarness"
-Cohesion: 0.15
-Nodes (10): indexByKey(), newTestHarness(), TestSettingsDefaultsAndPatch(), TestSettingsHistoryAndRollback(), TestSettingsPublishesEventBus(), TestSettingsTimestampsFixedWidthUTC(), TestSettingsValidationRejectsUnknownAndInvalid(), stubAdminAuth (+2 more)
+### Community 72 - ".AuthenticateAdmin"
+Cohesion: 0.10
+Nodes (7): stubAdminAuth, stubAdminAuth, stubAuthVerifier, stubAuthVerifier, stubAdminAuth, stubAdminAuth, stubAdminAuth
 
 ### Community 73 - "scripts"
 Cohesion: 0.18
 Nodes (11): scripts, build, check, check:fix, dev, format, format:check, gen:api (+3 more)
 
 ### Community 74 - "time.Time"
-Cohesion: 0.15
-Nodes (14): CooldownEntry, cooldownState, cooldownTracker, fakeClock, listCooldownsResponse, Options, newCooldownTracker(), New() (+6 more)
+Cohesion: 0.05
+Nodes (25): CooldownEntry, cooldownState, cooldownTracker, fakeClock, listCooldownsResponse, Options, AccountHealthTracker, stubAccountHealthTracker (+17 more)
 
 ### Community 75 - "WriteJSON"
-Cohesion: 0.12
-Nodes (7): decodeStrictJSON(), Module, isValidSeverity(), toJobDTO(), Module, WriteJSON(), JobStatusDTO
+Cohesion: 0.08
+Nodes (12): decodeStrictJSON(), Module, isValidSeverity(), mapBusEventToNotification(), toJobDTO(), clientIP(), decodeStrictJSON(), Module (+4 more)
 
-### Community 76 - "newTestHarness"
+### Community 76 - ".OnRequest"
 Cohesion: 0.14
-Nodes (14): New(), newTestHarness(), TestCatalogAndAdapterRegistry(), TestConnectionQuickTest(), TestConnectionsCRUDAndSecretEncryptionHygiene(), TestCustomProviderNodesCRUD(), TestHeadlessOAuthFlowAndCallbackXSSProtection(), TestOAuthEnvResolutionAndCallbackJSONAndValidation() (+6 more)
+Nodes (12): Review Focus, Task 1: `contracts.KeyProvisioner` & `TeamAssigner`, `keys.ProvisionKey`, and `teams` Module, Task 2: `vouchers` Module (Voucher Lifecycle, Atomic Claim & Anti-Abuse), Wave 3A — Teams (API-Key Grouping & Budgets) & Vouchers Implementation Plan, CanonicalRequest, GatewayInterceptor, KeyProvisioner, ProvisionedKey (+4 more)
 
-### Community 77 - "New"
-Cohesion: 0.15
-Nodes (12): assertFixedWidthUTC(), newTestHarness(), sha256Hex(), TestKeysCRUDAndSecretHygiene(), TestKeysExpirationAndValidationErrors(), TestKeysValidateAndImmediateCacheInvalidation(), New(), TestConcurrentPublishSubscribeUnsubscribe() (+4 more)
+### Community 77 - "dependencies"
+Cohesion: 0.10
+Nodes (21): clsx, @radix-ui/react-label, @radix-ui/react-slot, react-dom, tailwind-merge, zustand, dependencies, class-variance-authority@^0.7.1 (+13 more)
+
+### Community 78 - "Module"
+Cohesion: 0.24
+Nodes (3): decodeStrictJSON(), extractUsageSpend(), Module
 
 ### Community 79 - "Module"
-Cohesion: 0.21
+Cohesion: 0.19
 Nodes (6): validateModelPattern(), decodeJSONBody(), newID(), validateBypassRule(), validateOverride(), Module
-
-### Community 80 - "Open"
-Cohesion: 0.15
-Nodes (14): doJSON(), setupModelEditorTest(), TestModelBypassRulesPriorityAndMetadataFlags(), TestModelEditorCRUDValidationAndDryRunPreview(), TestModelEditorFinalReviewFindings(), TestModelEditorOverridesAcrossAllFourProtocols(), buildDSN(), Open() (+6 more)
 
 ### Community 81 - "CliToolsConsole.tsx"
 Cohesion: 0.15
 Nodes (26): DashboardCliToolsPage(), CliToolsConsole(), formatBadgeLabel(), CLIToolConfigMutationVariables, cliToolsQueryKeys, useApplyCliToolConfigMutation(), useCliToolsCatalog(), useGenerateCliToolConfigMutation() (+18 more)
 
-### Community 82 - "ProviderAdapter"
-Cohesion: 0.10
-Nodes (5): Task 1: Expand Built-in `providers` Adapter Catalog (Qwen, GitHub Copilot, Kiro, Cursor, Antigravity), defaultBuiltInAdapters(), TestWave2ProviderAdaptersRegisteredAndTestable(), customTestAdapter, ProviderAdapter
-
 ### Community 83 - "repository"
 Cohesion: 0.12
 Nodes (15): Combo, createComboParams, DisabledModel, listAliasesResponse, listCombosResponse, listDisabledModelsResponse, ModelAlias, repository (+7 more)
 
-### Community 84 - "Module"
-Cohesion: 0.14
-Nodes (5): clientIP(), decodeStrictJSON(), Module, isValidSeverity(), formatUTC()
+### Community 84 - "testEnv"
+Cohesion: 0.12
+Nodes (11): ModelDescriptor, ModelLister, stubKeyValidator, stubModelLister, stubKeyValidator, stubModelLister, stubResolver, testEnv (+3 more)
 
-### Community 85 - "repository"
-Cohesion: 0.17
-Nodes (6): boolToInt(), newRepository(), BindingSummary, PoolSummary, repository, storedPool
+### Community 85 - "Module"
+Cohesion: 0.20
+Nodes (4): clientIP(), decodeStrictJSON(), Module, truncateRunes()
 
 ### Community 86 - "batcher"
-Cohesion: 0.14
-Nodes (6): newBatcher(), New(), newPricingStore(), batcher, ModelPricing, pricingStore
-
-### Community 87 - "testEnv"
-Cohesion: 0.12
-Nodes (9): KeyInfo, stubKeyValidator, stubUsageRecorder, UsageRecord, UsageRecorder, stubKeyValidator, stubResolver, stubUsageRecorder (+1 more)
-
-### Community 88 - "NewStreamTranslator"
 Cohesion: 0.18
-Nodes (10): geminiPendingTool, geminiStreamEncoder, NewStreamTranslator(), parseJSONObjectOrWrap(), newAnthropicStreamEncoder(), mapCanonicalStopReasonToGemini(), newGeminiStreamEncoder(), newOpenAIStreamDecoder() (+2 more)
+Nodes (4): newBatcher(), batcher, ModelPricing, pricingStore
+
+### Community 87 - "File Map"
+Cohesion: 0.12
+Nodes (11): stubUsageRecorder, UsageRecord, UsageRecorder, File Map, Task 1: Cross-Module Contracts for Providers, Combos & Gateway, Task 4: `gateway` Core — Canonical IR, Direct Fast-Path & Protocol Translators, Task 5: `gateway` HTTP Pipeline — Streaming SSE Executor, Auth, Failover, OAuth Refresh, Response Chains & `GatewayInterceptor` Chain, Task 6: Binary Wiring (`cmd/omeg4mon-router/main.go`), Root OpenAPI Aggregation, `make codegen` & Live E2E Gateway Tests (+3 more)
+
+### Community 88 - "repo"
+Cohesion: 0.27
+Nodes (6): formatUTC(), newTeamID(), createTeamInput, patchTeamInput, repo, Team
 
 ### Community 89 - "net/url.URL"
-Cohesion: 0.14
-Nodes (14): stubProxyDialerResolver, stubProxyResolver, ProxyDialerResolver, parseAndValidateProxyURL(), probeProxy(), proxyDialAddress(), redactRawCandidate(), runConcurrentScan() (+6 more)
+Cohesion: 0.15
+Nodes (12): stubProxyDialerResolver, stubProxyResolver, ProxyDialerResolver, parseAndValidateProxyURL(), probeProxy(), proxyDialAddress(), redactRawCandidate(), runConcurrentScan() (+4 more)
 
-### Community 90 - "buildApp"
-Cohesion: 0.07
-Nodes (34): buildApp(), main(), runMain(), TestAppBootstrapsMigrationsRoutesAndShutdown(), TestAppRunAndShutdownEndpointTriggersGracefulExit(), TestAppWave1AAuthSettingsKeysEndToEnd(), TestAppWave1BGatewayEndToEnd(), TestAppWave1CUsageAndCLIToolsEndToEnd() (+26 more)
+### Community 90 - "DB"
+Cohesion: 0.04
+Nodes (60): buildApp(), TestAppBootstrapsMigrationsRoutesAndShutdown(), TestAppRunAndShutdownEndpointTriggersGracefulExit(), TestAppWave1AAuthSettingsKeysEndToEnd(), TestAppWave1BGatewayEndToEnd(), TestAppWave1CUsageAndCLIToolsEndToEnd(), TestBuildAppCleansUpOnPartialFailure(), TestWave2AE2EProviderProxyRouting() (+52 more)
 
 ### Community 91 - "TranslatorConsole.tsx"
-Cohesion: 0.16
-Nodes (20): translatorQueryKeys, useConsoleLogsSnapshot(), useTranslatePayloadMutation(), useTranslatorProtocols(), ConsoleLogEntry, ConsoleLogsResponse, parseJsonObject(), SAMPLE_PAYLOADS (+12 more)
+Cohesion: 0.13
+Nodes (24): react-hook-form, @tanstack/react-query, DashboardTranslatorPage(), translatorQueryKeys, useConsoleLogsSnapshot(), useTranslatePayloadMutation(), useTranslatorProtocols(), ConsoleLogEntry (+16 more)
 
 ### Community 92 - "repo"
-Cohesion: 0.15
-Nodes (10): buildWhere(), formatUTC(), newNotificationID(), newRepo(), normalizeSeverity(), scanNotification(), scanNotificationRow(), ListFilter (+2 more)
+Cohesion: 0.08
+Nodes (22): buildWhere(), formatUTC(), newNotificationID(), newRepo(), normalizeSeverity(), scanNotification(), scanNotificationRow(), formatUTC() (+14 more)
 
-### Community 93 - "newTestHarness"
-Cohesion: 0.19
-Nodes (12): stubAdminAuth, testHarness, decodeJSON(), newTestHarness(), TestCombosAliasesDisabledCRUDAndAuth(), TestCooldownConcurrency(), TestDisabledModelsAndCooldownStateMachine(), TestListModelsDeduplicationAndFiltering() (+4 more)
+### Community 93 - "app/layout.tsx"
+Cohesion: 0.24
+Nodes (7): geist, geist@^1.4.2, metadata, RootLayout(), RootLayoutProps, QueryProvider(), QueryProviderProps
 
-### Community 94 - "ProvidersConsole.tsx"
-Cohesion: 0.12
-Nodes (17): ActiveOAuthSession, CatalogAdapterDescriptor, CreateConnectionFormInput, CreateConnectionFormOutput, CreateNodeFormInput, CreateNodeFormOutput, DEFAULT_CREATE_CONNECTION_VALUES, DEFAULT_CREATE_NODE_VALUES (+9 more)
+### Community 94 - "File Map"
+Cohesion: 0.31
+Nodes (8): File Map, Task 2: `httpclient` Provider-Context Proxy Hook & `proxypools` Module (HTTP/SOCKS5 Pools, Latency Tester, Auto-Scanner, Provider Binding), Task 4: Wire `proxypools` & `translator` in `cmd/omeg4mon-router`, OpenAPI Codegen & E2E Tests, Task 5: Web UI — Proxy Pools Studio (`/dashboard/proxy-pools/`), Task 6: Web UI — Translator Workbench & Live Console (`/dashboard/translator/`), Navigation Update & Single-Binary Verification, NewProviderProxyFunc(), ProviderIDFromContext(), TestProviderProxyFuncContextRouting()
 
-### Community 102 - "Vault"
-Cohesion: 0.14
-Nodes (14): ProviderResolver, File Map, Global Constraints, Review Focus, Task 1: Cross-Module Contracts for Providers, Combos & Gateway, Task 2: `providers` Module (Pluggable Adapters, Vaulted Connections, Custom Nodes & Headless-Safe OAuth) & OpenAPI Fragment, Task 3: `combos` Module (Fallback Combos, Aliases, Disabled Models, 4-Tier Resolver & Cooldown State Machine) & OpenAPI Fragment, Task 4: `gateway` Core — Canonical IR, Direct Fast-Path & Protocol Translators (+6 more)
+### Community 96 - "repository"
+Cohesion: 0.32
+Nodes (5): boolToInt(), defaultConfig(), newRepository(), Config, repository
 
-### Community 104 - "time.Duration"
-Cohesion: 0.13
-Nodes (5): AccountHealthTracker, stubAccountHealthTracker, failureRecord, stubHealthTracker, computeBackoff()
+### Community 103 - "io/fs.FS"
+Cohesion: 0.05
+Nodes (11): stubModule, stubModule, migrationFile, collectMigrations(), collectMigrationsFromDir(), parseMigrationVersion(), isMissingAssetPath(), openRegularFile() (+3 more)
+
+### Community 104 - "TestContractInterfacesSatisfied"
+Cohesion: 0.08
+Nodes (7): authHarness, fakeCredentialStore, AdminCredentialStore, stubAdminCredentialStore, TestContractInterfacesSatisfied(), stubCredentialStore, repository
 
 ### Community 106 - "settingDefinition"
 Cohesion: 0.22
 Nodes (6): int64Ptr(), isStrictJSONInteger(), TestSettingDefinitionValidateRawIntegerBounds(), settingDefinition, SettingItem, validatedUpdate
 
 ### Community 107 - "setupPromptGuardTest"
-Cohesion: 0.31
-Nodes (7): Task 1: Gateway Metadata Pass-Through & `promptinjection` Module (Prompt Guard Middleware), doJSON(), setupPromptGuardTest(), TestPromptInjectionBlockSanitizeAuditAndBuiltins(), TestPromptInjectionCustomRuleValidationAndRE2(), TestPromptInjectionFinalReviewFindings(), testEnv
+Cohesion: 0.14
+Nodes (16): File Map, Task 1: Gateway Metadata Pass-Through & `promptinjection` Module (Prompt Guard Middleware), Task 2: `modeleditor` Module (Custom Model Parameter Overrides & Conditional Bypass Rules), Task 3: `tokensaver` Module (Go-Native Token Compression & Headroom Cache-Aware Affinity), Task 4: Wire Wave 2B Modules in `cmd/omeg4mon-router`, OpenAPI Codegen & Live E2E Tests, Task 5: Web Studio UI for Prompt Guard & Model Editor / Bypass, Task 6: Web Studio UI for Token Saver & Headroom, Navigation, System Overview & Single-Binary Verification, TestGatewayInterceptorMetadataPropagatesToResponseHeaders() (+8 more)
 
 ### Community 108 - "CanonicalStreamChunk"
-Cohesion: 0.44
+Cohesion: 0.50
 Nodes (3): CanonicalStreamChunk, openAIStreamDecoder, streamDecoder
 
 ### Community 109 - "setupTokenSaverTest"
 Cohesion: 0.31
 Nodes (7): doJSON(), setupTokenSaverTest(), TestHeadroomLRUBoundedCapacityAndConcurrency(), TestHeadroomPrefixCacheHitMissAffinityAndAnthropicCacheControl(), TestTokenSaverCompressionPreservesCodeBlocksAndRespectsBypass(), TestTokenSaverFinalReviewFindings(), testEnv
 
-### Community 111 - "NewStaticUIHandler"
-Cohesion: 0.39
-Nodes (6): hasUnsafePath(), isMissingAssetPath(), NewStaticUIHandler(), openRegularFile(), resolveStaticFile(), serveFSFile()
-
-### Community 112 - "ProvidersConsole"
-Cohesion: 0.13
-Nodes (16): DashboardProvidersPage(), useCreateProviderNodeMutation(), useDeleteProviderNodeMutation(), useExchangeProviderOAuthMutation(), useProviderConnections(), useProvidersCatalog(), useStartProviderOAuthMutation(), useTestProviderConnectionMutation() (+8 more)
-
-### Community 115 - "Runner"
+### Community 110 - ".StatusCode"
 Cohesion: 0.25
-Nodes (6): JobStatus, Runner, job, JobStatus, stubJobInspector, jobInspectorAdapter
+Nodes (3): statusError, httpStatusError, statusError
 
-### Community 116 - "NewClient"
-Cohesion: 0.14
-Nodes (14): File Map, Task 2: `clitools` Module (Stateless Config Generators & Loopback-Only Atomic Local Apply/Rollback) & OpenAPI Fragment, Task 3: Binary Wiring (`cmd/omeg4mon-router/main.go`), Root OpenAPI Aggregation, `make codegen` & Live E2E Tests, Task 4: Frontend Usage, Telemetry & Pricing Studio (`web/src/features/usage/`, `/dashboard/usage/`), Task 5: Frontend CLI Tools Studio (`web/src/features/clitools/`, `/dashboard/cli-tools/`), Navigation Promotion & Final Wave 1 Single-Binary Verification, Options, Options, applyDefaults() (+6 more)
-
-### Community 117 - "Bus"
-Cohesion: 0.11
-Nodes (15): Event, New(), New(), New(), decodeJSONBody(), New(), Bus, Options (+7 more)
+### Community 116 - "New"
+Cohesion: 0.25
+Nodes (9): Options, newChainStore(), New(), applyDefaults(), NewClient(), TestNewClientAllowsLongStreamButEnforcesResponseHeaderTimeout(), TestNewClientAppliesDefaults(), TestNewClientRequestContextCancellationAbortsStream() (+1 more)
 
 ### Community 118 - "Config"
-Cohesion: 0.11
-Nodes (17): Options, Task 2: `security` Module (Security Posture & Redacted Audit Trail), New(), setupSecurityTest(), TestSecurityEventBusAutoAuditIngestion(), TestSecurityPostureAndExportAndPrune(), TestSecurityRedactionAndTamperEvidentClear(), TestSecurityWave2BTopicParityAndExtendedRedaction() (+9 more)
-
-### Community 120 - "providers/hooks.ts"
-Cohesion: 0.14
-Nodes (16): ExchangeProviderOAuthVariables, providersQueryKeys, StartProviderOAuthVariables, UpdateProviderConnectionVariables, useCreateProviderConnectionMutation(), useDeleteProviderConnectionMutation(), useProviderNodes(), CreateProviderConnectionRequest (+8 more)
-
-### Community 121 - "headroomCache"
-Cohesion: 0.24
-Nodes (3): newHeadroomCache(), headroomCache, WarmPrefixSummary
+Cohesion: 0.10
+Nodes (21): Options, Task 2: `auth` Module & OpenAPI Fragment, Task 2: `security` Module (Security Posture & Redacted Audit Trail), New(), setupSecurityTest(), TestSecurityEventBusAutoAuditIngestion(), TestSecurityPostureAndExportAndPrune(), TestSecurityRedactionAndTamperEvidentClear() (+13 more)
 
 ### Community 122 - ".executeCandidateAttempt"
-Cohesion: 0.19
-Nodes (14): attemptOutcome, CanonicalChatResponse, buildUpstreamURL(), extractUpstreamErrorMessage(), parseRetryAfter(), EncodeResponse(), rawJSONToString(), buildCompactedResponse() (+6 more)
-
-### Community 123 - "collectMigrations"
-Cohesion: 0.50
-Nodes (4): migrationFile, collectMigrations(), collectMigrationsFromDir(), parseMigrationVersion()
+Cohesion: 0.18
+Nodes (15): attemptOutcome, CanonicalChatResponse, applyUpstreamHeaders(), buildUpstreamURL(), extractUpstreamErrorMessage(), isProtectedRequestHeader(), parseRetryAfter(), EncodeResponse() (+7 more)
 
 ### Community 126 - "modeleditor/engine.go"
 Cohesion: 0.22
 Nodes (10): copyResponseHeaders(), applyOverrideToJSON(), applyPipeline(), bypassRuleMatches(), globToRegexp(), matchPattern(), wrapSystemPrompt(), wrapText() (+2 more)
 
 ### Community 128 - "promptinjection/engine.go"
-Cohesion: 0.30
-Nodes (13): actionRank(), compileRule(), effectiveRuleAction(), evaluateText(), highestAction(), inspectAndMaybeSanitizeBody(), isPromptTextKey(), minSeverityForSensitivity() (+5 more)
+Cohesion: 0.20
+Nodes (14): actionRank(), compileRule(), effectiveRuleAction(), evaluateText(), highestAction(), inspectAndMaybeSanitizeBody(), isPromptTextKey(), minSeverityForSensitivity() (+6 more)
 
 ### Community 129 - "OAuthConfig"
-Cohesion: 0.27
+Cohesion: 0.24
 Nodes (6): cloneOAuthConfig(), cloneStringSlice(), OAuthConfig, oauthEnvPrefix(), buildAuthorizeURL(), builtinAdapter
 
 ### Community 130 - "repo"
@@ -630,13 +593,9 @@ Nodes (7): buildWhere(), newEventID(), newRepo(), scanAuditEvent(), AuditEvent, 
 Cohesion: 0.36
 Nodes (9): compressContentBlocks(), compressMessages(), compressPayload(), compressText(), estimateTokens(), injectAnthropicCacheControl(), leadingBackticks(), truncateToolOutput() (+1 more)
 
-### Community 132 - "Module"
-Cohesion: 0.29
-Nodes (3): Module, refreshCall, storedCredentials
-
-### Community 133 - "providers/schemas.test.ts"
-Cohesion: 0.22
-Nodes (8): createConnectionSchema, createNodeSchema, oauthExchangeSchema, oauthStartSchema, toCreateConnectionRequest(), toCreateNodeRequest(), toOAuthExchangeRequest(), updateConnectionSchema
+### Community 132 - "ProviderAdapter"
+Cohesion: 0.28
+Nodes (4): Task 1: Expand Built-in `providers` Adapter Catalog (Qwen, GitHub Copilot, Kiro, Cursor, Antigravity), defaultBuiltInAdapters(), TestWave2ProviderAdaptersRegisteredAndTestable(), ProviderAdapter
 
 ### Community 134 - "redact.go"
 Cohesion: 0.46
@@ -644,23 +603,23 @@ Nodes (6): isSensitiveKey(), RedactMetadata(), RedactText(), redactValue(), trun
 
 ## Knowledge Gaps
 - **7 isolated node(s):** `github.com/omeg4monx/router-gateway`, `Structured Logging RingBuffer & Non-Blocking EventBus`, `Platform Crypto Vault, Bcrypt & Session Signer`, `Wave 0 Platform Foundation Implementation Plan`, `Canonical IR & Direct Protocol Translators` (+2 more)
-  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 472 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
-- **25 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 488 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
+- **20 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `File Map` connect `buildApp` to `main.go`, `Button`, `WriteJSON`, `newTestHarness`?**
-  _High betweenness centrality (0.164) - this node is a cross-community bridge._
+- **Why does `File Map` connect `.Reader` to `CardTitle`, `DB`, `Config`, `RouteMounts`?**
+  _High betweenness centrality (0.113) - this node is a cross-community bridge._
 - **What connects `github.com/omeg4monx/router-gateway`, `Structured Logging RingBuffer & Non-Blocking EventBus`, `Platform Crypto Vault, Bcrypt & Session Signer` to the rest of the system?**
   _7 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `main.go` be split into smaller, more focused modules?**
-  _Cohesion score 0.05467232809979922 - nodes in this community are weakly interconnected._
-- **Why does `Task 6: Frontend Auth Flow (`web/src/features/auth/`, Live `/login/`, `AuthGuard`, Sign-Out)` connect `Button` to `buildApp`?**
-  _High betweenness centrality (0.124) - this node is a cross-community bridge._
+  _Cohesion score 0.05517986722247954 - nodes in this community are weakly interconnected._
+- **Why does `Review Focus` connect `.OnRequest` to `DB`, `CardTitle`?**
+  _High betweenness centrality (0.089) - this node is a cross-community bridge._
 - **Should `biome.json` be split into smaller, more focused modules?**
   _Cohesion score 0.04521276595744681 - nodes in this community are weakly interconnected._
-- **Why does `File Map` connect `RingBuffer` to `ProviderAdapter`?**
-  _High betweenness centrality (0.090) - this node is a cross-community bridge._
+- **Why does `Task 4: Web Studio UI for Teams & Vouchers, Navigation, System Overview & Single-Binary Verification` connect `CardTitle` to `Button`, `.OnRequest`?**
+  _High betweenness centrality (0.089) - this node is a cross-community bridge._
 - **Should `settings` be split into smaller, more focused modules?**
   _Cohesion score 0.05263157894736842 - nodes in this community are weakly interconnected._

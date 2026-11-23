@@ -1,0 +1,383 @@
+openapi: 3.1.0
+info:
+  title: Vouchers Module API
+  version: 0.1.0
+paths:
+  /api/vouchers:
+    get:
+      operationId: listVouchers
+      tags:
+        - vouchers
+      summary: List redeemable API-key vouchers
+      responses:
+        "200":
+          description: Vouchers list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VoucherListResponse"
+    post:
+      operationId: createVoucher
+      tags:
+        - vouchers
+      summary: Create a redeemable voucher code
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateVoucherRequest"
+      responses:
+        "201":
+          description: Created voucher
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Voucher"
+        "400":
+          description: Invalid payload
+          content:
+            application/json:
+              schema:
+                $ref: "../openapi.yaml#/components/schemas/ErrorEnvelope"
+        "409":
+          description: Duplicate voucher code
+          content:
+            application/json:
+              schema:
+                $ref: "../openapi.yaml#/components/schemas/ErrorEnvelope"
+  /api/vouchers/{id}:
+    patch:
+      operationId: updateVoucher
+      tags:
+        - vouchers
+      summary: Update voucher limits, expiration, or enabled status
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateVoucherRequest"
+      responses:
+        "200":
+          description: Updated voucher
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Voucher"
+        "400":
+          description: Invalid payload
+          content:
+            application/json:
+              schema:
+                $ref: "../openapi.yaml#/components/schemas/ErrorEnvelope"
+        "404":
+          description: Voucher not found
+          content:
+            application/json:
+              schema:
+                $ref: "../openapi.yaml#/components/schemas/ErrorEnvelope"
+    delete:
+      operationId: deleteVoucher
+      tags:
+        - vouchers
+      summary: Delete a voucher and its redemption log
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Deleted confirmation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeleteVoucherResponse"
+        "404":
+          description: Voucher not found
+          content:
+            application/json:
+              schema:
+                $ref: "../openapi.yaml#/components/schemas/ErrorEnvelope"
+  /api/vouchers/{id}/redemptions:
+    get:
+      operationId: listVoucherRedemptions
+      tags:
+        - vouchers
+      summary: List redemption audit entries for a voucher
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Redemptions list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VoucherRedemptionListResponse"
+        "404":
+          description: Voucher not found
+          content:
+            application/json:
+              schema:
+                $ref: "../openapi.yaml#/components/schemas/ErrorEnvelope"
+  /api/vouchers/claim:
+    post:
+      operationId: claimVoucher
+      tags:
+        - vouchers
+      summary: Redeem a voucher code to provision a gateway API key
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ClaimVoucherRequest"
+      responses:
+        "200":
+          description: Voucher redeemed and API key provisioned
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClaimVoucherResponse"
+        "400":
+          description: Invalid claim payload
+          content:
+            application/json:
+              schema:
+                $ref: "../openapi.yaml#/components/schemas/ErrorEnvelope"
+        "403":
+          description: Voucher disabled
+          content:
+            application/json:
+              schema:
+                $ref: "../openapi.yaml#/components/schemas/ErrorEnvelope"
+        "404":
+          description: Voucher not found
+          content:
+            application/json:
+              schema:
+                $ref: "../openapi.yaml#/components/schemas/ErrorEnvelope"
+        "409":
+          description: Voucher exhausted, already claimed by actor, or team assignment failed
+          content:
+            application/json:
+              schema:
+                $ref: "../openapi.yaml#/components/schemas/ErrorEnvelope"
+        "410":
+          description: Voucher expired
+          content:
+            application/json:
+              schema:
+                $ref: "../openapi.yaml#/components/schemas/ErrorEnvelope"
+        "429":
+          description: Anti-abuse IP rate limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: "../openapi.yaml#/components/schemas/ErrorEnvelope"
+        "503":
+          description: Key provisioner or target teams module unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "../openapi.yaml#/components/schemas/ErrorEnvelope"
+components:
+  schemas:
+    Voucher:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - code
+        - name
+        - description
+        - quota_usd
+        - rate_limit_rpm
+        - allowed_models
+        - team_id
+        - max_redemptions
+        - redeemed_count
+        - enabled
+        - expires_at
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+        code:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        quota_usd:
+          type: number
+        rate_limit_rpm:
+          type: integer
+        allowed_models:
+          type: array
+          items:
+            type: string
+        team_id:
+          type: string
+        max_redemptions:
+          type: integer
+        redeemed_count:
+          type: integer
+        enabled:
+          type: boolean
+        expires_at:
+          type: string
+        created_at:
+          type: string
+        updated_at:
+          type: string
+    VoucherListResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - vouchers
+      properties:
+        vouchers:
+          type: array
+          items:
+            $ref: "#/components/schemas/Voucher"
+    CreateVoucherRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - name
+      properties:
+        code:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        quota_usd:
+          type: number
+        rate_limit_rpm:
+          type: integer
+        allowed_models:
+          type: array
+          items:
+            type: string
+        team_id:
+          type: string
+        max_redemptions:
+          type: integer
+        enabled:
+          type: boolean
+        expires_at:
+          type: string
+    UpdateVoucherRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        max_redemptions:
+          type: integer
+        enabled:
+          type: boolean
+        expires_at:
+          type: string
+    DeleteVoucherResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - deleted
+      properties:
+        deleted:
+          type: boolean
+    VoucherRedemption:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - voucher_id
+        - code
+        - claimer_id
+        - key_id
+        - ip_address
+        - redeemed_at
+      properties:
+        id:
+          type: string
+        voucher_id:
+          type: string
+        code:
+          type: string
+        claimer_id:
+          type: string
+        key_id:
+          type: string
+        ip_address:
+          type: string
+        redeemed_at:
+          type: string
+    VoucherRedemptionListResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - redemptions
+      properties:
+        redemptions:
+          type: array
+          items:
+            $ref: "#/components/schemas/VoucherRedemption"
+    ClaimVoucherRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - code
+      properties:
+        code:
+          type: string
+        claimer_id:
+          type: string
+        key_name:
+          type: string
+    ClaimVoucherResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - voucher_id
+        - code
+        - key_id
+        - key_prefix
+        - secret
+        - team_id
+        - quota_usd
+        - redeemed_at
+      properties:
+        voucher_id:
+          type: string
+        code:
+          type: string
+        key_id:
+          type: string
+        key_prefix:
+          type: string
+        secret:
+          type: string
+        team_id:
+          type: string
+        quota_usd:
+          type: number
+        redeemed_at:
+          type: string
