@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/omeg4monx/router-gateway/internal/contracts"
+	"github.com/omeg4monx/router-gateway/internal/modules/arena"
 	"github.com/omeg4monx/router-gateway/internal/modules/auth"
 	"github.com/omeg4monx/router-gateway/internal/modules/clitools"
 	"github.com/omeg4monx/router-gateway/internal/modules/combos"
@@ -35,6 +36,7 @@ import (
 	"github.com/omeg4monx/router-gateway/internal/modules/settings"
 	"github.com/omeg4monx/router-gateway/internal/modules/system"
 	"github.com/omeg4monx/router-gateway/internal/modules/teams"
+	"github.com/omeg4monx/router-gateway/internal/modules/telegram"
 	"github.com/omeg4monx/router-gateway/internal/modules/tokensaver"
 	"github.com/omeg4monx/router-gateway/internal/modules/translator"
 	"github.com/omeg4monx/router-gateway/internal/modules/tunnel"
@@ -392,6 +394,24 @@ func buildApp(ctx context.Context, cfg config.Config, build system.BuildInfo) (*
 		Bus:    bus,
 		Logger: logger,
 	})
+	telegramMod := telegram.New(telegram.Options{
+		DB:            database,
+		Vault:         vault,
+		HTTPClient:    httpClient,
+		Bus:           bus,
+		Logger:        logger,
+		Providers:     providersMod,
+		Models:        combosMod,
+		Jobs:          &jobInspectorAdapter{runner: jobRunner},
+		ActiveModules: registry.ActiveNames,
+	})
+	arenaMod := arena.New(arena.Options{
+		DB:        database,
+		Completer: gatewayMod,
+		Models:    combosMod,
+		Bus:       bus,
+		Logger:    logger,
+	})
 
 	if err := registry.Register(sysMod); err != nil {
 		return nil, fmt.Errorf("register system module: %w", err)
@@ -458,6 +478,12 @@ func buildApp(ctx context.Context, cfg config.Config, build system.BuildInfo) (*
 	}
 	if err := registry.Register(pxpipeMod); err != nil {
 		return nil, fmt.Errorf("register pxpipe module: %w", err)
+	}
+	if err := registry.Register(telegramMod); err != nil {
+		return nil, fmt.Errorf("register telegram module: %w", err)
+	}
+	if err := registry.Register(arenaMod); err != nil {
+		return nil, fmt.Errorf("register arena module: %w", err)
 	}
 
 	if err := registry.MigrateAll(ctx, database); err != nil {

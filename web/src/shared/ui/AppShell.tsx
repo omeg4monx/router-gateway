@@ -12,16 +12,19 @@ import {
   LogIn,
   LogOut,
   Menu,
+  MessageSquare,
   Network,
   PanelLeftClose,
   PanelLeftOpen,
   Radio,
+  Send,
   Server,
   Shield,
   ShieldAlert,
   ShieldCheck,
   Sliders,
   SlidersHorizontal,
+  Swords,
   Terminal,
   Ticket,
   Users,
@@ -62,6 +65,9 @@ const ACTIVE_NAV_ITEMS: ActiveNavItem[] = [
   { label: "Tunnel", href: "/dashboard/tunnel/", icon: Radio },
   { label: "MITM Proxy", href: "/dashboard/mitm/", icon: Shield },
   { label: "PXPIPE", href: "/dashboard/pxpipe/", icon: Workflow },
+  { label: "Telegram Bot", href: "/dashboard/telegram/", icon: Send },
+  { label: "Model Arena", href: "/dashboard/arena/", icon: Swords },
+  { label: "Basic Chat", href: "/dashboard/chat/", icon: MessageSquare },
   { label: "Usage & Telemetry", href: "/dashboard/usage/", icon: Cpu },
   { label: "Prompt Guard", href: "/dashboard/prompt-guard/", icon: ShieldAlert },
   { label: "Model Editor", href: "/dashboard/model-editor/", icon: Sliders },
@@ -257,11 +263,11 @@ export function AppShell({ children }: AppShellProps) {
           )}
         >
           {compact ? (
-            <span className="text-[var(--text-secondary)]">W3C</span>
+            <span className="text-[var(--text-secondary)]">W3D</span>
           ) : (
             <>
               <span>KERNEL</span>
-              <span className="text-[var(--text-secondary)]">WAVE 3C</span>
+              <span className="text-[var(--text-secondary)]">WAVE 3D</span>
             </>
           )}
         </div>

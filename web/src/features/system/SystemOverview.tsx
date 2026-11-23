@@ -41,6 +41,8 @@ const MODULE_SCOPES: Record<string, string> = {
   tunnel: "Cloudflare quick tunnel and Tailscale serve/funnel lifecycle manager",
   mitm: "Loopback TLS MITM proxy, ECDSA Root CA engine, IDE hosts & model aliases",
   pxpipe: "In-process request transform pipeline, self-test health & savings telemetry",
+  telegram: "Vaulted Telegram Bot controller, fail-closed webhook & eventbus alerts",
+  arena: "Multi-model side-by-side comparison arena, leaderboard & persistent Basic Chat",
 };
 
 function formatUptime(totalSeconds: number): string {

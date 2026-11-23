@@ -1,0 +1,601 @@
+openapi: 3.1.0
+info:
+  title: omeg4mon-router Arena & Basic Chat Module
+  version: 0.1.0
+paths:
+  /api/arena/models:
+    get:
+      tags: [arena]
+      operationId: listArenaModels
+      summary: List routable models, aliases, and combos available for Arena and Basic Chat
+      responses:
+        '200':
+          description: Available models
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ArenaModelListResponse'
+  /api/arena/battles:
+    get:
+      tags: [arena]
+      operationId: listArenaBattles
+      summary: List recent Arena multi-model comparison battles
+      responses:
+        '200':
+          description: Battle list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ArenaBattleListResponse'
+  /api/arena/battles/run:
+    post:
+      tags: [arena]
+      operationId: runArenaBattle
+      summary: Execute a prompt concurrently across 2 to 4 models and persist the comparison
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RunArenaBattleRequest'
+      responses:
+        '201':
+          description: Completed battle
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ArenaBattle'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+  /api/arena/battles/{id}:
+    get:
+      tags: [arena]
+      operationId: getArenaBattle
+      summary: Get a single Arena battle with contender responses
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Battle detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ArenaBattle'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+    delete:
+      tags: [arena]
+      operationId: deleteArenaBattle
+      summary: Delete an Arena battle and its contender results
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeleteArenaResourceResponse'
+  /api/arena/battles/{id}/vote:
+    post:
+      tags: [arena]
+      operationId: voteArenaBattle
+      summary: Record a winner or tie vote for an Arena battle
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VoteArenaBattleRequest'
+      responses:
+        '200':
+          description: Updated battle
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ArenaBattle'
+        '400':
+          description: Invalid vote
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+  /api/arena/leaderboard:
+    get:
+      tags: [arena]
+      operationId: getArenaLeaderboard
+      summary: Get aggregated model win rates and average latency across Arena battles
+      responses:
+        '200':
+          description: Leaderboard entries
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ArenaLeaderboardResponse'
+  /api/chat/sessions:
+    get:
+      tags: [arena]
+      operationId: listChatSessions
+      summary: List persistent Basic Chat sessions
+      responses:
+        '200':
+          description: Session list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatSessionListResponse'
+    post:
+      tags: [arena]
+      operationId: createChatSession
+      summary: Create a new persistent Basic Chat session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateChatSessionRequest'
+      responses:
+        '201':
+          description: Created session
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatSession'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+  /api/chat/sessions/{id}:
+    get:
+      tags: [arena]
+      operationId: getChatSession
+      summary: Get a Basic Chat session and its ordered message history
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Session detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatSessionDetailResponse'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+    patch:
+      tags: [arena]
+      operationId: updateChatSession
+      summary: Update Basic Chat session metadata (title, model, system prompt, parameters)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateChatSessionRequest'
+      responses:
+        '200':
+          description: Updated session
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatSession'
+    delete:
+      tags: [arena]
+      operationId: deleteChatSession
+      summary: Delete a Basic Chat session and its messages
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeleteArenaResourceResponse'
+  /api/chat/sessions/{id}/messages:
+    post:
+      tags: [arena]
+      operationId: sendChatMessage
+      summary: Append a user message to a Basic Chat session and execute the assistant turn
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SendChatMessageRequest'
+      responses:
+        '201':
+          description: Persisted turn
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SendChatMessageResponse'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Session not found
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+components:
+  schemas:
+    ArenaModelOption:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - owned_by
+        - kind
+      properties:
+        id:
+          type: string
+        owned_by:
+          type: string
+        kind:
+          type: string
+    ArenaModelListResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - models
+      properties:
+        models:
+          type: array
+          items:
+            $ref: '#/components/schemas/ArenaModelOption'
+    ArenaContenderResult:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - battle_id
+        - slot_index
+        - model
+        - content
+        - status
+        - error
+        - latency_ms
+        - prompt_tokens
+        - completion_tokens
+        - total_tokens
+      properties:
+        id:
+          type: string
+        battle_id:
+          type: string
+        slot_index:
+          type: integer
+        model:
+          type: string
+        content:
+          type: string
+        status:
+          type: string
+        error:
+          type: string
+        latency_ms:
+          type: integer
+          format: int64
+        prompt_tokens:
+          type: integer
+          format: int64
+        completion_tokens:
+          type: integer
+          format: int64
+        total_tokens:
+          type: integer
+          format: int64
+    ArenaBattle:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - prompt
+        - system_prompt
+        - max_tokens
+        - winner_model
+        - created_at
+        - contenders
+      properties:
+        id:
+          type: string
+        prompt:
+          type: string
+        system_prompt:
+          type: string
+        temperature:
+          type: number
+        max_tokens:
+          type: integer
+        winner_model:
+          type: string
+        created_at:
+          type: string
+        contenders:
+          type: array
+          items:
+            $ref: '#/components/schemas/ArenaContenderResult'
+    ArenaBattleListResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - battles
+      properties:
+        battles:
+          type: array
+          items:
+            $ref: '#/components/schemas/ArenaBattle'
+    RunArenaBattleRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - prompt
+        - models
+      properties:
+        prompt:
+          type: string
+        system_prompt:
+          type: string
+        models:
+          type: array
+          items:
+            type: string
+        temperature:
+          type: number
+        max_tokens:
+          type: integer
+    VoteArenaBattleRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - winner_model
+      properties:
+        winner_model:
+          type: string
+    ArenaLeaderboardEntry:
+      type: object
+      additionalProperties: false
+      required:
+        - model
+        - battles
+        - wins
+        - ties
+        - losses
+        - win_rate
+        - avg_latency_ms
+      properties:
+        model:
+          type: string
+        battles:
+          type: integer
+        wins:
+          type: integer
+        ties:
+          type: integer
+        losses:
+          type: integer
+        win_rate:
+          type: number
+        avg_latency_ms:
+          type: integer
+          format: int64
+    ArenaLeaderboardResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - entries
+      properties:
+        entries:
+          type: array
+          items:
+            $ref: '#/components/schemas/ArenaLeaderboardEntry'
+    DeleteArenaResourceResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - deleted
+        - id
+      properties:
+        deleted:
+          type: boolean
+        id:
+          type: string
+    ChatSession:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - title
+        - model
+        - system_prompt
+        - max_tokens
+        - message_count
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        model:
+          type: string
+        system_prompt:
+          type: string
+        temperature:
+          type: number
+        max_tokens:
+          type: integer
+        message_count:
+          type: integer
+        created_at:
+          type: string
+        updated_at:
+          type: string
+    ChatSessionListResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - sessions
+      properties:
+        sessions:
+          type: array
+          items:
+            $ref: '#/components/schemas/ChatSession'
+    CreateChatSessionRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - model
+      properties:
+        title:
+          type: string
+        model:
+          type: string
+        system_prompt:
+          type: string
+        temperature:
+          type: number
+        max_tokens:
+          type: integer
+    UpdateChatSessionRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        title:
+          type: string
+        model:
+          type: string
+        system_prompt:
+          type: string
+        temperature:
+          type: number
+        max_tokens:
+          type: integer
+    ChatMessage:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - session_id
+        - role
+        - content
+        - model
+        - latency_ms
+        - prompt_tokens
+        - completion_tokens
+        - total_tokens
+        - created_at
+      properties:
+        id:
+          type: string
+        session_id:
+          type: string
+        role:
+          type: string
+        content:
+          type: string
+        model:
+          type: string
+        latency_ms:
+          type: integer
+          format: int64
+        prompt_tokens:
+          type: integer
+          format: int64
+        completion_tokens:
+          type: integer
+          format: int64
+        total_tokens:
+          type: integer
+          format: int64
+        created_at:
+          type: string
+    ChatSessionDetailResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - session
+        - messages
+      properties:
+        session:
+          $ref: '#/components/schemas/ChatSession'
+        messages:
+          type: array
+          items:
+            $ref: '#/components/schemas/ChatMessage'
+    SendChatMessageRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - content
+      properties:
+        content:
+          type: string
+        model:
+          type: string
+    SendChatMessageResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - session
+        - user_message
+        - assistant_message
+      properties:
+        session:
+          $ref: '#/components/schemas/ChatSession'
+        user_message:
+          $ref: '#/components/schemas/ChatMessage'
+        assistant_message:
+          $ref: '#/components/schemas/ChatMessage'

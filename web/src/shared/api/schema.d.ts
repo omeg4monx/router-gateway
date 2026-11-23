@@ -1983,6 +1983,284 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/telegram/config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get sanitized Telegram Bot configuration and webhook readiness */
+        get: operations["getTelegramConfig"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Telegram Bot configuration, encrypted token, and alert toggles */
+        patch: operations["updateTelegramConfig"];
+        trace?: never;
+    };
+    "/api/telegram/secret/rotate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Rotate the Telegram webhook secret token */
+        post: operations["rotateTelegramWebhookSecret"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/telegram/webhook/register": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Register the configured webhook URL and secret token with Telegram Bot API */
+        post: operations["registerTelegramWebhook"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/telegram/webhook/delete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Remove the active webhook from Telegram Bot API */
+        post: operations["deleteTelegramWebhook"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/telegram/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Send a test notification message to the configured Telegram chat */
+        post: operations["sendTelegramTestMessage"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/telegram/command": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Execute a Telegram bot command in-process from the dashboard simulator */
+        post: operations["simulateTelegramCommand"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/telegram/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List recent Telegram bot webhook, simulator, and alert events */
+        get: operations["listTelegramEvents"];
+        put?: never;
+        post?: never;
+        /** Clear recorded Telegram bot events */
+        delete: operations["clearTelegramEvents"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/arena/models": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List routable models, aliases, and combos available for Arena and Basic Chat */
+        get: operations["listArenaModels"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/arena/battles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List recent Arena multi-model comparison battles */
+        get: operations["listArenaBattles"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/arena/battles/run": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Execute a prompt concurrently across 2 to 4 models and persist the comparison */
+        post: operations["runArenaBattle"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/arena/battles/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get a single Arena battle with contender responses */
+        get: operations["getArenaBattle"];
+        put?: never;
+        post?: never;
+        /** Delete an Arena battle and its contender results */
+        delete: operations["deleteArenaBattle"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/arena/battles/{id}/vote": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Record a winner or tie vote for an Arena battle */
+        post: operations["voteArenaBattle"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/arena/leaderboard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get aggregated model win rates and average latency across Arena battles */
+        get: operations["getArenaLeaderboard"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/chat/sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List persistent Basic Chat sessions */
+        get: operations["listChatSessions"];
+        put?: never;
+        /** Create a new persistent Basic Chat session */
+        post: operations["createChatSession"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/chat/sessions/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get a Basic Chat session and its ordered message history */
+        get: operations["getChatSession"];
+        put?: never;
+        post?: never;
+        /** Delete a Basic Chat session and its messages */
+        delete: operations["deleteChatSession"];
+        options?: never;
+        head?: never;
+        /** Update Basic Chat session metadata (title, model, system prompt, parameters) */
+        patch: operations["updateChatSession"];
+        trace?: never;
+    };
+    "/api/chat/sessions/{id}/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Append a user message to a Basic Chat session and execute the assistant turn */
+        post: operations["sendChatMessage"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -3501,6 +3779,190 @@ export interface components {
             body: {
                 [key: string]: unknown;
             };
+        };
+        TelegramConfig: {
+            enabled: boolean;
+            bot_token_configured: boolean;
+            bot_token_mask: string;
+            chat_id: string;
+            user_id: string;
+            webhook_url: string;
+            webhook_path: string;
+            webhook_secret_configured: boolean;
+            notify_on_job_failure: boolean;
+            notify_on_auth_change: boolean;
+            notify_on_emit: boolean;
+            updated_at: string;
+        };
+        UpdateTelegramConfigRequest: {
+            enabled?: boolean;
+            bot_token?: string;
+            clear_bot_token?: boolean;
+            chat_id?: string;
+            user_id?: string;
+            webhook_url?: string;
+            notify_on_job_failure?: boolean;
+            notify_on_auth_change?: boolean;
+            notify_on_emit?: boolean;
+        };
+        TelegramActionResponse: {
+            ok: boolean;
+            webhook_url?: string;
+        };
+        TelegramTestRequest: {
+            message?: string;
+        };
+        TelegramTestResponse: {
+            ok: boolean;
+            chat_id: string;
+            message: string;
+        };
+        TelegramCommandRequest: {
+            command: string;
+        };
+        TelegramCommandResponse: {
+            command: string;
+            reply: string;
+            executed_at: string;
+        };
+        TelegramEvent: {
+            id: string;
+            direction: string;
+            kind: string;
+            command: string;
+            status: string;
+            summary: string;
+            error: string;
+            created_at: string;
+        };
+        TelegramEventListResponse: {
+            events: components["schemas"]["TelegramEvent"][];
+        };
+        ClearTelegramEventsResponse: {
+            /** Format: int64 */
+            cleared: number;
+        };
+        ArenaModelOption: {
+            id: string;
+            owned_by: string;
+            kind: string;
+        };
+        ArenaModelListResponse: {
+            models: components["schemas"]["ArenaModelOption"][];
+        };
+        ArenaContenderResult: {
+            id: string;
+            battle_id: string;
+            slot_index: number;
+            model: string;
+            content: string;
+            status: string;
+            error: string;
+            /** Format: int64 */
+            latency_ms: number;
+            /** Format: int64 */
+            prompt_tokens: number;
+            /** Format: int64 */
+            completion_tokens: number;
+            /** Format: int64 */
+            total_tokens: number;
+        };
+        ArenaBattle: {
+            id: string;
+            prompt: string;
+            system_prompt: string;
+            temperature?: number;
+            max_tokens: number;
+            winner_model: string;
+            created_at: string;
+            contenders: components["schemas"]["ArenaContenderResult"][];
+        };
+        ArenaBattleListResponse: {
+            battles: components["schemas"]["ArenaBattle"][];
+        };
+        RunArenaBattleRequest: {
+            prompt: string;
+            system_prompt?: string;
+            models: string[];
+            temperature?: number;
+            max_tokens?: number;
+        };
+        VoteArenaBattleRequest: {
+            winner_model: string;
+        };
+        ArenaLeaderboardEntry: {
+            model: string;
+            battles: number;
+            wins: number;
+            ties: number;
+            losses: number;
+            win_rate: number;
+            /** Format: int64 */
+            avg_latency_ms: number;
+        };
+        ArenaLeaderboardResponse: {
+            entries: components["schemas"]["ArenaLeaderboardEntry"][];
+        };
+        DeleteArenaResourceResponse: {
+            deleted: boolean;
+            id: string;
+        };
+        ChatSession: {
+            id: string;
+            title: string;
+            model: string;
+            system_prompt: string;
+            temperature?: number;
+            max_tokens: number;
+            message_count: number;
+            created_at: string;
+            updated_at: string;
+        };
+        ChatSessionListResponse: {
+            sessions: components["schemas"]["ChatSession"][];
+        };
+        CreateChatSessionRequest: {
+            title?: string;
+            model: string;
+            system_prompt?: string;
+            temperature?: number;
+            max_tokens?: number;
+        };
+        UpdateChatSessionRequest: {
+            title?: string;
+            model?: string;
+            system_prompt?: string;
+            temperature?: number;
+            max_tokens?: number;
+        };
+        ChatMessage: {
+            id: string;
+            session_id: string;
+            role: string;
+            content: string;
+            model: string;
+            /** Format: int64 */
+            latency_ms: number;
+            /** Format: int64 */
+            prompt_tokens: number;
+            /** Format: int64 */
+            completion_tokens: number;
+            /** Format: int64 */
+            total_tokens: number;
+            created_at: string;
+        };
+        ChatSessionDetailResponse: {
+            session: components["schemas"]["ChatSession"];
+            messages: components["schemas"]["ChatMessage"][];
+        };
+        SendChatMessageRequest: {
+            content: string;
+            model?: string;
+        };
+        SendChatMessageResponse: {
+            session: components["schemas"]["ChatSession"];
+            user_message: components["schemas"]["ChatMessage"];
+            assistant_message: components["schemas"]["ChatMessage"];
         };
     };
     responses: never;
@@ -9440,6 +9902,618 @@ export interface operations {
             };
             /** @description Invalid payload */
             400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    getTelegramConfig: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Sanitized Telegram config */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TelegramConfig"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    updateTelegramConfig: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateTelegramConfigRequest"];
+            };
+        };
+        responses: {
+            /** @description Updated Telegram config */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TelegramConfig"];
+                };
+            };
+            /** @description Validation error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    rotateTelegramWebhookSecret: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Updated Telegram config */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TelegramConfig"];
+                };
+            };
+        };
+    };
+    registerTelegramWebhook: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Webhook registered */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TelegramActionResponse"];
+                };
+            };
+            /** @description Missing configuration */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Upstream Telegram Bot API error */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    deleteTelegramWebhook: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Webhook deleted */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TelegramActionResponse"];
+                };
+            };
+        };
+    };
+    sendTelegramTestMessage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["TelegramTestRequest"];
+            };
+        };
+        responses: {
+            /** @description Test message delivered */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TelegramTestResponse"];
+                };
+            };
+            /** @description Bot unconfigured */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Upstream Telegram Bot API error */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    simulateTelegramCommand: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TelegramCommandRequest"];
+            };
+        };
+        responses: {
+            /** @description Command response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TelegramCommandResponse"];
+                };
+            };
+            /** @description Validation error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    listTelegramEvents: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Telegram event list */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TelegramEventListResponse"];
+                };
+            };
+        };
+    };
+    clearTelegramEvents: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Cleared count */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClearTelegramEventsResponse"];
+                };
+            };
+        };
+    };
+    listArenaModels: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Available models */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ArenaModelListResponse"];
+                };
+            };
+        };
+    };
+    listArenaBattles: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Battle list */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ArenaBattleListResponse"];
+                };
+            };
+        };
+    };
+    runArenaBattle: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RunArenaBattleRequest"];
+            };
+        };
+        responses: {
+            /** @description Completed battle */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ArenaBattle"];
+                };
+            };
+            /** @description Validation error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    getArenaBattle: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Battle detail */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ArenaBattle"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    deleteArenaBattle: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeleteArenaResourceResponse"];
+                };
+            };
+        };
+    };
+    voteArenaBattle: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VoteArenaBattleRequest"];
+            };
+        };
+        responses: {
+            /** @description Updated battle */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ArenaBattle"];
+                };
+            };
+            /** @description Invalid vote */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    getArenaLeaderboard: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Leaderboard entries */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ArenaLeaderboardResponse"];
+                };
+            };
+        };
+    };
+    listChatSessions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Session list */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChatSessionListResponse"];
+                };
+            };
+        };
+    };
+    createChatSession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateChatSessionRequest"];
+            };
+        };
+        responses: {
+            /** @description Created session */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChatSession"];
+                };
+            };
+            /** @description Validation error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    getChatSession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Session detail */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChatSessionDetailResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    deleteChatSession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeleteArenaResourceResponse"];
+                };
+            };
+        };
+    };
+    updateChatSession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateChatSessionRequest"];
+            };
+        };
+        responses: {
+            /** @description Updated session */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChatSession"];
+                };
+            };
+        };
+    };
+    sendChatMessage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SendChatMessageRequest"];
+            };
+        };
+        responses: {
+            /** @description Persisted turn */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SendChatMessageResponse"];
+                };
+            };
+            /** @description Validation error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Session not found */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

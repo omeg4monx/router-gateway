@@ -73,6 +73,7 @@ type Module struct {
 var (
 	_ lifecycle.Module             = (*Module)(nil)
 	_ contracts.ProtocolTranslator = (*Module)(nil)
+	_ contracts.ChatCompleter      = (*Module)(nil)
 )
 
 // SupportedProtocols returns the ordered list of gateway wire protocols.
@@ -461,13 +462,16 @@ type statusError interface {
 }
 
 func (m *Module) handleInference(w http.ResponseWriter, r *http.Request, inProto, pathModel string, forceStream, isCompact bool) {
-	startTime := time.Now()
-	reqID := ensureRequestID(r)
-
 	keyInfo, ok := m.authenticateRequest(w, r, inProto)
 	if !ok {
 		return
 	}
+	m.handleInferenceWithKey(w, r, keyInfo, inProto, pathModel, forceStream, isCompact)
+}
+
+func (m *Module) handleInferenceWithKey(w http.ResponseWriter, r *http.Request, keyInfo contracts.KeyInfo, inProto, pathModel string, forceStream, isCompact bool) {
+	startTime := time.Now()
+	reqID := ensureRequestID(r)
 
 	body, err := readLimitedBody(w, r, maxInboundBodyBytes)
 	if err != nil {
