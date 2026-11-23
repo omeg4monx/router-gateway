@@ -1,0 +1,353 @@
+openapi: 3.1.0
+info:
+  title: Notifications & Background Jobs Module API
+  version: 0.1.0
+paths:
+  /api/notifications:
+    get:
+      operationId: listNotifications
+      tags:
+        - notifications
+      summary: List system notifications and current unread count
+      parameters:
+        - name: unread_only
+          in: query
+          schema:
+            type: boolean
+        - name: severity
+          in: query
+          schema:
+            type: string
+            enum: [info, success, warning, error]
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+      responses:
+        "200":
+          description: Notifications list and unread counter
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotificationListResponse"
+        "400":
+          description: Invalid query parameter
+          content:
+            application/json:
+              schema:
+                $ref: "./system.yaml#/components/schemas/ErrorEnvelope"
+    post:
+      operationId: createNotification
+      tags:
+        - notifications
+      summary: Create a system notification and broadcast over SSE
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateNotificationRequest"
+      responses:
+        "201":
+          description: Created notification
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SystemNotification"
+        "400":
+          description: Invalid notification payload
+          content:
+            application/json:
+              schema:
+                $ref: "./system.yaml#/components/schemas/ErrorEnvelope"
+    delete:
+      operationId: clearNotifications
+      tags:
+        - notifications
+      summary: Clear all system notifications
+      responses:
+        "200":
+          description: Cleared count
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClearNotificationsResponse"
+  /api/notifications/read-all:
+    post:
+      operationId: markAllNotificationsRead
+      tags:
+        - notifications
+      summary: Mark all unread notifications as read
+      responses:
+        "200":
+          description: Updated count
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MarkAllReadResponse"
+  /api/notifications/{id}/read:
+    post:
+      operationId: markNotificationRead
+      tags:
+        - notifications
+      summary: Mark a single notification as read
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Updated notification
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SystemNotification"
+        "404":
+          description: Notification not found
+          content:
+            application/json:
+              schema:
+                $ref: "./system.yaml#/components/schemas/ErrorEnvelope"
+  /api/notifications/{id}:
+    delete:
+      operationId: deleteNotification
+      tags:
+        - notifications
+      summary: Dismiss and delete a single notification
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Deleted confirmation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeleteNotificationResponse"
+        "404":
+          description: Notification not found
+          content:
+            application/json:
+              schema:
+                $ref: "./system.yaml#/components/schemas/ErrorEnvelope"
+  /api/notifications/stream:
+    get:
+      operationId: streamNotifications
+      tags:
+        - notifications
+      summary: Subscribe to live system notifications over Server-Sent Events
+      responses:
+        "200":
+          description: text/event-stream of live notification events
+          content:
+            text/event-stream:
+              schema:
+                type: string
+  /api/jobs:
+    get:
+      operationId: listBackgroundJobs
+      tags:
+        - notifications
+      summary: List registered periodic background jobs and execution telemetry
+      responses:
+        "200":
+          description: Background jobs snapshot
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BackgroundJobListResponse"
+  /api/jobs/{name}/trigger:
+    post:
+      operationId: triggerBackgroundJob
+      tags:
+        - notifications
+      summary: Manually trigger a registered background job on demand
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Updated job status after manual trigger
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TriggerJobResponse"
+        "404":
+          description: Job not found
+          content:
+            application/json:
+              schema:
+                $ref: "./system.yaml#/components/schemas/ErrorEnvelope"
+        "409":
+          description: Job is already running
+          content:
+            application/json:
+              schema:
+                $ref: "./system.yaml#/components/schemas/ErrorEnvelope"
+components:
+  schemas:
+    SystemNotification:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - title
+        - message
+        - severity
+        - category
+        - source
+        - metadata
+        - read_at
+        - read
+        - created_at
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        message:
+          type: string
+        severity:
+          type: string
+          enum: [info, success, warning, error]
+        category:
+          type: string
+        source:
+          type: string
+        metadata:
+          type: object
+          additionalProperties: true
+        read_at:
+          type: string
+        read:
+          type: boolean
+        created_at:
+          type: string
+    CreateNotificationRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - title
+        - message
+      properties:
+        title:
+          type: string
+        message:
+          type: string
+        severity:
+          type: string
+          enum: [info, success, warning, error]
+        category:
+          type: string
+        source:
+          type: string
+        metadata:
+          type: object
+          additionalProperties: true
+    NotificationListResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - items
+        - total
+        - unread_count
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/SystemNotification"
+        total:
+          type: integer
+        unread_count:
+          type: integer
+    MarkAllReadResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - updated
+      properties:
+        updated:
+          type: integer
+    DeleteNotificationResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - deleted
+      properties:
+        deleted:
+          type: boolean
+    ClearNotificationsResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - cleared
+      properties:
+        cleared:
+          type: integer
+    BackgroundJobStatus:
+      type: object
+      additionalProperties: false
+      required:
+        - name
+        - interval_ms
+        - running
+        - run_count
+        - error_count
+        - last_status
+        - last_error
+        - last_duration_ms
+        - last_started_at
+        - last_finished_at
+        - next_run_at
+      properties:
+        name:
+          type: string
+        interval_ms:
+          type: integer
+        running:
+          type: boolean
+        run_count:
+          type: integer
+        error_count:
+          type: integer
+        last_status:
+          type: string
+          enum: [idle, running, ok, error, panic]
+        last_error:
+          type: string
+        last_duration_ms:
+          type: integer
+        last_started_at:
+          type: string
+        last_finished_at:
+          type: string
+        next_run_at:
+          type: string
+    BackgroundJobListResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - jobs
+      properties:
+        jobs:
+          type: array
+          items:
+            $ref: "#/components/schemas/BackgroundJobStatus"
+    TriggerJobResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - job
+      properties:
+        job:
+          $ref: "#/components/schemas/BackgroundJobStatus"
