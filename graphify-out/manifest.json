@@ -1090,5 +1090,35 @@
     "seen": 1795409218.6557438,
     "ast_hash": "68618ea0a6fcb50ac66b19c0dec92fba",
     "semantic_hash": ""
+  },
+  "web/src/app/(dashboard)/dashboard/proxy-pools/page.tsx": {
+    "mtime": 1795409453.4320388,
+    "seen": 1795409544.3756063,
+    "ast_hash": "eed2684edec84f48f3a8a21af4b3bcaf",
+    "semantic_hash": ""
+  },
+  "web/src/features/proxypools/ProxyPoolsConsole.tsx": {
+    "mtime": 1795409502.1435406,
+    "seen": 1795409544.3764358,
+    "ast_hash": "57046a59e502a6c7b5c6e62c27d9f6ef",
+    "semantic_hash": ""
+  },
+  "web/src/features/proxypools/hooks.ts": {
+    "mtime": 1795409449.3959973,
+    "seen": 1795409544.3764377,
+    "ast_hash": "c6fe0de798224beb762834433b9f8f64",
+    "semantic_hash": ""
+  },
+  "web/src/features/proxypools/schemas.test.ts": {
+    "mtime": 1795409460.541112,
+    "seen": 1795409544.376439,
+    "ast_hash": "5577a95da164a36f1cca91c7ef6b2c41",
+    "semantic_hash": ""
+  },
+  "web/src/features/proxypools/schemas.ts": {
+    "mtime": 1795409447.6501849,
+    "seen": 1795409544.3764405,
+    "ast_hash": "40601daa410f860d32c5a76aa76c9a9d",
+    "semantic_hash": ""
   }
 }
