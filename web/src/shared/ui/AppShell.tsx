@@ -17,6 +17,7 @@ import {
   PanelLeftOpen,
   Radio,
   Server,
+  Shield,
   ShieldAlert,
   ShieldCheck,
   Sliders,
@@ -24,6 +25,7 @@ import {
   Terminal,
   Ticket,
   Users,
+  Workflow,
   X,
   Zap,
 } from "lucide-react";
@@ -58,6 +60,8 @@ const ACTIVE_NAV_ITEMS: ActiveNavItem[] = [
   { label: "Vouchers", href: "/dashboard/vouchers/", icon: Ticket },
   { label: "Media Gateway", href: "/dashboard/media/", icon: Image },
   { label: "Tunnel", href: "/dashboard/tunnel/", icon: Radio },
+  { label: "MITM Proxy", href: "/dashboard/mitm/", icon: Shield },
+  { label: "PXPIPE", href: "/dashboard/pxpipe/", icon: Workflow },
   { label: "Usage & Telemetry", href: "/dashboard/usage/", icon: Cpu },
   { label: "Prompt Guard", href: "/dashboard/prompt-guard/", icon: ShieldAlert },
   { label: "Model Editor", href: "/dashboard/model-editor/", icon: Sliders },
@@ -253,11 +257,11 @@ export function AppShell({ children }: AppShellProps) {
           )}
         >
           {compact ? (
-            <span className="text-[var(--text-secondary)]">W3B</span>
+            <span className="text-[var(--text-secondary)]">W3C</span>
           ) : (
             <>
               <span>KERNEL</span>
-              <span className="text-[var(--text-secondary)]">WAVE 3B</span>
+              <span className="text-[var(--text-secondary)]">WAVE 3C</span>
             </>
           )}
         </div>
