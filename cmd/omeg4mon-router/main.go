@@ -7,22 +7,27 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
 	"path/filepath"
+	"slices"
 	"sync"
 	"sync/atomic"
 	"syscall"
 	"time"
 
+	"github.com/omeg4monx/router-gateway/internal/contracts"
 	"github.com/omeg4monx/router-gateway/internal/modules/auth"
 	"github.com/omeg4monx/router-gateway/internal/modules/clitools"
 	"github.com/omeg4monx/router-gateway/internal/modules/combos"
 	"github.com/omeg4monx/router-gateway/internal/modules/gateway"
 	"github.com/omeg4monx/router-gateway/internal/modules/keys"
 	"github.com/omeg4monx/router-gateway/internal/modules/providers"
+	"github.com/omeg4monx/router-gateway/internal/modules/proxypools"
 	"github.com/omeg4monx/router-gateway/internal/modules/settings"
 	"github.com/omeg4monx/router-gateway/internal/modules/system"
+	"github.com/omeg4monx/router-gateway/internal/modules/translator"
 	"github.com/omeg4monx/router-gateway/internal/modules/usage"
 	"github.com/omeg4monx/router-gateway/internal/platform/config"
 	"github.com/omeg4monx/router-gateway/internal/platform/crypto"
@@ -45,6 +50,26 @@ var (
 	commit    = "none"
 	buildTime = "unknown"
 )
+
+type dynamicProxyResolver struct {
+	target atomic.Pointer[contracts.ProxyDialerResolver]
+}
+
+func (d *dynamicProxyResolver) Set(r contracts.ProxyDialerResolver) {
+	if r == nil {
+		d.target.Store(nil)
+		return
+	}
+	d.target.Store(&r)
+}
+
+func (d *dynamicProxyResolver) ProxyURLForProvider(ctx context.Context, providerID string) (*url.URL, error) {
+	p := d.target.Load()
+	if p == nil || *p == nil {
+		return nil, nil
+	}
+	return (*p).ProxyURLForProvider(ctx, providerID)
+}
 
 // App holds the wired platform primitives, module lifecycle registry, and HTTP
 // server for a running omeg4mon-router instance.
@@ -96,7 +121,10 @@ func buildApp(ctx context.Context, cfg config.Config, build system.BuildInfo) (*
 		return nil, fmt.Errorf("initialize session signer: %w", err)
 	}
 
-	httpClient := httpclient.NewClient(httpclient.Options{})
+	proxyResolver := &dynamicProxyResolver{}
+	httpClient := httpclient.NewClient(httpclient.Options{
+		ProxyFunc: httpclient.NewProviderProxyFunc(proxyResolver),
+	})
 
 	var (
 		database       *db.DB
@@ -212,6 +240,16 @@ func buildApp(ctx context.Context, cfg config.Config, build system.BuildInfo) (*
 	clitoolsMod := clitools.New(clitools.Options{
 		Config: cfg,
 	})
+	proxypoolsMod := proxypools.New(proxypools.Options{
+		DB:     database,
+		Vault:  vault,
+		Bus:    bus,
+		Logger: logger,
+	})
+	translatorMod := translator.New(translator.Options{
+		Translator: gatewayMod,
+		LogRing:    logRing,
+	})
 
 	if err := registry.Register(sysMod); err != nil {
 		return nil, fmt.Errorf("register system module: %w", err)
@@ -240,6 +278,12 @@ func buildApp(ctx context.Context, cfg config.Config, build system.BuildInfo) (*
 	if err := registry.Register(clitoolsMod); err != nil {
 		return nil, fmt.Errorf("register clitools module: %w", err)
 	}
+	if err := registry.Register(proxypoolsMod); err != nil {
+		return nil, fmt.Errorf("register proxypools module: %w", err)
+	}
+	if err := registry.Register(translatorMod); err != nil {
+		return nil, fmt.Errorf("register translator module: %w", err)
+	}
 
 	if err := registry.MigrateAll(ctx, database); err != nil {
 		return nil, fmt.Errorf("run module migrations: %w", err)
@@ -253,6 +297,9 @@ func buildApp(ctx context.Context, cfg config.Config, build system.BuildInfo) (*
 		return nil, fmt.Errorf("start modules: %w", err)
 	}
 	modulesStarted = true
+	if slices.Contains(registry.ActiveNames(), proxypoolsMod.Name()) {
+		proxyResolver.Set(proxypoolsMod)
+	}
 
 	jobRunner.Every("usage-prune", time.Hour, usageMod.PruneExpired)
 	jobRunner.Start(context.Background())

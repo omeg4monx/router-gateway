@@ -180,15 +180,15 @@
     "semantic_hash": ""
   },
   "cmd/omeg4mon-router/main.go": {
-    "mtime": 1795408686.0097206,
-    "seen": 1795408787.6752517,
-    "ast_hash": "31049d50856eaf9a56c7dd14520094be",
+    "mtime": 1795409308.0075407,
+    "seen": 1795409367.7094631,
+    "ast_hash": "c78ff54004ba1cdf6ccfcabf57846558",
     "semantic_hash": ""
   },
   "cmd/omeg4mon-router/main_test.go": {
-    "mtime": 1795408686.0100017,
-    "seen": 1795408787.6752534,
-    "ast_hash": "e4a480e23cf810faf51f8020a90734b8",
+    "mtime": 1795409310.0705621,
+    "seen": 1795409367.7094655,
+    "ast_hash": "04f6d4cfe7b916496a47e13f7ed9841a",
     "semantic_hash": ""
   },
   "cmd/omeg4mon-router/ui_dev.go": {
@@ -216,9 +216,9 @@
     "semantic_hash": "ff3baca3fcb7cf7a82f6bdd770d51ba0"
   },
   "contracts/openapi/openapi.yaml": {
-    "mtime": 1795408686.0120018,
-    "seen": 1795408787.6752737,
-    "ast_hash": "e59e91082699b3117db23b7fbafb7276",
+    "mtime": 1795409315.7656207,
+    "seen": 1795409367.709831,
+    "ast_hash": "b26b6fd6c592844afa598f59c48abf20",
     "semantic_hash": ""
   },
   "internal/modules/system/migrations/0001_init.sql": {
@@ -354,9 +354,9 @@
     "semantic_hash": "bb80d375646eeb2d8c259c26500224b0"
   },
   "web/src/shared/api/schema.d.ts": {
-    "mtime": 1795408686.075264,
-    "seen": 1795408787.675465,
-    "ast_hash": "0753ac556000cd53193d5d7e90209122",
+    "mtime": 1795409323.571701,
+    "seen": 1795409367.7136598,
+    "ast_hash": "797934a7b1ce8a84d1c9be221ef3402b",
     "semantic_hash": ""
   },
   "web/src/shared/lib/utils.test.ts": {

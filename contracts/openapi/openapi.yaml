@@ -23,6 +23,10 @@ tags:
     description: Request telemetry logs, aggregated usage statistics, live SSE stream, and model pricing overrides
   - name: clitools
     description: CLI coding-tool configuration generators and loopback-only local apply and rollback
+  - name: proxypools
+    description: Encrypted HTTP/SOCKS5 outbound proxy pools, latency probes, auto-scanner, and provider bindings
+  - name: translator
+    description: Interactive wire-protocol translator workbench and live console log SSE stream
 paths:
   /api/health:
     $ref: './modules/system.yaml#/paths/~1api~1health'
@@ -104,6 +108,24 @@ paths:
     $ref: './modules/clitools.yaml#/paths/~1api~1clitools~1{tool}~1apply'
   /api/clitools/{tool}/rollback:
     $ref: './modules/clitools.yaml#/paths/~1api~1clitools~1{tool}~1rollback'
+  /api/proxypools:
+    $ref: './modules/proxypools.yaml#/paths/~1api~1proxypools'
+  /api/proxypools/{id}:
+    $ref: './modules/proxypools.yaml#/paths/~1api~1proxypools~1{id}'
+  /api/proxypools/{id}/test:
+    $ref: './modules/proxypools.yaml#/paths/~1api~1proxypools~1{id}~1test'
+  /api/proxypools/scan:
+    $ref: './modules/proxypools.yaml#/paths/~1api~1proxypools~1scan'
+  /api/proxypools/bindings/{providerId}:
+    $ref: './modules/proxypools.yaml#/paths/~1api~1proxypools~1bindings~1{providerId}'
+  /api/translator/protocols:
+    $ref: './modules/translator.yaml#/paths/~1api~1translator~1protocols'
+  /api/translator/translate:
+    $ref: './modules/translator.yaml#/paths/~1api~1translator~1translate'
+  /api/translator/logs:
+    $ref: './modules/translator.yaml#/paths/~1api~1translator~1logs'
+  /api/translator/logs/stream:
+    $ref: './modules/translator.yaml#/paths/~1api~1translator~1logs~1stream'
 components:
   schemas:
     ErrorDetail:
@@ -284,3 +306,43 @@ components:
       $ref: './modules/clitools.yaml#/components/schemas/ApplyCLIToolConfigResponse'
     RollbackCLIToolConfigResponse:
       $ref: './modules/clitools.yaml#/components/schemas/RollbackCLIToolConfigResponse'
+    ProxyPoolScheme:
+      $ref: './modules/proxypools.yaml#/components/schemas/ProxyPoolScheme'
+    ProxyPoolStatus:
+      $ref: './modules/proxypools.yaml#/components/schemas/ProxyPoolStatus'
+    ProxyPoolSummary:
+      $ref: './modules/proxypools.yaml#/components/schemas/ProxyPoolSummary'
+    ProxyBindingSummary:
+      $ref: './modules/proxypools.yaml#/components/schemas/ProxyBindingSummary'
+    ListProxyPoolsResponse:
+      $ref: './modules/proxypools.yaml#/components/schemas/ListProxyPoolsResponse'
+    CreateProxyPoolRequest:
+      $ref: './modules/proxypools.yaml#/components/schemas/CreateProxyPoolRequest'
+    UpdateProxyPoolRequest:
+      $ref: './modules/proxypools.yaml#/components/schemas/UpdateProxyPoolRequest'
+    TestProxyPoolRequest:
+      $ref: './modules/proxypools.yaml#/components/schemas/TestProxyPoolRequest'
+    TestProxyPoolResponse:
+      $ref: './modules/proxypools.yaml#/components/schemas/TestProxyPoolResponse'
+    ScanProxyCandidatesRequest:
+      $ref: './modules/proxypools.yaml#/components/schemas/ScanProxyCandidatesRequest'
+    ScanProxyCandidateResult:
+      $ref: './modules/proxypools.yaml#/components/schemas/ScanProxyCandidateResult'
+    ScanProxyCandidatesResponse:
+      $ref: './modules/proxypools.yaml#/components/schemas/ScanProxyCandidatesResponse'
+    UpsertProxyBindingRequest:
+      $ref: './modules/proxypools.yaml#/components/schemas/UpsertProxyBindingRequest'
+    TranslatorProtocol:
+      $ref: './modules/translator.yaml#/components/schemas/TranslatorProtocol'
+    TranslatorMode:
+      $ref: './modules/translator.yaml#/components/schemas/TranslatorMode'
+    TranslatorProtocolsResponse:
+      $ref: './modules/translator.yaml#/components/schemas/TranslatorProtocolsResponse'
+    TranslatePayloadRequest:
+      $ref: './modules/translator.yaml#/components/schemas/TranslatePayloadRequest'
+    TranslatePayloadResponse:
+      $ref: './modules/translator.yaml#/components/schemas/TranslatePayloadResponse'
+    ConsoleLogEntry:
+      $ref: './modules/translator.yaml#/components/schemas/ConsoleLogEntry'
+    ConsoleLogsResponse:
+      $ref: './modules/translator.yaml#/components/schemas/ConsoleLogsResponse'
