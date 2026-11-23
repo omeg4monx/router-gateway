@@ -24,9 +24,11 @@ import (
 	"github.com/omeg4monx/router-gateway/internal/modules/gateway"
 	"github.com/omeg4monx/router-gateway/internal/modules/keys"
 	"github.com/omeg4monx/router-gateway/internal/modules/modeleditor"
+	"github.com/omeg4monx/router-gateway/internal/modules/notifications"
 	"github.com/omeg4monx/router-gateway/internal/modules/promptinjection"
 	"github.com/omeg4monx/router-gateway/internal/modules/providers"
 	"github.com/omeg4monx/router-gateway/internal/modules/proxypools"
+	"github.com/omeg4monx/router-gateway/internal/modules/security"
 	"github.com/omeg4monx/router-gateway/internal/modules/settings"
 	"github.com/omeg4monx/router-gateway/internal/modules/system"
 	"github.com/omeg4monx/router-gateway/internal/modules/tokensaver"
@@ -72,6 +74,49 @@ func (d *dynamicProxyResolver) ProxyURLForProvider(ctx context.Context, provider
 		return nil, nil
 	}
 	return (*p).ProxyURLForProvider(ctx, providerID)
+}
+
+type jobInspectorAdapter struct {
+	runner *jobs.Runner
+}
+
+func (a *jobInspectorAdapter) Snapshot() []contracts.JobStatus {
+	if a == nil || a.runner == nil {
+		return nil
+	}
+	raw := a.runner.Snapshot()
+	out := make([]contracts.JobStatus, 0, len(raw))
+	for _, st := range raw {
+		out = append(out, contracts.JobStatus{
+			Name:           st.Name,
+			IntervalMs:     st.IntervalMs,
+			Running:        st.Running,
+			RunCount:       st.RunCount,
+			ErrorCount:     st.ErrorCount,
+			LastStatus:     st.LastStatus,
+			LastError:      st.LastError,
+			LastDurationMs: st.LastDurationMs,
+			LastStartedAt:  st.LastStartedAt,
+			LastFinishedAt: st.LastFinishedAt,
+			NextRunAt:      st.NextRunAt,
+		})
+	}
+	return out
+}
+
+func (a *jobInspectorAdapter) Trigger(ctx context.Context, name string) error {
+	if a == nil || a.runner == nil {
+		return contracts.ErrJobNotFound
+	}
+	err := a.runner.Trigger(ctx, name)
+	switch {
+	case errors.Is(err, jobs.ErrJobNotFound):
+		return contracts.ErrJobNotFound
+	case errors.Is(err, jobs.ErrJobAlreadyRunning):
+		return contracts.ErrJobAlreadyRunning
+	default:
+		return err
+	}
 }
 
 // App holds the wired platform primitives, module lifecycle registry, and HTTP
@@ -279,6 +324,20 @@ func buildApp(ctx context.Context, cfg config.Config, build system.BuildInfo) (*
 		Translator: gatewayMod,
 		LogRing:    logRing,
 	})
+	securityMod := security.New(security.Options{
+		DB:            database,
+		Bus:           bus,
+		Logger:        logger,
+		Config:        cfg,
+		Store:         sysMod,
+		ActiveModules: registry.ActiveNames,
+	})
+	notificationsMod := notifications.New(notifications.Options{
+		DB:     database,
+		Bus:    bus,
+		Logger: logger,
+		Jobs:   &jobInspectorAdapter{runner: jobRunner},
+	})
 
 	if err := registry.Register(sysMod); err != nil {
 		return nil, fmt.Errorf("register system module: %w", err)
@@ -322,6 +381,12 @@ func buildApp(ctx context.Context, cfg config.Config, build system.BuildInfo) (*
 	if err := registry.Register(tokenSaverMod); err != nil {
 		return nil, fmt.Errorf("register tokensaver module: %w", err)
 	}
+	if err := registry.Register(securityMod); err != nil {
+		return nil, fmt.Errorf("register security module: %w", err)
+	}
+	if err := registry.Register(notificationsMod); err != nil {
+		return nil, fmt.Errorf("register notifications module: %w", err)
+	}
 
 	if err := registry.MigrateAll(ctx, database); err != nil {
 		return nil, fmt.Errorf("run module migrations: %w", err)
@@ -335,11 +400,34 @@ func buildApp(ctx context.Context, cfg config.Config, build system.BuildInfo) (*
 		return nil, fmt.Errorf("start modules: %w", err)
 	}
 	modulesStarted = true
-	if slices.Contains(registry.ActiveNames(), proxypoolsMod.Name()) {
+	activeNames := registry.ActiveNames()
+	if slices.Contains(activeNames, proxypoolsMod.Name()) {
 		proxyResolver.Set(proxypoolsMod)
 	}
 
+	jobRunner.SetObserver(func(st jobs.JobStatus) {
+		if st.LastStatus == "error" || st.LastStatus == "panic" {
+			bus.Publish(notifications.TopicJobFailed, notifications.EmitPayload{
+				Title:    fmt.Sprintf("Background job %s failed", st.Name),
+				Message:  st.LastError,
+				Severity: "error",
+				Category: "jobs",
+				Source:   "jobs.runner",
+				Metadata: map[string]any{
+					"job":         st.Name,
+					"last_status": st.LastStatus,
+					"error_count": st.ErrorCount,
+				},
+			})
+		}
+	})
 	jobRunner.Every("usage-prune", time.Hour, usageMod.PruneExpired)
+	if slices.Contains(activeNames, securityMod.Name()) {
+		jobRunner.Every("security-audit-prune", 6*time.Hour, securityMod.PruneExpired)
+	}
+	if slices.Contains(activeNames, notificationsMod.Name()) {
+		jobRunner.Every("notifications-prune", 6*time.Hour, notificationsMod.PruneExpired)
+	}
 	jobRunner.Start(context.Background())
 	jobsStarted = true
 

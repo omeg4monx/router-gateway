@@ -171,3 +171,124 @@ func TestRunnerStopRespectsContextDeadline(t *testing.T) {
 		t.Fatalf("Stop after worker unblocked: %v", err)
 	}
 }
+
+func TestRunnerSnapshotAndManualTrigger(t *testing.T) {
+	t.Parallel()
+
+	runner := jobs.NewRunner(slog.New(slog.NewTextHandler(&syncBuffer{}, nil)))
+
+	var betaRuns atomic.Int32
+	runner.Every("beta-job", time.Hour, func(_ context.Context) error {
+		betaRuns.Add(1)
+		return nil
+	})
+	runner.Every("alpha-job", 30*time.Minute, func(_ context.Context) error {
+		return errors.New("alpha failed")
+	})
+
+	snap := runner.Snapshot()
+	if len(snap) != 2 {
+		t.Fatalf("Snapshot len = %d, want 2", len(snap))
+	}
+	if snap[0].Name != "alpha-job" || snap[1].Name != "beta-job" {
+		t.Fatalf("Snapshot order = [%s, %s], want [alpha-job, beta-job]", snap[0].Name, snap[1].Name)
+	}
+	if snap[0].LastStatus != "idle" || snap[1].LastStatus != "idle" {
+		t.Fatalf("initial LastStatus = [%s, %s], want idle", snap[0].LastStatus, snap[1].LastStatus)
+	}
+
+	if err := runner.Trigger(context.Background(), "missing-job"); !errors.Is(err, jobs.ErrJobNotFound) {
+		t.Fatalf("Trigger missing err = %v, want ErrJobNotFound", err)
+	}
+
+	if err := runner.Trigger(context.Background(), "beta-job"); err != nil {
+		t.Fatalf("Trigger beta-job err = %v, want nil", err)
+	}
+	if betaRuns.Load() != 1 {
+		t.Fatalf("betaRuns = %d, want 1", betaRuns.Load())
+	}
+
+	if err := runner.Trigger(context.Background(), "alpha-job"); err == nil || err.Error() != "alpha failed" {
+		t.Fatalf("Trigger alpha-job err = %v, want alpha failed", err)
+	}
+
+	after := runner.Snapshot()
+	if after[0].RunCount != 1 || after[0].ErrorCount != 1 || after[0].LastStatus != "error" || after[0].LastError != "alpha failed" {
+		t.Fatalf("alpha status = %+v, want RunCount=1 ErrorCount=1 LastStatus=error", after[0])
+	}
+	if after[0].LastStartedAt == nil || after[0].LastFinishedAt == nil {
+		t.Fatalf("alpha timestamps missing: %+v", after[0])
+	}
+	if after[1].RunCount != 1 || after[1].ErrorCount != 0 || after[1].LastStatus != "ok" || after[1].LastError != "" {
+		t.Fatalf("beta status = %+v, want RunCount=1 ErrorCount=0 LastStatus=ok", after[1])
+	}
+}
+
+func TestRunnerOverlapGuardReturnsAlreadyRunning(t *testing.T) {
+	t.Parallel()
+
+	runner := jobs.NewRunner(slog.New(slog.NewTextHandler(&syncBuffer{}, nil)))
+
+	started := make(chan struct{})
+	release := make(chan struct{})
+	runner.Every("slow-job", time.Hour, func(_ context.Context) error {
+		close(started)
+		<-release
+		return nil
+	})
+
+	done := make(chan error, 1)
+	go func() {
+		done <- runner.Trigger(context.Background(), "slow-job")
+	}()
+
+	select {
+	case <-started:
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for slow-job start")
+	}
+
+	if err := runner.Trigger(context.Background(), "slow-job"); !errors.Is(err, jobs.ErrJobAlreadyRunning) {
+		close(release)
+		t.Fatalf("overlapping Trigger err = %v, want ErrJobAlreadyRunning", err)
+	}
+
+	close(release)
+	if err := <-done; err != nil {
+		t.Fatalf("first Trigger err = %v, want nil", err)
+	}
+}
+
+func TestRunnerPanicRecoveryAndObserverCallback(t *testing.T) {
+	t.Parallel()
+
+	runner := jobs.NewRunner(slog.New(slog.NewTextHandler(&syncBuffer{}, nil)))
+
+	var mu sync.Mutex
+	var observed []jobs.JobStatus
+	runner.SetObserver(func(st jobs.JobStatus) {
+		mu.Lock()
+		observed = append(observed, st)
+		mu.Unlock()
+	})
+
+	runner.Every("panic-job", time.Hour, func(_ context.Context) error {
+		panic("kaboom")
+	})
+
+	err := runner.Trigger(context.Background(), "panic-job")
+	if err == nil || !strings.Contains(err.Error(), "kaboom") {
+		t.Fatalf("Trigger panic-job err = %v, want panic error containing kaboom", err)
+	}
+
+	snap := runner.Snapshot()
+	if len(snap) != 1 || snap[0].LastStatus != "panic" || snap[0].ErrorCount != 1 || snap[0].RunCount != 1 {
+		t.Fatalf("panic-job snapshot = %+v, want LastStatus=panic ErrorCount=1 RunCount=1", snap)
+	}
+
+	mu.Lock()
+	defer mu.Unlock()
+	if len(observed) != 1 || observed[0].LastStatus != "panic" || !strings.Contains(observed[0].LastError, "kaboom") {
+		t.Fatalf("observed = %+v, want 1 panic event", observed)
+	}
+}

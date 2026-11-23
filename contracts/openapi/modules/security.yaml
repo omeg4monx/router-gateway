@@ -1,0 +1,255 @@
+openapi: 3.1.0
+info:
+  title: Security Module API
+  version: 0.1.0
+paths:
+  /api/security/posture:
+    get:
+      operationId: getSecurityPosture
+      tags:
+        - security
+      summary: Retrieve live security posture report and configuration warnings
+      responses:
+        "200":
+          description: Current security posture snapshot
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SecurityPostureReport"
+        "500":
+          description: Internal error
+          content:
+            application/json:
+              schema:
+                $ref: "../openapi.yaml#/components/schemas/ErrorEnvelope"
+  /api/security/audit:
+    get:
+      operationId: listSecurityAuditEvents
+      tags:
+        - security
+      summary: List redacted security audit trail events
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 500
+        - name: category
+          in: query
+          schema:
+            type: string
+        - name: severity
+          in: query
+          schema:
+            type: string
+            enum: [info, warning, critical]
+        - name: q
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Security audit events list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SecurityAuditListResponse"
+        "400":
+          description: Invalid query parameter
+          content:
+            application/json:
+              schema:
+                $ref: "../openapi.yaml#/components/schemas/ErrorEnvelope"
+    post:
+      operationId: createSecurityAuditEvent
+      tags:
+        - security
+      summary: Record a manual operator security audit event
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateSecurityAuditRequest"
+      responses:
+        "201":
+          description: Created audit event (redacted)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SecurityAuditEvent"
+        "400":
+          description: Invalid audit event payload
+          content:
+            application/json:
+              schema:
+                $ref: "../openapi.yaml#/components/schemas/ErrorEnvelope"
+    delete:
+      operationId: clearSecurityAuditEvents
+      tags:
+        - security
+      summary: Clear audit trail and insert a tamper-evident audit.cleared marker
+      responses:
+        "200":
+          description: Audit trail cleared with marker event
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClearSecurityAuditResponse"
+  /api/security/audit/export:
+    get:
+      operationId: exportSecurityAuditEvents
+      tags:
+        - security
+      summary: Download security audit trail as JSON attachment
+      responses:
+        "200":
+          description: JSON audit export
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SecurityAuditExportResponse"
+components:
+  schemas:
+    SecurityPostureReport:
+      type: object
+      additionalProperties: false
+      required:
+        - bind_addr
+        - is_loopback
+        - require_login
+        - allow_insecure_remote
+        - master_key_source
+        - disabled_modules
+        - active_module_count
+        - audit_event_count
+        - warnings
+        - checked_at
+      properties:
+        bind_addr:
+          type: string
+        is_loopback:
+          type: boolean
+        require_login:
+          type: boolean
+        allow_insecure_remote:
+          type: boolean
+        master_key_source:
+          type: string
+          enum: [env, file]
+        disabled_modules:
+          type: array
+          items:
+            type: string
+        active_module_count:
+          type: integer
+        audit_event_count:
+          type: integer
+        warnings:
+          type: array
+          items:
+            type: string
+        checked_at:
+          type: string
+    SecurityAuditEvent:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - category
+        - action
+        - severity
+        - actor
+        - resource_id
+        - summary
+        - metadata
+        - ip_address
+        - created_at
+      properties:
+        id:
+          type: string
+        category:
+          type: string
+        action:
+          type: string
+        severity:
+          type: string
+          enum: [info, warning, critical]
+        actor:
+          type: string
+        resource_id:
+          type: string
+        summary:
+          type: string
+        metadata:
+          type: object
+          additionalProperties: true
+        ip_address:
+          type: string
+        created_at:
+          type: string
+    CreateSecurityAuditRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - category
+        - action
+        - summary
+      properties:
+        category:
+          type: string
+        action:
+          type: string
+        severity:
+          type: string
+          enum: [info, warning, critical]
+        actor:
+          type: string
+        resource_id:
+          type: string
+        summary:
+          type: string
+        metadata:
+          type: object
+          additionalProperties: true
+    SecurityAuditListResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - items
+        - total
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/SecurityAuditEvent"
+        total:
+          type: integer
+    ClearSecurityAuditResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - cleared
+        - marker
+      properties:
+        cleared:
+          type: integer
+        marker:
+          $ref: "#/components/schemas/SecurityAuditEvent"
+    SecurityAuditExportResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - exported_at
+        - total
+        - items
+      properties:
+        exported_at:
+          type: string
+        total:
+          type: integer
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/SecurityAuditEvent"

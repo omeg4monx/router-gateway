@@ -33,6 +33,8 @@ const MODULE_SCOPES: Record<string, string> = {
   promptinjection: "Configurable prompt injection guard, RE2 rules & audit trail",
   modeleditor: "Custom model parameter overrides & conditional bypass rules",
   tokensaver: "Go-native token compression & Headroom LRU prefix cache affinity",
+  security: "Live security posture report & redacted control-plane audit trail",
+  notifications: "System notifications inbox, live SSE alerts & background jobs control",
 };
 
 function formatUptime(totalSeconds: number): string {

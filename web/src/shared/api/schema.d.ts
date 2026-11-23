@@ -1168,6 +1168,180 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/security/posture": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Retrieve live security posture report and configuration warnings */
+        get: operations["getSecurityPosture"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/security/audit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List redacted security audit trail events */
+        get: operations["listSecurityAuditEvents"];
+        put?: never;
+        /** Record a manual operator security audit event */
+        post: operations["createSecurityAuditEvent"];
+        /** Clear audit trail and insert a tamper-evident audit.cleared marker */
+        delete: operations["clearSecurityAuditEvents"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/security/audit/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Download security audit trail as JSON attachment */
+        get: operations["exportSecurityAuditEvents"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/notifications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List system notifications and current unread count */
+        get: operations["listNotifications"];
+        put?: never;
+        /** Create a system notification and broadcast over SSE */
+        post: operations["createNotification"];
+        /** Clear all system notifications */
+        delete: operations["clearNotifications"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/notifications/read-all": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Mark all unread notifications as read */
+        post: operations["markAllNotificationsRead"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/notifications/{id}/read": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Mark a single notification as read */
+        post: operations["markNotificationRead"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/notifications/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Dismiss and delete a single notification */
+        delete: operations["deleteNotification"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/notifications/stream": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Subscribe to live system notifications over Server-Sent Events */
+        get: operations["streamNotifications"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/jobs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List registered periodic background jobs and execution telemetry */
+        get: operations["listBackgroundJobs"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/jobs/{name}/trigger": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Manually trigger a registered background job on demand */
+        post: operations["triggerBackgroundJob"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -2187,6 +2361,119 @@ export interface components {
             body: {
                 [key: string]: unknown;
             };
+        };
+        SecurityPostureReport: {
+            bind_addr: string;
+            is_loopback: boolean;
+            require_login: boolean;
+            allow_insecure_remote: boolean;
+            /** @enum {string} */
+            master_key_source: "env" | "file";
+            disabled_modules: string[];
+            active_module_count: number;
+            audit_event_count: number;
+            warnings: string[];
+            checked_at: string;
+        };
+        SecurityAuditEvent: {
+            id: string;
+            category: string;
+            action: string;
+            /** @enum {string} */
+            severity: "info" | "warning" | "critical";
+            actor: string;
+            resource_id: string;
+            summary: string;
+            metadata: {
+                [key: string]: unknown;
+            };
+            ip_address: string;
+            created_at: string;
+        };
+        CreateSecurityAuditRequest: {
+            category: string;
+            action: string;
+            /** @enum {string} */
+            severity?: "info" | "warning" | "critical";
+            actor?: string;
+            resource_id?: string;
+            summary: string;
+            metadata?: {
+                [key: string]: unknown;
+            };
+        };
+        SecurityAuditListResponse: {
+            items: components["schemas"]["SecurityAuditEvent"][];
+            total: number;
+        };
+        ClearSecurityAuditResponse: {
+            cleared: number;
+            marker: components["schemas"]["SecurityAuditEvent"];
+        };
+        SecurityAuditExportResponse: {
+            exported_at: string;
+            total: number;
+            items: components["schemas"]["SecurityAuditEvent"][];
+        };
+        SystemNotification: {
+            id: string;
+            title: string;
+            message: string;
+            /** @enum {string} */
+            severity: "info" | "success" | "warning" | "error";
+            category: string;
+            source: string;
+            metadata: {
+                [key: string]: unknown;
+            };
+            read_at: string;
+            read: boolean;
+            created_at: string;
+        };
+        CreateNotificationRequest: {
+            title: string;
+            message: string;
+            /** @enum {string} */
+            severity?: "info" | "success" | "warning" | "error";
+            category?: string;
+            source?: string;
+            metadata?: {
+                [key: string]: unknown;
+            };
+        };
+        NotificationListResponse: {
+            items: components["schemas"]["SystemNotification"][];
+            total: number;
+            unread_count: number;
+        };
+        MarkAllReadResponse: {
+            updated: number;
+        };
+        DeleteNotificationResponse: {
+            deleted: boolean;
+        };
+        ClearNotificationsResponse: {
+            cleared: number;
+        };
+        BackgroundJobStatus: {
+            name: string;
+            interval_ms: number;
+            running: boolean;
+            run_count: number;
+            error_count: number;
+            /** @enum {string} */
+            last_status: "idle" | "running" | "ok" | "error" | "panic";
+            last_error: string;
+            last_duration_ms: number;
+            last_started_at: string;
+            last_finished_at: string;
+            next_run_at: string;
+        };
+        BackgroundJobListResponse: {
+            jobs: components["schemas"]["BackgroundJobStatus"][];
+        };
+        TriggerJobResponse: {
+            job: components["schemas"]["BackgroundJobStatus"];
         };
     };
     responses: never;
@@ -6128,6 +6415,390 @@ export interface operations {
             };
             /** @description Validation error */
             400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    getSecurityPosture: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current security posture snapshot */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SecurityPostureReport"];
+                };
+            };
+            /** @description Internal error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    listSecurityAuditEvents: {
+        parameters: {
+            query?: {
+                limit?: number;
+                category?: string;
+                severity?: "info" | "warning" | "critical";
+                q?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Security audit events list */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SecurityAuditListResponse"];
+                };
+            };
+            /** @description Invalid query parameter */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    createSecurityAuditEvent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateSecurityAuditRequest"];
+            };
+        };
+        responses: {
+            /** @description Created audit event (redacted) */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SecurityAuditEvent"];
+                };
+            };
+            /** @description Invalid audit event payload */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    clearSecurityAuditEvents: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Audit trail cleared with marker event */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClearSecurityAuditResponse"];
+                };
+            };
+        };
+    };
+    exportSecurityAuditEvents: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description JSON audit export */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SecurityAuditExportResponse"];
+                };
+            };
+        };
+    };
+    listNotifications: {
+        parameters: {
+            query?: {
+                unread_only?: boolean;
+                severity?: "info" | "success" | "warning" | "error";
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Notifications list and unread counter */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationListResponse"];
+                };
+            };
+            /** @description Invalid query parameter */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    createNotification: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateNotificationRequest"];
+            };
+        };
+        responses: {
+            /** @description Created notification */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SystemNotification"];
+                };
+            };
+            /** @description Invalid notification payload */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    clearNotifications: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Cleared count */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClearNotificationsResponse"];
+                };
+            };
+        };
+    };
+    markAllNotificationsRead: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Updated count */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MarkAllReadResponse"];
+                };
+            };
+        };
+    };
+    markNotificationRead: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Updated notification */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SystemNotification"];
+                };
+            };
+            /** @description Notification not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    deleteNotification: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted confirmation */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeleteNotificationResponse"];
+                };
+            };
+            /** @description Notification not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    streamNotifications: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description text/event-stream of live notification events */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/event-stream": string;
+                };
+            };
+        };
+    };
+    listBackgroundJobs: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Background jobs snapshot */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BackgroundJobListResponse"];
+                };
+            };
+        };
+    };
+    triggerBackgroundJob: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Updated job status after manual trigger */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TriggerJobResponse"];
+                };
+            };
+            /** @description Job not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Job is already running */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
