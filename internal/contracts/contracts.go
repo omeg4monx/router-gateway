@@ -324,3 +324,32 @@ type ChatCompletionResult struct {
 type ChatCompleter interface {
 	CompleteChat(ctx context.Context, req ChatCompletionRequest) (ChatCompletionResult, error)
 }
+
+// SettingsSnapshotter exports and imports typed control-plane settings across
+// modules (such as cloudsync and importer) without importing internal/modules/settings.
+type SettingsSnapshotter interface {
+	ExportSettings(ctx context.Context) (map[string]any, error)
+	ImportSettings(ctx context.Context, values map[string]any, actor, reason string) (int, error)
+}
+
+// ComboSnapshot is a portable, module-agnostic representation of a fallback combo.
+type ComboSnapshot struct {
+	Name        string   `json:"name"`
+	Description string   `json:"description"`
+	Strategy    string   `json:"strategy"`
+	Targets     []string `json:"targets"`
+	Enabled     bool     `json:"enabled"`
+}
+
+// AliasSnapshot is a portable representation of a logical model alias.
+type AliasSnapshot struct {
+	Alias       string `json:"alias"`
+	TargetModel string `json:"target_model"`
+}
+
+// ComboSnapshotter exports and imports fallback combos and model aliases across
+// modules without importing internal/modules/combos.
+type ComboSnapshotter interface {
+	ExportCombos(ctx context.Context) ([]ComboSnapshot, []AliasSnapshot, error)
+	ImportCombos(ctx context.Context, combos []ComboSnapshot, aliases []AliasSnapshot, overwrite bool, actor string) (int, int, error)
+}

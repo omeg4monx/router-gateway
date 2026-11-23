@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -17,6 +18,8 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	_ "modernc.org/sqlite"
 
 	"github.com/omeg4monx/router-gateway/internal/modules/system"
 	"github.com/omeg4monx/router-gateway/internal/platform/config"
@@ -937,7 +940,7 @@ func TestAppWave1CUsageAndCLIToolsEndToEnd(t *testing.T) {
 	if err := json.Unmarshal(healthBody, &health); err != nil {
 		t.Fatalf("decode /api/health JSON: %v", err)
 	}
-	wantModules := []string{"arena", "auth", "clitools", "combos", "gateway", "keys", "media", "mitm", "modeleditor", "notifications", "promptinjection", "providers", "proxypools", "pxpipe", "security", "settings", "system", "teams", "telegram", "tokensaver", "translator", "tunnel", "usage", "vouchers"}
+	wantModules := []string{"arena", "auth", "clitools", "cloudsync", "combos", "gateway", "importer", "keys", "media", "mitm", "modeleditor", "notifications", "plugins", "promptinjection", "providers", "proxypools", "pxpipe", "security", "settings", "system", "teams", "telegram", "tokensaver", "translator", "tunnel", "usage", "vouchers"}
 	for _, wantMod := range wantModules {
 		if !slices.Contains(health.Modules, wantMod) {
 			t.Fatalf("GET /api/health modules = %v, missing %q", health.Modules, wantMod)
@@ -2449,6 +2452,173 @@ func TestWave3DDisabledModulesDetachCleanly(t *testing.T) {
 	_ = resp.Body.Close()
 
 	for _, path := range []string{"/api/telegram/config", "/api/arena/models", "/api/chat/sessions"} {
+		r, err := client.Get(ts.URL + path)
+		if err != nil {
+			t.Fatalf("GET %s: %v", path, err)
+		}
+		_ = r.Body.Close()
+		if r.StatusCode != http.StatusNotFound {
+			t.Fatalf("expected 404 for disabled module route %s, got %d", path, r.StatusCode)
+		}
+	}
+}
+
+func TestWave3EE2EPluginsCloudSyncImporter(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+
+	cfg := config.Config{
+		Host:          "127.0.0.1",
+		Port:          0,
+		DataDir:       t.TempDir(),
+		AdminPassword: "wave3e-e2e-password",
+		LogLevel:      "error",
+		APITimeout:    10 * time.Second,
+	}
+	app, err := buildApp(ctx, cfg, system.BuildInfo{Version: "test", Commit: "wave3e"})
+	if err != nil {
+		t.Fatalf("buildApp: %v", err)
+	}
+	t.Cleanup(func() { _ = app.Close(context.Background()) })
+
+	ts := httptest.NewServer(app.Handler())
+	defer ts.Close()
+
+	jar, _ := cookiejar.New(nil)
+	client := &http.Client{Jar: jar, Timeout: 10 * time.Second}
+	doJSON := func(method, target string, payload any) (int, []byte) {
+		t.Helper()
+		var body io.Reader
+		if payload != nil {
+			raw, _ := json.Marshal(payload)
+			body = bytes.NewReader(raw)
+		}
+		req, _ := http.NewRequestWithContext(ctx, method, target, body)
+		if payload != nil {
+			req.Header.Set("Content-Type", "application/json")
+		}
+		resp, err := client.Do(req)
+		if err != nil {
+			t.Fatalf("%s %s: %v", method, target, err)
+		}
+		defer resp.Body.Close()
+		b, _ := io.ReadAll(resp.Body)
+		return resp.StatusCode, b
+	}
+
+	if code, body := doJSON(http.MethodPost, ts.URL+"/api/auth/login", map[string]string{"password": cfg.AdminPassword}); code != http.StatusOK {
+		t.Fatalf("login = %d: %s", code, body)
+	}
+
+	// 1. Plugins & Skills: enable antiSlop, preview, and list built-in skills.
+	if code, body := doJSON(http.MethodPut, ts.URL+"/api/plugins/antiSlop", map[string]any{
+		"enabled": true,
+		"models":  []string{"gpt-4o"},
+		"config":  map[string]any{"level": "full"},
+	}); code != http.StatusOK {
+		t.Fatalf("PUT /api/plugins/antiSlop = %d: %s", code, body)
+	}
+	if code, body := doJSON(http.MethodPost, ts.URL+"/api/plugins/preview", map[string]any{
+		"model": "gpt-4o",
+		"payload": map[string]any{
+			"model":    "gpt-4o",
+			"messages": []map[string]string{{"role": "user", "content": "hi"}},
+		},
+	}); code != http.StatusOK || !strings.Contains(string(body), `"antiSlop"`) {
+		t.Fatalf("POST /api/plugins/preview = %d: %s", code, body)
+	}
+	if code, body := doJSON(http.MethodGet, ts.URL+"/api/skills", nil); code != http.StatusOK || !strings.Contains(string(body), "omeg4mon-router-gateway") {
+		t.Fatalf("GET /api/skills = %d: %s", code, body)
+	}
+
+	// 2. CloudSync: SSRF rejection on loopback + portable snapshot export & restore.
+	if code, _ := doJSON(http.MethodPatch, ts.URL+"/api/cloudsync/config", map[string]any{
+		"endpoint_url": "http://127.0.0.1:9999/sync",
+	}); code != http.StatusBadRequest {
+		t.Fatalf("expected 400 SSRF rejection for loopback endpoint, got %d", code)
+	}
+	snapCode, snapRaw := doJSON(http.MethodGet, ts.URL+"/api/cloudsync/snapshot", nil)
+	if snapCode != http.StatusOK || !strings.Contains(string(snapRaw), `"checksum"`) {
+		t.Fatalf("GET /api/cloudsync/snapshot = %d: %s", snapCode, snapRaw)
+	}
+	var snapObj map[string]any
+	_ = json.Unmarshal(snapRaw, &snapObj)
+	if code, body := doJSON(http.MethodPost, ts.URL+"/api/cloudsync/restore", map[string]any{
+		"conflict_policy": "merge",
+		"snapshot":        snapObj,
+	}); code != http.StatusOK {
+		t.Fatalf("POST /api/cloudsync/restore = %d: %s", code, body)
+	}
+
+	// 3. Importer: create temp legacy SQLite DB, inspect, dry-run, and live import.
+	legacyPath := filepath.Join(t.TempDir(), "legacy.sqlite")
+	lconn, err := sql.Open("sqlite", legacyPath)
+	if err != nil {
+		t.Fatalf("open legacy sqlite: %v", err)
+	}
+	for _, stmt := range []string{
+		`CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT)`,
+		`INSERT INTO settings (key, value) VALUES ('theme', '"light"')`,
+		`CREATE TABLE combos (id TEXT PRIMARY KEY, name TEXT, data TEXT)`,
+		`INSERT INTO combos (id, name, data) VALUES ('c1', 'legacy-e2e', '{"models":["openai/gpt-4o"],"isActive":true}')`,
+	} {
+		if _, err := lconn.ExecContext(ctx, stmt); err != nil {
+			t.Fatalf("seed legacy sqlite: %v", err)
+		}
+	}
+	_ = lconn.Close()
+
+	if code, body := doJSON(http.MethodPost, ts.URL+"/api/importer/inspect", map[string]string{
+		"source_path": legacyPath,
+	}); code != http.StatusOK || !strings.Contains(string(body), `"combos_count":1`) {
+		t.Fatalf("POST /api/importer/inspect = %d: %s", code, body)
+	}
+	if code, body := doJSON(http.MethodPost, ts.URL+"/api/importer/run", map[string]any{
+		"source_path":     legacyPath,
+		"dry_run":         false,
+		"import_settings": true,
+		"import_combos":   true,
+	}); code != http.StatusOK || !strings.Contains(string(body), `"combos_imported":1`) {
+		t.Fatalf("POST /api/importer/run = %d: %s", code, body)
+	}
+}
+
+func TestWave3EDisabledModulesDetachCleanly(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	cfg := config.Config{
+		Host:          "127.0.0.1",
+		Port:          0,
+		DataDir:       t.TempDir(),
+		AdminPassword: "wave3e-disabled-pass",
+		LogLevel:      "error",
+		APITimeout:    5 * time.Second,
+		DisabledModules: map[string]bool{
+			"plugins":   true,
+			"cloudsync": true,
+			"importer":  true,
+		},
+	}
+	app, err := buildApp(ctx, cfg, system.BuildInfo{Version: "test", Commit: "wave3e"})
+	if err != nil {
+		t.Fatalf("buildApp with disabled Wave 3E modules: %v", err)
+	}
+	t.Cleanup(func() { _ = app.Close(context.Background()) })
+
+	ts := httptest.NewServer(app.Handler())
+	defer ts.Close()
+
+	jar, _ := cookiejar.New(nil)
+	client := &http.Client{Jar: jar, Timeout: 5 * time.Second}
+	loginRaw, _ := json.Marshal(map[string]string{"password": cfg.AdminPassword})
+	resp, err := client.Post(ts.URL+"/api/auth/login", "application/json", bytes.NewReader(loginRaw))
+	if err != nil || resp.StatusCode != http.StatusOK {
+		t.Fatalf("login failed: %v", err)
+	}
+	_ = resp.Body.Close()
+
+	for _, path := range []string{"/api/plugins", "/api/skills", "/api/cloudsync/config", "/api/importer/history"} {
 		r, err := client.Get(ts.URL + path)
 		if err != nil {
 			t.Fatalf("GET %s: %v", path, err)
