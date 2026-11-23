@@ -77,8 +77,9 @@ type Module struct {
 }
 
 var (
-	_ lifecycle.Module       = (*Module)(nil)
-	_ contracts.KeyValidator = (*Module)(nil)
+	_ lifecycle.Module         = (*Module)(nil)
+	_ contracts.KeyValidator   = (*Module)(nil)
+	_ contracts.KeyProvisioner = (*Module)(nil)
 )
 
 // New constructs a keys Module with the provided database and event bus.
@@ -134,6 +135,81 @@ func (m *Module) Start(context.Context) error {
 func (m *Module) Stop(context.Context) error {
 	m.cache.Clear()
 	return nil
+}
+
+// ProvisionKey mints a new gateway API key programmatically on behalf of
+// authorized modules (such as vouchers) and emits keys.changed on the bus.
+func (m *Module) ProvisionKey(ctx context.Context, req contracts.ProvisionKeyRequest) (contracts.ProvisionedKey, error) {
+	name, err := validateName(req.Name)
+	if err != nil {
+		return contracts.ProvisionedKey{}, err
+	}
+	if req.RateLimitRPM < 0 {
+		return contracts.ProvisionedKey{}, errors.New("rate_limit_rpm must be non-negative")
+	}
+	if req.QuotaUSD < 0 || math.IsNaN(req.QuotaUSD) || math.IsInf(req.QuotaUSD, 0) {
+		return contracts.ProvisionedKey{}, errors.New("quota_usd must be a non-negative finite number")
+	}
+
+	allowedModels, err := validateStringSlice("allowed_models", req.AllowedModels)
+	if err != nil {
+		return contracts.ProvisionedKey{}, err
+	}
+	scopes := req.Scopes
+	if len(scopes) == 0 {
+		scopes = []string{"gateway"}
+	} else {
+		scopes, err = validateStringSlice("scopes", scopes)
+		if err != nil {
+			return contracts.ProvisionedKey{}, err
+		}
+	}
+	tags, err := validateStringSlice("tags", req.Tags)
+	if err != nil {
+		return contracts.ProvisionedKey{}, err
+	}
+	expiresAt, err := normalizeExpiresAt(req.ExpiresAt)
+	if err != nil {
+		return contracts.ProvisionedKey{}, err
+	}
+
+	keyID, err := generateKeyID()
+	if err != nil {
+		return contracts.ProvisionedKey{}, fmt.Errorf("generate key id: %w", err)
+	}
+	rawSecret, keyHash, keyPrefix, err := generateToken()
+	if err != nil {
+		return contracts.ProvisionedKey{}, fmt.Errorf("generate key secret: %w", err)
+	}
+
+	summary, err := m.repo.Create(ctx, createParams{
+		ID:            keyID,
+		Name:          name,
+		KeyHash:       keyHash,
+		KeyPrefix:     keyPrefix,
+		AllowedModels: allowedModels,
+		Scopes:        scopes,
+		Tags:          tags,
+		RateLimitRPM:  req.RateLimitRPM,
+		QuotaUSD:      req.QuotaUSD,
+		ExpiresAt:     expiresAt,
+	})
+	if err != nil {
+		return contracts.ProvisionedKey{}, fmt.Errorf("create provisioned key: %w", err)
+	}
+
+	actor := strings.TrimSpace(req.Actor)
+	if actor == "" {
+		actor = "system"
+	}
+	m.publishChanged("created", summary.ID, actor, summary.UpdatedAt)
+
+	return contracts.ProvisionedKey{
+		ID:        summary.ID,
+		Name:      summary.Name,
+		KeyPrefix: summary.KeyPrefix,
+		Secret:    rawSecret,
+	}, nil
 }
 
 // ValidateKey validates rawKey by SHA-256 hash using an in-memory read-through

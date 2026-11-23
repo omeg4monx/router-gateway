@@ -259,3 +259,35 @@ type JobInspector interface {
 	Snapshot() []JobStatus
 	Trigger(ctx context.Context, name string) error
 }
+
+// ProvisionKeyRequest describes parameters for minting a new gateway API key
+// from another module (such as vouchers) without importing internal/modules/keys.
+type ProvisionKeyRequest struct {
+	Name          string
+	AllowedModels []string
+	Scopes        []string
+	Tags          []string
+	RateLimitRPM  int
+	QuotaUSD      float64
+	ExpiresAt     *string
+	Actor         string
+}
+
+// ProvisionedKey returns the identifier, prefix, and one-time raw secret of a
+// newly minted gateway API key.
+type ProvisionedKey struct {
+	ID        string
+	Name      string
+	KeyPrefix string
+	Secret    string
+}
+
+// KeyProvisioner mints gateway API keys on behalf of authorized modules.
+type KeyProvisioner interface {
+	ProvisionKey(ctx context.Context, req ProvisionKeyRequest) (ProvisionedKey, error)
+}
+
+// TeamAssigner binds a gateway API key to a team for shared budget/RPM grouping.
+type TeamAssigner interface {
+	AssignKeyToTeam(ctx context.Context, teamID, keyID string) error
+}
