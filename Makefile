@@ -8,7 +8,7 @@ LDFLAGS := -s -w -X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.bui
 BINARY := bin/omeg4mon-router
 UI_DIST := cmd/omeg4mon-router/ui_dist
 
-.PHONY: codegen fmt fmt-check lint check test build-web build dev cross-build clean
+.PHONY: codegen fmt fmt-check lint check test build-web build smoke dev cross-build clean
 
 codegen:
 	cd web && bun run gen:api
@@ -35,6 +35,7 @@ test:
 	go test -count=1 -race ./...
 	CGO_ENABLED=0 go test -count=1 ./internal/platform/db/...
 	cd web && bun test && bun run typecheck
+	cd cli && bun test
 
 build-web:
 	cd web && NEXT_OUTPUT_EXPORT=true bun run build
@@ -45,6 +46,9 @@ build: codegen build-web
 	mkdir -p bin
 	CGO_ENABLED=0 go build -tags embedui -trimpath -ldflags="$(LDFLAGS)" -o $(BINARY) ./cmd/omeg4mon-router
 
+smoke:
+	./scripts/smoke-test.sh $(BINARY)
+
 dev:
 	@echo "Start omeg4mon-router in two terminals for live reload:"
 	@echo "  1) Go API backend  : go run ./cmd/omeg4mon-router"
@@ -53,11 +57,14 @@ dev:
 
 cross-build: codegen build-web
 	mkdir -p dist
+	rm -f dist/omeg4mon-router-* dist/SHA256SUMS.txt
 	GOOS=linux   GOARCH=amd64 CGO_ENABLED=0 go build -tags embedui -trimpath -ldflags="$(LDFLAGS)" -o dist/omeg4mon-router-linux-amd64 ./cmd/omeg4mon-router
 	GOOS=linux   GOARCH=arm64 CGO_ENABLED=0 go build -tags embedui -trimpath -ldflags="$(LDFLAGS)" -o dist/omeg4mon-router-linux-arm64 ./cmd/omeg4mon-router
 	GOOS=darwin  GOARCH=amd64 CGO_ENABLED=0 go build -tags embedui -trimpath -ldflags="$(LDFLAGS)" -o dist/omeg4mon-router-darwin-amd64 ./cmd/omeg4mon-router
 	GOOS=darwin  GOARCH=arm64 CGO_ENABLED=0 go build -tags embedui -trimpath -ldflags="$(LDFLAGS)" -o dist/omeg4mon-router-darwin-arm64 ./cmd/omeg4mon-router
 	GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -tags embedui -trimpath -ldflags="$(LDFLAGS)" -o dist/omeg4mon-router-windows-amd64.exe ./cmd/omeg4mon-router
+	GOOS=windows GOARCH=arm64 CGO_ENABLED=0 go build -tags embedui -trimpath -ldflags="$(LDFLAGS)" -o dist/omeg4mon-router-windows-arm64.exe ./cmd/omeg4mon-router
+	cd dist && sha256sum omeg4mon-router-* > SHA256SUMS.txt
 
 clean:
 	rm -rf bin dist $(UI_DIST) web/out web/.next

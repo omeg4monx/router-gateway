@@ -29,6 +29,13 @@ RUN mkdir -p /data && \
       ./cmd/omeg4mon-router
 
 FROM gcr.io/distroless/static-debian12:nonroot
+ARG VERSION=dev
+ARG COMMIT=none
+LABEL org.opencontainers.image.title="omeg4mon-router" \
+      org.opencontainers.image.description="Single-binary modular Go + Next.js LLM gateway and control plane" \
+      org.opencontainers.image.version="${VERSION}" \
+      org.opencontainers.image.revision="${COMMIT}" \
+      org.opencontainers.image.licenses="MIT"
 COPY --from=go-builder /out/omeg4mon-router /omeg4mon-router
 COPY --from=go-builder --chown=65532:65532 /data /data
 ENV OMEG4MON_HOST=0.0.0.0 \

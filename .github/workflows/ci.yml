@@ -75,7 +75,7 @@ jobs:
           "
 
   web-check:
-    name: Web (Next.js 16, OpenAPI Drift, Tests & Static Export)
+    name: Web & CLI (Next.js 16, OpenAPI Drift, Tests & Static Export)
     runs-on: ubuntu-latest
     timeout-minutes: 15
     defaults:
@@ -109,6 +109,10 @@ jobs:
           git diff --exit-code src/shared/api/schema.d.ts
 
       - name: Run web unit tests
+        run: bun test
+
+      - name: Run CLI launcher unit tests
+        working-directory: cli
         run: bun test
 
       - name: Run strict TypeScript check (next typegen + tsc)
@@ -173,41 +177,10 @@ jobs:
           ls -lh bin/omeg4mon-router
 
       - name: Run live single-binary smoke test
-        run: |
-          TMPDIR=$(mktemp -d)
-          OMEG4MON_HOST=127.0.0.1 OMEG4MON_PORT=20199 OMEG4MON_DATA_DIR="$TMPDIR" ./bin/omeg4mon-router &
-          PID=$!
-          trap 'kill "$PID" 2>/dev/null || true; wait "$PID" 2>/dev/null || true; rm -rf "$TMPDIR"' EXIT
-
-          for i in $(seq 1 25); do
-            if curl -sf http://127.0.0.1:20199/api/health >/dev/null 2>&1; then
-              break
-            fi
-            sleep 0.2
-          done
-
-          HEALTH=$(curl -sf http://127.0.0.1:20199/api/health)
-          echo "HEALTH=$HEALTH"
-          echo "$HEALTH" | grep -q '"status":"ok"'
-
-          VERSION=$(curl -sf http://127.0.0.1:20199/api/version)
-          echo "VERSION=$VERSION"
-          echo "$VERSION" | grep -q '"goVersion"'
-
-          curl -sf http://127.0.0.1:20199/dashboard/ | grep -qi '<!DOCTYPE html>'
-          curl -sf http://127.0.0.1:20199/init/ | grep -qi '<!DOCTYPE html>'
-          curl -sf http://127.0.0.1:20199/login/ | grep -qi '<!DOCTYPE html>'
-
-          STATUS404=$(curl -s -o /tmp/notfound.json -w '%{http_code}' http://127.0.0.1:20199/api/does-not-exist)
-          cat /tmp/notfound.json
-          test "$STATUS404" = "404"
-          grep -q '"not_found"' /tmp/notfound.json
-
-          kill -TERM "$PID"
-          wait "$PID"
+        run: ./scripts/smoke-test.sh ./bin/omeg4mon-router 20199
 
   cross-compile:
-    name: Cross-Compile (5 Targets Zero-CGO)
+    name: Cross-Compile (6 Targets Zero-CGO)
     needs: [go-check, web-check]
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -236,7 +209,9 @@ jobs:
           CGO_ENABLED=0 GOOS=darwin  GOARCH=amd64 go build -tags embedui -trimpath -ldflags="-s -w" -o dist/omeg4mon-router-darwin-amd64 ./cmd/omeg4mon-router
           CGO_ENABLED=0 GOOS=darwin  GOARCH=arm64 go build -tags embedui -trimpath -ldflags="-s -w" -o dist/omeg4mon-router-darwin-arm64 ./cmd/omeg4mon-router
           CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -tags embedui -trimpath -ldflags="-s -w" -o dist/omeg4mon-router-windows-amd64.exe ./cmd/omeg4mon-router
-          ls -lh dist/
+          CGO_ENABLED=0 GOOS=windows GOARCH=arm64 go build -tags embedui -trimpath -ldflags="-s -w" -o dist/omeg4mon-router-windows-arm64.exe ./cmd/omeg4mon-router
+          cd dist && sha256sum omeg4mon-router-* > SHA256SUMS.txt
+          ls -lh .
 
   docker-build:
     name: Docker Multi-Stage Build
