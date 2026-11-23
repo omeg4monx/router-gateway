@@ -2226,9 +2226,9 @@
     "semantic_hash": ""
   },
   "web/src/app/palette.test.ts": {
-    "mtime": 1795457426.5369806,
-    "seen": 1795457490.1836898,
-    "ast_hash": "9ade83d70eb364dde37bfad9d7201071",
+    "mtime": 1795463523.1120942,
+    "seen": 1795463605.5376112,
+    "ast_hash": "120ca049956c645da7851cd5858a97be",
     "semantic_hash": ""
   },
   "web/src/features/auth/i18n.test.ts": {

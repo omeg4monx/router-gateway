@@ -76,108 +76,6 @@
    Contrast: on-primary on a primary fill >= 6:1 in both modes; primary
    as text >= 4.5:1 on surfaces.
    ============================================================ */
-[data-theme="dark"] {
-  color-scheme: dark;
-
-  /* Brand scale (dark) — Ruby Rose custom accent from main (#eb6583 / #ef8099) */
-  --color-brand-50: #fef2f5;
-  --color-brand-100: #fde4ea;
-  --color-brand-200: #f9c6d2;
-  --color-brand-300: #f49eb2;
-  --color-brand-400: #ef8099;
-  --color-brand-500: #eb6583;
-  --color-brand-600: #ef8099;
-  --color-brand-700: #c73c5d;
-  --color-brand-800: #951330;
-  --color-brand-900: #630c20;
-
-  /* Primary — Ruby Rose (main custom palette preset "rose") */
-  --color-primary: var(--color-brand-500);
-  --color-primary-hover: var(--color-brand-600);
-  /* Obsidian on Ruby Rose: >= 6:1 */
-  --color-on-primary: #050608;
-
-  /* Secondary — silver trim (fill carries dark text) */
-  --color-secondary: #c0c6cf;
-  --color-secondary-hover: #d5dae1;
-  --color-secondary-bg: rgba(192, 198, 207, 0.12);
-  --color-secondary-fg: #d5dae1;
-  --color-secondary-border: rgba(192, 198, 207, 0.28);
-
-  /* Accent — burning red eyes / energy core */
-  --color-accent: #ff2d3a;
-  --color-accent-hover: #ff5a64;
-  --color-accent-bg: rgba(255, 45, 58, 0.14);
-  --color-accent-fg: #ff7a82;
-  --color-accent-border: rgba(255, 45, 58, 0.32);
-
-  /* Highlight — electric cyan glow */
-  --color-highlight: #22d3ee;
-
-  /* Surfaces (dark) — obsidian armor, gunmetal plates */
-  --color-bg: #050608;
-  --color-bg-alt: #0a0c10;
-  --color-surface: #101217;
-  --color-surface-2: #171a20;
-  --color-surface-3: #20242c;
-  --color-sidebar: #0a0c10;
-  --color-border: #262a33;
-  --color-border-subtle: #171a20;
-  --color-field: #0a0c10;
-  --color-field-border: #2a2f38;
-
-  /* Text — silver */
-  --color-text: #e6e9ee;
-  --color-text-main: #e6e9ee;
-  --color-text-muted: #a3aab6;
-  --color-text-subtle: #7e8592;
-
-  /* Status */
-  --color-danger: #f0605f;
-  --color-danger-bg: rgba(240, 96, 95, 0.14);
-  --color-danger-fg: #f2959a;
-  --color-danger-border: rgba(240, 96, 95, 0.3);
-
-  --color-success: #4fb083;
-  --color-success-bg: rgba(70, 160, 119, 0.14);
-  --color-success-fg: #7fcfaa;
-  --color-success-border: rgba(70, 160, 119, 0.3);
-
-  --color-warning: #d39a4a;
-  --color-warning-bg: rgba(211, 154, 74, 0.14);
-  --color-warning-fg: #e2b878;
-  --color-warning-border: rgba(211, 154, 74, 0.3);
-
-  --color-info: #22a6c4;
-  --color-info-bg: rgba(34, 166, 196, 0.14);
-  --color-info-fg: #7fd6ea;
-  --color-info-border: rgba(34, 166, 196, 0.3);
-
-  /* Semantic aliases used by migration/ts-go components */
-  --bg-canvas: #050608;
-  --bg-surface: #101217;
-  --bg-surface-raised: #171a20;
-  --bg-input: #0a0c10;
-  --border-subtle: #171a20;
-  --border-strong: #262a33;
-  --text-primary: #e6e9ee;
-  --text-secondary: #a3aab6;
-  --text-muted: #7e8592;
-  --accent-primary: #eb6583;
-  --accent-primary-hover: #ef8099;
-  --accent-primary-ink: #050608;
-  --accent-text: #eb6583;
-  --status-ok: #7fcfaa;
-  --status-ok-bg: rgba(70, 160, 119, 0.14);
-  --status-ok-border: rgba(70, 160, 119, 0.3);
-  --status-error: #f2959a;
-  --status-error-bg: rgba(240, 96, 95, 0.14);
-  --status-error-border: rgba(240, 96, 95, 0.3);
-  --status-warn: #e2b878;
-  --status-warn-bg: rgba(211, 154, 74, 0.14);
-  --status-warn-border: rgba(211, 154, 74, 0.3);
-}
-
 :root,
 [data-theme="light"] {
   color-scheme: light;
@@ -279,6 +177,108 @@
   --status-warn: #8a5500;
   --status-warn-bg: #fdf2e3;
   --status-warn-border: #efd6ad;
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  /* Brand scale (dark) — Ruby Rose custom accent from main (#eb6583 / #ef8099) */
+  --color-brand-50: #fef2f5;
+  --color-brand-100: #fde4ea;
+  --color-brand-200: #f9c6d2;
+  --color-brand-300: #f49eb2;
+  --color-brand-400: #ef8099;
+  --color-brand-500: #eb6583;
+  --color-brand-600: #ef8099;
+  --color-brand-700: #c73c5d;
+  --color-brand-800: #951330;
+  --color-brand-900: #630c20;
+
+  /* Primary — Ruby Rose (main custom palette preset "rose") */
+  --color-primary: var(--color-brand-500);
+  --color-primary-hover: var(--color-brand-600);
+  /* Obsidian on Ruby Rose: >= 6:1 */
+  --color-on-primary: #050608;
+
+  /* Secondary — silver trim (fill carries dark text) */
+  --color-secondary: #c0c6cf;
+  --color-secondary-hover: #d5dae1;
+  --color-secondary-bg: rgba(192, 198, 207, 0.12);
+  --color-secondary-fg: #d5dae1;
+  --color-secondary-border: rgba(192, 198, 207, 0.28);
+
+  /* Accent — burning red eyes / energy core */
+  --color-accent: #ff2d3a;
+  --color-accent-hover: #ff5a64;
+  --color-accent-bg: rgba(255, 45, 58, 0.14);
+  --color-accent-fg: #ff7a82;
+  --color-accent-border: rgba(255, 45, 58, 0.32);
+
+  /* Highlight — electric cyan glow */
+  --color-highlight: #22d3ee;
+
+  /* Surfaces (dark) — obsidian armor, gunmetal plates */
+  --color-bg: #050608;
+  --color-bg-alt: #0a0c10;
+  --color-surface: #101217;
+  --color-surface-2: #171a20;
+  --color-surface-3: #20242c;
+  --color-sidebar: #0a0c10;
+  --color-border: #262a33;
+  --color-border-subtle: #171a20;
+  --color-field: #0a0c10;
+  --color-field-border: #2a2f38;
+
+  /* Text — silver */
+  --color-text: #e6e9ee;
+  --color-text-main: #e6e9ee;
+  --color-text-muted: #a3aab6;
+  --color-text-subtle: #7e8592;
+
+  /* Status */
+  --color-danger: #f0605f;
+  --color-danger-bg: rgba(240, 96, 95, 0.14);
+  --color-danger-fg: #f2959a;
+  --color-danger-border: rgba(240, 96, 95, 0.3);
+
+  --color-success: #4fb083;
+  --color-success-bg: rgba(70, 160, 119, 0.14);
+  --color-success-fg: #7fcfaa;
+  --color-success-border: rgba(70, 160, 119, 0.3);
+
+  --color-warning: #d39a4a;
+  --color-warning-bg: rgba(211, 154, 74, 0.14);
+  --color-warning-fg: #e2b878;
+  --color-warning-border: rgba(211, 154, 74, 0.3);
+
+  --color-info: #22a6c4;
+  --color-info-bg: rgba(34, 166, 196, 0.14);
+  --color-info-fg: #7fd6ea;
+  --color-info-border: rgba(34, 166, 196, 0.3);
+
+  /* Semantic aliases used by migration/ts-go components */
+  --bg-canvas: #050608;
+  --bg-surface: #101217;
+  --bg-surface-raised: #171a20;
+  --bg-input: #0a0c10;
+  --border-subtle: #171a20;
+  --border-strong: #262a33;
+  --text-primary: #e6e9ee;
+  --text-secondary: #a3aab6;
+  --text-muted: #7e8592;
+  --accent-primary: #eb6583;
+  --accent-primary-hover: #ef8099;
+  --accent-primary-ink: #050608;
+  --accent-text: #eb6583;
+  --status-ok: #7fcfaa;
+  --status-ok-bg: rgba(70, 160, 119, 0.14);
+  --status-ok-border: rgba(70, 160, 119, 0.3);
+  --status-error: #f2959a;
+  --status-error-bg: rgba(240, 96, 95, 0.14);
+  --status-error-border: rgba(240, 96, 95, 0.3);
+  --status-warn: #e2b878;
+  --status-warn-bg: rgba(211, 154, 74, 0.14);
+  --status-warn-border: rgba(211, 154, 74, 0.3);
 }
 
 * {

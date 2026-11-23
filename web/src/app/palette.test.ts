@@ -108,6 +108,15 @@ describe("Omegamon color palette contract (main parity)", () => {
     expect(props["--color-highlight"]?.toLowerCase()).toBe("#00b8e6");
   });
 
+  test("dark theme block appears after :root light default so [data-theme='dark'] wins CSS cascade", () => {
+    const lightIdx = css.search(/:root,\s*\[data-theme="light"\]\s*\{/);
+    const darkIdx = css.search(/\[data-theme="dark"\]\s*\{/);
+
+    expect(lightIdx).toBeGreaterThan(-1);
+    expect(darkIdx).toBeGreaterThan(-1);
+    expect(darkIdx).toBeGreaterThan(lightIdx);
+  });
+
   test("no legacy Ember Orange (#E56A4A), warm off-white (#FDFAF6), or hardcoded #0a0a0a remain in web/src", () => {
     const violations: string[] = [];
     const forbidden = /#(e56a4a|fdfaf6|0a0a0a)\b/gi;
