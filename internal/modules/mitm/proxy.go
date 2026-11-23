@@ -327,11 +327,11 @@ func (m *Module) buildProxyHandler(targetBase *url.URL, client *http.Client) htt
 		}
 		defer func() { _ = resp.Body.Close() }()
 
+		m.recordInterceptEvent(r.Context(), tool, r.Host, r.Method, r.URL.Path, sourceModel, targetModel, resp.StatusCode, time.Since(start))
+
 		copyNonHopHeaders(w.Header(), resp.Header)
 		w.WriteHeader(resp.StatusCode)
 		streamResponseBody(w, resp.Body)
-
-		m.recordInterceptEvent(r.Context(), tool, r.Host, r.Method, r.URL.Path, sourceModel, targetModel, resp.StatusCode, time.Since(start))
 	})
 }
 
@@ -385,6 +385,9 @@ func (m *Module) rewriteModelIfNeeded(ctx context.Context, tool string, body []b
 }
 
 func (m *Module) recordInterceptEvent(ctx context.Context, tool, host, method, path, srcModel, tgtModel string, statusCode int, latency time.Duration) {
+	evCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 2*time.Second)
+	defer cancel()
+
 	ev := Event{
 		ID:          newID("mev"),
 		Tool:        tool,
@@ -397,7 +400,9 @@ func (m *Module) recordInterceptEvent(ctx context.Context, tool, host, method, p
 		LatencyMs:   latency.Milliseconds(),
 		CreatedAt:   time.Now().UTC().Format(timestampLayout),
 	}
-	_ = m.repo.recordEvent(ctx, ev)
+	if err := m.repo.recordEvent(evCtx, ev); err != nil {
+		m.logger.Warn("mitm: failed to record intercept event", "error", err)
+	}
 }
 
 func copyNonHopHeaders(dst, src http.Header) {

@@ -1734,9 +1734,9 @@
     "semantic_hash": ""
   },
   "internal/modules/mitm/proxy.go": {
-    "mtime": 1795428244.015101,
-    "seen": 1795428394.9353013,
-    "ast_hash": "854f29f973ce14aa37c43abbe6fd256c",
+    "mtime": 1795428879.0319636,
+    "seen": 1795428905.8209748,
+    "ast_hash": "5bd15553aeffe8153b161c10123b057e",
     "semantic_hash": ""
   },
   "internal/modules/mitm/repo.go": {
