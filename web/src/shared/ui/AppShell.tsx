@@ -2,12 +2,14 @@
 
 import {
   Activity,
+  ArrowRightLeft,
   Cpu,
   KeyRound,
   Layers,
   LogIn,
   LogOut,
   Menu,
+  Network,
   PanelLeftClose,
   PanelLeftOpen,
   Server,
@@ -41,8 +43,10 @@ const ACTIVE_NAV_ITEMS: ActiveNavItem[] = [
   { label: "System Overview", href: "/dashboard/", icon: Activity },
   { label: "Providers", href: "/dashboard/providers/", icon: Server },
   { label: "Models & Routing", href: "/dashboard/models/", icon: Layers },
+  { label: "Proxy Pools", href: "/dashboard/proxy-pools/", icon: Network },
   { label: "API Keys", href: "/dashboard/keys/", icon: KeyRound },
   { label: "Usage & Telemetry", href: "/dashboard/usage/", icon: Cpu },
+  { label: "Translator", href: "/dashboard/translator/", icon: ArrowRightLeft },
   { label: "CLI Tools", href: "/dashboard/cli-tools/", icon: Terminal },
   { label: "Settings", href: "/dashboard/settings/", icon: SlidersHorizontal },
 ];
@@ -231,11 +235,11 @@ export function AppShell({ children }: AppShellProps) {
           )}
         >
           {compact ? (
-            <span className="text-[var(--text-secondary)]">W1</span>
+            <span className="text-[var(--text-secondary)]">W2A</span>
           ) : (
             <>
               <span>KERNEL</span>
-              <span className="text-[var(--text-secondary)]">WAVE 1 COMPLETE</span>
+              <span className="text-[var(--text-secondary)]">WAVE 2A</span>
             </>
           )}
         </div>

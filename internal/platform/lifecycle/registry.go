@@ -34,12 +34,14 @@ var (
 	ErrAlreadyStarted     = errors.New("registry modules already started")
 )
 
-// RouteMounts provides the three HTTP router tiers onto which modules mount
-// their endpoints during bootstrap.
+// RouteMounts provides the HTTP router tiers onto which modules mount their
+// endpoints during bootstrap. AdminStreamAPI omits APITimeout for long-lived
+// authenticated SSE endpoints.
 type RouteMounts struct {
-	PublicAPI chi.Router
-	AdminAPI  chi.Router
-	Gateway   chi.Router
+	PublicAPI      chi.Router
+	AdminAPI       chi.Router
+	AdminStreamAPI chi.Router
+	Gateway        chi.Router
 }
 
 // Module is implemented by every vertical-slice feature module registered with

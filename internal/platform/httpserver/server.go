@@ -89,17 +89,24 @@ func New(opts Options) *Server {
 	root := chi.NewRouter()
 	root.Use(middleware.RequestID)
 
-	// Control plane router mounted under /api with panic recovery and API timeout.
+	// Control plane router mounted under /api with panic recovery. Standard
+	// PublicAPI and AdminAPI mounts enforce APITimeout, while AdminStreamAPI
+	// omits APITimeout so authenticated SSE streams survive long sessions.
 	apiRouter := chi.NewRouter()
 	apiRouter.Use(s.recoverJSON)
-	if opts.Config.APITimeout > 0 {
-		apiRouter.Use(apiTimeoutMiddleware(opts.Config.APITimeout))
-	}
 	apiRouter.NotFound(jsonNotFoundHandler)
 	apiRouter.MethodNotAllowed(jsonMethodNotAllowedHandler)
 
-	publicAPI := apiRouter.With()
-	adminAPI := apiRouter.With(s.adminAuthMiddleware)
+	var publicAPI, adminAPI chi.Router
+	if opts.Config.APITimeout > 0 {
+		timeoutMW := apiTimeoutMiddleware(opts.Config.APITimeout)
+		publicAPI = apiRouter.With(timeoutMW)
+		adminAPI = apiRouter.With(timeoutMW, s.adminAuthMiddleware)
+	} else {
+		publicAPI = apiRouter.With()
+		adminAPI = apiRouter.With(s.adminAuthMiddleware)
+	}
+	adminStreamAPI := apiRouter.With(s.adminAuthMiddleware)
 	root.Mount("/api", apiRouter)
 
 	// Streaming gateway router: panic recovery without APITimeout so SSE streams
@@ -136,9 +143,10 @@ func New(opts Options) *Server {
 
 	s.root = root
 	s.mounts = lifecycle.RouteMounts{
-		PublicAPI: publicAPI,
-		AdminAPI:  adminAPI,
-		Gateway:   gatewayRouter,
+		PublicAPI:      publicAPI,
+		AdminAPI:       adminAPI,
+		AdminStreamAPI: adminStreamAPI,
+		Gateway:        gatewayRouter,
 	}
 	s.httpServer = &http.Server{
 		Addr:              opts.Config.Addr(),

@@ -742,6 +742,168 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/proxypools": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List configured HTTP/SOCKS5 proxy pools and provider bindings */
+        get: operations["listProxyPools"];
+        put?: never;
+        /** Create an encrypted HTTP/HTTPS/SOCKS5 proxy pool entry */
+        post: operations["createProxyPool"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/proxypools/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete a proxy pool and cascade remove its provider bindings */
+        delete: operations["deleteProxyPool"];
+        options?: never;
+        head?: never;
+        /** Update a proxy pool name, URL, or enabled state */
+        patch: operations["updateProxyPool"];
+        trace?: never;
+    };
+    "/api/proxypools/{id}/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Measure proxy connectivity and latency and persist health status */
+        post: operations["testProxyPool"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/proxypools/scan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Concurrently probe candidate proxy URLs and optionally auto-add healthy pools */
+        post: operations["scanProxyCandidates"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/proxypools/bindings/{providerId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                providerId: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        /** Bind an upstream provider identifier to a proxy pool */
+        put: operations["upsertProxyBinding"];
+        post?: never;
+        /** Remove a provider proxy binding so requests dial directly */
+        delete: operations["deleteProxyBinding"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/translator/protocols": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List supported gateway wire protocols and translation modes */
+        get: operations["listTranslatorProtocols"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/translator/translate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Translate a JSON request or response payload between supported gateway protocols */
+        post: operations["translateProtocolPayload"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/translator/logs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Fetch recent structured server log entries from the in-memory ring buffer */
+        get: operations["listConsoleLogs"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/translator/logs/stream": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Stream live structured server log entries over Server-Sent Events (SSE) */
+        get: operations["streamConsoleLogs"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1356,6 +1518,119 @@ export interface components {
             tool: components["schemas"]["CLIToolID"];
             target_path: string;
             backup_path: string;
+        };
+        /** @enum {string} */
+        ProxyPoolScheme: "http" | "https" | "socks5" | "socks5h";
+        /** @enum {string} */
+        ProxyPoolStatus: "unknown" | "healthy" | "unhealthy";
+        ProxyPoolSummary: {
+            id: string;
+            name: string;
+            scheme: components["schemas"]["ProxyPoolScheme"];
+            display_url: string;
+            has_credentials: boolean;
+            enabled: boolean;
+            status: components["schemas"]["ProxyPoolStatus"];
+            /** Format: int64 */
+            last_latency_ms: number;
+            last_error: string;
+            last_tested_at: string;
+            created_at: string;
+            updated_at: string;
+        };
+        ProxyBindingSummary: {
+            provider_id: string;
+            pool_id: string;
+            updated_at: string;
+        };
+        ListProxyPoolsResponse: {
+            pools: components["schemas"]["ProxyPoolSummary"][];
+            bindings: components["schemas"]["ProxyBindingSummary"][];
+        };
+        CreateProxyPoolRequest: {
+            name: string;
+            url: string;
+            enabled?: boolean;
+        };
+        UpdateProxyPoolRequest: {
+            name?: string;
+            url?: string;
+            enabled?: boolean;
+        };
+        TestProxyPoolRequest: {
+            target_url?: string;
+            timeout_ms?: number;
+        };
+        TestProxyPoolResponse: {
+            id: string;
+            healthy: boolean;
+            status: components["schemas"]["ProxyPoolStatus"];
+            /** Format: int64 */
+            latency_ms: number;
+            error?: string;
+            tested_at: string;
+        };
+        ScanProxyCandidatesRequest: {
+            candidates: string[];
+            auto_add?: boolean;
+            name_prefix?: string;
+            timeout_ms?: number;
+        };
+        ScanProxyCandidateResult: {
+            display_url: string;
+            scheme?: string;
+            has_credentials: boolean;
+            healthy: boolean;
+            /** Format: int64 */
+            latency_ms: number;
+            error?: string;
+            added_pool_id?: string;
+        };
+        ScanProxyCandidatesResponse: {
+            results: components["schemas"]["ScanProxyCandidateResult"][];
+        };
+        UpsertProxyBindingRequest: {
+            pool_id: string;
+        };
+        /** @enum {string} */
+        TranslatorProtocol: "openai-chat" | "anthropic" | "openai-responses" | "gemini";
+        /** @enum {string} */
+        TranslatorMode: "request" | "response";
+        TranslatorProtocolsResponse: {
+            protocols: components["schemas"]["TranslatorProtocol"][];
+            modes: components["schemas"]["TranslatorMode"][];
+        };
+        TranslatePayloadRequest: {
+            mode: components["schemas"]["TranslatorMode"];
+            from_protocol: components["schemas"]["TranslatorProtocol"];
+            to_protocol: components["schemas"]["TranslatorProtocol"];
+            payload: {
+                [key: string]: unknown;
+            };
+        };
+        TranslatePayloadResponse: {
+            mode: components["schemas"]["TranslatorMode"];
+            from_protocol: components["schemas"]["TranslatorProtocol"];
+            to_protocol: components["schemas"]["TranslatorProtocol"];
+            fast_path: boolean;
+            /** Format: int64 */
+            duration_us: number;
+            output: {
+                [key: string]: unknown;
+            };
+        };
+        ConsoleLogEntry: {
+            /** Format: date-time */
+            time: string;
+            level: string;
+            message: string;
+            attrs?: {
+                [key: string]: unknown;
+            };
+        };
+        ConsoleLogsResponse: {
+            entries: components["schemas"]["ConsoleLogEntry"][];
+            total: number;
         };
     };
     responses: never;
@@ -4198,6 +4473,426 @@ export interface operations {
             };
             /** @description Failed to rollback local tool configuration. */
             500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    listProxyPools: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Redacted proxy pools and provider bindings. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListProxyPoolsResponse"];
+                };
+            };
+            /** @description Administrative authentication is required. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    createProxyPool: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateProxyPoolRequest"];
+            };
+        };
+        responses: {
+            /** @description Created proxy pool with redacted display URL. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProxyPoolSummary"];
+                };
+            };
+            /** @description Invalid proxy URL or request payload. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Administrative authentication is required. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    deleteProxyPool: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Proxy pool deleted. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Proxy pool not found. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    updateProxyPool: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateProxyPoolRequest"];
+            };
+        };
+        responses: {
+            /** @description Updated proxy pool summary. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProxyPoolSummary"];
+                };
+            };
+            /** @description Invalid proxy URL or payload. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Proxy pool not found. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    testProxyPool: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["TestProxyPoolRequest"];
+            };
+        };
+        responses: {
+            /** @description Proxy probe result. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TestProxyPoolResponse"];
+                };
+            };
+            /** @description Proxy pool not found. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    scanProxyCandidates: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ScanProxyCandidatesRequest"];
+            };
+        };
+        responses: {
+            /** @description Batch proxy scan results. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScanProxyCandidatesResponse"];
+                };
+            };
+            /** @description Invalid or oversized candidate list. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    upsertProxyBinding: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                providerId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpsertProxyBindingRequest"];
+            };
+        };
+        responses: {
+            /** @description Saved provider proxy binding. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProxyBindingSummary"];
+                };
+            };
+            /** @description Invalid request payload. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Referenced proxy pool not found. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    deleteProxyBinding: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                providerId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Provider proxy binding removed. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Binding not found. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    listTranslatorProtocols: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Supported protocols and translation modes. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TranslatorProtocolsResponse"];
+                };
+            };
+            /** @description Administrative authentication is required. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    translateProtocolPayload: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TranslatePayloadRequest"];
+            };
+        };
+        responses: {
+            /** @description Translated JSON payload and timing metadata. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TranslatePayloadResponse"];
+                };
+            };
+            /** @description Invalid protocol, mode, or malformed JSON payload. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Administrative authentication is required. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    listConsoleLogs: {
+        parameters: {
+            query?: {
+                limit?: number;
+                level?: "DEBUG" | "INFO" | "WARN" | "ERROR";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Filtered console log entries. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConsoleLogsResponse"];
+                };
+            };
+            /** @description Administrative authentication is required. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    streamConsoleLogs: {
+        parameters: {
+            query?: {
+                tail?: number;
+                level?: "DEBUG" | "INFO" | "WARN" | "ERROR";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Server-Sent Events stream of ConsoleLogEntry JSON objects. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/event-stream": string;
+                };
+            };
+            /** @description Administrative authentication is required. */
+            401: {
                 headers: {
                     [name: string]: unknown;
                 };

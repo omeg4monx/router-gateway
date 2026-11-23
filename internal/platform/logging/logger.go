@@ -21,14 +21,53 @@ type LogEntry struct {
 	Attrs   map[string]any `json:"attrs,omitempty"`
 }
 
+const subscriberBufferCap = 64
+
 // RingBuffer stores up to a fixed capacity of the most recent LogEntry values
-// in a mutex-protected circular buffer.
+// in a mutex-protected circular buffer and supports non-blocking live log
+// subscriptions.
 type RingBuffer struct {
 	mu      sync.Mutex
 	entries []LogEntry
 	next    int
 	count   int
 	cap     int
+
+	nextSubID uint64
+	subs      map[uint64]chan LogEntry
+}
+
+// Subscribe registers a live log listener returning a read-only channel of
+// newly recorded LogEntry values and an idempotent unsubscribe function.
+// Slow subscribers drop excess entries rather than blocking loggers.
+func (r *RingBuffer) Subscribe() (entries <-chan LogEntry, unsubscribe func()) {
+	ch := make(chan LogEntry, subscriberBufferCap)
+	if r == nil {
+		close(ch)
+		return ch, func() {}
+	}
+
+	r.mu.Lock()
+	if r.subs == nil {
+		r.subs = make(map[uint64]chan LogEntry)
+	}
+	r.nextSubID++
+	id := r.nextSubID
+	r.subs[id] = ch
+	r.mu.Unlock()
+
+	var once sync.Once
+	unsub := func() {
+		once.Do(func() {
+			r.mu.Lock()
+			if existing, ok := r.subs[id]; ok {
+				delete(r.subs, id)
+				close(existing)
+			}
+			r.mu.Unlock()
+		})
+	}
+	return ch, unsub
 }
 
 // Recent returns up to limit most recent log entries in chronological order.
@@ -72,17 +111,29 @@ func cloneAttrMap(src map[string]any) map[string]any {
 }
 
 func (r *RingBuffer) add(entry LogEntry) {
-	if r == nil || r.cap <= 0 {
+	if r == nil {
 		return
 	}
 
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	r.entries[r.next] = entry
-	r.next = (r.next + 1) % r.cap
-	if r.count < r.cap {
-		r.count++
+	if r.cap > 0 {
+		r.entries[r.next] = entry
+		r.next = (r.next + 1) % r.cap
+		if r.count < r.cap {
+			r.count++
+		}
+	}
+
+	for _, ch := range r.subs {
+		cloned := entry
+		cloned.Attrs = cloneAttrMap(entry.Attrs)
+		select {
+		case ch <- cloned:
+		default:
+			// Drop when subscriber cannot keep up so logging never blocks.
+		}
 	}
 }
 

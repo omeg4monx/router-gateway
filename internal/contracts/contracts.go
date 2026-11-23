@@ -223,3 +223,11 @@ type ModelDescriptor struct {
 type ModelLister interface {
 	ListModels(ctx context.Context, allowed []string) ([]ModelDescriptor, error)
 }
+
+// ProtocolTranslator exposes stateless wire-protocol request and response
+// translation across supported gateway protocols without cross-module coupling.
+type ProtocolTranslator interface {
+	SupportedProtocols() []string
+	TranslateRequest(fromProto, toProto string, body []byte) ([]byte, error)
+	TranslateResponse(fromProto, toProto string, body []byte) ([]byte, error)
+}

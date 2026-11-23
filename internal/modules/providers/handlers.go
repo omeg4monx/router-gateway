@@ -14,6 +14,7 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"github.com/omeg4monx/router-gateway/internal/contracts"
+	"github.com/omeg4monx/router-gateway/internal/platform/httpclient"
 	"github.com/omeg4monx/router-gateway/internal/platform/httpserver"
 )
 
@@ -653,11 +654,12 @@ func (m *Module) handleTestConnection(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	testCtx := httpclient.WithProviderID(r.Context(), creds.ProviderID)
 	var testReq *http.Request
 	if adapter, ok := m.GetAdapter(creds.ProviderID); ok {
-		testReq, err = adapter.BuildTestRequest(r.Context(), creds)
+		testReq, err = adapter.BuildTestRequest(testCtx, creds)
 	} else {
-		testReq, err = buildProtocolTestRequest(r.Context(), creds)
+		testReq, err = buildProtocolTestRequest(testCtx, creds)
 	}
 	if err != nil {
 		httpserver.WriteError(w, r, http.StatusBadRequest, "invalid_request", "failed to build connectivity test request")

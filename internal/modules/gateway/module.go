@@ -70,7 +70,62 @@ type Module struct {
 	chains       *chainStore
 }
 
-var _ lifecycle.Module = (*Module)(nil)
+var (
+	_ lifecycle.Module             = (*Module)(nil)
+	_ contracts.ProtocolTranslator = (*Module)(nil)
+)
+
+// SupportedProtocols returns the ordered list of gateway wire protocols.
+func (m *Module) SupportedProtocols() []string {
+	return []string{
+		ProtocolOpenAIChat,
+		ProtocolAnthropic,
+		ProtocolOpenAIResponses,
+		ProtocolGemini,
+	}
+}
+
+// TranslateRequest converts a wire-format request payload from fromProto to
+// toProto using the gateway's fast-path validator or Canonical IR pipeline.
+func (m *Module) TranslateRequest(fromProto, toProto string, body []byte) ([]byte, error) {
+	if !IsSupportedProtocol(fromProto) {
+		return nil, fmt.Errorf("%w: %q", ErrUnsupportedProtocol, fromProto)
+	}
+	if !IsSupportedProtocol(toProto) {
+		return nil, fmt.Errorf("%w: %q", ErrUnsupportedProtocol, toProto)
+	}
+	if CanFastPath(fromProto, toProto) {
+		return RewriteModelField(body, fromProto, "")
+	}
+	canon, err := DecodeRequest(fromProto, body, "")
+	if err != nil {
+		return nil, err
+	}
+	return EncodeRequest(toProto, canon)
+}
+
+// TranslateResponse converts a non-streaming wire-format response payload from
+// fromProto to toProto using the gateway's Canonical IR pipeline.
+func (m *Module) TranslateResponse(fromProto, toProto string, body []byte) ([]byte, error) {
+	if !IsSupportedProtocol(fromProto) {
+		return nil, fmt.Errorf("%w: %q", ErrUnsupportedProtocol, fromProto)
+	}
+	if !IsSupportedProtocol(toProto) {
+		return nil, fmt.Errorf("%w: %q", ErrUnsupportedProtocol, toProto)
+	}
+	if CanFastPath(fromProto, toProto) {
+		trimmed := bytes.TrimSpace(body)
+		if len(trimmed) == 0 || trimmed[0] != '{' || !json.Valid(trimmed) {
+			return nil, fmt.Errorf("%w: response body must be a JSON object", ErrInvalidPayload)
+		}
+		return bytes.Clone(trimmed), nil
+	}
+	canon, err := DecodeResponse(fromProto, body)
+	if err != nil {
+		return nil, err
+	}
+	return EncodeResponse(toProto, canon)
+}
 
 // New constructs a gateway Module with sorted interceptors and bounded
 // response chain persistence.
@@ -373,7 +428,8 @@ func (m *Module) tryUpstreamAnthropicCountTokens(ctx context.Context, cand contr
 	if err != nil {
 		return 0, false
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, targetURL, bytes.NewReader(rewritten))
+	upCtx := httpclient.WithProviderID(ctx, cand.ProviderID)
+	req, err := http.NewRequestWithContext(upCtx, http.MethodPost, targetURL, bytes.NewReader(rewritten))
 	if err != nil {
 		return 0, false
 	}
@@ -673,7 +729,8 @@ func (m *Module) executeCandidateAttempt(
 		m.health.RecordFailure(cand.ConnectionID, http.StatusBadGateway, 0)
 		return attemptOutcome{statusCode: http.StatusBadGateway, errMsg: err.Error()}
 	}
-	upReq, err := http.NewRequestWithContext(ctx, http.MethodPost, upURL, bytes.NewReader(upBody))
+	upCtx := httpclient.WithProviderID(ctx, cand.ProviderID)
+	upReq, err := http.NewRequestWithContext(upCtx, http.MethodPost, upURL, bytes.NewReader(upBody))
 	if err != nil {
 		m.health.RecordFailure(cand.ConnectionID, http.StatusBadGateway, 0)
 		return attemptOutcome{statusCode: http.StatusBadGateway, errMsg: err.Error()}

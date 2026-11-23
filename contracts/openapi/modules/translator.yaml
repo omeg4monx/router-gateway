@@ -1,0 +1,232 @@
+openapi: 3.1.0
+info:
+  title: omeg4mon-router Protocol Translator & Live Console Module API
+  version: 0.1.0
+paths:
+  /api/translator/protocols:
+    get:
+      operationId: listTranslatorProtocols
+      summary: List supported gateway wire protocols and translation modes
+      tags:
+        - translator
+      responses:
+        '200':
+          description: Supported protocols and translation modes.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TranslatorProtocolsResponse'
+        '401':
+          description: Administrative authentication is required.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+  /api/translator/translate:
+    post:
+      operationId: translateProtocolPayload
+      summary: Translate a JSON request or response payload between supported gateway protocols
+      tags:
+        - translator
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TranslatePayloadRequest'
+      responses:
+        '200':
+          description: Translated JSON payload and timing metadata.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TranslatePayloadResponse'
+        '400':
+          description: Invalid protocol, mode, or malformed JSON payload.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Administrative authentication is required.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+  /api/translator/logs:
+    get:
+      operationId: listConsoleLogs
+      summary: Fetch recent structured server log entries from the in-memory ring buffer
+      tags:
+        - translator
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 500
+        - name: level
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - DEBUG
+              - INFO
+              - WARN
+              - ERROR
+      responses:
+        '200':
+          description: Filtered console log entries.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConsoleLogsResponse'
+        '401':
+          description: Administrative authentication is required.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+  /api/translator/logs/stream:
+    get:
+      operationId: streamConsoleLogs
+      summary: Stream live structured server log entries over Server-Sent Events (SSE)
+      tags:
+        - translator
+      parameters:
+        - name: tail
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            maximum: 500
+        - name: level
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - DEBUG
+              - INFO
+              - WARN
+              - ERROR
+      responses:
+        '200':
+          description: Server-Sent Events stream of ConsoleLogEntry JSON objects.
+          content:
+            text/event-stream:
+              schema:
+                type: string
+        '401':
+          description: Administrative authentication is required.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+components:
+  schemas:
+    TranslatorProtocol:
+      type: string
+      enum:
+        - openai-chat
+        - anthropic
+        - openai-responses
+        - gemini
+    TranslatorMode:
+      type: string
+      enum:
+        - request
+        - response
+    TranslatorProtocolsResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - protocols
+        - modes
+      properties:
+        protocols:
+          type: array
+          items:
+            $ref: '#/components/schemas/TranslatorProtocol'
+        modes:
+          type: array
+          items:
+            $ref: '#/components/schemas/TranslatorMode'
+    TranslatePayloadRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - mode
+        - from_protocol
+        - to_protocol
+        - payload
+      properties:
+        mode:
+          $ref: '#/components/schemas/TranslatorMode'
+        from_protocol:
+          $ref: '#/components/schemas/TranslatorProtocol'
+        to_protocol:
+          $ref: '#/components/schemas/TranslatorProtocol'
+        payload:
+          type: object
+          additionalProperties: true
+    TranslatePayloadResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - mode
+        - from_protocol
+        - to_protocol
+        - fast_path
+        - duration_us
+        - output
+      properties:
+        mode:
+          $ref: '#/components/schemas/TranslatorMode'
+        from_protocol:
+          $ref: '#/components/schemas/TranslatorProtocol'
+        to_protocol:
+          $ref: '#/components/schemas/TranslatorProtocol'
+        fast_path:
+          type: boolean
+        duration_us:
+          type: integer
+          format: int64
+        output:
+          type: object
+          additionalProperties: true
+    ConsoleLogEntry:
+      type: object
+      additionalProperties: false
+      required:
+        - time
+        - level
+        - message
+      properties:
+        time:
+          type: string
+          format: date-time
+        level:
+          type: string
+        message:
+          type: string
+        attrs:
+          type: object
+          additionalProperties: true
+    ConsoleLogsResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - entries
+        - total
+      properties:
+        entries:
+          type: array
+          items:
+            $ref: '#/components/schemas/ConsoleLogEntry'
+        total:
+          type: integer

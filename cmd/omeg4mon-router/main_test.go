@@ -937,7 +937,7 @@ func TestAppWave1CUsageAndCLIToolsEndToEnd(t *testing.T) {
 	if err := json.Unmarshal(healthBody, &health); err != nil {
 		t.Fatalf("decode /api/health JSON: %v", err)
 	}
-	wantModules := []string{"auth", "clitools", "combos", "gateway", "keys", "providers", "settings", "system", "usage"}
+	wantModules := []string{"auth", "clitools", "combos", "gateway", "keys", "providers", "proxypools", "settings", "system", "translator", "usage"}
 	for _, wantMod := range wantModules {
 		if !slices.Contains(health.Modules, wantMod) {
 			t.Fatalf("GET /api/health modules = %v, missing %q", health.Modules, wantMod)
@@ -1128,5 +1128,225 @@ func TestAppWave1CUsageAndCLIToolsEndToEnd(t *testing.T) {
 	}
 	if claudeCfg.Env["ANTHROPIC_AUTH_TOKEN"] != createdKey.Secret {
 		t.Fatalf("ANTHROPIC_AUTH_TOKEN = %q, want %q", claudeCfg.Env["ANTHROPIC_AUTH_TOKEN"], createdKey.Secret)
+	}
+}
+
+func TestWave2AE2EProviderProxyRouting(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	// Mock upstream LLM server.
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"id":"chatcmpl-proxy","object":"chat.completion","model":"gpt-4o","choices":[{"index":0,"message":{"role":"assistant","content":"via-proxy-ok"},"finish_reason":"stop"}],"usage":{"prompt_tokens":4,"completion_tokens":3,"total_tokens":7}}`))
+	}))
+	defer upstream.Close()
+
+	// Local forward HTTP proxy recording traffic.
+	var proxyHits atomic.Int32
+	proxySrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		proxyHits.Add(1)
+		outReq, err := http.NewRequestWithContext(r.Context(), r.Method, r.RequestURI, r.Body)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadGateway)
+			return
+		}
+		outReq.Header = r.Header.Clone()
+		resp, err := http.DefaultTransport.RoundTrip(outReq)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadGateway)
+			return
+		}
+		defer resp.Body.Close()
+		for k, vals := range resp.Header {
+			for _, v := range vals {
+				w.Header().Add(k, v)
+			}
+		}
+		w.WriteHeader(resp.StatusCode)
+		_, _ = io.Copy(w, resp.Body)
+	}))
+	defer proxySrv.Close()
+
+	cfg := config.Config{
+		Host:          "127.0.0.1",
+		Port:          0,
+		DataDir:       t.TempDir(),
+		AdminPassword: "wave2a-proxy-pass",
+		LogLevel:      "info",
+		APITimeout:    10 * time.Second,
+	}
+	app, err := buildApp(ctx, cfg, system.BuildInfo{Version: "test", Commit: "wave2a"})
+	if err != nil {
+		t.Fatalf("buildApp: %v", err)
+	}
+	t.Cleanup(func() { _ = app.Close(context.Background()) })
+
+	ts := httptest.NewServer(app.Handler())
+	defer ts.Close()
+
+	jar, _ := cookiejar.New(nil)
+	client := &http.Client{Jar: jar, Timeout: 5 * time.Second}
+
+	doJSON := func(method, url string, payload any, headers map[string]string) (int, []byte) {
+		t.Helper()
+		var bodyReader io.Reader
+		if payload != nil {
+			raw, _ := json.Marshal(payload)
+			bodyReader = bytes.NewReader(raw)
+		}
+		req, _ := http.NewRequestWithContext(ctx, method, url, bodyReader)
+		if payload != nil {
+			req.Header.Set("Content-Type", "application/json")
+		}
+		for k, v := range headers {
+			req.Header.Set(k, v)
+		}
+		resp, dErr := client.Do(req)
+		if dErr != nil {
+			t.Fatalf("%s %s failed: %v", method, url, dErr)
+		}
+		defer resp.Body.Close()
+		b, _ := io.ReadAll(resp.Body)
+		return resp.StatusCode, b
+	}
+
+	if st, body := doJSON(http.MethodPost, ts.URL+"/api/auth/login", map[string]string{"password": cfg.AdminPassword}, nil); st != http.StatusOK {
+		t.Fatalf("login = %d: %s", st, body)
+	}
+
+	// Create provider connection pointing to mock upstream.
+	stConn, connBody := doJSON(http.MethodPost, ts.URL+"/api/providers/connections", map[string]any{
+		"provider_id": "openai",
+		"name":        "OpenAI Proxied",
+		"base_url":    upstream.URL,
+		"api_key":     "sk-upstream-test",
+		"models":      []string{"gpt-4o"},
+	}, nil)
+	if stConn != http.StatusCreated {
+		t.Fatalf("create provider connection = %d: %s", stConn, connBody)
+	}
+	var createdConn struct {
+		ID string `json:"id"`
+	}
+	_ = json.Unmarshal(connBody, &createdConn)
+
+	// Create proxy pool & bind openai to it.
+	st, poolBody := doJSON(http.MethodPost, ts.URL+"/api/proxypools", map[string]any{
+		"name": "Local Forward Proxy",
+		"url":  proxySrv.URL,
+	}, nil)
+	if st != http.StatusCreated {
+		t.Fatalf("create proxy pool = %d: %s", st, poolBody)
+	}
+	var pool struct {
+		ID string `json:"id"`
+	}
+	_ = json.Unmarshal(poolBody, &pool)
+
+	if st, body := doJSON(http.MethodPut, ts.URL+"/api/proxypools/bindings/openai", map[string]string{"pool_id": pool.ID}, nil); st != http.StatusOK {
+		t.Fatalf("bind proxy = %d: %s", st, body)
+	}
+
+	// Create API key and send gateway completion request.
+	st, keyBody := doJSON(http.MethodPost, ts.URL+"/api/keys", map[string]any{"name": "proxy-key"}, nil)
+	if st != http.StatusCreated {
+		t.Fatalf("create key = %d: %s", st, keyBody)
+	}
+	var keyResp struct {
+		Secret string `json:"secret"`
+	}
+	_ = json.Unmarshal(keyBody, &keyResp)
+
+	st, chatBody := doJSON(http.MethodPost, ts.URL+"/v1/chat/completions", map[string]any{
+		"model":    "openai/gpt-4o",
+		"messages": []map[string]string{{"role": "user", "content": "hello"}},
+	}, map[string]string{"Authorization": "Bearer " + keyResp.Secret})
+	if st != http.StatusOK {
+		t.Fatalf("POST /v1/chat/completions = %d: %s", st, chatBody)
+	}
+	if !strings.Contains(string(chatBody), "via-proxy-ok") {
+		t.Fatalf("unexpected chat response: %s", chatBody)
+	}
+	if proxyHits.Load() < 1 {
+		t.Fatalf("expected request to traverse bound HTTP proxy, got proxyHits=%d", proxyHits.Load())
+	}
+
+	// Provider connection quick-test must also traverse the bound HTTP proxy.
+	beforeTestHits := proxyHits.Load()
+	stTest, testBody := doJSON(http.MethodPost, ts.URL+"/api/providers/connections/"+createdConn.ID+"/test", nil, nil)
+	if stTest != http.StatusOK {
+		t.Fatalf("POST /api/providers/connections/{id}/test = %d: %s", stTest, testBody)
+	}
+	if proxyHits.Load() <= beforeTestHits {
+		t.Fatalf("expected provider quick-test to traverse bound HTTP proxy (before=%d, after=%d)", beforeTestHits, proxyHits.Load())
+	}
+}
+
+func TestWave2AE2ETranslatorAndCatalog(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	cfg := config.Config{
+		Host:          "127.0.0.1",
+		Port:          0,
+		DataDir:       t.TempDir(),
+		AdminPassword: "wave2a-translator-pass",
+		LogLevel:      "info",
+		APITimeout:    10 * time.Second,
+	}
+	app, err := buildApp(ctx, cfg, system.BuildInfo{Version: "test", Commit: "wave2a"})
+	if err != nil {
+		t.Fatalf("buildApp: %v", err)
+	}
+	t.Cleanup(func() { _ = app.Close(context.Background()) })
+
+	ts := httptest.NewServer(app.Handler())
+	defer ts.Close()
+
+	jar, _ := cookiejar.New(nil)
+	client := &http.Client{Jar: jar, Timeout: 5 * time.Second}
+
+	loginRaw, _ := json.Marshal(map[string]string{"password": cfg.AdminPassword})
+	resp, err := client.Post(ts.URL+"/api/auth/login", "application/json", bytes.NewReader(loginRaw))
+	if err != nil || resp.StatusCode != http.StatusOK {
+		t.Fatalf("login failed: resp=%v err=%v", resp, err)
+	}
+	_ = resp.Body.Close()
+
+	// 1. Expanded catalog has 15 adapters including Wave 2 adapters.
+	catResp, err := client.Get(ts.URL + "/api/providers/catalog")
+	if err != nil || catResp.StatusCode != http.StatusOK {
+		t.Fatalf("GET /api/providers/catalog failed: %v", err)
+	}
+	catBytes, _ := io.ReadAll(catResp.Body)
+	_ = catResp.Body.Close()
+	for _, wantID := range []string{"qwen", "github-copilot", "kiro", "cursor", "antigravity"} {
+		if !strings.Contains(string(catBytes), `"`+wantID+`"`) {
+			t.Fatalf("catalog missing Wave 2 adapter %q", wantID)
+		}
+	}
+
+	// 2. Translator endpoint converts OpenAI Chat -> Anthropic.
+	trPayload := `{"mode":"request","from_protocol":"openai-chat","to_protocol":"anthropic","payload":{"model":"claude-sonnet-4","messages":[{"role":"user","content":"Hello"}]}}`
+	trResp, err := client.Post(ts.URL+"/api/translator/translate", "application/json", strings.NewReader(trPayload))
+	if err != nil {
+		t.Fatalf("POST /api/translator/translate: %v", err)
+	}
+	trBytes, _ := io.ReadAll(trResp.Body)
+	_ = trResp.Body.Close()
+	if trResp.StatusCode != http.StatusOK || !strings.Contains(string(trBytes), `"messages"`) {
+		t.Fatalf("translate response = %d: %s", trResp.StatusCode, trBytes)
+	}
+
+	// 3. Console logs endpoint returns structured JSON entries.
+	logsResp, err := client.Get(ts.URL + "/api/translator/logs?limit=20")
+	if err != nil {
+		t.Fatalf("GET /api/translator/logs: %v", err)
+	}
+	logsBytes, _ := io.ReadAll(logsResp.Body)
+	_ = logsResp.Body.Close()
+	if logsResp.StatusCode != http.StatusOK || !strings.Contains(string(logsBytes), `"entries"`) {
+		t.Fatalf("logs response = %d: %s", logsResp.StatusCode, logsBytes)
 	}
 }
