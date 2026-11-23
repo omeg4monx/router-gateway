@@ -37,6 +37,8 @@ const MODULE_SCOPES: Record<string, string> = {
   notifications: "System notifications inbox, live SSE alerts & background jobs control",
   teams: "API-key grouping with shared USD budgets and RPM limits",
   vouchers: "Redeemable voucher lifecycle, atomic key provisioning & anti-abuse guards",
+  media: "Audio, image, video, search & SSRF-guarded web fetch gateway with combos",
+  tunnel: "Cloudflare quick tunnel and Tailscale serve/funnel lifecycle manager",
 };
 
 function formatUptime(totalSeconds: number): string {

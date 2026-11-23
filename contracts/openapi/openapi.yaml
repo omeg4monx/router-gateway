@@ -41,6 +41,10 @@ tags:
     description: API-key grouping with shared USD budgets and RPM quotas
   - name: vouchers
     description: Redeemable voucher lifecycle, atomic API-key provisioning, and anti-abuse enforcement
+  - name: media
+    description: Media gateway providers, fallback combos, audio/image/video/search proxying, and SSRF-safe web fetch
+  - name: tunnel
+    description: Cloudflare quick tunnel and Tailscale serve/funnel lifecycle manager
 paths:
   /api/health:
     $ref: './modules/system.yaml#/paths/~1api~1health'
@@ -208,6 +212,24 @@ paths:
     $ref: './modules/vouchers.yaml#/paths/~1api~1vouchers~1{id}~1redemptions'
   /api/vouchers/claim:
     $ref: './modules/vouchers.yaml#/paths/~1api~1vouchers~1claim'
+  /api/media/providers:
+    $ref: './modules/media.yaml#/paths/~1api~1media~1providers'
+  /api/media/providers/{id}:
+    $ref: './modules/media.yaml#/paths/~1api~1media~1providers~1{id}'
+  /api/media/combos:
+    $ref: './modules/media.yaml#/paths/~1api~1media~1combos'
+  /api/media/combos/{id}:
+    $ref: './modules/media.yaml#/paths/~1api~1media~1combos~1{id}'
+  /api/tunnel/status:
+    $ref: './modules/tunnel.yaml#/paths/~1api~1tunnel~1status'
+  /api/tunnel/config:
+    $ref: './modules/tunnel.yaml#/paths/~1api~1tunnel~1config'
+  /api/tunnel/start:
+    $ref: './modules/tunnel.yaml#/paths/~1api~1tunnel~1start'
+  /api/tunnel/stop:
+    $ref: './modules/tunnel.yaml#/paths/~1api~1tunnel~1stop'
+  /api/tunnel/events:
+    $ref: './modules/tunnel.yaml#/paths/~1api~1tunnel~1events'
 components:
   schemas:
     ErrorDetail:
@@ -546,3 +568,45 @@ components:
       $ref: './modules/vouchers.yaml#/components/schemas/ClaimVoucherRequest'
     ClaimVoucherResponse:
       $ref: './modules/vouchers.yaml#/components/schemas/ClaimVoucherResponse'
+    MediaCapability:
+      $ref: './modules/media.yaml#/components/schemas/MediaCapability'
+    MediaDriver:
+      $ref: './modules/media.yaml#/components/schemas/MediaDriver'
+    MediaProvider:
+      $ref: './modules/media.yaml#/components/schemas/MediaProvider'
+    MediaProviderListResponse:
+      $ref: './modules/media.yaml#/components/schemas/MediaProviderListResponse'
+    CreateMediaProviderRequest:
+      $ref: './modules/media.yaml#/components/schemas/CreateMediaProviderRequest'
+    UpdateMediaProviderRequest:
+      $ref: './modules/media.yaml#/components/schemas/UpdateMediaProviderRequest'
+    MediaCombo:
+      $ref: './modules/media.yaml#/components/schemas/MediaCombo'
+    MediaComboListResponse:
+      $ref: './modules/media.yaml#/components/schemas/MediaComboListResponse'
+    CreateMediaComboRequest:
+      $ref: './modules/media.yaml#/components/schemas/CreateMediaComboRequest'
+    UpdateMediaComboRequest:
+      $ref: './modules/media.yaml#/components/schemas/UpdateMediaComboRequest'
+    DeleteMediaResourceResponse:
+      $ref: './modules/media.yaml#/components/schemas/DeleteMediaResourceResponse'
+    TunnelProvider:
+      $ref: './modules/tunnel.yaml#/components/schemas/TunnelProvider'
+    TailscaleMode:
+      $ref: './modules/tunnel.yaml#/components/schemas/TailscaleMode'
+    TunnelState:
+      $ref: './modules/tunnel.yaml#/components/schemas/TunnelState'
+    TunnelBinaryStatus:
+      $ref: './modules/tunnel.yaml#/components/schemas/TunnelBinaryStatus'
+    TunnelBinariesStatus:
+      $ref: './modules/tunnel.yaml#/components/schemas/TunnelBinariesStatus'
+    TunnelStatus:
+      $ref: './modules/tunnel.yaml#/components/schemas/TunnelStatus'
+    UpdateTunnelConfigRequest:
+      $ref: './modules/tunnel.yaml#/components/schemas/UpdateTunnelConfigRequest'
+    StartTunnelRequest:
+      $ref: './modules/tunnel.yaml#/components/schemas/StartTunnelRequest'
+    TunnelEvent:
+      $ref: './modules/tunnel.yaml#/components/schemas/TunnelEvent'
+    TunnelEventListResponse:
+      $ref: './modules/tunnel.yaml#/components/schemas/TunnelEventListResponse'

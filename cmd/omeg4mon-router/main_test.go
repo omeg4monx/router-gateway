@@ -937,7 +937,7 @@ func TestAppWave1CUsageAndCLIToolsEndToEnd(t *testing.T) {
 	if err := json.Unmarshal(healthBody, &health); err != nil {
 		t.Fatalf("decode /api/health JSON: %v", err)
 	}
-	wantModules := []string{"auth", "clitools", "combos", "gateway", "keys", "modeleditor", "notifications", "promptinjection", "providers", "proxypools", "security", "settings", "system", "teams", "tokensaver", "translator", "usage", "vouchers"}
+	wantModules := []string{"auth", "clitools", "combos", "gateway", "keys", "media", "modeleditor", "notifications", "promptinjection", "providers", "proxypools", "security", "settings", "system", "teams", "tokensaver", "translator", "tunnel", "usage", "vouchers"}
 	for _, wantMod := range wantModules {
 		if !slices.Contains(health.Modules, wantMod) {
 			t.Fatalf("GET /api/health modules = %v, missing %q", health.Modules, wantMod)
@@ -1896,6 +1896,196 @@ func TestWave3ADisabledModulesDetachCleanly(t *testing.T) {
 	_ = resp.Body.Close()
 
 	for _, path := range []string{"/api/teams", "/api/vouchers"} {
+		r, err := client.Get(ts.URL + path)
+		if err != nil {
+			t.Fatalf("GET %s: %v", path, err)
+		}
+		_ = r.Body.Close()
+		if r.StatusCode != http.StatusNotFound {
+			t.Fatalf("expected 404 for disabled module route %s, got %d", path, r.StatusCode)
+		}
+	}
+}
+
+func TestWave3BMediaAndTunnelE2E(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+
+	// Primary image provider fails with 503; secondary succeeds with 200.
+	var primaryHits, secondaryHits atomic.Int32
+	primaryImg := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		primaryHits.Add(1)
+		w.WriteHeader(http.StatusServiceUnavailable)
+		_, _ = w.Write([]byte(`{"error":{"message":"overloaded"}}`))
+	}))
+	defer primaryImg.Close()
+
+	secondaryImg := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		secondaryHits.Add(1)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"created":1700000001,"data":[{"url":"https://cdn.example.com/ok.png"}]}`))
+	}))
+	defer secondaryImg.Close()
+
+	cfg := config.Config{
+		Host:          "127.0.0.1",
+		Port:          0,
+		DataDir:       t.TempDir(),
+		AdminPassword: "wave3b-e2e-password",
+		LogLevel:      "error",
+		APITimeout:    10 * time.Second,
+	}
+	app, err := buildApp(ctx, cfg, system.BuildInfo{Version: "test", Commit: "wave3b"})
+	if err != nil {
+		t.Fatalf("buildApp: %v", err)
+	}
+	t.Cleanup(func() { _ = app.Close(context.Background()) })
+
+	ts := httptest.NewServer(app.Handler())
+	defer ts.Close()
+
+	jar, _ := cookiejar.New(nil)
+	client := &http.Client{Jar: jar, Timeout: 5 * time.Second}
+	doJSON := func(method, targetURL string, payload any, headers map[string]string) (int, []byte) {
+		t.Helper()
+		var bodyReader io.Reader
+		if payload != nil {
+			raw, _ := json.Marshal(payload)
+			bodyReader = bytes.NewReader(raw)
+		}
+		req, _ := http.NewRequestWithContext(ctx, method, targetURL, bodyReader)
+		if payload != nil {
+			req.Header.Set("Content-Type", "application/json")
+		}
+		for k, v := range headers {
+			req.Header.Set(k, v)
+		}
+		resp, err := client.Do(req)
+		if err != nil {
+			t.Fatalf("%s %s: %v", method, targetURL, err)
+		}
+		defer resp.Body.Close()
+		b, _ := io.ReadAll(resp.Body)
+		return resp.StatusCode, b
+	}
+
+	if code, body := doJSON(http.MethodPost, ts.URL+"/api/auth/login", map[string]string{"password": cfg.AdminPassword}, nil); code != http.StatusOK {
+		t.Fatalf("login failed: %d %s", code, body)
+	}
+
+	// Mint gateway API key.
+	keyCode, keyBody := doJSON(http.MethodPost, ts.URL+"/api/keys", map[string]any{"name": "wave3b-media-key"}, nil)
+	if keyCode != http.StatusCreated {
+		t.Fatalf("create key: %d %s", keyCode, keyBody)
+	}
+	var createdKey struct {
+		Secret string `json:"secret"`
+	}
+	_ = json.Unmarshal(keyBody, &createdKey)
+	authHdr := map[string]string{"Authorization": "Bearer " + createdKey.Secret}
+
+	// Register two image providers and a fallback combo.
+	c1, b1 := doJSON(http.MethodPost, ts.URL+"/api/media/providers", map[string]any{
+		"name": "e2e-img-1", "capability": "image", "driver": "openai_compatible", "base_url": primaryImg.URL, "priority": 1,
+	}, nil)
+	if c1 != http.StatusCreated {
+		t.Fatalf("create media provider 1: %d %s", c1, b1)
+	}
+	var mp1 struct{ ID string }
+	_ = json.Unmarshal(b1, &mp1)
+
+	c2, b2 := doJSON(http.MethodPost, ts.URL+"/api/media/providers", map[string]any{
+		"name": "e2e-img-2", "capability": "image", "driver": "openai_compatible", "base_url": secondaryImg.URL, "priority": 2,
+	}, nil)
+	if c2 != http.StatusCreated {
+		t.Fatalf("create media provider 2: %d %s", c2, b2)
+	}
+	var mp2 struct{ ID string }
+	_ = json.Unmarshal(b2, &mp2)
+
+	cc, bc := doJSON(http.MethodPost, ts.URL+"/api/media/combos", map[string]any{
+		"name": "e2e-img-chain", "capability": "image", "targets": []string{mp1.ID, mp2.ID},
+	}, nil)
+	if cc != http.StatusCreated {
+		t.Fatalf("create media combo: %d %s", cc, bc)
+	}
+
+	// Gateway /v1/images/generations fails over from primary (503) to secondary (200).
+	imgCode, imgBody := doJSON(http.MethodPost, ts.URL+"/v1/images/generations", map[string]any{
+		"model": "e2e-img-chain", "prompt": "ember skyline",
+	}, authHdr)
+	if imgCode != http.StatusOK || !strings.Contains(string(imgBody), "cdn.example.com/ok.png") {
+		t.Fatalf("POST /v1/images/generations = %d: %s", imgCode, imgBody)
+	}
+	if primaryHits.Load() != 1 || secondaryHits.Load() != 1 {
+		t.Fatalf("expected 1 primary + 1 secondary hit, got %d / %d", primaryHits.Load(), secondaryHits.Load())
+	}
+
+	// Gateway /v1/web/fetch blocks loopback SSRF with 403.
+	ssrfCode, ssrfBody := doJSON(http.MethodPost, ts.URL+"/v1/web/fetch", map[string]any{
+		"url": ts.URL + "/api/health",
+	}, authHdr)
+	if ssrfCode != http.StatusForbidden {
+		t.Fatalf("expected 403 SSRF block on /v1/web/fetch, got %d: %s", ssrfCode, ssrfBody)
+	}
+
+	// Tunnel status + config persistence + loopback guard.
+	tsCode, tsBody := doJSON(http.MethodGet, ts.URL+"/api/tunnel/status", nil, nil)
+	if tsCode != http.StatusOK || !strings.Contains(string(tsBody), `"status":"stopped"`) {
+		t.Fatalf("GET /api/tunnel/status = %d: %s", tsCode, tsBody)
+	}
+	badTunnelCode, _ := doJSON(http.MethodPatch, ts.URL+"/api/tunnel/config", map[string]any{
+		"local_url": "http://10.0.0.1:20128",
+	}, nil)
+	if badTunnelCode != http.StatusBadRequest {
+		t.Fatalf("expected 400 for non-loopback tunnel local_url, got %d", badTunnelCode)
+	}
+	okTunnelCode, _ := doJSON(http.MethodPatch, ts.URL+"/api/tunnel/config", map[string]any{
+		"provider":       "tailscale",
+		"local_url":      "http://127.0.0.1:20128",
+		"tailscale_mode": "serve",
+	}, nil)
+	if okTunnelCode != http.StatusOK {
+		t.Fatalf("expected 200 patch tunnel config, got %d", okTunnelCode)
+	}
+}
+
+func TestWave3BDisabledModulesDetachCleanly(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	cfg := config.Config{
+		Host:          "127.0.0.1",
+		Port:          0,
+		DataDir:       t.TempDir(),
+		AdminPassword: "wave3b-disabled-pass",
+		LogLevel:      "error",
+		APITimeout:    5 * time.Second,
+		DisabledModules: map[string]bool{
+			"media":  true,
+			"tunnel": true,
+		},
+	}
+	app, err := buildApp(ctx, cfg, system.BuildInfo{Version: "test", Commit: "wave3b"})
+	if err != nil {
+		t.Fatalf("buildApp with disabled Wave 3B modules: %v", err)
+	}
+	t.Cleanup(func() { _ = app.Close(context.Background()) })
+
+	ts := httptest.NewServer(app.Handler())
+	defer ts.Close()
+
+	jar, _ := cookiejar.New(nil)
+	client := &http.Client{Jar: jar, Timeout: 5 * time.Second}
+	loginRaw, _ := json.Marshal(map[string]string{"password": cfg.AdminPassword})
+	resp, err := client.Post(ts.URL+"/api/auth/login", "application/json", bytes.NewReader(loginRaw))
+	if err != nil || resp.StatusCode != http.StatusOK {
+		t.Fatalf("login failed: %v", err)
+	}
+	_ = resp.Body.Close()
+
+	for _, path := range []string{"/api/media/providers", "/api/tunnel/status"} {
 		r, err := client.Get(ts.URL + path)
 		if err != nil {
 			t.Fatalf("GET %s: %v", path, err)

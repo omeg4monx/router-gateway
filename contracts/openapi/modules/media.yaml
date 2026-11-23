@@ -1,0 +1,413 @@
+openapi: 3.1.0
+info:
+  title: omeg4mon-router Media Module
+  version: 0.1.0
+paths:
+  /api/media/providers:
+    get:
+      tags: [media]
+      operationId: listMediaProviders
+      summary: List configured media providers
+      responses:
+        '200':
+          description: Configured media providers
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MediaProviderListResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+    post:
+      tags: [media]
+      operationId: createMediaProvider
+      summary: Create a media provider
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateMediaProviderRequest'
+      responses:
+        '201':
+          description: Media provider created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MediaProvider'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '409':
+          description: Duplicate provider name
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+  /api/media/providers/{id}:
+    patch:
+      tags: [media]
+      operationId: updateMediaProvider
+      summary: Update a media provider
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateMediaProviderRequest'
+      responses:
+        '200':
+          description: Media provider updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MediaProvider'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '409':
+          description: Duplicate provider name
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+    delete:
+      tags: [media]
+      operationId: deleteMediaProvider
+      summary: Delete a media provider
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Media provider deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeleteMediaResourceResponse'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+  /api/media/combos:
+    get:
+      tags: [media]
+      operationId: listMediaCombos
+      summary: List configured media provider combos
+      responses:
+        '200':
+          description: Configured media combos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MediaComboListResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+    post:
+      tags: [media]
+      operationId: createMediaCombo
+      summary: Create a media provider fallback combo
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateMediaComboRequest'
+      responses:
+        '201':
+          description: Media combo created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MediaCombo'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '409':
+          description: Duplicate combo name
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+  /api/media/combos/{id}:
+    patch:
+      tags: [media]
+      operationId: updateMediaCombo
+      summary: Update a media provider combo
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateMediaComboRequest'
+      responses:
+        '200':
+          description: Media combo updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MediaCombo'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '409':
+          description: Duplicate combo name
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+    delete:
+      tags: [media]
+      operationId: deleteMediaCombo
+      summary: Delete a media provider combo
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Media combo deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeleteMediaResourceResponse'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+components:
+  schemas:
+    MediaCapability:
+      type: string
+      enum: [audio, image, video, search, fetch]
+    MediaDriver:
+      type: string
+      enum: [openai_compatible, generic_http, builtin_fetch]
+    MediaProvider:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - name
+        - capability
+        - driver
+        - base_url
+        - has_api_key
+        - default_model
+        - extra_headers
+        - priority
+        - enabled
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        capability:
+          $ref: '#/components/schemas/MediaCapability'
+        driver:
+          $ref: '#/components/schemas/MediaDriver'
+        base_url:
+          type: string
+        has_api_key:
+          type: boolean
+        default_model:
+          type: string
+        extra_headers:
+          type: object
+          additionalProperties:
+            type: string
+        priority:
+          type: integer
+        enabled:
+          type: boolean
+        created_at:
+          type: string
+        updated_at:
+          type: string
+    MediaProviderListResponse:
+      type: object
+      additionalProperties: false
+      required: [providers]
+      properties:
+        providers:
+          type: array
+          items:
+            $ref: '#/components/schemas/MediaProvider'
+    CreateMediaProviderRequest:
+      type: object
+      additionalProperties: false
+      required: [name, capability, driver]
+      properties:
+        name:
+          type: string
+        capability:
+          $ref: '#/components/schemas/MediaCapability'
+        driver:
+          $ref: '#/components/schemas/MediaDriver'
+        base_url:
+          type: string
+        api_key:
+          type: string
+        default_model:
+          type: string
+        extra_headers:
+          type: object
+          additionalProperties:
+            type: string
+        priority:
+          type: integer
+        enabled:
+          type: boolean
+    UpdateMediaProviderRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+        capability:
+          $ref: '#/components/schemas/MediaCapability'
+        driver:
+          $ref: '#/components/schemas/MediaDriver'
+        base_url:
+          type: string
+        api_key:
+          type: string
+        clear_api_key:
+          type: boolean
+        default_model:
+          type: string
+        extra_headers:
+          type: object
+          additionalProperties:
+            type: string
+        priority:
+          type: integer
+        enabled:
+          type: boolean
+    MediaCombo:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - name
+        - capability
+        - targets
+        - enabled
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        capability:
+          $ref: '#/components/schemas/MediaCapability'
+        targets:
+          type: array
+          items:
+            type: string
+        enabled:
+          type: boolean
+        created_at:
+          type: string
+        updated_at:
+          type: string
+    MediaComboListResponse:
+      type: object
+      additionalProperties: false
+      required: [combos]
+      properties:
+        combos:
+          type: array
+          items:
+            $ref: '#/components/schemas/MediaCombo'
+    CreateMediaComboRequest:
+      type: object
+      additionalProperties: false
+      required: [name, capability, targets]
+      properties:
+        name:
+          type: string
+        capability:
+          $ref: '#/components/schemas/MediaCapability'
+        targets:
+          type: array
+          items:
+            type: string
+        enabled:
+          type: boolean
+    UpdateMediaComboRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+        capability:
+          $ref: '#/components/schemas/MediaCapability'
+        targets:
+          type: array
+          items:
+            type: string
+        enabled:
+          type: boolean
+    DeleteMediaResourceResponse:
+      type: object
+      additionalProperties: false
+      required: [deleted]
+      properties:
+        deleted:
+          type: boolean
