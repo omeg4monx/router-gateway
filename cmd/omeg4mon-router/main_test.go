@@ -1216,15 +1216,20 @@ func TestWave2AE2EProviderProxyRouting(t *testing.T) {
 	}
 
 	// Create provider connection pointing to mock upstream.
-	if st, body := doJSON(http.MethodPost, ts.URL+"/api/providers/connections", map[string]any{
+	stConn, connBody := doJSON(http.MethodPost, ts.URL+"/api/providers/connections", map[string]any{
 		"provider_id": "openai",
 		"name":        "OpenAI Proxied",
 		"base_url":    upstream.URL,
 		"api_key":     "sk-upstream-test",
 		"models":      []string{"gpt-4o"},
-	}, nil); st != http.StatusCreated {
-		t.Fatalf("create provider connection = %d: %s", st, body)
+	}, nil)
+	if stConn != http.StatusCreated {
+		t.Fatalf("create provider connection = %d: %s", stConn, connBody)
 	}
+	var createdConn struct {
+		ID string `json:"id"`
+	}
+	_ = json.Unmarshal(connBody, &createdConn)
 
 	// Create proxy pool & bind openai to it.
 	st, poolBody := doJSON(http.MethodPost, ts.URL+"/api/proxypools", map[string]any{
@@ -1265,6 +1270,16 @@ func TestWave2AE2EProviderProxyRouting(t *testing.T) {
 	}
 	if proxyHits.Load() < 1 {
 		t.Fatalf("expected request to traverse bound HTTP proxy, got proxyHits=%d", proxyHits.Load())
+	}
+
+	// Provider connection quick-test must also traverse the bound HTTP proxy.
+	beforeTestHits := proxyHits.Load()
+	stTest, testBody := doJSON(http.MethodPost, ts.URL+"/api/providers/connections/"+createdConn.ID+"/test", nil, nil)
+	if stTest != http.StatusOK {
+		t.Fatalf("POST /api/providers/connections/{id}/test = %d: %s", stTest, testBody)
+	}
+	if proxyHits.Load() <= beforeTestHits {
+		t.Fatalf("expected provider quick-test to traverse bound HTTP proxy (before=%d, after=%d)", beforeTestHits, proxyHits.Load())
 	}
 }
 

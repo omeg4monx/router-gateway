@@ -238,3 +238,63 @@ func TestTranslatorLogsSnapshotAndLiveSSEStream(t *testing.T) {
 		t.Fatalf("SSE stream missing events: sawReplay=%v sawLive=%v", sawReplay, sawLive)
 	}
 }
+
+func TestTranslatorLogsStreamSurvivesPastAPITimeout(t *testing.T) {
+	t.Parallel()
+
+	logger, ring := logging.New("debug", nil, 50)
+	gw := gateway.New(gateway.Options{Logger: logger})
+	mod := translator.New(translator.Options{Translator: gw, LogRing: ring})
+
+	cfg := config.Config{Host: "127.0.0.1", Port: 20128, APITimeout: 80 * time.Millisecond}
+	srv := httpserver.New(httpserver.Options{Config: cfg})
+
+	reg := lifecycle.NewRegistry(nil)
+	for _, m := range []lifecycle.Module{stubDep{name: "system"}, stubDep{name: "gateway"}, mod} {
+		if err := reg.Register(m); err != nil {
+			t.Fatalf("register %s: %v", m.Name(), err)
+		}
+	}
+	if err := reg.MountAll(srv.Mounts()); err != nil {
+		t.Fatalf("MountAll: %v", err)
+	}
+	if err := reg.StartAll(context.Background()); err != nil {
+		t.Fatalf("StartAll: %v", err)
+	}
+	t.Cleanup(func() { _ = reg.StopAll(context.Background()) })
+
+	ts := httptest.NewServer(srv.Handler())
+	t.Cleanup(ts.Close)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, ts.URL+"/api/translator/logs/stream?tail=0", http.NoBody)
+	if err != nil {
+		t.Fatalf("new req: %v", err)
+	}
+	resp, err := ts.Client().Do(req)
+	if err != nil {
+		t.Fatalf("connect sse: %v", err)
+	}
+	defer resp.Body.Close()
+
+	// Wait longer than APITimeout (80ms) before emitting a log entry.
+	go func() {
+		time.Sleep(160 * time.Millisecond)
+		logger.Info("after-api-timeout-marker")
+	}()
+
+	scanner := bufio.NewScanner(resp.Body)
+	sawMarker := false
+	for scanner.Scan() {
+		if strings.Contains(scanner.Text(), "after-api-timeout-marker") {
+			sawMarker = true
+			cancel()
+			break
+		}
+	}
+	if !sawMarker {
+		t.Fatal("SSE log stream closed prematurely before receiving event emitted after APITimeout")
+	}
+}

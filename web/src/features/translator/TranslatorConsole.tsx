@@ -91,10 +91,19 @@ export function TranslatorConsole() {
       }
       try {
         const entry = JSON.parse(event.data) as ConsoleLogEntry;
-        seqRef.current += 1;
-        const nextItem: KeyedLogEntry = { seq: seqRef.current, entry };
+        const fp = `${entry.time}|${entry.level}|${entry.message}|${JSON.stringify(entry.attrs ?? null)}`;
         setLogs((prev) => {
-          const combined = [...prev, nextItem];
+          if (
+            prev.some(
+              (item) =>
+                `${item.entry.time}|${item.entry.level}|${item.entry.message}|${JSON.stringify(item.entry.attrs ?? null)}` ===
+                fp,
+            )
+          ) {
+            return prev;
+          }
+          seqRef.current += 1;
+          const combined = [...prev, { seq: seqRef.current, entry }];
           return combined.length > MAX_LIVE_LOGS ? combined.slice(-MAX_LIVE_LOGS) : combined;
         });
       } catch {

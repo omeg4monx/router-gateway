@@ -60,15 +60,21 @@ func (m *Module) Dependencies() []string { return []string{"system", "gateway"} 
 // Migrations returns nil because translator is stateless.
 func (m *Module) Migrations() fs.FS { return nil }
 
-// RegisterRoutes mounts protocol translator and console log routes onto mounts.AdminAPI.
+// RegisterRoutes mounts protocol translator and console log routes onto mounts.AdminAPI
+// (and mounts the long-lived SSE log stream onto mounts.AdminStreamAPI when available).
 func (m *Module) RegisterRoutes(mounts lifecycle.RouteMounts) {
-	if mounts.AdminAPI == nil {
-		return
+	if mounts.AdminAPI != nil {
+		mounts.AdminAPI.Get("/translator/protocols", m.handleProtocols)
+		mounts.AdminAPI.Post("/translator/translate", m.handleTranslate)
+		mounts.AdminAPI.Get("/translator/logs", m.handleLogs)
 	}
-	mounts.AdminAPI.Get("/translator/protocols", m.handleProtocols)
-	mounts.AdminAPI.Post("/translator/translate", m.handleTranslate)
-	mounts.AdminAPI.Get("/translator/logs", m.handleLogs)
-	mounts.AdminAPI.Get("/translator/logs/stream", m.handleLogsStream)
+	streamMount := mounts.AdminStreamAPI
+	if streamMount == nil {
+		streamMount = mounts.AdminAPI
+	}
+	if streamMount != nil {
+		streamMount.Get("/translator/logs/stream", m.handleLogsStream)
+	}
 }
 
 // Start is a no-op for the stateless translator module.

@@ -428,7 +428,8 @@ func (m *Module) tryUpstreamAnthropicCountTokens(ctx context.Context, cand contr
 	if err != nil {
 		return 0, false
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, targetURL, bytes.NewReader(rewritten))
+	upCtx := httpclient.WithProviderID(ctx, cand.ProviderID)
+	req, err := http.NewRequestWithContext(upCtx, http.MethodPost, targetURL, bytes.NewReader(rewritten))
 	if err != nil {
 		return 0, false
 	}

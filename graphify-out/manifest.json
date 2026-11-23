@@ -102,9 +102,9 @@
     "semantic_hash": "d7652d4bba890f93d897d9c0a67dabc1"
   },
   "internal/platform/httpserver/server.go": {
-    "mtime": 1795408686.0600023,
-    "seen": 1795408787.6753733,
-    "ast_hash": "9408c9dff6afa86f4fbc82be09f7e8aa",
+    "mtime": 1795410081.9228942,
+    "seen": 1795410199.4487984,
+    "ast_hash": "45c39b73ccba1a25ad166404268ea715",
     "semantic_hash": ""
   },
   "internal/platform/httpserver/server_test.go": {
@@ -132,9 +132,9 @@
     "semantic_hash": "c14f6385acb59cdcea6a60a11f2b97b3"
   },
   "internal/platform/lifecycle/registry.go": {
-    "mtime": 1795408686.0614607,
-    "seen": 1795408787.6753807,
-    "ast_hash": "ee05445114f05dad232953c8a7f2add4",
+    "mtime": 1795410077.0038373,
+    "seen": 1795410199.4489048,
+    "ast_hash": "44b5b0967c22341a002fc76b3f35402d",
     "semantic_hash": ""
   },
   "internal/platform/lifecycle/registry_test.go": {
@@ -186,9 +186,9 @@
     "semantic_hash": ""
   },
   "cmd/omeg4mon-router/main_test.go": {
-    "mtime": 1795409310.0705621,
-    "seen": 1795409367.7094655,
-    "ast_hash": "04f6d4cfe7b916496a47e13f7ed9841a",
+    "mtime": 1795410038.9713962,
+    "seen": 1795410199.4465573,
+    "ast_hash": "ded05b9d6d8d6969c1644f98a0195dfc",
     "semantic_hash": ""
   },
   "cmd/omeg4mon-router/ui_dev.go": {
@@ -354,8 +354,8 @@
     "semantic_hash": "bb80d375646eeb2d8c259c26500224b0"
   },
   "web/src/shared/api/schema.d.ts": {
-    "mtime": 1795409683.4674084,
-    "seen": 1795409714.3917084,
+    "mtime": 1795410173.3629544,
+    "seen": 1795410199.450782,
     "ast_hash": "797934a7b1ce8a84d1c9be221ef3402b",
     "semantic_hash": ""
   },
@@ -690,9 +690,9 @@
     "semantic_hash": ""
   },
   "internal/modules/providers/handlers.go": {
-    "mtime": 1795408686.0510023,
-    "seen": 1795408787.6753273,
-    "ast_hash": "72f73d38279ab3525e96fc08359c79f5",
+    "mtime": 1795410088.0679655,
+    "seen": 1795410199.4478638,
+    "ast_hash": "61ee59f9955dbffde5c20f6d602c2020",
     "semantic_hash": ""
   },
   "internal/modules/providers/module.go": {
@@ -816,9 +816,9 @@
     "semantic_hash": ""
   },
   "internal/modules/gateway/module.go": {
-    "mtime": 1795409161.9520361,
-    "seen": 1795409218.654909,
-    "ast_hash": "3e6d30ee68aac0f3ead8dc0df45bd021",
+    "mtime": 1795410084.8929286,
+    "seen": 1795410199.4474978,
+    "ast_hash": "e5ec8f4a252389967dd59f7ed3e4a864",
     "semantic_hash": ""
   },
   "internal/modules/gateway/module_test.go": {
@@ -1080,15 +1080,15 @@
     "semantic_hash": ""
   },
   "internal/modules/translator/module.go": {
-    "mtime": 1795409164.4580622,
-    "seen": 1795409218.6557417,
-    "ast_hash": "4d36cd155104e0d2d73452b6cc1ad6ad",
+    "mtime": 1795410083.3559108,
+    "seen": 1795410199.4482946,
+    "ast_hash": "cc16f7d6de6788dde55ee40f5951af67",
     "semantic_hash": ""
   },
   "internal/modules/translator/module_test.go": {
-    "mtime": 1795409098.6103837,
-    "seen": 1795409218.6557438,
-    "ast_hash": "68618ea0a6fcb50ac66b19c0dec92fba",
+    "mtime": 1795410034.718347,
+    "seen": 1795410199.4482963,
+    "ast_hash": "5872a8c6dd3c96b5e39042c1ffde2c29",
     "semantic_hash": ""
   },
   "web/src/app/(dashboard)/dashboard/proxy-pools/page.tsx": {
@@ -1098,9 +1098,9 @@
     "semantic_hash": ""
   },
   "web/src/features/proxypools/ProxyPoolsConsole.tsx": {
-    "mtime": 1795409502.1435406,
-    "seen": 1795409544.3764358,
-    "ast_hash": "57046a59e502a6c7b5c6e62c27d9f6ef",
+    "mtime": 1795410139.7355645,
+    "seen": 1795410199.4501717,
+    "ast_hash": "22b87cfb6bf78b30899fd554c143a2f3",
     "semantic_hash": ""
   },
   "web/src/features/proxypools/hooks.ts": {
@@ -1128,9 +1128,9 @@
     "semantic_hash": ""
   },
   "web/src/features/translator/TranslatorConsole.tsx": {
-    "mtime": 1795409618.7187414,
-    "seen": 1795409714.3915088,
-    "ast_hash": "705b441153a2b8efaef7e201ec3fa2ce",
+    "mtime": 1795410089.664984,
+    "seen": 1795410199.4505043,
+    "ast_hash": "b2c86d95745167115ee2a209ed9c517f",
     "semantic_hash": ""
   },
   "web/src/features/translator/hooks.ts": {
