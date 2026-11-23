@@ -1590,3 +1590,72 @@ func TestGatewayLargeSSELineAndAPIKey401Failover(t *testing.T) {
 		}
 	})
 }
+
+func TestGatewayCompleteChat(t *testing.T) {
+	env := setupGatewayTest(t, nil, time.Hour, true)
+	var completer contracts.ChatCompleter = env.module
+
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var payload map[string]any
+		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+			http.Error(w, "bad json", http.StatusBadRequest)
+			return
+		}
+		if payload["stream"] == true {
+			http.Error(w, "CompleteChat must force stream=false", http.StatusBadRequest)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"id":"chatcmpl-internal","object":"chat.completion","model":"gpt-4o","choices":[{"index":0,"message":{"role":"assistant","content":"hello from internal gateway"},"finish_reason":"stop"}],"usage":{"prompt_tokens":12,"completion_tokens":7,"total_tokens":19}}`))
+	}))
+	defer upstream.Close()
+
+	env.providers.creds["c1"] = contracts.UpstreamCredentials{
+		ConnectionID: "c1",
+		ProviderID:   "openai",
+		Protocol:     "openai-chat",
+		BaseURL:      upstream.URL,
+		AuthType:     "api_key",
+		APIKey:       "sk-up",
+	}
+	env.resolver.fn = func(_ context.Context, model string, _ []string) ([]contracts.ResolvedTarget, error) {
+		if model == "missing-model" {
+			return nil, contracts.ErrModelNotFound
+		}
+		return []contracts.ResolvedTarget{{
+			ProviderID:    "openai",
+			ProviderType:  "openai-chat",
+			ConnectionID:  "c1",
+			Model:         model,
+			UpstreamModel: model,
+			Endpoint:      upstream.URL,
+		}}, nil
+	}
+
+	temp := 0.2
+	res, err := completer.CompleteChat(context.Background(), contracts.ChatCompletionRequest{
+		Model: "gpt-4o",
+		Messages: []contracts.ChatMessage{
+			{Role: "system", Content: "Be concise."},
+			{Role: "user", Content: "Say hello"},
+		},
+		Temperature: &temp,
+		MaxTokens:   128,
+	})
+	if err != nil {
+		t.Fatalf("CompleteChat: %v", err)
+	}
+	if res.Content != "hello from internal gateway" {
+		t.Fatalf("unexpected content: %q", res.Content)
+	}
+	if res.PromptTokens != 12 || res.CompletionTokens != 7 || res.TotalTokens != 19 {
+		t.Fatalf("unexpected usage tokens: %+v", res)
+	}
+
+	if _, err := completer.CompleteChat(context.Background(), contracts.ChatCompletionRequest{
+		Model:    "missing-model",
+		Messages: []contracts.ChatMessage{{Role: "user", Content: "hi"}},
+	}); !errors.Is(err, contracts.ErrModelNotFound) {
+		t.Fatalf("expected ErrModelNotFound, got %v", err)
+	}
+}

@@ -292,3 +292,35 @@ type KeyProvisioner interface {
 type TeamAssigner interface {
 	AssignKeyToTeam(ctx context.Context, teamID, keyID string) error
 }
+
+// ChatMessage represents a single role/content message in an internal chat completion request.
+type ChatMessage struct {
+	Role    string `json:"role"`
+	Content string `json:"content"`
+}
+
+// ChatCompletionRequest describes an internal non-streaming chat completion call
+// executed through the gateway pipeline by an authenticated admin module.
+type ChatCompletionRequest struct {
+	Model       string
+	Messages    []ChatMessage
+	Temperature *float64
+	MaxTokens   int
+}
+
+// ChatCompletionResult holds the assistant text, token accounting, and latency
+// returned by an internal gateway chat completion.
+type ChatCompletionResult struct {
+	Model            string
+	Content          string
+	PromptTokens     int64
+	CompletionTokens int64
+	TotalTokens      int64
+	LatencyMs        int64
+}
+
+// ChatCompleter executes an internal non-streaming chat completion through the
+// gateway pipeline without coupling caller modules to internal/modules/gateway.
+type ChatCompleter interface {
+	CompleteChat(ctx context.Context, req ChatCompletionRequest) (ChatCompletionResult, error)
+}
