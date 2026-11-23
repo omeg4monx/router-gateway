@@ -5,6 +5,7 @@ import {
   ArrowRightLeft,
   Bell,
   Cpu,
+  Image,
   KeyRound,
   Layers,
   Lock,
@@ -14,6 +15,7 @@ import {
   Network,
   PanelLeftClose,
   PanelLeftOpen,
+  Radio,
   Server,
   ShieldAlert,
   ShieldCheck,
@@ -54,6 +56,8 @@ const ACTIVE_NAV_ITEMS: ActiveNavItem[] = [
   { label: "API Keys", href: "/dashboard/keys/", icon: KeyRound },
   { label: "Teams", href: "/dashboard/teams/", icon: Users },
   { label: "Vouchers", href: "/dashboard/vouchers/", icon: Ticket },
+  { label: "Media Gateway", href: "/dashboard/media/", icon: Image },
+  { label: "Tunnel", href: "/dashboard/tunnel/", icon: Radio },
   { label: "Usage & Telemetry", href: "/dashboard/usage/", icon: Cpu },
   { label: "Prompt Guard", href: "/dashboard/prompt-guard/", icon: ShieldAlert },
   { label: "Model Editor", href: "/dashboard/model-editor/", icon: Sliders },
@@ -249,11 +253,11 @@ export function AppShell({ children }: AppShellProps) {
           )}
         >
           {compact ? (
-            <span className="text-[var(--text-secondary)]">W3A</span>
+            <span className="text-[var(--text-secondary)]">W3B</span>
           ) : (
             <>
               <span>KERNEL</span>
-              <span className="text-[var(--text-secondary)]">WAVE 3A</span>
+              <span className="text-[var(--text-secondary)]">WAVE 3B</span>
             </>
           )}
         </div>
