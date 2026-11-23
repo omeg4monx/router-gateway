@@ -35,6 +35,12 @@ var ErrConnectionNotFound = errors.New("contracts: connection not found")
 // does not support OAuth token refresh.
 var ErrOAuthRefreshUnsupported = errors.New("contracts: oauth refresh unsupported")
 
+// ErrJobNotFound indicates that no registered background job matches the name.
+var ErrJobNotFound = errors.New("contracts: job not found")
+
+// ErrJobAlreadyRunning indicates that the requested background job is currently executing.
+var ErrJobAlreadyRunning = errors.New("contracts: job already running")
+
 // AdminCredentialStore exposes system-owned administrator credential and login
 // enforcement state to the authentication module.
 type AdminCredentialStore interface {
@@ -230,4 +236,26 @@ type ProtocolTranslator interface {
 	SupportedProtocols() []string
 	TranslateRequest(fromProto, toProto string, body []byte) ([]byte, error)
 	TranslateResponse(fromProto, toProto string, body []byte) ([]byte, error)
+}
+
+// JobStatus describes a point-in-time snapshot of a registered background job.
+type JobStatus struct {
+	Name           string
+	IntervalMs     int64
+	Running        bool
+	RunCount       int64
+	ErrorCount     int64
+	LastStatus     string
+	LastError      string
+	LastDurationMs int64
+	LastStartedAt  *time.Time
+	LastFinishedAt *time.Time
+	NextRunAt      *time.Time
+}
+
+// JobInspector provides read-only job telemetry snapshots and manual on-demand
+// job triggering without coupling feature modules to internal/platform/jobs.
+type JobInspector interface {
+	Snapshot() []JobStatus
+	Trigger(ctx context.Context, name string) error
 }
