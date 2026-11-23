@@ -3,9 +3,11 @@
 import {
   Activity,
   ArrowRightLeft,
+  Bell,
   Cpu,
   KeyRound,
   Layers,
+  Lock,
   LogIn,
   LogOut,
   Menu,
@@ -53,6 +55,8 @@ const ACTIVE_NAV_ITEMS: ActiveNavItem[] = [
   { label: "Model Editor", href: "/dashboard/model-editor/", icon: Sliders },
   { label: "Token Saver", href: "/dashboard/token-saver/", icon: Zap },
   { label: "Translator", href: "/dashboard/translator/", icon: ArrowRightLeft },
+  { label: "Security", href: "/dashboard/security/", icon: Lock },
+  { label: "Notifications & Jobs", href: "/dashboard/notifications/", icon: Bell },
   { label: "CLI Tools", href: "/dashboard/cli-tools/", icon: Terminal },
   { label: "Settings", href: "/dashboard/settings/", icon: SlidersHorizontal },
 ];
@@ -241,11 +245,11 @@ export function AppShell({ children }: AppShellProps) {
           )}
         >
           {compact ? (
-            <span className="text-[var(--text-secondary)]">W2A</span>
+            <span className="text-[var(--text-secondary)]">W2C</span>
           ) : (
             <>
               <span>KERNEL</span>
-              <span className="text-[var(--text-secondary)]">WAVE 2A</span>
+              <span className="text-[var(--text-secondary)]">WAVE 2C</span>
             </>
           )}
         </div>
