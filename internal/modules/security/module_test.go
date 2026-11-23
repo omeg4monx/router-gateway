@@ -288,3 +288,76 @@ func TestSecurityPostureAndExportAndPrune(t *testing.T) {
 		t.Fatalf("export body mismatch: %s", exportRec.Body.String())
 	}
 }
+
+func TestSecurityWave2BTopicParityAndExtendedRedaction(t *testing.T) {
+	t.Parallel()
+
+	_, router, bus, _ := setupSecurityTest(t, config.Config{
+		Host: "127.0.0.1",
+		Port: 20128,
+	}, &stubCredentialStore{requireLogin: true})
+
+	// Pin Important #1: actual Wave 2B publisher topic names.
+	bus.Publish("promptinjection.changed", nil)
+	bus.Publish("modeleditor.changed", nil)
+	bus.Publish("tokensaver.changed", nil)
+
+	// Pin Important #2: quoted/JSON secrets, bare token=, and typed Go maps/slices.
+	bus.Publish(security.TopicAudit, security.AuditInput{
+		Category: "gateway",
+		Action:   "debug.capture",
+		Severity: "warning",
+		Summary:  `Leak check token=bare-tok-999 password="quoted-pass-1" {"api_key":"json-key-2"}`,
+		Metadata: map[string]any{
+			"headers": map[string]string{
+				"Authorization": "Bearer nested-bearer-secret",
+				"X-Trace":       "token=nested-tok-888",
+			},
+			"lines": []string{`password='single-quoted-pw'`},
+		},
+	})
+
+	deadline := time.Now().Add(2 * time.Second)
+	var items []struct {
+		Category string         `json:"category"`
+		Summary  string         `json:"summary"`
+		Metadata map[string]any `json:"metadata"`
+	}
+	for time.Now().Before(deadline) {
+		req := httptest.NewRequest(http.MethodGet, "/api/security/audit?limit=20", nil)
+		rec := httptest.NewRecorder()
+		router.ServeHTTP(rec, req)
+		var resp struct {
+			Items []struct {
+				Category string         `json:"category"`
+				Summary  string         `json:"summary"`
+				Metadata map[string]any `json:"metadata"`
+			} `json:"items"`
+		}
+		_ = json.Unmarshal(rec.Body.Bytes(), &resp)
+		items = resp.Items
+		if len(items) >= 4 {
+			break
+		}
+		time.Sleep(15 * time.Millisecond)
+	}
+
+	seen := map[string]bool{}
+	for _, it := range items {
+		seen[it.Category] = true
+		if it.Category == "gateway" {
+			rawMeta, _ := json.Marshal(it.Metadata)
+			combined := it.Summary + " " + string(rawMeta)
+			for _, leaked := range []string{"bare-tok-999", "quoted-pass-1", "json-key-2", "nested-bearer-secret", "nested-tok-888", "single-quoted-pw"} {
+				if strings.Contains(combined, leaked) {
+					t.Fatalf("audit record leaked secret %q: %s", leaked, combined)
+				}
+			}
+		}
+	}
+	for _, wantCat := range []string{"promptinjection", "modeleditor", "tokensaver", "gateway"} {
+		if !seen[wantCat] {
+			t.Fatalf("missing auto-audited category %q; seen=%v", wantCat, seen)
+		}
+	}
+}

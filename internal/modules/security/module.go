@@ -48,9 +48,9 @@ var watchedTopics = []string{
 	"settings.updated",
 	"combos.changed",
 	"proxypools.changed",
-	"promptinjection.config_changed",
-	"modeleditor.rules_changed",
-	"tokensaver.config_changed",
+	"promptinjection.changed",
+	"modeleditor.changed",
+	"tokensaver.changed",
 }
 
 // Options configures a security Module instance.
@@ -292,7 +292,7 @@ func mapBusEventToAudit(topic string, payload any) AuditInput {
 			Summary:  "Outbound proxy pool configuration updated",
 			Metadata: meta,
 		}
-	case "promptinjection.config_changed":
+	case "promptinjection.changed":
 		return AuditInput{
 			Category: "promptinjection",
 			Action:   "config.changed",
@@ -301,7 +301,7 @@ func mapBusEventToAudit(topic string, payload any) AuditInput {
 			Summary:  "Prompt injection guard configuration or rules updated",
 			Metadata: meta,
 		}
-	case "modeleditor.rules_changed":
+	case "modeleditor.changed":
 		return AuditInput{
 			Category: "modeleditor",
 			Action:   "rules.changed",
@@ -310,7 +310,7 @@ func mapBusEventToAudit(topic string, payload any) AuditInput {
 			Summary:  "Model parameter overrides or bypass rules updated",
 			Metadata: meta,
 		}
-	case "tokensaver.config_changed":
+	case "tokensaver.changed":
 		return AuditInput{
 			Category: "tokensaver",
 			Action:   "config.changed",

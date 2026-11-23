@@ -117,6 +117,11 @@ export function NotificationsConsole() {
   const notifData = notificationsQuery.data;
   const jobsData = jobsQuery.data;
   const isRefreshing = notificationsQuery.isFetching || jobsQuery.isFetching;
+  const inboxMutationError =
+    markReadMutation.error ??
+    markAllReadMutation.error ??
+    deleteMutation.error ??
+    clearMutation.error;
 
   return (
     <div className="space-y-6">
@@ -154,13 +159,15 @@ export function NotificationsConsole() {
         </div>
       </section>
 
-      {notificationsQuery.isError || jobsQuery.isError ? (
+      {notificationsQuery.isError || jobsQuery.isError || inboxMutationError ? (
         <Alert variant="destructive">
           <AlertTriangle className="h-4 w-4 text-[var(--status-error)]" aria-hidden="true" />
           <div>
-            <AlertTitle>Failed to load operations telemetry</AlertTitle>
+            <AlertTitle>Operations request failed</AlertTitle>
             <AlertDescription className="font-mono">
-              {notificationsQuery.error?.message ?? jobsQuery.error?.message}
+              {notificationsQuery.error?.message ??
+                jobsQuery.error?.message ??
+                inboxMutationError?.message}
             </AlertDescription>
           </div>
         </Alert>
@@ -188,6 +195,11 @@ export function NotificationsConsole() {
             <div className="space-y-1.5">
               <Label htmlFor="notif-category">Category</Label>
               <Input id="notif-category" {...form.register("category")} placeholder="system" />
+              {form.formState.errors.category ? (
+                <p className="text-xs text-[var(--status-error)]">
+                  {form.formState.errors.category.message}
+                </p>
+              ) : null}
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="notif-severity">Severity</Label>
@@ -216,6 +228,11 @@ export function NotificationsConsole() {
                 </p>
               ) : null}
             </div>
+            {createMutation.isError ? (
+              <p className="text-xs text-[var(--status-error)] md:col-span-2">
+                {createMutation.error.message}
+              </p>
+            ) : null}
             <div className="flex justify-end gap-2 md:col-span-2">
               <Button
                 type="button"

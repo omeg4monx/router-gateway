@@ -142,12 +142,16 @@ export function SecurityConsole() {
         </div>
       </section>
 
-      {postureQuery.isError ? (
+      {postureQuery.isError || auditQuery.isError || clearMutation.isError ? (
         <Alert variant="destructive">
           <AlertTriangle className="h-4 w-4 text-[var(--status-error)]" aria-hidden="true" />
           <div>
-            <AlertTitle>Failed to load security posture</AlertTitle>
-            <AlertDescription className="font-mono">{postureQuery.error.message}</AlertDescription>
+            <AlertTitle>Security control-plane request failed</AlertTitle>
+            <AlertDescription className="font-mono">
+              {postureQuery.error?.message ??
+                auditQuery.error?.message ??
+                clearMutation.error?.message}
+            </AlertDescription>
           </div>
         </Alert>
       ) : null}
@@ -235,13 +239,11 @@ export function SecurityConsole() {
           />
           <div className="space-y-1">
             <AlertTitle>Security Posture Recommendations</AlertTitle>
-            <AlertDescription>
-              <ul className="list-disc space-y-1 pl-4 text-sm">
-                {posture.warnings.map((warning) => (
-                  <li key={warning}>{warning}</li>
-                ))}
-              </ul>
-            </AlertDescription>
+            <ul className="mt-1 list-disc space-y-1 pl-4 text-sm text-[var(--text-secondary)]">
+              {posture.warnings.map((warning) => (
+                <li key={warning}>{warning}</li>
+              ))}
+            </ul>
           </div>
         </Alert>
       ) : null}
@@ -348,7 +350,11 @@ export function SecurityConsole() {
           <div>
             <CardTitle>Audit Trail</CardTitle>
             <p className="mt-0.5 font-mono text-xs text-[var(--text-muted)]">
-              {auditData ? `${auditData.total} matching event(s)` : "Loading events..."}
+              {auditQuery.isError
+                ? "Failed to load audit events"
+                : auditData
+                  ? `${auditData.total} matching event(s)`
+                  : "Loading events..."}
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -439,9 +445,11 @@ export function SecurityConsole() {
                     colSpan={5}
                     className="px-4 py-8 text-center text-sm text-[var(--text-muted)]"
                   >
-                    {auditQuery.isPending
-                      ? "Loading security audit trail..."
-                      : "No security audit events match the current filter."}
+                    {auditQuery.isError
+                      ? "Unable to load security audit trail."
+                      : auditQuery.isPending
+                        ? "Loading security audit trail..."
+                        : "No security audit events match the current filter."}
                   </td>
                 </tr>
               )}

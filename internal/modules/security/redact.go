@@ -18,7 +18,7 @@ var secretValuePatterns = []*regexp.Regexp{
 	regexp.MustCompile(`\b(?:ghp|gho|ghu|ghs|ghr)_[A-Za-z0-9]{12,}\b`),
 	regexp.MustCompile(`\bAIza[0-9A-Za-z_-]{16,}\b`),
 	regexp.MustCompile(`\b(?:xoxb|xoxp|xoxa)-[A-Za-z0-9-]{10,}\b`),
-	regexp.MustCompile(`(?i)((?:api[_-]?key|password|passwd|secret|access[_-]?token|refresh[_-]?token)\s*[:=]\s*)([^\s,;'"}\]]+)`),
+	regexp.MustCompile(`(?i)((?:api[_-]?key|password|passwd|secret|access[_-]?token|refresh[_-]?token|token)["']?\s*[:=]\s*["']?)([^\s,;'"}\]]+)`),
 }
 
 var sensitiveKeyTokens = []string{
@@ -76,6 +76,22 @@ func redactValue(v any) any {
 		return RedactText(tv)
 	case map[string]any:
 		return RedactMetadata(tv)
+	case map[string]string:
+		out := make(map[string]any, len(tv))
+		for k, val := range tv {
+			if isSensitiveKey(k) {
+				out[k] = redactedPlaceholder
+				continue
+			}
+			out[k] = RedactText(val)
+		}
+		return out
+	case []string:
+		out := make([]string, len(tv))
+		for i, item := range tv {
+			out[i] = RedactText(item)
+		}
+		return out
 	case []any:
 		out := make([]any, len(tv))
 		for i, item := range tv {
