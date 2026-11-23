@@ -2264,3 +2264,198 @@ func TestWave3CDisabledModulesDetachCleanly(t *testing.T) {
 		}
 	}
 }
+
+func TestWave3DTelegramArenaAndChatE2E(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var payload map[string]any
+		_ = json.NewDecoder(r.Body).Decode(&payload)
+		model, _ := payload["model"].(string)
+		w.Header().Set("Content-Type", "application/json")
+		resp := map[string]any{
+			"id":     "chatcmpl-w3d",
+			"object": "chat.completion",
+			"model":  model,
+			"choices": []map[string]any{{
+				"index":         0,
+				"message":       map[string]any{"role": "assistant", "content": "E2E reply from " + model},
+				"finish_reason": "stop",
+			}},
+			"usage": map[string]any{"prompt_tokens": 9, "completion_tokens": 6, "total_tokens": 15},
+		}
+		_ = json.NewEncoder(w).Encode(resp)
+	}))
+	defer upstream.Close()
+
+	cfg := config.Config{
+		Host:          "127.0.0.1",
+		Port:          0,
+		DataDir:       t.TempDir(),
+		AdminPassword: "wave3d-e2e-password",
+		LogLevel:      "error",
+		APITimeout:    10 * time.Second,
+	}
+	app, err := buildApp(ctx, cfg, system.BuildInfo{Version: "test", Commit: "wave3d"})
+	if err != nil {
+		t.Fatalf("buildApp: %v", err)
+	}
+	t.Cleanup(func() { _ = app.Close(context.Background()) })
+
+	ts := httptest.NewServer(app.Handler())
+	defer ts.Close()
+
+	jar, _ := cookiejar.New(nil)
+	client := &http.Client{Jar: jar, Timeout: 10 * time.Second}
+	doJSON := func(method, target string, body any) (int, []byte) {
+		t.Helper()
+		var rdr io.Reader
+		if body != nil {
+			b, err := json.Marshal(body)
+			if err != nil {
+				t.Fatalf("marshal: %v", err)
+			}
+			rdr = bytes.NewReader(b)
+		}
+		req, err := http.NewRequest(method, target, rdr)
+		if err != nil {
+			t.Fatalf("NewRequest: %v", err)
+		}
+		if body != nil {
+			req.Header.Set("Content-Type", "application/json")
+		}
+		resp, err := client.Do(req)
+		if err != nil {
+			t.Fatalf("Do %s %s: %v", method, target, err)
+		}
+		defer resp.Body.Close()
+		raw, _ := io.ReadAll(resp.Body)
+		return resp.StatusCode, raw
+	}
+
+	// Login
+	if code, body := doJSON(http.MethodPost, ts.URL+"/api/auth/login", map[string]string{"password": cfg.AdminPassword}); code != http.StatusOK {
+		t.Fatalf("login: %d %s", code, body)
+	}
+
+	// 1. Telegram config, secret isolation, fail-closed public webhook, and command simulator.
+	if code, body := doJSON(http.MethodGet, ts.URL+"/api/telegram/config", nil); code != http.StatusOK || !strings.Contains(string(body), `"enabled":false`) {
+		t.Fatalf("GET /api/telegram/config = %d: %s", code, body)
+	}
+	if code, body := doJSON(http.MethodPost, ts.URL+"/api/telegram/command", map[string]any{"command": "/status"}); code != http.StatusOK || !strings.Contains(string(body), "OMEG4MON ROUTER Status") {
+		t.Fatalf("POST /api/telegram/command = %d: %s", code, body)
+	}
+	if code, _ := doJSON(http.MethodPost, ts.URL+"/api/telegram/webhook", map[string]any{}); code != http.StatusForbidden {
+		t.Fatalf("expected 403 on disabled public telegram webhook, got %d", code)
+	}
+
+	// 2. Register a provider connection with two models for live Arena + Basic Chat execution through gateway.
+	if code, body := doJSON(http.MethodPost, ts.URL+"/api/providers/connections", map[string]any{
+		"provider_id": "openai",
+		"name":        "Mock OpenAI W3D",
+		"auth_type":   "api_key",
+		"api_key":     "sk-w3d",
+		"base_url":    upstream.URL,
+		"models":      []string{"gpt-4o", "gpt-4o-mini"},
+	}); code != http.StatusCreated {
+		t.Fatalf("create conn: %d %s", code, body)
+	}
+
+	// 3. Arena: list models, run battle across 2 models, vote winner, check leaderboard.
+	if code, body := doJSON(http.MethodGet, ts.URL+"/api/arena/models", nil); code != http.StatusOK || !strings.Contains(string(body), "gpt-4o") {
+		t.Fatalf("GET /api/arena/models = %d: %s", code, body)
+	}
+	battleCode, battleRaw := doJSON(http.MethodPost, ts.URL+"/api/arena/battles/run", map[string]any{
+		"prompt": "Hello Wave 3D",
+		"models": []string{"openai/gpt-4o", "openai/gpt-4o-mini"},
+	})
+	if battleCode != http.StatusCreated {
+		t.Fatalf("POST /api/arena/battles/run = %d: %s", battleCode, battleRaw)
+	}
+	var battle struct {
+		ID         string `json:"id"`
+		Contenders []struct {
+			Model   string `json:"model"`
+			Status  string `json:"status"`
+			Content string `json:"content"`
+		} `json:"contenders"`
+	}
+	if err := json.Unmarshal(battleRaw, &battle); err != nil || len(battle.Contenders) != 2 {
+		t.Fatalf("invalid battle response: %s", battleRaw)
+	}
+	if battle.Contenders[0].Status != "ok" || battle.Contenders[1].Status != "ok" {
+		t.Fatalf("expected both contenders ok, got %+v", battle.Contenders)
+	}
+	if code, body := doJSON(http.MethodPost, ts.URL+"/api/arena/battles/"+battle.ID+"/vote", map[string]any{
+		"winner_model": "openai/gpt-4o",
+	}); code != http.StatusOK {
+		t.Fatalf("vote battle = %d: %s", code, body)
+	}
+	if code, body := doJSON(http.MethodGet, ts.URL+"/api/arena/leaderboard", nil); code != http.StatusOK || !strings.Contains(string(body), `"wins":1`) {
+		t.Fatalf("GET /api/arena/leaderboard = %d: %s", code, body)
+	}
+
+	// 4. Basic Chat: create session, send message, verify assistant reply & persistence.
+	sessCode, sessRaw := doJSON(http.MethodPost, ts.URL+"/api/chat/sessions", map[string]any{
+		"model": "openai/gpt-4o",
+	})
+	if sessCode != http.StatusCreated {
+		t.Fatalf("POST /api/chat/sessions = %d: %s", sessCode, sessRaw)
+	}
+	var sess struct {
+		ID string `json:"id"`
+	}
+	_ = json.Unmarshal(sessRaw, &sess)
+	if code, body := doJSON(http.MethodPost, ts.URL+"/api/chat/sessions/"+sess.ID+"/messages", map[string]any{
+		"content": "Summarize Wave 3D",
+	}); code != http.StatusCreated || !strings.Contains(string(body), "E2E reply from gpt-4o") {
+		t.Fatalf("POST chat message = %d: %s", code, body)
+	}
+}
+
+func TestWave3DDisabledModulesDetachCleanly(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	cfg := config.Config{
+		Host:          "127.0.0.1",
+		Port:          0,
+		DataDir:       t.TempDir(),
+		AdminPassword: "wave3d-disabled-pass",
+		LogLevel:      "error",
+		APITimeout:    5 * time.Second,
+		DisabledModules: map[string]bool{
+			"telegram": true,
+			"arena":    true,
+		},
+	}
+	app, err := buildApp(ctx, cfg, system.BuildInfo{Version: "test", Commit: "wave3d"})
+	if err != nil {
+		t.Fatalf("buildApp with disabled Wave 3D modules: %v", err)
+	}
+	t.Cleanup(func() { _ = app.Close(context.Background()) })
+
+	ts := httptest.NewServer(app.Handler())
+	defer ts.Close()
+
+	jar, _ := cookiejar.New(nil)
+	client := &http.Client{Jar: jar, Timeout: 5 * time.Second}
+	loginRaw, _ := json.Marshal(map[string]string{"password": cfg.AdminPassword})
+	resp, err := client.Post(ts.URL+"/api/auth/login", "application/json", bytes.NewReader(loginRaw))
+	if err != nil || resp.StatusCode != http.StatusOK {
+		t.Fatalf("login failed: %v", err)
+	}
+	_ = resp.Body.Close()
+
+	for _, path := range []string{"/api/telegram/config", "/api/arena/models", "/api/chat/sessions"} {
+		r, err := client.Get(ts.URL + path)
+		if err != nil {
+			t.Fatalf("GET %s: %v", path, err)
+		}
+		_ = r.Body.Close()
+		if r.StatusCode != http.StatusNotFound {
+			t.Fatalf("expected 404 for disabled module route %s, got %d", path, r.StatusCode)
+		}
+	}
+}

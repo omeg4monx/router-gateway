@@ -49,6 +49,10 @@ tags:
     description: Local loopback TLS MITM proxy, ECDSA Root CA engine, IDE tool hosts, and model aliases
   - name: pxpipe
     description: In-process request transform pipeline, GatewayInterceptor, live self-test health, and logs
+  - name: telegram
+    description: Vaulted Telegram Bot controller, fail-closed webhook, command simulator, and eventbus alert forwarding
+  - name: arena
+    description: Multi-model side-by-side comparison battles, leaderboard, and persistent Basic Chat sessions
 paths:
   /api/health:
     $ref: './modules/system.yaml#/paths/~1api~1health'
@@ -272,6 +276,38 @@ paths:
     $ref: './modules/pxpipe.yaml#/paths/~1api~1pxpipe~1logs'
   /api/pxpipe/preview:
     $ref: './modules/pxpipe.yaml#/paths/~1api~1pxpipe~1preview'
+  /api/telegram/config:
+    $ref: './modules/telegram.yaml#/paths/~1api~1telegram~1config'
+  /api/telegram/secret/rotate:
+    $ref: './modules/telegram.yaml#/paths/~1api~1telegram~1secret~1rotate'
+  /api/telegram/webhook/register:
+    $ref: './modules/telegram.yaml#/paths/~1api~1telegram~1webhook~1register'
+  /api/telegram/webhook/delete:
+    $ref: './modules/telegram.yaml#/paths/~1api~1telegram~1webhook~1delete'
+  /api/telegram/test:
+    $ref: './modules/telegram.yaml#/paths/~1api~1telegram~1test'
+  /api/telegram/command:
+    $ref: './modules/telegram.yaml#/paths/~1api~1telegram~1command'
+  /api/telegram/events:
+    $ref: './modules/telegram.yaml#/paths/~1api~1telegram~1events'
+  /api/arena/models:
+    $ref: './modules/arena.yaml#/paths/~1api~1arena~1models'
+  /api/arena/battles:
+    $ref: './modules/arena.yaml#/paths/~1api~1arena~1battles'
+  /api/arena/battles/run:
+    $ref: './modules/arena.yaml#/paths/~1api~1arena~1battles~1run'
+  /api/arena/battles/{id}:
+    $ref: './modules/arena.yaml#/paths/~1api~1arena~1battles~1{id}'
+  /api/arena/battles/{id}/vote:
+    $ref: './modules/arena.yaml#/paths/~1api~1arena~1battles~1{id}~1vote'
+  /api/arena/leaderboard:
+    $ref: './modules/arena.yaml#/paths/~1api~1arena~1leaderboard'
+  /api/chat/sessions:
+    $ref: './modules/arena.yaml#/paths/~1api~1chat~1sessions'
+  /api/chat/sessions/{id}:
+    $ref: './modules/arena.yaml#/paths/~1api~1chat~1sessions~1{id}'
+  /api/chat/sessions/{id}/messages:
+    $ref: './modules/arena.yaml#/paths/~1api~1chat~1sessions~1{id}~1messages'
 components:
   schemas:
     ErrorDetail:
@@ -702,3 +738,59 @@ components:
       $ref: './modules/pxpipe.yaml#/components/schemas/PxpipePreviewRequest'
     PxpipePreviewResponse:
       $ref: './modules/pxpipe.yaml#/components/schemas/PxpipePreviewResponse'
+    TelegramConfig:
+      $ref: './modules/telegram.yaml#/components/schemas/TelegramConfig'
+    UpdateTelegramConfigRequest:
+      $ref: './modules/telegram.yaml#/components/schemas/UpdateTelegramConfigRequest'
+    TelegramActionResponse:
+      $ref: './modules/telegram.yaml#/components/schemas/TelegramActionResponse'
+    TelegramTestRequest:
+      $ref: './modules/telegram.yaml#/components/schemas/TelegramTestRequest'
+    TelegramTestResponse:
+      $ref: './modules/telegram.yaml#/components/schemas/TelegramTestResponse'
+    TelegramCommandRequest:
+      $ref: './modules/telegram.yaml#/components/schemas/TelegramCommandRequest'
+    TelegramCommandResponse:
+      $ref: './modules/telegram.yaml#/components/schemas/TelegramCommandResponse'
+    TelegramEvent:
+      $ref: './modules/telegram.yaml#/components/schemas/TelegramEvent'
+    TelegramEventListResponse:
+      $ref: './modules/telegram.yaml#/components/schemas/TelegramEventListResponse'
+    ClearTelegramEventsResponse:
+      $ref: './modules/telegram.yaml#/components/schemas/ClearTelegramEventsResponse'
+    ArenaModelOption:
+      $ref: './modules/arena.yaml#/components/schemas/ArenaModelOption'
+    ArenaModelListResponse:
+      $ref: './modules/arena.yaml#/components/schemas/ArenaModelListResponse'
+    ArenaContenderResult:
+      $ref: './modules/arena.yaml#/components/schemas/ArenaContenderResult'
+    ArenaBattle:
+      $ref: './modules/arena.yaml#/components/schemas/ArenaBattle'
+    ArenaBattleListResponse:
+      $ref: './modules/arena.yaml#/components/schemas/ArenaBattleListResponse'
+    RunArenaBattleRequest:
+      $ref: './modules/arena.yaml#/components/schemas/RunArenaBattleRequest'
+    VoteArenaBattleRequest:
+      $ref: './modules/arena.yaml#/components/schemas/VoteArenaBattleRequest'
+    ArenaLeaderboardEntry:
+      $ref: './modules/arena.yaml#/components/schemas/ArenaLeaderboardEntry'
+    ArenaLeaderboardResponse:
+      $ref: './modules/arena.yaml#/components/schemas/ArenaLeaderboardResponse'
+    DeleteArenaResourceResponse:
+      $ref: './modules/arena.yaml#/components/schemas/DeleteArenaResourceResponse'
+    ChatSession:
+      $ref: './modules/arena.yaml#/components/schemas/ChatSession'
+    ChatSessionListResponse:
+      $ref: './modules/arena.yaml#/components/schemas/ChatSessionListResponse'
+    CreateChatSessionRequest:
+      $ref: './modules/arena.yaml#/components/schemas/CreateChatSessionRequest'
+    UpdateChatSessionRequest:
+      $ref: './modules/arena.yaml#/components/schemas/UpdateChatSessionRequest'
+    ChatMessage:
+      $ref: './modules/arena.yaml#/components/schemas/ChatMessage'
+    ChatSessionDetailResponse:
+      $ref: './modules/arena.yaml#/components/schemas/ChatSessionDetailResponse'
+    SendChatMessageRequest:
+      $ref: './modules/arena.yaml#/components/schemas/SendChatMessageRequest'
+    SendChatMessageResponse:
+      $ref: './modules/arena.yaml#/components/schemas/SendChatMessageResponse'
