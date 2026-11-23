@@ -20,6 +20,8 @@ import {
   Sliders,
   SlidersHorizontal,
   Terminal,
+  Ticket,
+  Users,
   X,
   Zap,
 } from "lucide-react";
@@ -50,6 +52,8 @@ const ACTIVE_NAV_ITEMS: ActiveNavItem[] = [
   { label: "Models & Routing", href: "/dashboard/models/", icon: Layers },
   { label: "Proxy Pools", href: "/dashboard/proxy-pools/", icon: Network },
   { label: "API Keys", href: "/dashboard/keys/", icon: KeyRound },
+  { label: "Teams", href: "/dashboard/teams/", icon: Users },
+  { label: "Vouchers", href: "/dashboard/vouchers/", icon: Ticket },
   { label: "Usage & Telemetry", href: "/dashboard/usage/", icon: Cpu },
   { label: "Prompt Guard", href: "/dashboard/prompt-guard/", icon: ShieldAlert },
   { label: "Model Editor", href: "/dashboard/model-editor/", icon: Sliders },
@@ -245,11 +249,11 @@ export function AppShell({ children }: AppShellProps) {
           )}
         >
           {compact ? (
-            <span className="text-[var(--text-secondary)]">W2C</span>
+            <span className="text-[var(--text-secondary)]">W3A</span>
           ) : (
             <>
               <span>KERNEL</span>
-              <span className="text-[var(--text-secondary)]">WAVE 2C</span>
+              <span className="text-[var(--text-secondary)]">WAVE 3A</span>
             </>
           )}
         </div>
