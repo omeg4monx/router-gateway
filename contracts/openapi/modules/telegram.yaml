@@ -1,0 +1,336 @@
+openapi: 3.1.0
+info:
+  title: omeg4mon-router Telegram Module
+  version: 0.1.0
+paths:
+  /api/telegram/config:
+    get:
+      tags: [telegram]
+      operationId: getTelegramConfig
+      summary: Get sanitized Telegram Bot configuration and webhook readiness
+      responses:
+        '200':
+          description: Sanitized Telegram config
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TelegramConfig'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+    patch:
+      tags: [telegram]
+      operationId: updateTelegramConfig
+      summary: Update Telegram Bot configuration, encrypted token, and alert toggles
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTelegramConfigRequest'
+      responses:
+        '200':
+          description: Updated Telegram config
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TelegramConfig'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+  /api/telegram/secret/rotate:
+    post:
+      tags: [telegram]
+      operationId: rotateTelegramWebhookSecret
+      summary: Rotate the Telegram webhook secret token
+      responses:
+        '200':
+          description: Updated Telegram config
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TelegramConfig'
+  /api/telegram/webhook/register:
+    post:
+      tags: [telegram]
+      operationId: registerTelegramWebhook
+      summary: Register the configured webhook URL and secret token with Telegram Bot API
+      responses:
+        '200':
+          description: Webhook registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TelegramActionResponse'
+        '400':
+          description: Missing configuration
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '502':
+          description: Upstream Telegram Bot API error
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+  /api/telegram/webhook/delete:
+    post:
+      tags: [telegram]
+      operationId: deleteTelegramWebhook
+      summary: Remove the active webhook from Telegram Bot API
+      responses:
+        '200':
+          description: Webhook deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TelegramActionResponse'
+  /api/telegram/test:
+    post:
+      tags: [telegram]
+      operationId: sendTelegramTestMessage
+      summary: Send a test notification message to the configured Telegram chat
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TelegramTestRequest'
+      responses:
+        '200':
+          description: Test message delivered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TelegramTestResponse'
+        '400':
+          description: Bot unconfigured
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '502':
+          description: Upstream Telegram Bot API error
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+  /api/telegram/command:
+    post:
+      tags: [telegram]
+      operationId: simulateTelegramCommand
+      summary: Execute a Telegram bot command in-process from the dashboard simulator
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TelegramCommandRequest'
+      responses:
+        '200':
+          description: Command response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TelegramCommandResponse'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+  /api/telegram/events:
+    get:
+      tags: [telegram]
+      operationId: listTelegramEvents
+      summary: List recent Telegram bot webhook, simulator, and alert events
+      responses:
+        '200':
+          description: Telegram event list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TelegramEventListResponse'
+    delete:
+      tags: [telegram]
+      operationId: clearTelegramEvents
+      summary: Clear recorded Telegram bot events
+      responses:
+        '200':
+          description: Cleared count
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClearTelegramEventsResponse'
+components:
+  schemas:
+    TelegramConfig:
+      type: object
+      additionalProperties: false
+      required:
+        - enabled
+        - bot_token_configured
+        - bot_token_mask
+        - chat_id
+        - user_id
+        - webhook_url
+        - webhook_path
+        - webhook_secret_configured
+        - notify_on_job_failure
+        - notify_on_auth_change
+        - notify_on_emit
+        - updated_at
+      properties:
+        enabled:
+          type: boolean
+        bot_token_configured:
+          type: boolean
+        bot_token_mask:
+          type: string
+        chat_id:
+          type: string
+        user_id:
+          type: string
+        webhook_url:
+          type: string
+        webhook_path:
+          type: string
+        webhook_secret_configured:
+          type: boolean
+        notify_on_job_failure:
+          type: boolean
+        notify_on_auth_change:
+          type: boolean
+        notify_on_emit:
+          type: boolean
+        updated_at:
+          type: string
+    UpdateTelegramConfigRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        enabled:
+          type: boolean
+        bot_token:
+          type: string
+        clear_bot_token:
+          type: boolean
+        chat_id:
+          type: string
+        user_id:
+          type: string
+        webhook_url:
+          type: string
+        notify_on_job_failure:
+          type: boolean
+        notify_on_auth_change:
+          type: boolean
+        notify_on_emit:
+          type: boolean
+    TelegramActionResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - ok
+      properties:
+        ok:
+          type: boolean
+        webhook_url:
+          type: string
+    TelegramTestRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        message:
+          type: string
+    TelegramTestResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - ok
+        - chat_id
+        - message
+      properties:
+        ok:
+          type: boolean
+        chat_id:
+          type: string
+        message:
+          type: string
+    TelegramCommandRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - command
+      properties:
+        command:
+          type: string
+    TelegramCommandResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - command
+        - reply
+        - executed_at
+      properties:
+        command:
+          type: string
+        reply:
+          type: string
+        executed_at:
+          type: string
+    TelegramEvent:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - direction
+        - kind
+        - command
+        - status
+        - summary
+        - error
+        - created_at
+      properties:
+        id:
+          type: string
+        direction:
+          type: string
+        kind:
+          type: string
+        command:
+          type: string
+        status:
+          type: string
+        summary:
+          type: string
+        error:
+          type: string
+        created_at:
+          type: string
+    TelegramEventListResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - events
+      properties:
+        events:
+          type: array
+          items:
+            $ref: '#/components/schemas/TelegramEvent'
+    ClearTelegramEventsResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - cleared
+      properties:
+        cleared:
+          type: integer
+          format: int64
