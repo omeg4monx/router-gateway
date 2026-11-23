@@ -53,6 +53,12 @@ tags:
     description: Vaulted Telegram Bot controller, fail-closed webhook, command simulator, and eventbus alert forwarding
   - name: arena
     description: Multi-model side-by-side comparison battles, leaderboard, and persistent Basic Chat sessions
+  - name: plugins
+    description: Configurable gateway request-enhancement plugins and reusable agent/IDE skills catalog
+  - name: cloudsync
+    description: Vaulted SSRF-safe remote state synchronization and portable JSON snapshot export/restore
+  - name: importer
+    description: Read-only legacy data.sqlite inspector and one-way control-plane migration tool
 paths:
   /api/health:
     $ref: './modules/system.yaml#/paths/~1api~1health'
@@ -308,6 +314,36 @@ paths:
     $ref: './modules/arena.yaml#/paths/~1api~1chat~1sessions~1{id}'
   /api/chat/sessions/{id}/messages:
     $ref: './modules/arena.yaml#/paths/~1api~1chat~1sessions~1{id}~1messages'
+  /api/plugins:
+    $ref: './modules/plugins.yaml#/paths/~1api~1plugins'
+  /api/plugins/{key}:
+    $ref: './modules/plugins.yaml#/paths/~1api~1plugins~1{key}'
+  /api/plugins/preview:
+    $ref: './modules/plugins.yaml#/paths/~1api~1plugins~1preview'
+  /api/skills:
+    $ref: './modules/plugins.yaml#/paths/~1api~1skills'
+  /api/skills/{id}:
+    $ref: './modules/plugins.yaml#/paths/~1api~1skills~1{id}'
+  /api/skills/{id}/export:
+    $ref: './modules/plugins.yaml#/paths/~1api~1skills~1{id}~1export'
+  /api/cloudsync/config:
+    $ref: './modules/cloudsync.yaml#/paths/~1api~1cloudsync~1config'
+  /api/cloudsync/push:
+    $ref: './modules/cloudsync.yaml#/paths/~1api~1cloudsync~1push'
+  /api/cloudsync/pull:
+    $ref: './modules/cloudsync.yaml#/paths/~1api~1cloudsync~1pull'
+  /api/cloudsync/snapshot:
+    $ref: './modules/cloudsync.yaml#/paths/~1api~1cloudsync~1snapshot'
+  /api/cloudsync/restore:
+    $ref: './modules/cloudsync.yaml#/paths/~1api~1cloudsync~1restore'
+  /api/cloudsync/history:
+    $ref: './modules/cloudsync.yaml#/paths/~1api~1cloudsync~1history'
+  /api/importer/inspect:
+    $ref: './modules/importer.yaml#/paths/~1api~1importer~1inspect'
+  /api/importer/run:
+    $ref: './modules/importer.yaml#/paths/~1api~1importer~1run'
+  /api/importer/history:
+    $ref: './modules/importer.yaml#/paths/~1api~1importer~1history'
 components:
   schemas:
     ErrorDetail:
@@ -794,3 +830,59 @@ components:
       $ref: './modules/arena.yaml#/components/schemas/SendChatMessageRequest'
     SendChatMessageResponse:
       $ref: './modules/arena.yaml#/components/schemas/SendChatMessageResponse'
+    PluginState:
+      $ref: './modules/plugins.yaml#/components/schemas/PluginState'
+    PluginListResponse:
+      $ref: './modules/plugins.yaml#/components/schemas/PluginListResponse'
+    UpdatePluginRequest:
+      $ref: './modules/plugins.yaml#/components/schemas/UpdatePluginRequest'
+    PreviewPluginsRequest:
+      $ref: './modules/plugins.yaml#/components/schemas/PreviewPluginsRequest'
+    PreviewPluginsResponse:
+      $ref: './modules/plugins.yaml#/components/schemas/PreviewPluginsResponse'
+    Skill:
+      $ref: './modules/plugins.yaml#/components/schemas/Skill'
+    SkillListResponse:
+      $ref: './modules/plugins.yaml#/components/schemas/SkillListResponse'
+    CreateSkillRequest:
+      $ref: './modules/plugins.yaml#/components/schemas/CreateSkillRequest'
+    UpdateSkillRequest:
+      $ref: './modules/plugins.yaml#/components/schemas/UpdateSkillRequest'
+    DeleteSkillResponse:
+      $ref: './modules/plugins.yaml#/components/schemas/DeleteSkillResponse'
+    CloudSyncConfig:
+      $ref: './modules/cloudsync.yaml#/components/schemas/CloudSyncConfig'
+    UpdateCloudSyncConfigRequest:
+      $ref: './modules/cloudsync.yaml#/components/schemas/UpdateCloudSyncConfigRequest'
+    CloudSyncComboSnapshot:
+      $ref: './modules/cloudsync.yaml#/components/schemas/CloudSyncComboSnapshot'
+    CloudSyncAliasSnapshot:
+      $ref: './modules/cloudsync.yaml#/components/schemas/CloudSyncAliasSnapshot'
+    CloudSyncSnapshotBundle:
+      $ref: './modules/cloudsync.yaml#/components/schemas/CloudSyncSnapshotBundle'
+    RestoreCloudSyncSnapshotRequest:
+      $ref: './modules/cloudsync.yaml#/components/schemas/RestoreCloudSyncSnapshotRequest'
+    CloudSyncHistoryEvent:
+      $ref: './modules/cloudsync.yaml#/components/schemas/CloudSyncHistoryEvent'
+    CloudSyncActionResponse:
+      $ref: './modules/cloudsync.yaml#/components/schemas/CloudSyncActionResponse'
+    CloudSyncHistoryListResponse:
+      $ref: './modules/cloudsync.yaml#/components/schemas/CloudSyncHistoryListResponse'
+    ClearCloudSyncHistoryResponse:
+      $ref: './modules/cloudsync.yaml#/components/schemas/ClearCloudSyncHistoryResponse'
+    InspectLegacyRequest:
+      $ref: './modules/importer.yaml#/components/schemas/InspectLegacyRequest'
+    InspectLegacyResponse:
+      $ref: './modules/importer.yaml#/components/schemas/InspectLegacyResponse'
+    RunLegacyImportRequest:
+      $ref: './modules/importer.yaml#/components/schemas/RunLegacyImportRequest'
+    ImporterRun:
+      $ref: './modules/importer.yaml#/components/schemas/ImporterRun'
+    ImportedProvisionedKey:
+      $ref: './modules/importer.yaml#/components/schemas/ImportedProvisionedKey'
+    RunLegacyImportResponse:
+      $ref: './modules/importer.yaml#/components/schemas/RunLegacyImportResponse'
+    ImporterHistoryListResponse:
+      $ref: './modules/importer.yaml#/components/schemas/ImporterHistoryListResponse'
+    ClearImporterHistoryResponse:
+      $ref: './modules/importer.yaml#/components/schemas/ClearImporterHistoryResponse'

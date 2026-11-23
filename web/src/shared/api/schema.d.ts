@@ -2261,6 +2261,267 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/plugins": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List built-in gateway request-enhancement plugins and their runtime configuration */
+        get: operations["listPlugins"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/plugins/{key}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Update configuration for a built-in plugin */
+        put: operations["updatePlugin"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/plugins/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Dry-run active request-enhancement plugins against a sample gateway payload */
+        post: operations["previewPlugins"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/skills": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List built-in and custom agent/IDE skills */
+        get: operations["listSkills"];
+        put?: never;
+        /** Create a custom reusable skill */
+        post: operations["createSkill"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/skills/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Fetch a single skill by ID */
+        get: operations["getSkill"];
+        put?: never;
+        post?: never;
+        /** Delete a custom skill */
+        delete: operations["deleteSkill"];
+        options?: never;
+        head?: never;
+        /** Update an existing skill */
+        patch: operations["updateSkill"];
+        trace?: never;
+    };
+    "/api/skills/{id}/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Export a skill as a frontmatter-formatted SKILL.md document */
+        get: operations["exportSkill"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/cloudsync/config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Fetch current Cloud Sync configuration (secrets masked) */
+        get: operations["getCloudSyncConfig"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Cloud Sync remote endpoint, vaulted bearer token, and conflict policy */
+        patch: operations["updateCloudSyncConfig"];
+        trace?: never;
+    };
+    "/api/cloudsync/push": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Push a local state snapshot to the configured remote sync endpoint */
+        post: operations["pushCloudSync"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/cloudsync/pull": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Pull a remote state snapshot and apply it using the configured conflict policy */
+        post: operations["pullCloudSync"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/cloudsync/snapshot": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Export a portable JSON snapshot of control-plane settings, combos, and aliases */
+        get: operations["exportCloudSyncSnapshot"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/cloudsync/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Restore a portable JSON snapshot bundle locally */
+        post: operations["restoreCloudSyncSnapshot"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/cloudsync/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List recent Cloud Sync push/pull/export/restore events */
+        get: operations["listCloudSyncHistory"];
+        put?: never;
+        post?: never;
+        /** Clear all Cloud Sync history events */
+        delete: operations["clearCloudSyncHistory"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/importer/inspect": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Inspect a legacy data.sqlite file strictly read-only without mutating it */
+        post: operations["inspectLegacyDatabase"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/importer/run": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Execute a dry-run or live one-way migration from a legacy data.sqlite file */
+        post: operations["runLegacyImport"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/importer/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List recent legacy importer runs */
+        get: operations["listImporterHistory"];
+        put?: never;
+        post?: never;
+        /** Clear all recorded importer runs */
+        delete: operations["clearImporterHistory"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -3963,6 +4224,200 @@ export interface components {
             session: components["schemas"]["ChatSession"];
             user_message: components["schemas"]["ChatMessage"];
             assistant_message: components["schemas"]["ChatMessage"];
+        };
+        PluginState: {
+            key: string;
+            name: string;
+            description: string;
+            category: string;
+            enabled: boolean;
+            models: string[];
+            config: {
+                [key: string]: unknown;
+            };
+            updated_at: string;
+        };
+        PluginListResponse: {
+            plugins: components["schemas"]["PluginState"][];
+        };
+        UpdatePluginRequest: {
+            enabled: boolean;
+            models?: string[];
+            config?: {
+                [key: string]: unknown;
+            };
+        };
+        PreviewPluginsRequest: {
+            model: string;
+            payload: {
+                [key: string]: unknown;
+            };
+        };
+        PreviewPluginsResponse: {
+            changed: boolean;
+            applied_plugins: string[];
+            payload: {
+                [key: string]: unknown;
+            };
+        };
+        Skill: {
+            id: string;
+            slug: string;
+            name: string;
+            description: string;
+            category: string;
+            content: string;
+            enabled: boolean;
+            builtin: boolean;
+            created_at: string;
+            updated_at: string;
+        };
+        SkillListResponse: {
+            skills: components["schemas"]["Skill"][];
+        };
+        CreateSkillRequest: {
+            slug: string;
+            name: string;
+            description?: string;
+            category?: string;
+            content: string;
+            enabled?: boolean;
+        };
+        UpdateSkillRequest: {
+            name?: string;
+            description?: string;
+            category?: string;
+            content?: string;
+            enabled?: boolean;
+        };
+        DeleteSkillResponse: {
+            deleted: boolean;
+            id: string;
+        };
+        CloudSyncConfig: {
+            enabled: boolean;
+            endpoint_url: string;
+            has_auth_token: boolean;
+            auth_token_mask: string;
+            sync_interval_min: number;
+            /** @enum {string} */
+            conflict_policy: "merge" | "remote_wins" | "local_wins";
+            include_settings: boolean;
+            include_combos: boolean;
+            last_sync_at: string;
+            last_status: string;
+            last_error: string;
+            updated_at: string;
+        };
+        UpdateCloudSyncConfigRequest: {
+            enabled?: boolean;
+            endpoint_url?: string;
+            auth_token?: string;
+            clear_auth_token?: boolean;
+            sync_interval_min?: number;
+            /** @enum {string} */
+            conflict_policy?: "merge" | "remote_wins" | "local_wins";
+            include_settings?: boolean;
+            include_combos?: boolean;
+        };
+        CloudSyncComboSnapshot: {
+            name: string;
+            description: string;
+            strategy: string;
+            targets: string[];
+            enabled: boolean;
+        };
+        CloudSyncAliasSnapshot: {
+            alias: string;
+            target_model: string;
+        };
+        CloudSyncSnapshotBundle: {
+            version: number;
+            exported_at: string;
+            checksum: string;
+            settings?: {
+                [key: string]: unknown;
+            };
+            combos?: components["schemas"]["CloudSyncComboSnapshot"][];
+            aliases?: components["schemas"]["CloudSyncAliasSnapshot"][];
+        };
+        RestoreCloudSyncSnapshotRequest: {
+            /** @enum {string} */
+            conflict_policy?: "merge" | "remote_wins" | "local_wins";
+            snapshot: components["schemas"]["CloudSyncSnapshotBundle"];
+        };
+        CloudSyncHistoryEvent: {
+            id: string;
+            direction: string;
+            status: string;
+            summary: string;
+            checksum: string;
+            item_count: number;
+            error: string;
+            created_at: string;
+        };
+        CloudSyncActionResponse: {
+            ok: boolean;
+            direction: string;
+            checksum: string;
+            item_count: number;
+            event: components["schemas"]["CloudSyncHistoryEvent"];
+        };
+        CloudSyncHistoryListResponse: {
+            events: components["schemas"]["CloudSyncHistoryEvent"][];
+        };
+        ClearCloudSyncHistoryResponse: {
+            deleted: number;
+        };
+        InspectLegacyRequest: {
+            source_path: string;
+        };
+        InspectLegacyResponse: {
+            source_path: string;
+            tables_found: string[];
+            settings_count: number;
+            combos_count: number;
+            keys_count: number;
+            providers_count: number;
+            warnings: string[];
+        };
+        RunLegacyImportRequest: {
+            source_path: string;
+            dry_run?: boolean;
+            import_settings?: boolean;
+            import_combos?: boolean;
+            import_keys?: boolean;
+            overwrite?: boolean;
+        };
+        ImporterRun: {
+            id: string;
+            source_path: string;
+            dry_run: boolean;
+            status: string;
+            settings_imported: number;
+            combos_imported: number;
+            keys_imported: number;
+            providers_found: number;
+            summary: string;
+            error: string;
+            created_at: string;
+        };
+        ImportedProvisionedKey: {
+            ID: string;
+            Name: string;
+            KeyPrefix: string;
+            Secret: string;
+        };
+        RunLegacyImportResponse: {
+            run: components["schemas"]["ImporterRun"];
+            warnings: string[];
+            provisioned_keys: components["schemas"]["ImportedProvisionedKey"][];
+        };
+        ImporterHistoryListResponse: {
+            runs: components["schemas"]["ImporterRun"][];
+        };
+        ClearImporterHistoryResponse: {
+            deleted: number;
         };
     };
     responses: never;
@@ -10519,6 +10974,643 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    listPlugins: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Plugin catalog and configuration */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PluginListResponse"];
+                };
+            };
+        };
+    };
+    updatePlugin: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdatePluginRequest"];
+            };
+        };
+        responses: {
+            /** @description Updated plugin state */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PluginState"];
+                };
+            };
+            /** @description Invalid payload */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Plugin not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    previewPlugins: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PreviewPluginsRequest"];
+            };
+        };
+        responses: {
+            /** @description Dry-run transformation output */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PreviewPluginsResponse"];
+                };
+            };
+            /** @description Invalid payload */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    listSkills: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Skills list */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SkillListResponse"];
+                };
+            };
+        };
+    };
+    createSkill: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateSkillRequest"];
+            };
+        };
+        responses: {
+            /** @description Created skill */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Skill"];
+                };
+            };
+            /** @description Validation error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Duplicate slug */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    getSkill: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Skill details */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Skill"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    deleteSkill: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted skill confirmation */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeleteSkillResponse"];
+                };
+            };
+            /** @description Built-in skill protected */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    updateSkill: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateSkillRequest"];
+            };
+        };
+        responses: {
+            /** @description Updated skill */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Skill"];
+                };
+            };
+            /** @description Validation error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    exportSkill: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Markdown SKILL.md document */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/markdown": string;
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    getCloudSyncConfig: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Cloud Sync configuration */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CloudSyncConfig"];
+                };
+            };
+        };
+    };
+    updateCloudSyncConfig: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateCloudSyncConfigRequest"];
+            };
+        };
+        responses: {
+            /** @description Updated Cloud Sync configuration */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CloudSyncConfig"];
+                };
+            };
+            /** @description Validation or SSRF policy violation */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    pushCloudSync: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Push completed */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CloudSyncActionResponse"];
+                };
+            };
+            /** @description Missing or invalid endpoint */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Remote sync endpoint error */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    pullCloudSync: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Pull completed */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CloudSyncActionResponse"];
+                };
+            };
+            /** @description Missing or invalid endpoint */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Remote sync endpoint error */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    exportCloudSyncSnapshot: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Portable snapshot bundle */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CloudSyncSnapshotBundle"];
+                };
+            };
+        };
+    };
+    restoreCloudSyncSnapshot: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RestoreCloudSyncSnapshotRequest"];
+            };
+        };
+        responses: {
+            /** @description Restore completed */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CloudSyncActionResponse"];
+                };
+            };
+            /** @description Validation error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    listCloudSyncHistory: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Sync history */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CloudSyncHistoryListResponse"];
+                };
+            };
+        };
+    };
+    clearCloudSyncHistory: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Cleared event count */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClearCloudSyncHistoryResponse"];
+                };
+            };
+        };
+    };
+    inspectLegacyDatabase: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InspectLegacyRequest"];
+            };
+        };
+        responses: {
+            /** @description Legacy database summary */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InspectLegacyResponse"];
+                };
+            };
+            /** @description Invalid path or non-SQLite file */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    runLegacyImport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RunLegacyImportRequest"];
+            };
+        };
+        responses: {
+            /** @description Import run result */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunLegacyImportResponse"];
+                };
+            };
+            /** @description Invalid source database */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    listImporterHistory: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Importer run history */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImporterHistoryListResponse"];
+                };
+            };
+        };
+    };
+    clearImporterHistory: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Cleared run count */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClearImporterHistoryResponse"];
                 };
             };
         };

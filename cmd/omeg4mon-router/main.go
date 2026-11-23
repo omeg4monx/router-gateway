@@ -21,13 +21,16 @@ import (
 	"github.com/omeg4monx/router-gateway/internal/modules/arena"
 	"github.com/omeg4monx/router-gateway/internal/modules/auth"
 	"github.com/omeg4monx/router-gateway/internal/modules/clitools"
+	"github.com/omeg4monx/router-gateway/internal/modules/cloudsync"
 	"github.com/omeg4monx/router-gateway/internal/modules/combos"
 	"github.com/omeg4monx/router-gateway/internal/modules/gateway"
+	"github.com/omeg4monx/router-gateway/internal/modules/importer"
 	"github.com/omeg4monx/router-gateway/internal/modules/keys"
 	"github.com/omeg4monx/router-gateway/internal/modules/media"
 	"github.com/omeg4monx/router-gateway/internal/modules/mitm"
 	"github.com/omeg4monx/router-gateway/internal/modules/modeleditor"
 	"github.com/omeg4monx/router-gateway/internal/modules/notifications"
+	"github.com/omeg4monx/router-gateway/internal/modules/plugins"
 	"github.com/omeg4monx/router-gateway/internal/modules/promptinjection"
 	"github.com/omeg4monx/router-gateway/internal/modules/providers"
 	"github.com/omeg4monx/router-gateway/internal/modules/proxypools"
@@ -302,6 +305,11 @@ func buildApp(ctx context.Context, cfg config.Config, build system.BuildInfo) (*
 		Bus:    bus,
 		Logger: logger,
 	})
+	pluginsMod := plugins.New(plugins.Options{
+		DB:     database,
+		Bus:    bus,
+		Logger: logger,
+	})
 	teamsMod := teams.New(teams.Options{
 		DB:     database,
 		Bus:    bus,
@@ -318,7 +326,7 @@ func buildApp(ctx context.Context, cfg config.Config, build system.BuildInfo) (*
 		KeyProvisioner: keysMod,
 		TeamAssigner:   teamAssigner,
 	})
-	interceptors := make([]contracts.GatewayInterceptor, 0, 5)
+	interceptors := make([]contracts.GatewayInterceptor, 0, 6)
 	if !cfg.DisabledModules[teamsMod.Name()] {
 		interceptors = append(interceptors, teamsMod)
 	}
@@ -333,6 +341,9 @@ func buildApp(ctx context.Context, cfg config.Config, build system.BuildInfo) (*
 	}
 	if !cfg.DisabledModules[pxpipeMod.Name()] {
 		interceptors = append(interceptors, pxpipeMod)
+	}
+	if !cfg.DisabledModules[pluginsMod.Name()] {
+		interceptors = append(interceptors, pluginsMod)
 	}
 	gatewayMod := gateway.New(gateway.Options{
 		DB:           database,
@@ -412,6 +423,23 @@ func buildApp(ctx context.Context, cfg config.Config, build system.BuildInfo) (*
 		Bus:       bus,
 		Logger:    logger,
 	})
+	cloudsyncMod := cloudsync.New(cloudsync.Options{
+		DB:         database,
+		Vault:      vault,
+		HTTPClient: httpClient,
+		Bus:        bus,
+		Logger:     logger,
+		Settings:   settingsMod,
+		Combos:     combosMod,
+	})
+	importerMod := importer.New(importer.Options{
+		DB:             database,
+		Bus:            bus,
+		Logger:         logger,
+		Settings:       settingsMod,
+		Combos:         combosMod,
+		KeyProvisioner: keysMod,
+	})
 
 	if err := registry.Register(sysMod); err != nil {
 		return nil, fmt.Errorf("register system module: %w", err)
@@ -484,6 +512,15 @@ func buildApp(ctx context.Context, cfg config.Config, build system.BuildInfo) (*
 	}
 	if err := registry.Register(arenaMod); err != nil {
 		return nil, fmt.Errorf("register arena module: %w", err)
+	}
+	if err := registry.Register(pluginsMod); err != nil {
+		return nil, fmt.Errorf("register plugins module: %w", err)
+	}
+	if err := registry.Register(cloudsyncMod); err != nil {
+		return nil, fmt.Errorf("register cloudsync module: %w", err)
+	}
+	if err := registry.Register(importerMod); err != nil {
+		return nil, fmt.Errorf("register importer module: %w", err)
 	}
 
 	if err := registry.MigrateAll(ctx, database); err != nil {
