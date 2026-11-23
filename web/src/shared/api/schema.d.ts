@@ -270,6 +270,312 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/providers/catalog": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List registered built-in provider adapters and custom compatible provider nodes */
+        get: operations["getProvidersCatalog"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/providers/nodes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List custom compatible provider nodes */
+        get: operations["listProviderNodes"];
+        put?: never;
+        /** Register a new custom compatible provider node */
+        post: operations["createProviderNode"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/providers/nodes/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Unique custom provider node identifier. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete a custom compatible provider node */
+        delete: operations["deleteProviderNode"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/providers/connections": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List upstream provider connections (metadata only, never plaintext credentials) */
+        get: operations["listProviderConnections"];
+        put?: never;
+        /** Create a vaulted upstream provider connection */
+        post: operations["createProviderConnection"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/providers/connections/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Unique provider connection identifier. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        /** Retrieve metadata for a single upstream provider connection */
+        get: operations["getProviderConnection"];
+        put?: never;
+        post?: never;
+        /** Permanently delete a provider connection and its vaulted credentials */
+        delete: operations["deleteProviderConnection"];
+        options?: never;
+        head?: never;
+        /** Update provider connection metadata, routing priority, enabled state, or vaulted credentials */
+        patch: operations["updateProviderConnection"];
+        trace?: never;
+    };
+    "/api/providers/connections/{id}/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Unique provider connection identifier. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Execute a live connectivity quick-test against the upstream provider */
+        post: operations["testProviderConnection"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/providers/oauth/{provider}/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description OAuth-capable provider adapter identifier (e.g., claude, codex, gemini-oauth). */
+                provider: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Initiate a headless-safe PKCE S256 OAuth authorization session */
+        post: operations["startProviderOAuth"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/providers/oauth/{provider}/exchange": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description OAuth-capable provider adapter identifier. */
+                provider: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Exchange an authorization code or pasted callback URL for vaulted OAuth tokens */
+        post: operations["exchangeProviderOAuth"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/oauth/callback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Public browser OAuth redirect receiver rendering escaped handoff instructions or JSON parameters */
+        get: operations["oauthCallbackHandoff"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/combos": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List configured multi-model fallback combos */
+        get: operations["listCombos"];
+        put?: never;
+        /** Create a new ordered multi-model fallback combo */
+        post: operations["createCombo"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/combos/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Unique combo identifier. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        /** Retrieve a single fallback combo by ID */
+        get: operations["getCombo"];
+        put?: never;
+        post?: never;
+        /** Permanently delete a fallback combo */
+        delete: operations["deleteCombo"];
+        options?: never;
+        head?: never;
+        /** Update a fallback combo name, description, ordered targets, strategy, or enabled state */
+        patch: operations["updateCombo"];
+        trace?: never;
+    };
+    "/api/aliases": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List configured model aliases */
+        get: operations["listModelAliases"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/aliases/{alias}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Logical alias name (percent-encode '/' if present). */
+                alias: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        /** Create or update a model alias pointing to a target model, combo, or alias */
+        put: operations["upsertModelAlias"];
+        post?: never;
+        /** Delete a configured model alias */
+        delete: operations["deleteModelAlias"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/models/disabled": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List disabled model identifiers suppressed from routing and listing */
+        get: operations["listDisabledModels"];
+        /** Disable a bare or provider-qualified model identifier */
+        put: operations["disableModel"];
+        post?: never;
+        /** Remove a model identifier from the disabled list (via ?model= query parameter or JSON body) */
+        delete: operations["enableModel"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/models/cooldowns": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List upstream provider connections currently in failure cooldown */
+        get: operations["listModelCooldowns"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/models/cooldowns/{connectionId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Upstream provider connection identifier to release from cooldown. */
+                connectionId: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Manually clear an upstream connection cooldown window and reset its backoff counter */
+        delete: operations["clearModelCooldown"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -460,6 +766,248 @@ export interface components {
             key: components["schemas"]["ApiKeySummary"];
             /** @description One-time raw gateway API key secret (sk-om4-<48-char base64url>). */
             secret: string;
+        };
+        /** @enum {string} */
+        ProviderProtocol: "openai-chat" | "openai-responses" | "anthropic" | "gemini";
+        /** @enum {string} */
+        ProviderAuthType: "api_key" | "oauth";
+        CatalogOAuthDescriptor: {
+            /** Format: uri */
+            authorize_url: string;
+            /** Format: uri */
+            token_url: string;
+            scopes: string[];
+            /** Format: uri */
+            default_redirect_uri: string;
+            client_id_configured: boolean;
+        };
+        CatalogAdapterDescriptor: {
+            id: string;
+            display_name: string;
+            category: string;
+            protocol: components["schemas"]["ProviderProtocol"];
+            auth_type: components["schemas"]["ProviderAuthType"];
+            default_base_url: string;
+            default_models: string[];
+            oauth: components["schemas"]["CatalogOAuthDescriptor"] | null;
+        };
+        ProviderNode: {
+            id: string;
+            name: string;
+            protocol: components["schemas"]["ProviderProtocol"];
+            /** Format: uri */
+            base_url: string;
+            models: string[];
+            headers: {
+                [key: string]: string;
+            };
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        ProvidersCatalogResponse: {
+            adapters: components["schemas"]["CatalogAdapterDescriptor"][];
+            custom_nodes: components["schemas"]["ProviderNode"][];
+        };
+        ListProviderNodesResponse: {
+            nodes: components["schemas"]["ProviderNode"][];
+        };
+        CreateProviderNodeRequest: {
+            id?: string;
+            name: string;
+            protocol: components["schemas"]["ProviderProtocol"];
+            /** Format: uri */
+            base_url: string;
+            models?: string[];
+            headers?: {
+                [key: string]: string;
+            };
+        };
+        ProviderConnectionSummary: {
+            id: string;
+            provider_id: string;
+            name: string;
+            protocol: components["schemas"]["ProviderProtocol"];
+            /** Format: uri */
+            base_url: string;
+            auth_type: components["schemas"]["ProviderAuthType"];
+            priority: number;
+            enabled: boolean;
+            models: string[];
+            headers: {
+                [key: string]: string;
+            };
+            has_credentials: boolean;
+            /** Format: date-time */
+            token_expires_at: string | null;
+            /** Format: date-time */
+            last_tested_at: string | null;
+            last_test_status: string;
+            last_test_error: string;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        ListProviderConnectionsResponse: {
+            connections: components["schemas"]["ProviderConnectionSummary"][];
+        };
+        CreateProviderConnectionRequest: {
+            provider_id: string;
+            name: string;
+            protocol?: components["schemas"]["ProviderProtocol"];
+            /** Format: uri */
+            base_url?: string;
+            auth_type?: components["schemas"]["ProviderAuthType"];
+            api_key?: string;
+            access_token?: string;
+            refresh_token?: string;
+            /** @default 100 */
+            priority: number;
+            /** @default true */
+            enabled: boolean;
+            models?: string[];
+            headers?: {
+                [key: string]: string;
+            };
+        };
+        UpdateProviderConnectionRequest: {
+            name?: string;
+            /** Format: uri */
+            base_url?: string;
+            api_key?: string;
+            access_token?: string;
+            refresh_token?: string;
+            priority?: number;
+            enabled?: boolean;
+            models?: string[];
+            headers?: {
+                [key: string]: string;
+            };
+        };
+        TestProviderConnectionResponse: {
+            ok: boolean;
+            status_code: number;
+            /** Format: int64 */
+            latency_ms: number;
+            error: string;
+        };
+        OAuthStartRequest: {
+            connection_name?: string;
+            /** Format: uri */
+            redirect_uri?: string;
+            client_id?: string;
+            client_secret?: string;
+            /** Format: uri */
+            base_url?: string;
+            models?: string[];
+        };
+        OAuthStartResponse: {
+            state: string;
+            /** Format: uri */
+            authorize_url: string;
+            /** Format: uri */
+            redirect_uri: string;
+            /** Format: date-time */
+            expires_at: string;
+        };
+        OAuthExchangeRequest: {
+            state?: string;
+            code?: string;
+            /** Format: uri */
+            callback_url?: string;
+            connection_id?: string;
+            connection_name?: string;
+            /** @default 100 */
+            priority: number;
+            /** @default true */
+            enabled: boolean;
+            headers?: {
+                [key: string]: string;
+            };
+        };
+        OAuthCallbackJSONResponse: {
+            status: string;
+            provider_id: string;
+            state: string;
+            code: string;
+            error: string;
+            error_description: string;
+        };
+        /** @enum {string} */
+        ComboStrategy: "ordered";
+        Combo: {
+            id: string;
+            name: string;
+            description: string;
+            targets: string[];
+            strategy: components["schemas"]["ComboStrategy"];
+            enabled: boolean;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        ListCombosResponse: {
+            combos: components["schemas"]["Combo"][];
+        };
+        CreateComboRequest: {
+            name: string;
+            description?: string;
+            targets: string[];
+            strategy?: components["schemas"]["ComboStrategy"];
+            /** @default true */
+            enabled: boolean;
+        };
+        UpdateComboRequest: {
+            name?: string;
+            description?: string;
+            targets?: string[];
+            strategy?: components["schemas"]["ComboStrategy"];
+            enabled?: boolean;
+        };
+        ModelAlias: {
+            alias: string;
+            target_model: string;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        ListModelAliasesResponse: {
+            aliases: components["schemas"]["ModelAlias"][];
+        };
+        UpsertModelAliasRequest: {
+            target_model: string;
+        };
+        DisabledModel: {
+            model: string;
+            reason: string;
+            /** Format: date-time */
+            created_at: string;
+        };
+        ListDisabledModelsResponse: {
+            disabled_models: components["schemas"]["DisabledModel"][];
+        };
+        DisableModelRequest: {
+            model: string;
+            reason?: string;
+        };
+        EnableModelRequest: {
+            model: string;
+        };
+        CooldownEntry: {
+            connection_id: string;
+            failures: number;
+            /** Format: date-time */
+            until: string;
+            last_status: number;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        ListCooldownsResponse: {
+            cooldowns: components["schemas"]["CooldownEntry"][];
         };
     };
     responses: never;
@@ -1430,6 +1978,1358 @@ export interface operations {
             };
             /** @description Failed to rotate API key. */
             500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    getProvidersCatalog: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Registered provider adapters and custom compatible provider nodes. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProvidersCatalogResponse"];
+                };
+            };
+            /** @description Administrative authentication is required. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Failed to load provider catalog. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    listProviderNodes: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Custom provider nodes. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListProviderNodesResponse"];
+                };
+            };
+            /** @description Administrative authentication is required. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Failed to load custom provider nodes. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    createProviderNode: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateProviderNodeRequest"];
+            };
+        };
+        responses: {
+            /** @description Custom provider node created. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProviderNode"];
+                };
+            };
+            /** @description Malformed request body or validation error. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Administrative authentication is required. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Node identifier already exists or conflicts with a built-in adapter. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Request body exceeds maximum allowed size. */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Failed to create custom provider node. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    deleteProviderNode: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Unique custom provider node identifier. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Custom provider node deleted. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Administrative authentication is required. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Custom provider node not found. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Failed to delete custom provider node. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    listProviderConnections: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Provider connection summaries ordered by priority. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListProviderConnectionsResponse"];
+                };
+            };
+            /** @description Administrative authentication is required. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Failed to load provider connections. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    createProviderConnection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateProviderConnectionRequest"];
+            };
+        };
+        responses: {
+            /** @description Provider connection created with AES-256-GCM encrypted credentials. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProviderConnectionSummary"];
+                };
+            };
+            /** @description Malformed request body, unknown provider, or validation error. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Administrative authentication is required. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Request body exceeds maximum allowed size. */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Failed to create provider connection. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    getProviderConnection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Unique provider connection identifier. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Provider connection summary (never includes plaintext credentials). */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProviderConnectionSummary"];
+                };
+            };
+            /** @description Administrative authentication is required. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Provider connection not found. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Failed to load provider connection. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    deleteProviderConnection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Unique provider connection identifier. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Provider connection deleted. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Administrative authentication is required. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Provider connection not found. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Failed to delete provider connection. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    updateProviderConnection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Unique provider connection identifier. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateProviderConnectionRequest"];
+            };
+        };
+        responses: {
+            /** @description Provider connection updated. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProviderConnectionSummary"];
+                };
+            };
+            /** @description Malformed request body or validation error. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Administrative authentication is required. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Provider connection not found. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Request body exceeds maximum allowed size. */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Failed to update provider connection. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    testProviderConnection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Unique provider connection identifier. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Quick-test outcome and latency metrics. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TestProviderConnectionResponse"];
+                };
+            };
+            /** @description Invalid connection configuration for probe construction. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Administrative authentication is required. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Provider connection not found. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Failed to resolve credentials or execute connectivity test. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    startProviderOAuth: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description OAuth-capable provider adapter identifier (e.g., claude, codex, gemini-oauth). */
+                provider: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["OAuthStartRequest"];
+            };
+        };
+        responses: {
+            /** @description Pending PKCE OAuth session created with authorization URL. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OAuthStartResponse"];
+                };
+            };
+            /** @description Provider does not support OAuth, missing client_id, or invalid parameters. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Administrative authentication is required. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Provider adapter not found. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Failed to initialize OAuth session. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    exchangeProviderOAuth: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description OAuth-capable provider adapter identifier. */
+                provider: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OAuthExchangeRequest"];
+            };
+        };
+        responses: {
+            /** @description OAuth tokens sealed in vault and connection created or updated. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProviderConnectionSummary"];
+                };
+            };
+            /** @description Invalid callback_url, missing code/state, expired session, or state mismatch. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Administrative authentication is required. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Provider adapter or target connection not found. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Internal error persisting OAuth connection. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Upstream OAuth token endpoint rejected or failed the exchange. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    oauthCallbackHandoff: {
+        parameters: {
+            query?: {
+                code?: string;
+                state?: string;
+                error?: string;
+                error_description?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Safe HTML handoff page (default) or JSON callback parameters when Accept requests application/json. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/html": string;
+                    "application/json": components["schemas"]["OAuthCallbackJSONResponse"];
+                };
+            };
+        };
+    };
+    listCombos: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Configured fallback combos ordered by name. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListCombosResponse"];
+                };
+            };
+            /** @description Administrative authentication is required. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Failed to load fallback combos. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    createCombo: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateComboRequest"];
+            };
+        };
+        responses: {
+            /** @description Fallback combo created. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Combo"];
+                };
+            };
+            /** @description Malformed request body or validation error. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Administrative authentication is required. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description A combo with the requested name already exists. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Request body exceeds maximum allowed size. */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Failed to create fallback combo. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    getCombo: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Unique combo identifier. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Fallback combo details. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Combo"];
+                };
+            };
+            /** @description Administrative authentication is required. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Combo not found. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Failed to load combo. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    deleteCombo: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Unique combo identifier. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Combo deleted. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Administrative authentication is required. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Combo not found. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Failed to delete combo. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    updateCombo: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Unique combo identifier. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateComboRequest"];
+            };
+        };
+        responses: {
+            /** @description Fallback combo updated. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Combo"];
+                };
+            };
+            /** @description Malformed request body or validation error. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Administrative authentication is required. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Combo not found. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Updated combo name conflicts with an existing combo. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Request body exceeds maximum allowed size. */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Failed to update combo. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    listModelAliases: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Model aliases ordered alphabetically. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListModelAliasesResponse"];
+                };
+            };
+            /** @description Administrative authentication is required. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Failed to list model aliases. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    upsertModelAlias: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Logical alias name (percent-encode '/' if present). */
+                alias: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpsertModelAliasRequest"];
+            };
+        };
+        responses: {
+            /** @description Model alias saved. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModelAlias"];
+                };
+            };
+            /** @description Invalid alias, missing target_model, or self-referential alias. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Administrative authentication is required. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Request body exceeds maximum allowed size. */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Failed to persist model alias. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    deleteModelAlias: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Logical alias name (percent-encode '/' if present). */
+                alias: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Model alias deleted. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Invalid alias path parameter. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Administrative authentication is required. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Model alias not found. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Failed to delete model alias. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    listDisabledModels: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Disabled models ordered alphabetically. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListDisabledModelsResponse"];
+                };
+            };
+            /** @description Administrative authentication is required. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Failed to list disabled models. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    disableModel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DisableModelRequest"];
+            };
+        };
+        responses: {
+            /** @description Model disabled. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DisabledModel"];
+                };
+            };
+            /** @description Malformed request body or invalid model identifier. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Administrative authentication is required. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Request body exceeds maximum allowed size. */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Failed to disable model. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    enableModel: {
+        parameters: {
+            query?: {
+                /** @description Model identifier to re-enable (supports provider/model containing '/'). */
+                model?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["EnableModelRequest"];
+            };
+        };
+        responses: {
+            /** @description Model removed from disabled list. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing or invalid model identifier. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Administrative authentication is required. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Model is not currently disabled. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Failed to re-enable model. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    listModelCooldowns: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Active upstream connection cooldowns. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListCooldownsResponse"];
+                };
+            };
+            /** @description Administrative authentication is required. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    clearModelCooldown: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Upstream provider connection identifier to release from cooldown. */
+                connectionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Connection cooldown cleared. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Invalid connectionId path parameter. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Administrative authentication is required. */
+            401: {
                 headers: {
                     [name: string]: unknown;
                 };

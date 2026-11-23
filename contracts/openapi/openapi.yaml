@@ -15,6 +15,10 @@ tags:
     description: Typed control-plane runtime settings, revision history, and atomic rollback
   - name: keys
     description: Gateway API key lifecycle management and secret rotation
+  - name: providers
+    description: Provider adapter catalog, custom compatible nodes, vaulted connections, connectivity tests, and PKCE OAuth
+  - name: combos
+    description: Fallback combos, model aliases, disabled models, and upstream connection cooldowns
 paths:
   /api/health:
     $ref: './modules/system.yaml#/paths/~1api~1health'
@@ -46,6 +50,38 @@ paths:
     $ref: './modules/keys.yaml#/paths/~1api~1keys~1{id}'
   /api/keys/{id}/rotate:
     $ref: './modules/keys.yaml#/paths/~1api~1keys~1{id}~1rotate'
+  /api/providers/catalog:
+    $ref: './modules/providers.yaml#/paths/~1api~1providers~1catalog'
+  /api/providers/nodes:
+    $ref: './modules/providers.yaml#/paths/~1api~1providers~1nodes'
+  /api/providers/nodes/{id}:
+    $ref: './modules/providers.yaml#/paths/~1api~1providers~1nodes~1{id}'
+  /api/providers/connections:
+    $ref: './modules/providers.yaml#/paths/~1api~1providers~1connections'
+  /api/providers/connections/{id}:
+    $ref: './modules/providers.yaml#/paths/~1api~1providers~1connections~1{id}'
+  /api/providers/connections/{id}/test:
+    $ref: './modules/providers.yaml#/paths/~1api~1providers~1connections~1{id}~1test'
+  /api/providers/oauth/{provider}/start:
+    $ref: './modules/providers.yaml#/paths/~1api~1providers~1oauth~1{provider}~1start'
+  /api/providers/oauth/{provider}/exchange:
+    $ref: './modules/providers.yaml#/paths/~1api~1providers~1oauth~1{provider}~1exchange'
+  /api/oauth/callback:
+    $ref: './modules/providers.yaml#/paths/~1api~1oauth~1callback'
+  /api/combos:
+    $ref: './modules/combos.yaml#/paths/~1api~1combos'
+  /api/combos/{id}:
+    $ref: './modules/combos.yaml#/paths/~1api~1combos~1{id}'
+  /api/aliases:
+    $ref: './modules/combos.yaml#/paths/~1api~1aliases'
+  /api/aliases/{alias}:
+    $ref: './modules/combos.yaml#/paths/~1api~1aliases~1{alias}'
+  /api/models/disabled:
+    $ref: './modules/combos.yaml#/paths/~1api~1models~1disabled'
+  /api/models/cooldowns:
+    $ref: './modules/combos.yaml#/paths/~1api~1models~1cooldowns'
+  /api/models/cooldowns/{connectionId}:
+    $ref: './modules/combos.yaml#/paths/~1api~1models~1cooldowns~1{connectionId}'
 components:
   schemas:
     ErrorDetail:
@@ -126,3 +162,65 @@ components:
       $ref: './modules/keys.yaml#/components/schemas/UpdateApiKeyRequest'
     ApiKeySecretResponse:
       $ref: './modules/keys.yaml#/components/schemas/ApiKeySecretResponse'
+    ProviderProtocol:
+      $ref: './modules/providers.yaml#/components/schemas/ProviderProtocol'
+    ProviderAuthType:
+      $ref: './modules/providers.yaml#/components/schemas/ProviderAuthType'
+    CatalogOAuthDescriptor:
+      $ref: './modules/providers.yaml#/components/schemas/CatalogOAuthDescriptor'
+    CatalogAdapterDescriptor:
+      $ref: './modules/providers.yaml#/components/schemas/CatalogAdapterDescriptor'
+    ProviderNode:
+      $ref: './modules/providers.yaml#/components/schemas/ProviderNode'
+    ProvidersCatalogResponse:
+      $ref: './modules/providers.yaml#/components/schemas/ProvidersCatalogResponse'
+    ListProviderNodesResponse:
+      $ref: './modules/providers.yaml#/components/schemas/ListProviderNodesResponse'
+    CreateProviderNodeRequest:
+      $ref: './modules/providers.yaml#/components/schemas/CreateProviderNodeRequest'
+    ProviderConnectionSummary:
+      $ref: './modules/providers.yaml#/components/schemas/ProviderConnectionSummary'
+    ListProviderConnectionsResponse:
+      $ref: './modules/providers.yaml#/components/schemas/ListProviderConnectionsResponse'
+    CreateProviderConnectionRequest:
+      $ref: './modules/providers.yaml#/components/schemas/CreateProviderConnectionRequest'
+    UpdateProviderConnectionRequest:
+      $ref: './modules/providers.yaml#/components/schemas/UpdateProviderConnectionRequest'
+    TestProviderConnectionResponse:
+      $ref: './modules/providers.yaml#/components/schemas/TestProviderConnectionResponse'
+    OAuthStartRequest:
+      $ref: './modules/providers.yaml#/components/schemas/OAuthStartRequest'
+    OAuthStartResponse:
+      $ref: './modules/providers.yaml#/components/schemas/OAuthStartResponse'
+    OAuthExchangeRequest:
+      $ref: './modules/providers.yaml#/components/schemas/OAuthExchangeRequest'
+    OAuthCallbackJSONResponse:
+      $ref: './modules/providers.yaml#/components/schemas/OAuthCallbackJSONResponse'
+    ComboStrategy:
+      $ref: './modules/combos.yaml#/components/schemas/ComboStrategy'
+    Combo:
+      $ref: './modules/combos.yaml#/components/schemas/Combo'
+    ListCombosResponse:
+      $ref: './modules/combos.yaml#/components/schemas/ListCombosResponse'
+    CreateComboRequest:
+      $ref: './modules/combos.yaml#/components/schemas/CreateComboRequest'
+    UpdateComboRequest:
+      $ref: './modules/combos.yaml#/components/schemas/UpdateComboRequest'
+    ModelAlias:
+      $ref: './modules/combos.yaml#/components/schemas/ModelAlias'
+    ListModelAliasesResponse:
+      $ref: './modules/combos.yaml#/components/schemas/ListModelAliasesResponse'
+    UpsertModelAliasRequest:
+      $ref: './modules/combos.yaml#/components/schemas/UpsertModelAliasRequest'
+    DisabledModel:
+      $ref: './modules/combos.yaml#/components/schemas/DisabledModel'
+    ListDisabledModelsResponse:
+      $ref: './modules/combos.yaml#/components/schemas/ListDisabledModelsResponse'
+    DisableModelRequest:
+      $ref: './modules/combos.yaml#/components/schemas/DisableModelRequest'
+    EnableModelRequest:
+      $ref: './modules/combos.yaml#/components/schemas/EnableModelRequest'
+    CooldownEntry:
+      $ref: './modules/combos.yaml#/components/schemas/CooldownEntry'
+    ListCooldownsResponse:
+      $ref: './modules/combos.yaml#/components/schemas/ListCooldownsResponse'

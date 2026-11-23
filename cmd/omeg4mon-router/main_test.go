@@ -1,8 +1,10 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"io/fs"
 	"net/http"
@@ -12,6 +14,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -585,5 +588,268 @@ func TestAppWave1AAuthSettingsKeysEndToEnd(t *testing.T) {
 	_ = postLogoutResp.Body.Close()
 	if postLogoutResp.StatusCode != http.StatusUnauthorized {
 		t.Fatalf("post-logout GET /api/keys status = %d, want %d (body: %s)", postLogoutResp.StatusCode, http.StatusUnauthorized, string(postLogoutBody))
+	}
+}
+
+func TestAppWave1BGatewayEndToEnd(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	cfg := config.Config{
+		Host:          "127.0.0.1",
+		Port:          0,
+		DataDir:       t.TempDir(),
+		AdminPassword: "test-admin-pass-wave1b",
+		LogLevel:      "error",
+		APITimeout:    5 * time.Second,
+	}
+	build := system.BuildInfo{
+		Version:   "test",
+		Commit:    "wave1b",
+		BuildTime: "2026-11-23T00:00:00Z",
+	}
+
+	app, err := buildApp(ctx, cfg, build)
+	if err != nil {
+		t.Fatalf("buildApp() error = %v", err)
+	}
+	t.Cleanup(func() {
+		_ = app.Close(context.Background())
+	})
+
+	ts := httptest.NewServer(app.Handler())
+	defer ts.Close()
+
+	jar, err := cookiejar.New(nil)
+	if err != nil {
+		t.Fatalf("cookiejar.New() error = %v", err)
+	}
+	client := &http.Client{
+		Jar:     jar,
+		Timeout: 5 * time.Second,
+	}
+
+	doJSON := func(method, url string, payload any, headers map[string]string) (int, []byte, http.Header) {
+		t.Helper()
+		var bodyReader io.Reader
+		if payload != nil {
+			raw, mErr := json.Marshal(payload)
+			if mErr != nil {
+				t.Fatalf("marshal %s %s payload: %v", method, url, mErr)
+			}
+			bodyReader = bytes.NewReader(raw)
+		}
+		req, rErr := http.NewRequestWithContext(ctx, method, url, bodyReader)
+		if rErr != nil {
+			t.Fatalf("new request %s %s: %v", method, url, rErr)
+		}
+		if payload != nil {
+			req.Header.Set("Content-Type", "application/json")
+		}
+		for k, v := range headers {
+			req.Header.Set(k, v)
+		}
+		resp, dErr := client.Do(req)
+		if dErr != nil {
+			t.Fatalf("%s %s failed: %v", method, url, dErr)
+		}
+		defer resp.Body.Close()
+		respBody, readErr := io.ReadAll(resp.Body)
+		if readErr != nil {
+			t.Fatalf("read %s %s body: %v", method, url, readErr)
+		}
+		return resp.StatusCode, respBody, resp.Header.Clone()
+	}
+
+	// 1) GET /api/health includes all 7 Wave 1A + 1B modules.
+	status, healthBody, _ := doJSON(http.MethodGet, ts.URL+"/api/health", nil, nil)
+	if status != http.StatusOK {
+		t.Fatalf("GET /api/health status = %d, want 200 (body: %s)", status, string(healthBody))
+	}
+	var health struct {
+		Status  string   `json:"status"`
+		DB      string   `json:"db"`
+		Modules []string `json:"modules"`
+	}
+	if err := json.Unmarshal(healthBody, &health); err != nil {
+		t.Fatalf("decode /api/health JSON: %v", err)
+	}
+	for _, wantMod := range []string{"system", "auth", "settings", "keys", "providers", "combos", "gateway"} {
+		if !slices.Contains(health.Modules, wantMod) {
+			t.Fatalf("GET /api/health modules = %v, missing %q", health.Modules, wantMod)
+		}
+	}
+
+	// 2) Authenticate admin via POST /api/auth/login.
+	status, loginBody, _ := doJSON(http.MethodPost, ts.URL+"/api/auth/login", map[string]string{
+		"password": "test-admin-pass-wave1b",
+	}, nil)
+	if status != http.StatusOK {
+		t.Fatalf("POST /api/auth/login status = %d, want 200 (body: %s)", status, string(loginBody))
+	}
+
+	// 3) Start mock OpenAI upstream (returns 429 Retry-After: 60) and fallback mock Anthropic SSE upstream.
+	var openaiHits atomic.Int32
+	openaiMock := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		openaiHits.Add(1)
+		if r.URL.Path != "/chat/completions" {
+			t.Errorf("openai mock path = %q, want /chat/completions", r.URL.Path)
+		}
+		if got := r.Header.Get("Authorization"); got != "Bearer oai-e2e-key" {
+			t.Errorf("openai mock Authorization = %q, want Bearer oai-e2e-key", got)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Retry-After", "60")
+		w.WriteHeader(http.StatusTooManyRequests)
+		_, _ = io.WriteString(w, `{"error":{"message":"rate limit exceeded","type":"rate_limit_error"}}`)
+	}))
+	defer openaiMock.Close()
+
+	var anthropicHits atomic.Int32
+	anthropicMock := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		anthropicHits.Add(1)
+		if r.URL.Path != "/v1/messages" {
+			t.Errorf("anthropic mock path = %q, want /v1/messages", r.URL.Path)
+		}
+		if got := r.Header.Get("x-api-key"); got != "ant-e2e-key" {
+			t.Errorf("anthropic mock x-api-key = %q, want ant-e2e-key", got)
+		}
+		if got := r.Header.Get("anthropic-version"); got != "2023-06-01" {
+			t.Errorf("anthropic mock anthropic-version = %q, want 2023-06-01", got)
+		}
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.WriteHeader(http.StatusOK)
+		rc := http.NewResponseController(w)
+		events := []string{
+			"event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"id\":\"msg_e2e_1\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"claude-sonnet-4-20250514\",\"content\":[],\"usage\":{\"input_tokens\":12,\"output_tokens\":1}}}\n\n",
+			"event: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"text\",\"text\":\"\"}}\n\n",
+			"event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"Failover from OpenAI 429 succeeded\"}}\n\n",
+			"event: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":0}\n\n",
+			"event: message_delta\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"end_turn\"},\"usage\":{\"output_tokens\":8}}\n\n",
+			"event: message_stop\ndata: {\"type\":\"message_stop\"}\n\n",
+		}
+		for _, ev := range events {
+			_, _ = io.WriteString(w, ev)
+			_ = rc.Flush()
+		}
+	}))
+	defer anthropicMock.Close()
+
+	// Create primary OpenAI connection.
+	status, oaiConnBody, _ := doJSON(http.MethodPost, ts.URL+"/api/providers/connections", map[string]any{
+		"provider_id": "openai",
+		"name":        "primary-openai-mock",
+		"base_url":    openaiMock.URL,
+		"api_key":     "oai-e2e-key",
+		"priority":    1,
+		"enabled":     true,
+		"models":      []string{"gpt-4o"},
+	}, nil)
+	if status != http.StatusCreated {
+		t.Fatalf("create openai connection status = %d, want 201 (body: %s)", status, string(oaiConnBody))
+	}
+
+	// Create fallback Anthropic connection.
+	status, antConnBody, _ := doJSON(http.MethodPost, ts.URL+"/api/providers/connections", map[string]any{
+		"provider_id": "anthropic",
+		"name":        "fallback-anthropic-mock",
+		"base_url":    anthropicMock.URL,
+		"api_key":     "ant-e2e-key",
+		"priority":    2,
+		"enabled":     true,
+		"models":      []string{"claude-sonnet-4-20250514"},
+	}, nil)
+	if status != http.StatusCreated {
+		t.Fatalf("create anthropic connection status = %d, want 201 (body: %s)", status, string(antConnBody))
+	}
+
+	// Create ordered combo spanning both connections.
+	const comboName = "resilient-chat"
+	status, comboBody, _ := doJSON(http.MethodPost, ts.URL+"/api/combos", map[string]any{
+		"name":        comboName,
+		"description": "E2E primary OpenAI with Anthropic fallback",
+		"targets":     []string{"openai/gpt-4o", "anthropic/claude-sonnet-4-20250514"},
+		"strategy":    "ordered",
+		"enabled":     true,
+	}, nil)
+	if status != http.StatusCreated {
+		t.Fatalf("create combo status = %d, want 201 (body: %s)", status, string(comboBody))
+	}
+
+	// Create gateway API key scoped strictly to the combo.
+	status, keyBody, _ := doJSON(http.MethodPost, ts.URL+"/api/keys", map[string]any{
+		"name":           "wave1b-scoped-key",
+		"allowed_models": []string{comboName},
+	}, nil)
+	if status != http.StatusCreated {
+		t.Fatalf("create scoped API key status = %d, want 201 (body: %s)", status, string(keyBody))
+	}
+	var createdKey struct {
+		Secret string `json:"secret"`
+	}
+	if err := json.Unmarshal(keyBody, &createdKey); err != nil {
+		t.Fatalf("decode POST /api/keys JSON: %v", err)
+	}
+	if !strings.HasPrefix(createdKey.Secret, "sk-om4-") {
+		t.Fatalf("unexpected API key secret prefix: %q", createdKey.Secret)
+	}
+
+	authHeader := map[string]string{
+		"Authorization": fmt.Sprintf("Bearer %s", createdKey.Secret),
+	}
+
+	// 4) Send streaming POST /v1/chat/completions -> failover 429 -> Anthropic SSE -> OpenAI SSE + [DONE].
+	status, chatBody, chatHeaders := doJSON(http.MethodPost, ts.URL+"/v1/chat/completions", map[string]any{
+		"model":  comboName,
+		"stream": true,
+		"messages": []map[string]string{
+			{"role": "user", "content": "Hello failover"},
+		},
+	}, authHeader)
+	if status != http.StatusOK {
+		t.Fatalf("POST /v1/chat/completions status = %d, want 200 (body: %s)", status, string(chatBody))
+	}
+	if ct := chatHeaders.Get("Content-Type"); !strings.HasPrefix(ct, "text/event-stream") {
+		t.Fatalf("POST /v1/chat/completions Content-Type = %q, want text/event-stream", ct)
+	}
+	sseText := string(chatBody)
+	if !strings.Contains(sseText, "chat.completion.chunk") ||
+		!strings.Contains(sseText, "Failover from OpenAI 429 succeeded") ||
+		!strings.Contains(sseText, "data: [DONE]") {
+		t.Fatalf("unexpected OpenAI SSE translated stream: %s", sseText)
+	}
+	if openaiHits.Load() != 1 || anthropicHits.Load() != 1 {
+		t.Fatalf("upstream hit counts: openai=%d anthropic=%d, want 1 and 1", openaiHits.Load(), anthropicHits.Load())
+	}
+
+	// 5) GET /v1/models with scoped API key returns only the authorized combo.
+	status, modelsBody, _ := doJSON(http.MethodGet, ts.URL+"/v1/models", nil, authHeader)
+	if status != http.StatusOK {
+		t.Fatalf("GET /v1/models status = %d, want 200 (body: %s)", status, string(modelsBody))
+	}
+	var modelsResp struct {
+		Object string `json:"object"`
+		Data   []struct {
+			ID      string `json:"id"`
+			OwnedBy string `json:"owned_by"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(modelsBody, &modelsResp); err != nil {
+		t.Fatalf("decode GET /v1/models JSON: %v", err)
+	}
+	if len(modelsResp.Data) != 1 || modelsResp.Data[0].ID != comboName {
+		t.Fatalf("GET /v1/models data = %+v, want single model %q", modelsResp.Data, comboName)
+	}
+
+	// 6) Unauthorized model returns 403 Forbidden.
+	status, unauthModelBody, _ := doJSON(http.MethodPost, ts.URL+"/v1/chat/completions", map[string]any{
+		"model":  "openai/gpt-4o",
+		"stream": false,
+		"messages": []map[string]string{
+			{"role": "user", "content": "Should be forbidden"},
+		},
+	}, authHeader)
+	if status != http.StatusForbidden {
+		t.Fatalf("unauthorized model status = %d, want 403 (body: %s)", status, string(unauthModelBody))
 	}
 }

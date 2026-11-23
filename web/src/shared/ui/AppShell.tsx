@@ -13,6 +13,7 @@ import {
   Server,
   ShieldCheck,
   SlidersHorizontal,
+  Terminal,
   X,
 } from "lucide-react";
 import Link from "next/link";
@@ -45,14 +46,15 @@ interface PlannedNavItem {
 
 const ACTIVE_NAV_ITEMS: ActiveNavItem[] = [
   { label: "System Overview", href: "/dashboard/", icon: Activity },
+  { label: "Providers", href: "/dashboard/providers/", icon: Server },
+  { label: "Models & Routing", href: "/dashboard/models/", icon: Layers },
   { label: "API Keys", href: "/dashboard/keys/", icon: KeyRound },
   { label: "Settings", href: "/dashboard/settings/", icon: SlidersHorizontal },
 ];
 
 const PLANNED_NAV_ITEMS: PlannedNavItem[] = [
-  { label: "Providers", icon: Server, phase: "Wave 1" },
-  { label: "Models & Routing", icon: Layers, phase: "Wave 1" },
-  { label: "Usage & Telemetry", icon: Cpu, phase: "Wave 1" },
+  { label: "Usage & Telemetry", icon: Cpu, phase: "Wave 1C" },
+  { label: "CLI Tools", icon: Terminal, phase: "Wave 1C" },
 ];
 
 const ACCESS_NAV_ITEMS: ActiveNavItem[] = [
@@ -62,6 +64,14 @@ const ACCESS_NAV_ITEMS: ActiveNavItem[] = [
 
 function normalizeRoute(path: string): string {
   return path.endsWith("/") ? path : `${path}/`;
+}
+
+function isNavItemActive(normalizedPathname: string, itemHref: string): boolean {
+  const normalizedItem = normalizeRoute(itemHref);
+  if (normalizedItem === "/dashboard/") {
+    return normalizedPathname === "/dashboard/";
+  }
+  return normalizedPathname === normalizedItem || normalizedPathname.startsWith(normalizedItem);
 }
 
 export function AppShell({ children }: AppShellProps) {
@@ -101,7 +111,7 @@ export function AppShell({ children }: AppShellProps) {
 
   const normalizedPathname = normalizeRoute(pathname);
   const activeRouteLabel =
-    ACTIVE_NAV_ITEMS.find((item) => normalizeRoute(item.href) === normalizedPathname)?.label ??
+    ACTIVE_NAV_ITEMS.find((item) => isNavItemActive(normalizedPathname, item.href))?.label ??
     "Gateway Monitor";
 
   const renderSidebar = (compact: boolean) => (
@@ -155,7 +165,7 @@ export function AppShell({ children }: AppShellProps) {
           ) : null}
           {ACTIVE_NAV_ITEMS.map((item) => {
             const Icon = item.icon;
-            const isActive = normalizedPathname === normalizeRoute(item.href);
+            const isActive = isNavItemActive(normalizedPathname, item.href);
             return (
               <Link
                 key={item.href}
@@ -258,11 +268,11 @@ export function AppShell({ children }: AppShellProps) {
           )}
         >
           {compact ? (
-            <span className="text-[var(--text-secondary)]">W1A</span>
+            <span className="text-[var(--text-secondary)]">W1B</span>
           ) : (
             <>
               <span>KERNEL</span>
-              <span className="text-[var(--text-secondary)]">WAVE 1A</span>
+              <span className="text-[var(--text-secondary)]">WAVE 1B</span>
             </>
           )}
         </div>
