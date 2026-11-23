@@ -1252,5 +1252,71 @@
     "seen": 1795415354.5190706,
     "ast_hash": "fe241058bf880d1a2060749658718eb6",
     "semantic_hash": ""
+  },
+  "web/src/app/(dashboard)/dashboard/model-editor/page.tsx": {
+    "mtime": 1795415679.4928546,
+    "seen": 1795415728.820111,
+    "ast_hash": "9031a8f297528769e7640bac346f0ac3",
+    "semantic_hash": ""
+  },
+  "web/src/app/(dashboard)/dashboard/prompt-guard/page.tsx": {
+    "mtime": 1795415672.5444043,
+    "seen": 1795415728.8202548,
+    "ast_hash": "7ba8e78dc9733d1c58a41675a68a80c2",
+    "semantic_hash": ""
+  },
+  "web/src/features/modeleditor/ModelEditorConsole.tsx": {
+    "mtime": 1795415687.403564,
+    "seen": 1795415728.8213813,
+    "ast_hash": "7843152862c299b3fdfda069348ed8b2",
+    "semantic_hash": ""
+  },
+  "web/src/features/modeleditor/hooks.ts": {
+    "mtime": 1795415675.6946719,
+    "seen": 1795415728.8213854,
+    "ast_hash": "e3212a230bb3591bac01e6686555f5e4",
+    "semantic_hash": ""
+  },
+  "web/src/features/modeleditor/schemas.test.ts": {
+    "mtime": 1795415562.8740892,
+    "seen": 1795415728.8213885,
+    "ast_hash": "2c0daa069ff14b778c12da50330c7849",
+    "semantic_hash": ""
+  },
+  "web/src/features/modeleditor/schemas.ts": {
+    "mtime": 1795415707.209777,
+    "seen": 1795415728.821391,
+    "ast_hash": "63375a0c0796c5264bdffd6c2a5bd037",
+    "semantic_hash": ""
+  },
+  "web/src/features/promptinjection/PromptGuardConsole.tsx": {
+    "mtime": 1795415671.0703883,
+    "seen": 1795415728.8213942,
+    "ast_hash": "b66eb38022149154666fa95eb5214422",
+    "semantic_hash": ""
+  },
+  "web/src/features/promptinjection/hooks.ts": {
+    "mtime": 1795415669.36337,
+    "seen": 1795415728.821397,
+    "ast_hash": "455217d38cfbf45c3509a02b32808f82",
+    "semantic_hash": ""
+  },
+  "web/src/features/promptinjection/schemas.test.ts": {
+    "mtime": 1795415561.13071,
+    "seen": 1795415728.8213992,
+    "ast_hash": "e6c1acccebac48ea31b4e8d17799b8dc",
+    "semantic_hash": ""
+  },
+  "web/src/features/promptinjection/schemas.ts": {
+    "mtime": 1795415667.885354,
+    "seen": 1795415728.8214016,
+    "ast_hash": "b9a84a1da262b1416ccdf2c4c9634709",
+    "semantic_hash": ""
+  },
+  "web/src/features/tokensaver/schemas.test.ts": {
+    "mtime": 1795415710.6538553,
+    "seen": 1795415728.8219857,
+    "ast_hash": "49f8000d69db47664ea58d86ee13b3b5",
+    "semantic_hash": ""
   }
 }
