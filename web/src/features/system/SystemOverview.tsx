@@ -28,6 +28,8 @@ const MODULE_SCOPES: Record<string, string> = {
   gateway: "OpenAI, Anthropic, Responses & Gemini SSE translation proxy",
   usage: "Async token accounting, pricing & request telemetry",
   clitools: "CLI client integrations & local developer profiles",
+  proxypools: "Encrypted HTTP/SOCKS5 outbound proxy pools & provider routing",
+  translator: "Interactive protocol translator workbench & live console SSE",
 };
 
 function formatUptime(totalSeconds: number): string {
