@@ -1657,6 +1657,332 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/mitm/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get live MITM proxy status, Root CA metadata, IDE tool hosts, and install guide */
+        get: operations["getMitmStatus"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/mitm/config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update loopback-only MITM proxy configuration */
+        patch: operations["updateMitmConfig"];
+        trace?: never;
+    };
+    "/api/mitm/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Start the local TLS MITM proxy */
+        post: operations["startMitmProxy"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/mitm/stop": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Stop the local TLS MITM proxy */
+        post: operations["stopMitmProxy"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/mitm/ca/generate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Generate or rotate the local MITM ECDSA Root CA */
+        post: operations["generateMitmCA"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/mitm/ca/download": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Download the public Root CA certificate in PEM format */
+        get: operations["downloadMitmCA"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/mitm/aliases": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List IDE MITM model rewrite aliases */
+        get: operations["listMitmAliases"];
+        put?: never;
+        /** Create an IDE MITM model rewrite alias */
+        post: operations["createMitmAlias"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/mitm/aliases/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete a MITM model rewrite alias */
+        delete: operations["deleteMitmAlias"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/mitm/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List recent intercepted MITM requests */
+        get: operations["listMitmEvents"];
+        put?: never;
+        post?: never;
+        /** Clear intercepted MITM events */
+        delete: operations["clearMitmEvents"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/pxpipe/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get live PXPIPE transform pipeline status and configuration */
+        get: operations["getPxpipeStatus"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/pxpipe/config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update PXPIPE transform pipeline configuration */
+        patch: operations["updatePxpipeConfig"];
+        trace?: never;
+    };
+    "/api/pxpipe/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Start the in-process PXPIPE transform pipeline */
+        post: operations["startPxpipe"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/pxpipe/stop": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Stop the in-process PXPIPE transform pipeline */
+        post: operations["stopPxpipe"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/pxpipe/restart": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Restart the in-process PXPIPE transform pipeline */
+        post: operations["restartPxpipe"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/pxpipe/health": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Run live 3-step PXPIPE self-test health check */
+        get: operations["getPxpipeHealth"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/pxpipe/stats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get live PXPIPE transform statistics */
+        get: operations["getPxpipeStats"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/pxpipe/stats/reset": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reset PXPIPE transform statistics counters */
+        post: operations["resetPxpipeStats"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/pxpipe/logs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List recent PXPIPE transform log summaries */
+        get: operations["listPxpipeLogs"];
+        put?: never;
+        post?: never;
+        /** Clear PXPIPE transform log ring buffer */
+        delete: operations["clearPxpipeLogs"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/pxpipe/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Dry-run PXPIPE transform pipeline against a JSON payload */
+        post: operations["previewPxpipeTransform"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -3017,6 +3343,164 @@ export interface components {
         };
         TunnelEventListResponse: {
             events: components["schemas"]["TunnelEvent"][];
+        };
+        /** @enum {string} */
+        MitmState: "stopped" | "running" | "error";
+        MitmCAInfo: {
+            exists: boolean;
+            cert_path: string;
+            fingerprint: string;
+            subject: string;
+            not_before: string;
+            not_after: string;
+        };
+        MitmToolDescriptor: {
+            id: string;
+            name: string;
+            hosts: string[];
+            enabled: boolean;
+        };
+        MitmInstallGuide: {
+            os: string;
+            ca_command: string;
+            hosts_path: string;
+            hosts_snippet: string;
+        };
+        MitmStatus: {
+            status: components["schemas"]["MitmState"];
+            listen_addr: string;
+            bound_addr: string;
+            target_gateway_url: string;
+            enabled_tools: string[];
+            auto_start: boolean;
+            started_at: string;
+            last_error: string;
+            ca: components["schemas"]["MitmCAInfo"];
+            tools: components["schemas"]["MitmToolDescriptor"][];
+            install_guide: components["schemas"]["MitmInstallGuide"];
+        };
+        UpdateMitmConfigRequest: {
+            listen_addr?: string;
+            target_gateway_url?: string;
+            enabled_tools?: string[];
+            auto_start?: boolean;
+        };
+        GenerateMitmCARequest: {
+            force?: boolean;
+        };
+        MitmAlias: {
+            id: string;
+            tool: string;
+            source_model: string;
+            target_model: string;
+            enabled: boolean;
+            created_at: string;
+            updated_at: string;
+        };
+        MitmAliasListResponse: {
+            aliases: components["schemas"]["MitmAlias"][];
+        };
+        CreateMitmAliasRequest: {
+            tool: string;
+            source_model: string;
+            target_model: string;
+            enabled?: boolean;
+        };
+        DeleteMitmAliasResponse: {
+            deleted: boolean;
+            id: string;
+        };
+        MitmEvent: {
+            id: string;
+            tool: string;
+            host: string;
+            method: string;
+            path: string;
+            source_model: string;
+            target_model: string;
+            status_code: number;
+            latency_ms: number;
+            created_at: string;
+        };
+        MitmEventListResponse: {
+            events: components["schemas"]["MitmEvent"][];
+        };
+        ClearMitmEventsResponse: {
+            deleted: number;
+        };
+        PxpipeConfig: {
+            enabled: boolean;
+            auto_start: boolean;
+            strip_null_fields: boolean;
+            collapse_whitespace: boolean;
+            dedupe_system_prompts: boolean;
+            max_history_messages: number;
+            updated_at: string;
+        };
+        PxpipeStatus: {
+            running: boolean;
+            mode: string;
+            started_at: string;
+            uptime_ms: number;
+            config: components["schemas"]["PxpipeConfig"];
+        };
+        UpdatePxpipeConfigRequest: {
+            enabled?: boolean;
+            auto_start?: boolean;
+            strip_null_fields?: boolean;
+            collapse_whitespace?: boolean;
+            dedupe_system_prompts?: boolean;
+            max_history_messages?: number;
+        };
+        PxpipeHealthCheck: {
+            id: string;
+            label: string;
+            ok: boolean;
+            detail: string;
+        };
+        PxpipeHealthReport: {
+            healthy: boolean;
+            checks: components["schemas"]["PxpipeHealthCheck"][];
+            error: string;
+        };
+        PxpipeStats: {
+            requests_seen: number;
+            requests_transformed: number;
+            bytes_in: number;
+            bytes_out: number;
+            bytes_saved: number;
+            estimated_tokens_saved: number;
+            errors: number;
+        };
+        PxpipeLogEntry: {
+            timestamp: string;
+            request_id: string;
+            model: string;
+            bytes_before: number;
+            bytes_after: number;
+            bytes_saved: number;
+            stages_applied: string[];
+        };
+        PxpipeLogListResponse: {
+            logs: components["schemas"]["PxpipeLogEntry"][];
+        };
+        ClearPxpipeLogsResponse: {
+            deleted: number;
+        };
+        PxpipePreviewRequest: {
+            payload: {
+                [key: string]: unknown;
+            };
+        };
+        PxpipePreviewResponse: {
+            original_bytes: number;
+            transformed_bytes: number;
+            bytes_saved: number;
+            estimated_tokens_saved: number;
+            stages_applied: string[];
+            body: {
+                [key: string]: unknown;
+            };
         };
     };
     responses: never;
@@ -8351,6 +8835,562 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TunnelEventListResponse"];
+                };
+            };
+        };
+    };
+    getMitmStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description MITM status */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MitmStatus"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    updateMitmConfig: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateMitmConfigRequest"];
+            };
+        };
+        responses: {
+            /** @description Updated MITM status */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MitmStatus"];
+                };
+            };
+            /** @description Validation error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    startMitmProxy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description MITM proxy started */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MitmStatus"];
+                };
+            };
+            /** @description MITM proxy already running */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    stopMitmProxy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description MITM proxy stopped */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MitmStatus"];
+                };
+            };
+        };
+    };
+    generateMitmCA: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["GenerateMitmCARequest"];
+            };
+        };
+        responses: {
+            /** @description Root CA metadata */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MitmCAInfo"];
+                };
+            };
+        };
+    };
+    downloadMitmCA: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Public PEM certificate */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/x-pem-file": string;
+                };
+            };
+            /** @description Root CA not generated yet */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    listMitmAliases: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description MITM model aliases */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MitmAliasListResponse"];
+                };
+            };
+        };
+    };
+    createMitmAlias: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateMitmAliasRequest"];
+            };
+        };
+        responses: {
+            /** @description Created MITM alias */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MitmAlias"];
+                };
+            };
+            /** @description Validation error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Duplicate alias */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    deleteMitmAlias: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeleteMitmAliasResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    listMitmEvents: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Intercepted events */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MitmEventListResponse"];
+                };
+            };
+        };
+    };
+    clearMitmEvents: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Cleared count */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClearMitmEventsResponse"];
+                };
+            };
+        };
+    };
+    getPxpipeStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description PXPIPE status */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PxpipeStatus"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    updatePxpipeConfig: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdatePxpipeConfigRequest"];
+            };
+        };
+        responses: {
+            /** @description Updated PXPIPE status */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PxpipeStatus"];
+                };
+            };
+            /** @description Validation error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    startPxpipe: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Started */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PxpipeStatus"];
+                };
+            };
+        };
+    };
+    stopPxpipe: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Stopped */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PxpipeStatus"];
+                };
+            };
+        };
+    };
+    restartPxpipe: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Restarted */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PxpipeStatus"];
+                };
+            };
+        };
+    };
+    getPxpipeHealth: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Health report */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PxpipeHealthReport"];
+                };
+            };
+        };
+    };
+    getPxpipeStats: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Transform stats */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PxpipeStats"];
+                };
+            };
+        };
+    };
+    resetPxpipeStats: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Reset stats */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PxpipeStats"];
+                };
+            };
+        };
+    };
+    listPxpipeLogs: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Transform logs */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PxpipeLogListResponse"];
+                };
+            };
+        };
+    };
+    clearPxpipeLogs: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Cleared count */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClearPxpipeLogsResponse"];
+                };
+            };
+        };
+    };
+    previewPxpipeTransform: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PxpipePreviewRequest"];
+            };
+        };
+        responses: {
+            /** @description Dry-run preview result */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PxpipePreviewResponse"];
+                };
+            };
+            /** @description Invalid payload */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
                 };
             };
         };

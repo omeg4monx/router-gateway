@@ -24,11 +24,13 @@ import (
 	"github.com/omeg4monx/router-gateway/internal/modules/gateway"
 	"github.com/omeg4monx/router-gateway/internal/modules/keys"
 	"github.com/omeg4monx/router-gateway/internal/modules/media"
+	"github.com/omeg4monx/router-gateway/internal/modules/mitm"
 	"github.com/omeg4monx/router-gateway/internal/modules/modeleditor"
 	"github.com/omeg4monx/router-gateway/internal/modules/notifications"
 	"github.com/omeg4monx/router-gateway/internal/modules/promptinjection"
 	"github.com/omeg4monx/router-gateway/internal/modules/providers"
 	"github.com/omeg4monx/router-gateway/internal/modules/proxypools"
+	"github.com/omeg4monx/router-gateway/internal/modules/pxpipe"
 	"github.com/omeg4monx/router-gateway/internal/modules/security"
 	"github.com/omeg4monx/router-gateway/internal/modules/settings"
 	"github.com/omeg4monx/router-gateway/internal/modules/system"
@@ -293,6 +295,11 @@ func buildApp(ctx context.Context, cfg config.Config, build system.BuildInfo) (*
 		Bus:    bus,
 		Logger: logger,
 	})
+	pxpipeMod := pxpipe.New(pxpipe.Options{
+		DB:     database,
+		Bus:    bus,
+		Logger: logger,
+	})
 	teamsMod := teams.New(teams.Options{
 		DB:     database,
 		Bus:    bus,
@@ -309,7 +316,7 @@ func buildApp(ctx context.Context, cfg config.Config, build system.BuildInfo) (*
 		KeyProvisioner: keysMod,
 		TeamAssigner:   teamAssigner,
 	})
-	interceptors := make([]contracts.GatewayInterceptor, 0, 4)
+	interceptors := make([]contracts.GatewayInterceptor, 0, 5)
 	if !cfg.DisabledModules[teamsMod.Name()] {
 		interceptors = append(interceptors, teamsMod)
 	}
@@ -321,6 +328,9 @@ func buildApp(ctx context.Context, cfg config.Config, build system.BuildInfo) (*
 	}
 	if !cfg.DisabledModules[tokenSaverMod.Name()] {
 		interceptors = append(interceptors, tokenSaverMod)
+	}
+	if !cfg.DisabledModules[pxpipeMod.Name()] {
+		interceptors = append(interceptors, pxpipeMod)
 	}
 	gatewayMod := gateway.New(gateway.Options{
 		DB:           database,
@@ -371,6 +381,12 @@ func buildApp(ctx context.Context, cfg config.Config, build system.BuildInfo) (*
 		Logger:     logger,
 	})
 	tunnelMod := tunnel.New(tunnel.Options{
+		DB:     database,
+		Config: cfg,
+		Bus:    bus,
+		Logger: logger,
+	})
+	mitmMod := mitm.New(mitm.Options{
 		DB:     database,
 		Config: cfg,
 		Bus:    bus,
@@ -436,6 +452,12 @@ func buildApp(ctx context.Context, cfg config.Config, build system.BuildInfo) (*
 	}
 	if err := registry.Register(tunnelMod); err != nil {
 		return nil, fmt.Errorf("register tunnel module: %w", err)
+	}
+	if err := registry.Register(mitmMod); err != nil {
+		return nil, fmt.Errorf("register mitm module: %w", err)
+	}
+	if err := registry.Register(pxpipeMod); err != nil {
+		return nil, fmt.Errorf("register pxpipe module: %w", err)
 	}
 
 	if err := registry.MigrateAll(ctx, database); err != nil {

@@ -45,6 +45,10 @@ tags:
     description: Media gateway providers, fallback combos, audio/image/video/search proxying, and SSRF-safe web fetch
   - name: tunnel
     description: Cloudflare quick tunnel and Tailscale serve/funnel lifecycle manager
+  - name: mitm
+    description: Local loopback TLS MITM proxy, ECDSA Root CA engine, IDE tool hosts, and model aliases
+  - name: pxpipe
+    description: In-process request transform pipeline, GatewayInterceptor, live self-test health, and logs
 paths:
   /api/health:
     $ref: './modules/system.yaml#/paths/~1api~1health'
@@ -230,6 +234,44 @@ paths:
     $ref: './modules/tunnel.yaml#/paths/~1api~1tunnel~1stop'
   /api/tunnel/events:
     $ref: './modules/tunnel.yaml#/paths/~1api~1tunnel~1events'
+  /api/mitm/status:
+    $ref: './modules/mitm.yaml#/paths/~1api~1mitm~1status'
+  /api/mitm/config:
+    $ref: './modules/mitm.yaml#/paths/~1api~1mitm~1config'
+  /api/mitm/start:
+    $ref: './modules/mitm.yaml#/paths/~1api~1mitm~1start'
+  /api/mitm/stop:
+    $ref: './modules/mitm.yaml#/paths/~1api~1mitm~1stop'
+  /api/mitm/ca/generate:
+    $ref: './modules/mitm.yaml#/paths/~1api~1mitm~1ca~1generate'
+  /api/mitm/ca/download:
+    $ref: './modules/mitm.yaml#/paths/~1api~1mitm~1ca~1download'
+  /api/mitm/aliases:
+    $ref: './modules/mitm.yaml#/paths/~1api~1mitm~1aliases'
+  /api/mitm/aliases/{id}:
+    $ref: './modules/mitm.yaml#/paths/~1api~1mitm~1aliases~1{id}'
+  /api/mitm/events:
+    $ref: './modules/mitm.yaml#/paths/~1api~1mitm~1events'
+  /api/pxpipe/status:
+    $ref: './modules/pxpipe.yaml#/paths/~1api~1pxpipe~1status'
+  /api/pxpipe/config:
+    $ref: './modules/pxpipe.yaml#/paths/~1api~1pxpipe~1config'
+  /api/pxpipe/start:
+    $ref: './modules/pxpipe.yaml#/paths/~1api~1pxpipe~1start'
+  /api/pxpipe/stop:
+    $ref: './modules/pxpipe.yaml#/paths/~1api~1pxpipe~1stop'
+  /api/pxpipe/restart:
+    $ref: './modules/pxpipe.yaml#/paths/~1api~1pxpipe~1restart'
+  /api/pxpipe/health:
+    $ref: './modules/pxpipe.yaml#/paths/~1api~1pxpipe~1health'
+  /api/pxpipe/stats:
+    $ref: './modules/pxpipe.yaml#/paths/~1api~1pxpipe~1stats'
+  /api/pxpipe/stats/reset:
+    $ref: './modules/pxpipe.yaml#/paths/~1api~1pxpipe~1stats~1reset'
+  /api/pxpipe/logs:
+    $ref: './modules/pxpipe.yaml#/paths/~1api~1pxpipe~1logs'
+  /api/pxpipe/preview:
+    $ref: './modules/pxpipe.yaml#/paths/~1api~1pxpipe~1preview'
 components:
   schemas:
     ErrorDetail:
@@ -610,3 +652,53 @@ components:
       $ref: './modules/tunnel.yaml#/components/schemas/TunnelEvent'
     TunnelEventListResponse:
       $ref: './modules/tunnel.yaml#/components/schemas/TunnelEventListResponse'
+    MitmState:
+      $ref: './modules/mitm.yaml#/components/schemas/MitmState'
+    MitmCAInfo:
+      $ref: './modules/mitm.yaml#/components/schemas/MitmCAInfo'
+    MitmToolDescriptor:
+      $ref: './modules/mitm.yaml#/components/schemas/MitmToolDescriptor'
+    MitmInstallGuide:
+      $ref: './modules/mitm.yaml#/components/schemas/MitmInstallGuide'
+    MitmStatus:
+      $ref: './modules/mitm.yaml#/components/schemas/MitmStatus'
+    UpdateMitmConfigRequest:
+      $ref: './modules/mitm.yaml#/components/schemas/UpdateMitmConfigRequest'
+    GenerateMitmCARequest:
+      $ref: './modules/mitm.yaml#/components/schemas/GenerateMitmCARequest'
+    MitmAlias:
+      $ref: './modules/mitm.yaml#/components/schemas/MitmAlias'
+    MitmAliasListResponse:
+      $ref: './modules/mitm.yaml#/components/schemas/MitmAliasListResponse'
+    CreateMitmAliasRequest:
+      $ref: './modules/mitm.yaml#/components/schemas/CreateMitmAliasRequest'
+    DeleteMitmAliasResponse:
+      $ref: './modules/mitm.yaml#/components/schemas/DeleteMitmAliasResponse'
+    MitmEvent:
+      $ref: './modules/mitm.yaml#/components/schemas/MitmEvent'
+    MitmEventListResponse:
+      $ref: './modules/mitm.yaml#/components/schemas/MitmEventListResponse'
+    ClearMitmEventsResponse:
+      $ref: './modules/mitm.yaml#/components/schemas/ClearMitmEventsResponse'
+    PxpipeConfig:
+      $ref: './modules/pxpipe.yaml#/components/schemas/PxpipeConfig'
+    PxpipeStatus:
+      $ref: './modules/pxpipe.yaml#/components/schemas/PxpipeStatus'
+    UpdatePxpipeConfigRequest:
+      $ref: './modules/pxpipe.yaml#/components/schemas/UpdatePxpipeConfigRequest'
+    PxpipeHealthCheck:
+      $ref: './modules/pxpipe.yaml#/components/schemas/PxpipeHealthCheck'
+    PxpipeHealthReport:
+      $ref: './modules/pxpipe.yaml#/components/schemas/PxpipeHealthReport'
+    PxpipeStats:
+      $ref: './modules/pxpipe.yaml#/components/schemas/PxpipeStats'
+    PxpipeLogEntry:
+      $ref: './modules/pxpipe.yaml#/components/schemas/PxpipeLogEntry'
+    PxpipeLogListResponse:
+      $ref: './modules/pxpipe.yaml#/components/schemas/PxpipeLogListResponse'
+    ClearPxpipeLogsResponse:
+      $ref: './modules/pxpipe.yaml#/components/schemas/ClearPxpipeLogsResponse'
+    PxpipePreviewRequest:
+      $ref: './modules/pxpipe.yaml#/components/schemas/PxpipePreviewRequest'
+    PxpipePreviewResponse:
+      $ref: './modules/pxpipe.yaml#/components/schemas/PxpipePreviewResponse'

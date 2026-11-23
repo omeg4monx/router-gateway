@@ -937,7 +937,7 @@ func TestAppWave1CUsageAndCLIToolsEndToEnd(t *testing.T) {
 	if err := json.Unmarshal(healthBody, &health); err != nil {
 		t.Fatalf("decode /api/health JSON: %v", err)
 	}
-	wantModules := []string{"auth", "clitools", "combos", "gateway", "keys", "media", "modeleditor", "notifications", "promptinjection", "providers", "proxypools", "security", "settings", "system", "teams", "tokensaver", "translator", "tunnel", "usage", "vouchers"}
+	wantModules := []string{"auth", "clitools", "combos", "gateway", "keys", "media", "mitm", "modeleditor", "notifications", "promptinjection", "providers", "proxypools", "pxpipe", "security", "settings", "system", "teams", "tokensaver", "translator", "tunnel", "usage", "vouchers"}
 	for _, wantMod := range wantModules {
 		if !slices.Contains(health.Modules, wantMod) {
 			t.Fatalf("GET /api/health modules = %v, missing %q", health.Modules, wantMod)
@@ -2086,6 +2086,174 @@ func TestWave3BDisabledModulesDetachCleanly(t *testing.T) {
 	_ = resp.Body.Close()
 
 	for _, path := range []string{"/api/media/providers", "/api/tunnel/status"} {
+		r, err := client.Get(ts.URL + path)
+		if err != nil {
+			t.Fatalf("GET %s: %v", path, err)
+		}
+		_ = r.Body.Close()
+		if r.StatusCode != http.StatusNotFound {
+			t.Fatalf("expected 404 for disabled module route %s, got %d", path, r.StatusCode)
+		}
+	}
+}
+
+func TestWave3CMitmAndPxpipeE2E(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+
+	var upstreamBody atomic.Value
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		raw, _ := io.ReadAll(r.Body)
+		upstreamBody.Store(string(raw))
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"id":"chatcmpl-w3c","object":"chat.completion","choices":[{"index":0,"message":{"role":"assistant","content":"ok"},"finish_reason":"stop"}],"usage":{"prompt_tokens":5,"completion_tokens":2,"total_tokens":7}}`))
+	}))
+	defer upstream.Close()
+
+	cfg := config.Config{
+		Host:          "127.0.0.1",
+		Port:          0,
+		DataDir:       t.TempDir(),
+		AdminPassword: "wave3c-admin-pass",
+		LogLevel:      "error",
+		APITimeout:    5 * time.Second,
+	}
+	app, err := buildApp(ctx, cfg, system.BuildInfo{Version: "test", Commit: "wave3c"})
+	if err != nil {
+		t.Fatalf("buildApp: %v", err)
+	}
+	t.Cleanup(func() { _ = app.Close(context.Background()) })
+
+	ts := httptest.NewServer(app.Handler())
+	defer ts.Close()
+
+	jar, _ := cookiejar.New(nil)
+	client := &http.Client{Jar: jar, Timeout: 5 * time.Second}
+
+	doJSON := func(method, target string, payload any, headers map[string]string) (int, []byte) {
+		t.Helper()
+		var bodyReader io.Reader
+		if payload != nil {
+			raw, _ := json.Marshal(payload)
+			bodyReader = bytes.NewReader(raw)
+		}
+		req, err := http.NewRequestWithContext(ctx, method, target, bodyReader)
+		if err != nil {
+			t.Fatalf("new req: %v", err)
+		}
+		if payload != nil {
+			req.Header.Set("Content-Type", "application/json")
+		}
+		for k, v := range headers {
+			req.Header.Set(k, v)
+		}
+		resp, err := client.Do(req)
+		if err != nil {
+			t.Fatalf("do %s %s: %v", method, target, err)
+		}
+		raw, _ := io.ReadAll(resp.Body)
+		_ = resp.Body.Close()
+		return resp.StatusCode, raw
+	}
+
+	// Login
+	if code, body := doJSON(http.MethodPost, ts.URL+"/api/auth/login", map[string]string{"password": cfg.AdminPassword}, nil); code != http.StatusOK {
+		t.Fatalf("login: %d %s", code, body)
+	}
+
+	// 1. MITM status, loopback validation, CA generation, and download
+	if code, body := doJSON(http.MethodGet, ts.URL+"/api/mitm/status", nil, nil); code != http.StatusOK || !strings.Contains(string(body), `"status":"stopped"`) {
+		t.Fatalf("GET /api/mitm/status = %d: %s", code, body)
+	}
+	if code, _ := doJSON(http.MethodPatch, ts.URL+"/api/mitm/config", map[string]any{"listen_addr": "0.0.0.0:8443"}, nil); code != http.StatusBadRequest {
+		t.Fatalf("expected 400 for non-loopback mitm listen_addr, got %d", code)
+	}
+	if code, body := doJSON(http.MethodPost, ts.URL+"/api/mitm/ca/generate", map[string]any{"force": false}, nil); code != http.StatusOK || !strings.Contains(string(body), `"exists":true`) {
+		t.Fatalf("POST /api/mitm/ca/generate = %d: %s", code, body)
+	}
+	if code, body := doJSON(http.MethodGet, ts.URL+"/api/mitm/ca/download", nil, nil); code != http.StatusOK || !strings.Contains(string(body), "BEGIN CERTIFICATE") || strings.Contains(string(body), "PRIVATE KEY") {
+		t.Fatalf("GET /api/mitm/ca/download = %d: unexpected PEM", code)
+	}
+
+	// 2. PXPIPE health, live gateway interceptor transform, and stats
+	if code, body := doJSON(http.MethodGet, ts.URL+"/api/pxpipe/health", nil, nil); code != http.StatusOK || !strings.Contains(string(body), `"healthy":true`) {
+		t.Fatalf("GET /api/pxpipe/health = %d: %s", code, body)
+	}
+
+	// Create provider connection & API key for live gateway test through pxpipe interceptor
+	if code, body := doJSON(http.MethodPost, ts.URL+"/api/providers/connections", map[string]any{
+		"provider_id": "openai",
+		"name":        "Mock OpenAI W3C",
+		"auth_type":   "api_key",
+		"api_key":     "sk-w3c",
+		"base_url":    upstream.URL,
+		"models":      []string{"gpt-4o"},
+	}, nil); code != http.StatusCreated {
+		t.Fatalf("create conn: %d %s", code, body)
+	}
+	keyCode, keyBody := doJSON(http.MethodPost, ts.URL+"/api/keys", map[string]any{"name": "w3c-key"}, nil)
+	if keyCode != http.StatusCreated {
+		t.Fatalf("create key: %d %s", keyCode, keyBody)
+	}
+	var createdKey struct {
+		Secret string `json:"secret"`
+	}
+	_ = json.Unmarshal(keyBody, &createdKey)
+	authHdr := map[string]string{"Authorization": "Bearer " + createdKey.Secret}
+
+	chatCode, chatBody := doJSON(http.MethodPost, ts.URL+"/v1/chat/completions", map[string]any{
+		"model":    "openai/gpt-4o",
+		"user":     nil,
+		"messages": []map[string]string{{"role": "user", "content": "hello     wave3c"}},
+	}, authHdr)
+	if chatCode != http.StatusOK {
+		t.Fatalf("POST /v1/chat/completions = %d: %s", chatCode, chatBody)
+	}
+	seen, _ := upstreamBody.Load().(string)
+	if strings.Contains(seen, `"user":null`) || strings.Contains(seen, "hello     wave3c") {
+		t.Fatalf("expected pxpipe interceptor to transform request before upstream, got: %s", seen)
+	}
+	if code, body := doJSON(http.MethodGet, ts.URL+"/api/pxpipe/stats", nil, nil); code != http.StatusOK || !strings.Contains(string(body), `"requests_transformed":1`) {
+		t.Fatalf("GET /api/pxpipe/stats = %d: %s", code, body)
+	}
+}
+
+func TestWave3CDisabledModulesDetachCleanly(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	cfg := config.Config{
+		Host:          "127.0.0.1",
+		Port:          0,
+		DataDir:       t.TempDir(),
+		AdminPassword: "wave3c-disabled-pass",
+		LogLevel:      "error",
+		APITimeout:    5 * time.Second,
+		DisabledModules: map[string]bool{
+			"mitm":   true,
+			"pxpipe": true,
+		},
+	}
+	app, err := buildApp(ctx, cfg, system.BuildInfo{Version: "test", Commit: "wave3c"})
+	if err != nil {
+		t.Fatalf("buildApp with disabled Wave 3C modules: %v", err)
+	}
+	t.Cleanup(func() { _ = app.Close(context.Background()) })
+
+	ts := httptest.NewServer(app.Handler())
+	defer ts.Close()
+
+	jar, _ := cookiejar.New(nil)
+	client := &http.Client{Jar: jar, Timeout: 5 * time.Second}
+	loginRaw, _ := json.Marshal(map[string]string{"password": cfg.AdminPassword})
+	resp, err := client.Post(ts.URL+"/api/auth/login", "application/json", bytes.NewReader(loginRaw))
+	if err != nil || resp.StatusCode != http.StatusOK {
+		t.Fatalf("login failed: %v", err)
+	}
+	_ = resp.Body.Close()
+
+	for _, path := range []string{"/api/mitm/status", "/api/pxpipe/status"} {
 		r, err := client.Get(ts.URL + path)
 		if err != nil {
 			t.Fatalf("GET %s: %v", path, err)
