@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/omeg4monx/router-gateway/internal/platform/logging"
 )
@@ -251,4 +252,46 @@ func TestRingBufferRecentDeepClonesAttrs(t *testing.T) {
 		}(g)
 	}
 	wg.Wait()
+}
+
+func TestRingBufferSubscribeNonBlockingAndUnsubscribe(t *testing.T) {
+	logger, ring := logging.New("debug", nil, 32)
+
+	ch, unsub := ring.Subscribe()
+	defer unsub()
+
+	// Emit far more entries than subscriber channel buffer capacity without reading.
+	// Logger must never block even when subscriber is stalled.
+	done := make(chan struct{})
+	go func() {
+		for i := range 200 {
+			logger.Info("burst", "seq", i)
+		}
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("logger.Info blocked on slow RingBuffer subscriber")
+	}
+
+	// Drain at least one entry and verify deep-cloned attrs.
+	select {
+	case entry := <-ch:
+		if entry.Message != "burst" {
+			t.Fatalf("unexpected entry message %q", entry.Message)
+		}
+	default:
+		t.Fatal("expected buffered entries on subscriber channel")
+	}
+
+	// Unsubscribe must be idempotent and close the channel cleanly.
+	unsub()
+	unsub()
+	for range ch {
+	}
+
+	// Logging after unsubscribe must not panic.
+	logger.Warn("after-unsub")
 }
