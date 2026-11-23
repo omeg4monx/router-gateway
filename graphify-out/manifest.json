@@ -1186,5 +1186,35 @@
     "seen": 1795415008.7739737,
     "ast_hash": "5a6714ae4bea088ef00e16e91af8fd67",
     "semantic_hash": ""
+  },
+  "contracts/openapi/modules/modeleditor.yaml": {
+    "mtime": 1795415139.3016675,
+    "seen": 1795415188.607414,
+    "ast_hash": "d4e264e6a69c31a34950152479bac64c",
+    "semantic_hash": ""
+  },
+  "internal/modules/modeleditor/engine.go": {
+    "mtime": 1795415134.425698,
+    "seen": 1795415188.6082718,
+    "ast_hash": "14e32260f340c8e804ec28e3b3e619a7",
+    "semantic_hash": ""
+  },
+  "internal/modules/modeleditor/module.go": {
+    "mtime": 1795415137.1936448,
+    "seen": 1795415188.6082735,
+    "ast_hash": "7fb4258279c51a5985c561a1da95b9d3",
+    "semantic_hash": ""
+  },
+  "internal/modules/modeleditor/module_test.go": {
+    "mtime": 1795415014.5003247,
+    "seen": 1795415188.608275,
+    "ast_hash": "4b1f62da459831edf7378974b4462bb1",
+    "semantic_hash": ""
+  },
+  "internal/modules/modeleditor/repo.go": {
+    "mtime": 1795415132.1725907,
+    "seen": 1795415188.608276,
+    "ast_hash": "1196dfa3993bdb39fbece569e41da082",
+    "semantic_hash": ""
   }
 }
