@@ -33,6 +33,10 @@ tags:
     description: Custom model parameter overrides, conditional bypass rules, and dry-run preview
   - name: tokensaver
     description: Go-native token compression, Headroom prefix cache affinity, and live savings metrics
+  - name: security
+    description: Live security posture report and redacted control-plane security audit trail
+  - name: notifications
+    description: System notifications inbox, live SSE notification stream, and background jobs telemetry
 paths:
   /api/health:
     $ref: './modules/system.yaml#/paths/~1api~1health'
@@ -162,6 +166,26 @@ paths:
     $ref: './modules/tokensaver.yaml#/paths/~1api~1tokensaver~1cache~1clear'
   /api/tokensaver/preview:
     $ref: './modules/tokensaver.yaml#/paths/~1api~1tokensaver~1preview'
+  /api/security/posture:
+    $ref: './modules/security.yaml#/paths/~1api~1security~1posture'
+  /api/security/audit:
+    $ref: './modules/security.yaml#/paths/~1api~1security~1audit'
+  /api/security/audit/export:
+    $ref: './modules/security.yaml#/paths/~1api~1security~1audit~1export'
+  /api/notifications:
+    $ref: './modules/notifications.yaml#/paths/~1api~1notifications'
+  /api/notifications/read-all:
+    $ref: './modules/notifications.yaml#/paths/~1api~1notifications~1read-all'
+  /api/notifications/{id}/read:
+    $ref: './modules/notifications.yaml#/paths/~1api~1notifications~1{id}~1read'
+  /api/notifications/{id}:
+    $ref: './modules/notifications.yaml#/paths/~1api~1notifications~1{id}'
+  /api/notifications/stream:
+    $ref: './modules/notifications.yaml#/paths/~1api~1notifications~1stream'
+  /api/jobs:
+    $ref: './modules/notifications.yaml#/paths/~1api~1jobs'
+  /api/jobs/{name}/trigger:
+    $ref: './modules/notifications.yaml#/paths/~1api~1jobs~1{name}~1trigger'
 components:
   schemas:
     ErrorDetail:
@@ -440,3 +464,33 @@ components:
       $ref: './modules/tokensaver.yaml#/components/schemas/TokenSaverPreviewRequest'
     TokenSaverPreviewResult:
       $ref: './modules/tokensaver.yaml#/components/schemas/TokenSaverPreviewResult'
+    SecurityPostureReport:
+      $ref: './modules/security.yaml#/components/schemas/SecurityPostureReport'
+    SecurityAuditEvent:
+      $ref: './modules/security.yaml#/components/schemas/SecurityAuditEvent'
+    CreateSecurityAuditRequest:
+      $ref: './modules/security.yaml#/components/schemas/CreateSecurityAuditRequest'
+    SecurityAuditListResponse:
+      $ref: './modules/security.yaml#/components/schemas/SecurityAuditListResponse'
+    ClearSecurityAuditResponse:
+      $ref: './modules/security.yaml#/components/schemas/ClearSecurityAuditResponse'
+    SecurityAuditExportResponse:
+      $ref: './modules/security.yaml#/components/schemas/SecurityAuditExportResponse'
+    SystemNotification:
+      $ref: './modules/notifications.yaml#/components/schemas/SystemNotification'
+    CreateNotificationRequest:
+      $ref: './modules/notifications.yaml#/components/schemas/CreateNotificationRequest'
+    NotificationListResponse:
+      $ref: './modules/notifications.yaml#/components/schemas/NotificationListResponse'
+    MarkAllReadResponse:
+      $ref: './modules/notifications.yaml#/components/schemas/MarkAllReadResponse'
+    DeleteNotificationResponse:
+      $ref: './modules/notifications.yaml#/components/schemas/DeleteNotificationResponse'
+    ClearNotificationsResponse:
+      $ref: './modules/notifications.yaml#/components/schemas/ClearNotificationsResponse'
+    BackgroundJobStatus:
+      $ref: './modules/notifications.yaml#/components/schemas/BackgroundJobStatus'
+    BackgroundJobListResponse:
+      $ref: './modules/notifications.yaml#/components/schemas/BackgroundJobListResponse'
+    TriggerJobResponse:
+      $ref: './modules/notifications.yaml#/components/schemas/TriggerJobResponse'

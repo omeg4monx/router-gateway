@@ -37,7 +37,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "./system.yaml#/components/schemas/ErrorEnvelope"
+                $ref: "../openapi.yaml#/components/schemas/ErrorEnvelope"
     post:
       operationId: createNotification
       tags:
@@ -61,7 +61,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "./system.yaml#/components/schemas/ErrorEnvelope"
+                $ref: "../openapi.yaml#/components/schemas/ErrorEnvelope"
     delete:
       operationId: clearNotifications
       tags:
@@ -111,7 +111,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "./system.yaml#/components/schemas/ErrorEnvelope"
+                $ref: "../openapi.yaml#/components/schemas/ErrorEnvelope"
   /api/notifications/{id}:
     delete:
       operationId: deleteNotification
@@ -136,7 +136,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "./system.yaml#/components/schemas/ErrorEnvelope"
+                $ref: "../openapi.yaml#/components/schemas/ErrorEnvelope"
   /api/notifications/stream:
     get:
       operationId: streamNotifications
@@ -187,13 +187,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "./system.yaml#/components/schemas/ErrorEnvelope"
+                $ref: "../openapi.yaml#/components/schemas/ErrorEnvelope"
         "409":
           description: Job is already running
           content:
             application/json:
               schema:
-                $ref: "./system.yaml#/components/schemas/ErrorEnvelope"
+                $ref: "../openapi.yaml#/components/schemas/ErrorEnvelope"
 components:
   schemas:
     SystemNotification:

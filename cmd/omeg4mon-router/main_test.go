@@ -937,7 +937,7 @@ func TestAppWave1CUsageAndCLIToolsEndToEnd(t *testing.T) {
 	if err := json.Unmarshal(healthBody, &health); err != nil {
 		t.Fatalf("decode /api/health JSON: %v", err)
 	}
-	wantModules := []string{"auth", "clitools", "combos", "gateway", "keys", "modeleditor", "promptinjection", "providers", "proxypools", "settings", "system", "tokensaver", "translator", "usage"}
+	wantModules := []string{"auth", "clitools", "combos", "gateway", "keys", "modeleditor", "notifications", "promptinjection", "providers", "proxypools", "security", "settings", "system", "tokensaver", "translator", "usage"}
 	for _, wantMod := range wantModules {
 		if !slices.Contains(health.Modules, wantMod) {
 			t.Fatalf("GET /api/health modules = %v, missing %q", health.Modules, wantMod)
@@ -1557,6 +1557,166 @@ func TestWave2BDisabledModulesSkipInterceptors(t *testing.T) {
 	_ = resp.Body.Close()
 
 	for _, path := range []string{"/api/prompt-guard/config", "/api/modeleditor/overrides", "/api/tokensaver/config"} {
+		r, err := client.Get(ts.URL + path)
+		if err != nil {
+			t.Fatalf("GET %s: %v", path, err)
+		}
+		_ = r.Body.Close()
+		if r.StatusCode != http.StatusNotFound {
+			t.Fatalf("expected 404 for disabled module route %s, got %d", path, r.StatusCode)
+		}
+	}
+}
+
+func TestWave2CSecurityNotificationsAndJobsE2E(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	cfg := config.Config{
+		Host:          "127.0.0.1",
+		Port:          0,
+		DataDir:       t.TempDir(),
+		AdminPassword: "wave2c-admin-pass",
+		LogLevel:      "error",
+		APITimeout:    5 * time.Second,
+	}
+	app, err := buildApp(ctx, cfg, system.BuildInfo{Version: "test", Commit: "wave2c"})
+	if err != nil {
+		t.Fatalf("buildApp: %v", err)
+	}
+	t.Cleanup(func() { _ = app.Close(context.Background()) })
+
+	ts := httptest.NewServer(app.Handler())
+	defer ts.Close()
+
+	jar, _ := cookiejar.New(nil)
+	client := &http.Client{Jar: jar, Timeout: 5 * time.Second}
+
+	doJSON := func(method, url string, payload any) (int, []byte) {
+		t.Helper()
+		var bodyReader io.Reader
+		if payload != nil {
+			raw, _ := json.Marshal(payload)
+			bodyReader = bytes.NewReader(raw)
+		}
+		req, _ := http.NewRequestWithContext(ctx, method, url, bodyReader)
+		if payload != nil {
+			req.Header.Set("Content-Type", "application/json")
+		}
+		resp, reqErr := client.Do(req)
+		if reqErr != nil {
+			t.Fatalf("%s %s: %v", method, url, reqErr)
+		}
+		defer resp.Body.Close()
+		b, _ := io.ReadAll(resp.Body)
+		return resp.StatusCode, b
+	}
+
+	if code, body := doJSON(http.MethodPost, ts.URL+"/api/auth/login", map[string]string{"password": cfg.AdminPassword}); code != http.StatusOK {
+		t.Fatalf("login = %d: %s", code, body)
+	}
+
+	// 1. Security posture endpoint.
+	code, postureBody := doJSON(http.MethodGet, ts.URL+"/api/security/posture", nil)
+	if code != http.StatusOK {
+		t.Fatalf("GET /api/security/posture = %d: %s", code, postureBody)
+	}
+	var posture struct {
+		IsLoopback     bool `json:"is_loopback"`
+		RequireLogin   bool `json:"require_login"`
+		ActiveModCount int  `json:"active_module_count"`
+	}
+	if err := json.Unmarshal(postureBody, &posture); err != nil {
+		t.Fatalf("unmarshal posture: %v", err)
+	}
+	if !posture.IsLoopback || !posture.RequireLogin || posture.ActiveModCount < 16 {
+		t.Fatalf("unexpected posture: %+v", posture)
+	}
+
+	// 2. Creating an API key should auto-emit a keys.changed event ingested by security audit trail.
+	if code, body := doJSON(http.MethodPost, ts.URL+"/api/keys", map[string]any{"name": "wave2c-key"}); code != http.StatusCreated {
+		t.Fatalf("POST /api/keys = %d: %s", code, body)
+	}
+
+	deadline := time.Now().Add(2 * time.Second)
+	foundKeyAudit := false
+	for time.Now().Before(deadline) {
+		c, b := doJSON(http.MethodGet, ts.URL+"/api/security/audit?category=keys", nil)
+		if c == http.StatusOK && strings.Contains(string(b), "keys.changed") {
+			foundKeyAudit = true
+			break
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	if !foundKeyAudit {
+		t.Fatal("expected keys.changed auto-audit event after POST /api/keys")
+	}
+
+	// 3. Notifications inbox CRUD.
+	if code, body := doJSON(http.MethodPost, ts.URL+"/api/notifications", map[string]any{
+		"title":    "Wave 2C Ready",
+		"message":  "Security and notifications active",
+		"severity": "success",
+	}); code != http.StatusCreated {
+		t.Fatalf("POST /api/notifications = %d: %s", code, body)
+	}
+	code, notifBody := doJSON(http.MethodGet, ts.URL+"/api/notifications", nil)
+	if code != http.StatusOK || !strings.Contains(string(notifBody), "Wave 2C Ready") {
+		t.Fatalf("GET /api/notifications = %d: %s", code, notifBody)
+	}
+
+	// 4. Background jobs listing & manual trigger.
+	code, jobsBody := doJSON(http.MethodGet, ts.URL+"/api/jobs", nil)
+	if code != http.StatusOK {
+		t.Fatalf("GET /api/jobs = %d: %s", code, jobsBody)
+	}
+	for _, expectedJob := range []string{"usage-prune", "security-audit-prune", "notifications-prune"} {
+		if !strings.Contains(string(jobsBody), expectedJob) {
+			t.Fatalf("expected job %q in GET /api/jobs response: %s", expectedJob, jobsBody)
+		}
+	}
+
+	code, trigBody := doJSON(http.MethodPost, ts.URL+"/api/jobs/security-audit-prune/trigger", nil)
+	if code != http.StatusOK || !strings.Contains(string(trigBody), `"last_status":"ok"`) {
+		t.Fatalf("POST /api/jobs/security-audit-prune/trigger = %d: %s", code, trigBody)
+	}
+}
+
+func TestWave2CDisabledModulesDetachCleanly(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	cfg := config.Config{
+		Host:          "127.0.0.1",
+		Port:          0,
+		DataDir:       t.TempDir(),
+		AdminPassword: "wave2c-disabled-pass",
+		LogLevel:      "error",
+		APITimeout:    5 * time.Second,
+		DisabledModules: map[string]bool{
+			"security":      true,
+			"notifications": true,
+		},
+	}
+	app, err := buildApp(ctx, cfg, system.BuildInfo{Version: "test", Commit: "wave2c"})
+	if err != nil {
+		t.Fatalf("buildApp with disabled Wave 2C modules: %v", err)
+	}
+	t.Cleanup(func() { _ = app.Close(context.Background()) })
+
+	ts := httptest.NewServer(app.Handler())
+	defer ts.Close()
+
+	jar, _ := cookiejar.New(nil)
+	client := &http.Client{Jar: jar, Timeout: 5 * time.Second}
+	loginRaw, _ := json.Marshal(map[string]string{"password": cfg.AdminPassword})
+	resp, err := client.Post(ts.URL+"/api/auth/login", "application/json", bytes.NewReader(loginRaw))
+	if err != nil || resp.StatusCode != http.StatusOK {
+		t.Fatalf("login failed: %v", err)
+	}
+	_ = resp.Body.Close()
+
+	for _, path := range []string{"/api/security/posture", "/api/notifications", "/api/jobs"} {
 		r, err := client.Get(ts.URL + path)
 		if err != nil {
 			t.Fatalf("GET %s: %v", path, err)
