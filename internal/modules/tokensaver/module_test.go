@@ -285,3 +285,78 @@ func TestHeadroomLRUBoundedCapacityAndConcurrency(t *testing.T) {
 		t.Fatalf("preview: status %d body %s", prevRec.Code, prevRec.Body.String())
 	}
 }
+
+func TestTokenSaverFinalReviewFindings(t *testing.T) {
+	env := setupTokenSaverTest(t)
+
+	rec := doJSON(t, env.router, http.MethodPatch, "/api/tokensaver/config", map[string]any{
+		"enabled":               true,
+		"strategy":              "aggressive",
+		"max_history_messages":  4,
+		"max_tool_output_chars": 32,
+		"headroom_enabled":      true,
+	})
+	if rec.Code != http.StatusOK {
+		t.Fatalf("patch config: status %d", rec.Code)
+	}
+
+	// Finding #6: Preserve newlines adjacent to fenced ``` code blocks.
+	md := "Hello   world.\n```python\ndef f():\n    return 1\n```\nDone."
+	gotMD := compressText(md)
+	if !strings.Contains(gotMD, "Hello world.\n```python\n") || !strings.Contains(gotMD, "\n```\nDone.") {
+		t.Fatalf("newlines around code fence were stripped: %q", gotMD)
+	}
+
+	// Finding #7a: Rune-safe UTF-8 truncation in truncateToolOutput.
+	utf8Tool := "日本語の長いツール出力テスト文字列です"
+	trunc := truncateToolOutput(utf8Tool, 8)
+	if strings.ContainsRune(trunc, '\uFFFD') {
+		t.Fatalf("truncateToolOutput corrupted UTF-8: %q", trunc)
+	}
+
+	// Finding #7b: OpenAI Responses "input" gets distinct Headroom keys and compresses text.
+	rA := &contracts.CanonicalRequest{
+		RequestID: "resp-a",
+		Protocol:  "openai-responses",
+		Model:     "gpt-4o",
+		Body:      []byte(`{"model":"gpt-4o","input":"First     unique     prompt"}`),
+		Metadata:  make(map[string]any),
+	}
+	rB := &contracts.CanonicalRequest{
+		RequestID: "resp-b",
+		Protocol:  "openai-responses",
+		Model:     "gpt-4o",
+		Body:      []byte(`{"model":"gpt-4o","input":"Second    distinct   prompt"}`),
+		Metadata:  make(map[string]any),
+	}
+	_ = env.mod.OnRequest(context.Background(), rA)
+	_ = env.mod.OnRequest(context.Background(), rB)
+	if rA.Metadata["headroom_cache_key"] == rB.Metadata["headroom_cache_key"] {
+		t.Fatalf("expected distinct Headroom keys for different Responses inputs, both got %v", rA.Metadata["headroom_cache_key"])
+	}
+	if !strings.Contains(string(rA.Body), "First unique prompt") {
+		t.Fatalf("expected Responses input whitespace compressed, got: %s", rA.Body)
+	}
+
+	// Finding #8: Failed request (OnRequest without OnResponseHeaders) must NOT poison Headroom cache.
+	fail1 := &contracts.CanonicalRequest{
+		RequestID: "fail-1",
+		Protocol:  "openai-chat",
+		Model:     "gpt-4o",
+		Body:      []byte(`{"model":"gpt-4o","messages":[{"role":"user","content":"unconfirmed prefix"}]}`),
+		Metadata:  make(map[string]any),
+	}
+	fail2 := &contracts.CanonicalRequest{
+		RequestID: "fail-2",
+		Protocol:  "openai-chat",
+		Model:     "gpt-4o",
+		Body:      []byte(`{"model":"gpt-4o","messages":[{"role":"user","content":"unconfirmed prefix"}]}`),
+		Metadata:  make(map[string]any),
+	}
+	_ = env.mod.OnRequest(context.Background(), fail1)
+	// No OnResponseHeaders for fail1 (simulating upstream 502).
+	_ = env.mod.OnRequest(context.Background(), fail2)
+	if fail2.Metadata["headroom_cache_hit"] != false {
+		t.Fatalf("expected second request after failed first request to still be a miss, got %v", fail2.Metadata["headroom_cache_hit"])
+	}
+}

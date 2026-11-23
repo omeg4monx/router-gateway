@@ -120,7 +120,11 @@ func compileRule(r Rule) (compiledRule, error) {
 		}
 		return compiledRule{rule: r, re: re}, nil
 	}
-	return compiledRule{rule: r}, nil
+	re, err := regexp.Compile("(?i)" + regexp.QuoteMeta(r.Pattern))
+	if err != nil {
+		return compiledRule{}, fmt.Errorf("invalid substring pattern: %w", err)
+	}
+	return compiledRule{rule: r, re: re}, nil
 }
 
 func severityRank(s string) int {
@@ -145,51 +149,71 @@ func minSeverityForSensitivity(sensitivity string) int {
 	}
 }
 
+func effectiveRuleAction(globalMode, ruleAction string) string {
+	switch globalMode {
+	case ModeAudit:
+		return ModeAudit
+	case ModeSanitize:
+		if ruleAction == ModeAudit {
+			return ModeAudit
+		}
+		return ModeSanitize
+	default: // ModeBlock
+		if ruleAction == ModeAudit || ruleAction == ModeSanitize || ruleAction == ModeBlock {
+			return ruleAction
+		}
+		return ModeBlock
+	}
+}
+
+func actionRank(action string) int {
+	switch action {
+	case ModeBlock:
+		return 3
+	case ModeSanitize:
+		return 2
+	case ModeAudit:
+		return 1
+	default:
+		return 0
+	}
+}
+
+func highestAction(hits []MatchHit) string {
+	best := "pass"
+	for _, h := range hits {
+		if actionRank(h.Action) > actionRank(best) {
+			best = h.Action
+		}
+	}
+	return best
+}
+
 func evaluateText(text string, cfg Config, rules []compiledRule) (string, []MatchHit) {
 	minRank := minSeverityForSensitivity(cfg.Sensitivity)
 	sanitized := text
 	hits := make([]MatchHit, 0)
 
 	for _, cr := range rules {
-		if !cr.rule.Enabled || severityRank(cr.rule.Severity) < minRank {
+		if !cr.rule.Enabled || cr.re == nil || severityRank(cr.rule.Severity) < minRank {
 			continue
 		}
-		if cr.rule.MatchType == MatchRegex && cr.re != nil {
-			if loc := cr.re.FindString(sanitized); loc != "" {
-				hits = append(hits, MatchHit{
-					RuleID:   cr.rule.ID,
-					RuleName: cr.rule.Name,
-					Action:   cr.rule.Action,
-					Severity: cr.rule.Severity,
-					Matched:  redactAndTruncate(loc),
-				})
+		// Match against original text so earlier rules never mask later rules.
+		if loc := cr.re.FindString(text); loc != "" {
+			eff := effectiveRuleAction(cfg.Mode, cr.rule.Action)
+			hits = append(hits, MatchHit{
+				RuleID:   cr.rule.ID,
+				RuleName: cr.rule.Name,
+				Action:   eff,
+				Severity: cr.rule.Severity,
+				Matched:  redactAndTruncate(loc),
+			})
+			if eff == ModeSanitize {
 				sanitized = cr.re.ReplaceAllString(sanitized, sanitizedMarker)
-			}
-		} else {
-			lowerText := strings.ToLower(sanitized)
-			lowerPat := strings.ToLower(cr.rule.Pattern)
-			if idx := strings.Index(lowerText, lowerPat); idx >= 0 {
-				matched := sanitized[idx : idx+len(cr.rule.Pattern)]
-				hits = append(hits, MatchHit{
-					RuleID:   cr.rule.ID,
-					RuleName: cr.rule.Name,
-					Action:   cr.rule.Action,
-					Severity: cr.rule.Severity,
-					Matched:  redactAndTruncate(matched),
-				})
-				sanitized = replaceCaseInsensitive(sanitized, cr.rule.Pattern, sanitizedMarker)
 			}
 		}
 	}
 	return sanitized, hits
-}
-
-func replaceCaseInsensitive(src, pat, repl string) string {
-	re, err := regexp.Compile("(?i)" + regexp.QuoteMeta(pat))
-	if err != nil {
-		return src
-	}
-	return re.ReplaceAllString(src, repl)
 }
 
 func redactAndTruncate(s string) string {
@@ -204,10 +228,10 @@ func redactAndTruncate(s string) string {
 // inspectAndMaybeSanitizeBody inspects textual prompt fields inside an inbound
 // JSON request body (OpenAI Chat, Anthropic, OpenAI Responses, Gemini).
 // When sanitize is true and matches occur, it returns the mutated JSON body.
-func inspectAndMaybeSanitizeBody(body []byte, cfg Config, rules []compiledRule, sanitize bool) (outBody []byte, hits []MatchHit, snippet string) {
+func inspectAndMaybeSanitizeBody(body []byte, cfg Config, rules []compiledRule) (outBody []byte, hits []MatchHit, snippet string, invalidJSON bool) {
 	var root map[string]any
-	if err := json.Unmarshal(body, &root); err != nil {
-		return body, nil, ""
+	if err := json.Unmarshal(body, &root); err != nil || root == nil {
+		return body, nil, "", true
 	}
 
 	var mutated bool
@@ -223,7 +247,7 @@ func inspectAndMaybeSanitizeBody(body []byte, cfg Config, rules []compiledRule, 
 					if snippet == "" {
 						snippet = redactAndTruncate(x)
 					}
-					if sanitize && san != x {
+					if san != x {
 						mutated = true
 						return san
 					}
@@ -245,25 +269,25 @@ func inspectAndMaybeSanitizeBody(body []byte, cfg Config, rules []compiledRule, 
 		}
 	}
 
-	for _, topKey := range []string{"messages", "input", "contents", "system", "systemInstruction", "prompt"} {
+	for _, topKey := range []string{"messages", "input", "instructions", "contents", "system", "systemInstruction", "system_instruction", "prompt"} {
 		if val, ok := root[topKey]; ok {
 			root[topKey] = walk(val, topKey)
 		}
 	}
 
 	if !mutated {
-		return body, hits, snippet
+		return body, hits, snippet, false
 	}
 	out, err := json.Marshal(root)
 	if err != nil {
-		return body, hits, snippet
+		return body, hits, snippet, false
 	}
-	return out, hits, snippet
+	return out, hits, snippet, false
 }
 
 func isPromptTextKey(key string) bool {
 	switch key {
-	case "content", "text", "input", "system", "prompt":
+	case "content", "text", "input", "instructions", "system", "prompt":
 		return true
 	default:
 		return false

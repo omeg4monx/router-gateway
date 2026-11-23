@@ -2,8 +2,9 @@ package modeleditor
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
-	"path"
+	"regexp"
 	"strings"
 )
 
@@ -23,6 +24,59 @@ type PreviewResult struct {
 	Metadata           map[string]any `json:"metadata"`
 }
 
+func validateModelPattern(pattern string) error {
+	pattern = strings.TrimSpace(pattern)
+	if pattern == "" || len(pattern) > 128 {
+		return errors.New("model_pattern must be 1..128 characters")
+	}
+	inBracket := false
+	for i := range len(pattern) {
+		switch pattern[i] {
+		case '[':
+			if inBracket {
+				return errors.New("invalid model_pattern: nested '['")
+			}
+			inBracket = true
+		case ']':
+			if !inBracket {
+				return errors.New("invalid model_pattern: unmatched ']'")
+			}
+			inBracket = false
+		}
+	}
+	if inBracket {
+		return errors.New("invalid model_pattern: unclosed '['")
+	}
+	if _, err := globToRegexp(pattern); err != nil {
+		return errors.New("invalid model_pattern syntax")
+	}
+	return nil
+}
+
+func globToRegexp(pattern string) (*regexp.Regexp, error) {
+	var b strings.Builder
+	b.WriteByte('^')
+	for i := 0; i < len(pattern); i++ {
+		switch pattern[i] {
+		case '*':
+			b.WriteString(".*")
+		case '?':
+			b.WriteByte('.')
+		case '[':
+			end := strings.IndexByte(pattern[i+1:], ']')
+			if end < 0 {
+				return nil, errors.New("unclosed bracket")
+			}
+			b.WriteString(pattern[i : i+end+2])
+			i += end + 1
+		default:
+			b.WriteString(regexp.QuoteMeta(pattern[i : i+1]))
+		}
+	}
+	b.WriteByte('$')
+	return regexp.Compile(b.String())
+}
+
 func matchPattern(pattern, value string) bool {
 	pattern = strings.TrimSpace(pattern)
 	if pattern == "" || pattern == "*" {
@@ -31,8 +85,11 @@ func matchPattern(pattern, value string) bool {
 	if pattern == value {
 		return true
 	}
-	matched, err := path.Match(pattern, value)
-	return err == nil && matched
+	re, err := globToRegexp(pattern)
+	if err != nil {
+		return false
+	}
+	return re.MatchString(value)
 }
 
 func bypassRuleMatches(rule BypassRule, model, keyID, protocol string, headers http.Header) bool {
@@ -211,6 +268,16 @@ func applyOverrideToJSON(protocol string, root map[string]any, ov ModelOverride)
 	}
 
 	for k, v := range ov.ExtraParams {
+		if existingMap, ok := root[k].(map[string]any); ok {
+			if patchMap, ok2 := v.(map[string]any); ok2 {
+				for pk, pv := range patchMap {
+					existingMap[pk] = pv
+				}
+				root[k] = existingMap
+				mutated = true
+				continue
+			}
+		}
 		root[k] = v
 		mutated = true
 	}
@@ -269,9 +336,13 @@ func wrapSystemPrompt(protocol string, root map[string]any, prefix, suffix strin
 		root["instructions"] = wrapText(cur, prefix, suffix)
 		return true
 	case "gemini":
-		si, ok := root["systemInstruction"].(map[string]any)
+		siKey := "systemInstruction"
+		if _, hasSnake := root["system_instruction"]; hasSnake {
+			siKey = "system_instruction"
+		}
+		si, ok := root[siKey].(map[string]any)
 		if !ok || si == nil {
-			root["systemInstruction"] = map[string]any{
+			root[siKey] = map[string]any{
 				"parts": []any{map[string]any{"text": wrapText("", prefix, suffix)}},
 			}
 			return true
@@ -297,12 +368,26 @@ func wrapSystemPrompt(protocol string, root map[string]any, prefix, suffix strin
 			if !ok {
 				continue
 			}
-			if role, _ := msg["role"].(string); role == "system" {
-				if content, ok := msg["content"].(string); ok {
-					msg["content"] = wrapText(content, prefix, suffix)
-					msgs[i] = msg
-					return true
+			role, _ := msg["role"].(string)
+			if role != "system" && role != "developer" {
+				continue
+			}
+			switch content := msg["content"].(type) {
+			case string:
+				msg["content"] = wrapText(content, prefix, suffix)
+				msgs[i] = msg
+				return true
+			case []any:
+				blocks := content
+				if prefix != "" {
+					blocks = append([]any{map[string]any{"type": "text", "text": prefix}}, blocks...)
 				}
+				if suffix != "" {
+					blocks = append(blocks, map[string]any{"type": "text", "text": suffix})
+				}
+				msg["content"] = blocks
+				msgs[i] = msg
+				return true
 			}
 		}
 		sysMsg := map[string]any{

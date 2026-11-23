@@ -545,8 +545,8 @@ func validateOverride(ov ModelOverride) error {
 	if ov.Name == "" || len(ov.Name) > 128 {
 		return errors.New("name must be 1..128 characters")
 	}
-	if ov.ModelPattern == "" || len(ov.ModelPattern) > 128 {
-		return errors.New("model_pattern must be 1..128 characters")
+	if err := validateModelPattern(ov.ModelPattern); err != nil {
+		return err
 	}
 	if ov.Temperature != nil && (*ov.Temperature < 0 || *ov.Temperature > 2) {
 		return errors.New("temperature must be between 0 and 2")
@@ -564,8 +564,8 @@ func validateBypassRule(br BypassRule) error {
 	if br.Name == "" || len(br.Name) > 128 {
 		return errors.New("name must be 1..128 characters")
 	}
-	if br.ModelPattern == "" || len(br.ModelPattern) > 128 {
-		return errors.New("model_pattern must be 1..128 characters")
+	if err := validateModelPattern(br.ModelPattern); err != nil {
+		return err
 	}
 	switch br.Action {
 	case ActionRewriteModel:

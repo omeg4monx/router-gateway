@@ -67,7 +67,7 @@ func (c *headroomCache) configure(maxSize int, ttl time.Duration) {
 	c.evictLocked(time.Now().UTC())
 }
 
-func (c *headroomCache) lookup(key, protocol, model string, now time.Time) (hit bool, providerID, connectionID string) {
+func (c *headroomCache) lookup(key string, now time.Time) (hit bool, providerID, connectionID string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -82,20 +82,10 @@ func (c *headroomCache) lookup(key, protocol, model string, now time.Time) (hit 
 		c.ll.MoveToFront(elem)
 		return true, ent.providerID, ent.connectionID
 	}
-
-	ent := &cacheEntry{
-		key:      key,
-		protocol: protocol,
-		model:    model,
-		lastSeen: now,
-	}
-	elem := c.ll.PushFront(ent)
-	c.entries[key] = elem
-	c.evictLocked(now)
 	return false, "", ""
 }
 
-func (c *headroomCache) recordAffinity(key, providerID, connectionID string, now time.Time) {
+func (c *headroomCache) recordAffinity(key, protocol, model, providerID, connectionID string, now time.Time) {
 	if key == "" {
 		return
 	}
@@ -110,7 +100,19 @@ func (c *headroomCache) recordAffinity(key, providerID, connectionID string, now
 		ent.connectionID = connectionID
 		ent.lastSeen = now
 		c.ll.MoveToFront(elem)
+		return
 	}
+	ent := &cacheEntry{
+		key:          key,
+		protocol:     protocol,
+		model:        model,
+		providerID:   providerID,
+		connectionID: connectionID,
+		lastSeen:     now,
+	}
+	elem := c.ll.PushFront(ent)
+	c.entries[key] = elem
+	c.evictLocked(now)
 }
 
 func (c *headroomCache) clear() {
@@ -211,6 +213,10 @@ func computePrefixFingerprint(protocol, model string, body []byte, prefixDepth i
 		raw, _ := json.Marshal(si)
 		b.Write(raw)
 		b.WriteByte('|')
+	} else if siSnake, ok := root["system_instruction"]; ok {
+		raw, _ := json.Marshal(siSnake)
+		b.Write(raw)
+		b.WriteByte('|')
 	}
 	if msgs, ok := root["messages"].([]any); ok && len(msgs) > 0 {
 		n := min(prefixDepth, len(msgs))
@@ -220,6 +226,16 @@ func computePrefixFingerprint(protocol, model string, body []byte, prefixDepth i
 		n := min(prefixDepth, len(contents))
 		raw, _ := json.Marshal(contents[:n])
 		b.Write(raw)
+	} else if inp, ok := root["input"]; ok {
+		switch iv := inp.(type) {
+		case []any:
+			n := min(prefixDepth, len(iv))
+			raw, _ := json.Marshal(iv[:n])
+			b.Write(raw)
+		default:
+			raw, _ := json.Marshal(iv)
+			b.Write(raw)
+		}
 	}
 
 	sum := sha256.Sum256([]byte(b.String()))

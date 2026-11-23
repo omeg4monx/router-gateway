@@ -138,9 +138,30 @@ export function ModelEditorConsole() {
     overridesQuery.error?.message ??
     bypassQuery.error?.message ??
     createOverride.error?.message ??
+    updateOverride.error?.message ??
+    deleteOverride.error?.message ??
     createBypass.error?.message ??
+    updateBypass.error?.message ??
+    deleteBypass.error?.message ??
     previewMutation.error?.message ??
     previewError;
+
+  const overrideFirstErr =
+    overrideForm.formState.errors.name?.message ??
+    overrideForm.formState.errors.model_pattern?.message ??
+    overrideForm.formState.errors.temperature?.message ??
+    overrideForm.formState.errors.max_tokens?.message ??
+    overrideForm.formState.errors.top_p?.message ??
+    overrideForm.formState.errors.extra_params_json?.message ??
+    overrideForm.formState.errors.priority?.message ??
+    null;
+
+  const bypassFirstErr =
+    bypassForm.formState.errors.name?.message ??
+    bypassForm.formState.errors.model_pattern?.message ??
+    bypassForm.formState.errors.target_model?.message ??
+    bypassForm.formState.errors.priority?.message ??
+    null;
 
   return (
     <div className="space-y-6">
@@ -244,6 +265,9 @@ export function ModelEditorConsole() {
                 />
               </div>
             </div>
+            {overrideFirstErr ? (
+              <p className="text-xs text-[var(--accent-primary)]">{overrideFirstErr}</p>
+            ) : null}
             <Button type="submit" disabled={createOverride.isPending}>
               <Plus className="mr-2 h-4 w-4" />
               Create Override
@@ -251,10 +275,13 @@ export function ModelEditorConsole() {
           </form>
 
           <div className="mt-5 space-y-2">
+            {overridesQuery.isLoading ? (
+              <p className="text-sm text-[var(--text-secondary)]">Loading model overrides...</p>
+            ) : null}
             {(overridesQuery.data?.overrides ?? []).map((ov) => (
               <div
                 key={ov.id}
-                className="flex items-center justify-between gap-2 rounded-md border border-[var(--border-default)] bg-[var(--bg-muted)] px-3 py-2.5 text-xs"
+                className="flex items-center justify-between gap-2 rounded-md border border-[var(--border-subtle)] bg-[var(--bg-surface-raised)] px-3 py-2.5 text-xs"
               >
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
@@ -323,7 +350,7 @@ export function ModelEditorConsole() {
                 <Label htmlFor="mb-action">Action</Label>
                 <select
                   id="mb-action"
-                  className="h-10 w-full rounded-md border border-[var(--border-default)] bg-[var(--bg-muted)] px-3 text-sm text-[var(--text-primary)]"
+                  className="h-10 w-full rounded-md border border-[var(--border-strong)] bg-[var(--bg-input)] px-3 text-sm text-[var(--text-primary)]"
                   {...bypassForm.register("action")}
                 >
                   {BYPASS_ACTIONS.map((a) => (
@@ -363,6 +390,9 @@ export function ModelEditorConsole() {
                 />
               </div>
             </div>
+            {bypassFirstErr ? (
+              <p className="text-xs text-[var(--accent-primary)]">{bypassFirstErr}</p>
+            ) : null}
             <Button type="submit" disabled={createBypass.isPending}>
               <Plus className="mr-2 h-4 w-4" />
               Create Bypass Rule
@@ -370,10 +400,13 @@ export function ModelEditorConsole() {
           </form>
 
           <div className="mt-5 space-y-2">
+            {bypassQuery.isLoading ? (
+              <p className="text-sm text-[var(--text-secondary)]">Loading bypass rules...</p>
+            ) : null}
             {(bypassQuery.data?.rules ?? []).map((br) => (
               <div
                 key={br.id}
-                className="flex items-center justify-between gap-2 rounded-md border border-[var(--border-default)] bg-[var(--bg-muted)] px-3 py-2.5 text-xs"
+                className="flex items-center justify-between gap-2 rounded-md border border-[var(--border-subtle)] bg-[var(--bg-surface-raised)] px-3 py-2.5 text-xs"
               >
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
@@ -434,7 +467,7 @@ export function ModelEditorConsole() {
                 rows={5}
                 value={previewBody}
                 onChange={(e) => setPreviewBody(e.target.value)}
-                className="w-full rounded-md border border-[var(--border-default)] bg-[var(--bg-muted)] p-3 font-mono text-xs text-[var(--text-primary)]"
+                className="w-full rounded-md border border-[var(--border-strong)] bg-[var(--bg-input)] p-3 font-mono text-xs text-[var(--text-primary)]"
               />
             </div>
             <Button type="button" variant="outline" onClick={handleRunPreview}>
@@ -442,7 +475,7 @@ export function ModelEditorConsole() {
               Run Preview
             </Button>
           </div>
-          <div className="rounded-md border border-[var(--border-default)] bg-[var(--bg-muted)] p-3">
+          <div className="rounded-md border border-[var(--border-subtle)] bg-[var(--bg-surface-raised)] p-3">
             <p className="mb-2 font-mono text-xs text-[var(--text-secondary)]">
               Mutated Output {previewMutation.data ? `(model: ${previewMutation.data.model})` : ""}
             </p>

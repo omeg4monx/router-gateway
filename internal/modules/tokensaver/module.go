@@ -186,9 +186,11 @@ func (m *Module) OnRequest(_ context.Context, req *contracts.CanonicalRequest) e
 		}
 		key := computePrefixFingerprint(req.Protocol, req.Model, req.Body, cfg.PrefixDepth)
 		if key != "" {
-			hit, provID, connID := m.headroom.lookup(key, req.Protocol, req.Model, time.Now().UTC())
+			hit, provID, connID := m.headroom.lookup(key, time.Now().UTC())
 			req.Metadata["headroom_cache_key"] = key
 			req.Metadata["headroom_cache_hit"] = hit
+			req.Metadata["headroom_protocol"] = req.Protocol
+			req.Metadata["headroom_model"] = req.Model
 			if hit {
 				m.cacheHits.Add(1)
 				if provID != "" {
@@ -215,7 +217,12 @@ func (m *Module) OnResponseHeaders(_ context.Context, meta *contracts.ResponseMe
 		meta.Headers.Set("X-Omeg4mon-Tokens-Saved", strconv.FormatInt(saved, 10))
 	}
 	if key, ok := meta.Metadata["headroom_cache_key"].(string); ok && key != "" {
-		m.headroom.recordAffinity(key, meta.ProviderID, meta.ConnectionID, time.Now().UTC())
+		proto, _ := meta.Metadata["headroom_protocol"].(string)
+		model, _ := meta.Metadata["headroom_model"].(string)
+		if model == "" {
+			model = meta.Model
+		}
+		m.headroom.recordAffinity(key, proto, model, meta.ProviderID, meta.ConnectionID, time.Now().UTC())
 		if meta.Headers != nil {
 			if hit, _ := meta.Metadata["headroom_cache_hit"].(bool); hit {
 				meta.Headers.Set("X-Omeg4mon-Headroom-Cache", "hit")

@@ -14,10 +14,7 @@ const (
 	StrategyAggressive = "aggressive"
 )
 
-var (
-	multiSpaceRe   = regexp.MustCompile(`[ \t]{2,}`)
-	multiNewlineRe = regexp.MustCompile(`\n{3,}`)
-)
+var multiSpaceRe = regexp.MustCompile(`[ \t]{2,}`)
 
 // estimateTokens gives a fast zero-table approximation (~4 chars per token).
 func estimateTokens(b []byte) int64 {
@@ -27,38 +24,69 @@ func estimateTokens(b []byte) int64 {
 	return int64((len(b) + 3) / 4)
 }
 
-// compressText normalizes redundant whitespace outside fenced ``` code blocks.
+// compressText normalizes redundant whitespace outside line-anchored fenced
+// code blocks while preserving newlines adjacent to fences.
 func compressText(input string) string {
-	if !strings.Contains(input, "```") {
-		return normalizeProse(input)
+	lines := strings.Split(input, "\n")
+	out := make([]string, 0, len(lines))
+	inFence := false
+	fenceLen := 0
+	blankRun := 0
+
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if ticks := leadingBackticks(trimmed); ticks >= 3 {
+			if !inFence {
+				inFence = true
+				fenceLen = ticks
+				blankRun = 0
+				out = append(out, line)
+				continue
+			}
+			if ticks >= fenceLen && strings.Trim(trimmed, "`") == "" {
+				inFence = false
+				fenceLen = 0
+				blankRun = 0
+				out = append(out, line)
+				continue
+			}
+		}
+		if inFence {
+			out = append(out, line)
+			continue
+		}
+		cleaned := strings.TrimRight(line, " \t")
+		cleaned = multiSpaceRe.ReplaceAllString(cleaned, " ")
+		if cleaned == "" {
+			blankRun++
+			if blankRun > 1 {
+				continue
+			}
+		} else {
+			blankRun = 0
+		}
+		out = append(out, cleaned)
 	}
-	parts := strings.Split(input, "```")
-	for i := 0; i < len(parts); i += 2 {
-		parts[i] = normalizeProse(parts[i])
-	}
-	return strings.Join(parts, "```")
+	return strings.TrimSpace(strings.Join(out, "\n"))
 }
 
-func normalizeProse(s string) string {
-	lines := strings.Split(s, "\n")
-	for i, line := range lines {
-		line = strings.TrimRight(line, " \t")
-		line = multiSpaceRe.ReplaceAllString(line, " ")
-		lines[i] = line
+func leadingBackticks(s string) int {
+	n := 0
+	for n < len(s) && s[n] == '`' {
+		n++
 	}
-	out := strings.Join(lines, "\n")
-	out = multiNewlineRe.ReplaceAllString(out, "\n\n")
-	return strings.TrimSpace(out)
+	return n
 }
 
 func truncateToolOutput(s string, maxChars int) string {
-	if maxChars <= 0 || len(s) <= maxChars {
+	runes := []rune(s)
+	if maxChars <= 0 || len(runes) <= maxChars {
 		return s
 	}
-	omitted := len(s) - maxChars
+	omitted := len(runes) - maxChars
 	head := maxChars / 2
 	tail := maxChars - head
-	return fmt.Sprintf("%s\n[...truncated %d chars...]\n%s", s[:head], omitted, s[len(s)-tail:])
+	return fmt.Sprintf("%s\n[...truncated %d chars...]\n%s", string(runes[:head]), omitted, string(runes[len(runes)-tail:]))
 }
 
 // compressPayload applies the configured Go-native token compression strategy
@@ -83,6 +111,28 @@ func compressPayload(body []byte, cfg Config) (out []byte, bytesSaved, tokensSav
 	}
 	if inst, ok := root["instructions"].(string); ok {
 		root["instructions"] = compressText(inst)
+	}
+	switch inp := root["input"].(type) {
+	case string:
+		root["input"] = compressText(inp)
+	case []any:
+		root["input"] = compressMessages(inp, cfg)
+	}
+	for _, siKey := range []string{"systemInstruction", "system_instruction"} {
+		if si, ok := root[siKey].(map[string]any); ok {
+			if parts, ok := si["parts"].([]any); ok {
+				for j, pr := range parts {
+					if pm, ok := pr.(map[string]any); ok {
+						if txt, ok := pm["text"].(string); ok {
+							pm["text"] = compressText(txt)
+							parts[j] = pm
+						}
+					}
+				}
+				si["parts"] = parts
+			}
+			root[siKey] = si
+		}
 	}
 	if contents, ok := root["contents"].([]any); ok {
 		for i, raw := range contents {
@@ -156,7 +206,6 @@ func compressMessages(msgs []any, cfg Config) []any {
 	}
 
 	if cfg.Strategy == StrategyAggressive && cfg.MaxHistoryMessages > 2 && len(out) > cfg.MaxHistoryMessages {
-		// Preserve leading system messages + last N messages.
 		var leading []any
 		restIdx := 0
 		for restIdx < len(out) {
@@ -164,22 +213,40 @@ func compressMessages(msgs []any, cfg Config) []any {
 			if !ok {
 				break
 			}
-			if role, _ := m["role"].(string); role == "system" {
+			if role, _ := m["role"].(string); role == "system" || role == "developer" {
 				leading = append(leading, m)
 				restIdx++
 			} else {
 				break
 			}
 		}
-		keepTail := cfg.MaxHistoryMessages - len(leading)
-		if keepTail < 1 {
-			keepTail = 1
+		if restIdx < len(out) {
+			keepTail := cfg.MaxHistoryMessages - len(leading)
+			if keepTail < 1 {
+				keepTail = 1
+			}
+			start := len(out) - keepTail
+			if start < restIdx {
+				start = restIdx
+			}
+			// Avoid starting the retained tail on an orphaned tool result.
+			for start < len(out)-1 {
+				m, ok := out[start].(map[string]any)
+				if !ok {
+					break
+				}
+				if role, _ := m["role"].(string); role == "tool" {
+					start++
+					continue
+				}
+				break
+			}
+			tail := out[start:]
+			combined := make([]any, 0, len(leading)+len(tail))
+			combined = append(combined, leading...)
+			combined = append(combined, tail...)
+			out = combined
 		}
-		tail := out[len(out)-keepTail:]
-		combined := make([]any, 0, len(leading)+len(tail))
-		combined = append(combined, leading...)
-		combined = append(combined, tail...)
-		out = combined
 	}
 
 	return out

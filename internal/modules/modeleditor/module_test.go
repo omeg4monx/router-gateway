@@ -306,3 +306,68 @@ func TestModelEditorCRUDValidationAndDryRunPreview(t *testing.T) {
 		t.Fatalf("unexpected preview result: %+v", prev)
 	}
 }
+
+func TestModelEditorFinalReviewFindings(t *testing.T) {
+	env := setupModelEditorTest(t)
+
+	// Finding #4: Invalid glob pattern must be rejected; valid slash-agnostic glob matches provider/model.
+	badRec := doJSON(t, env.router, http.MethodPost, "/api/modeleditor/overrides", map[string]any{
+		"name":          "Bad Glob",
+		"model_pattern": "gpt-[4",
+	})
+	if badRec.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 for malformed glob pattern, got %d", badRec.Code)
+	}
+
+	temp := 0.3
+	okRec := doJSON(t, env.router, http.MethodPost, "/api/modeleditor/overrides", map[string]any{
+		"name":                 "Claude Family",
+		"model_pattern":        "*claude*",
+		"system_prompt_prefix": "[P]",
+		"temperature":          temp,
+		"extra_params":         map[string]any{"generationConfig": map[string]any{"seed": 7}},
+	})
+	if okRec.Code != http.StatusCreated {
+		t.Fatalf("create override: status %d body %s", okRec.Code, okRec.Body.String())
+	}
+
+	// Slash-containing model name matches *claude*.
+	// Finding #5: OpenAI developer role with array content wraps in-place instead of prepending duplicate system message.
+	devReq := &contracts.CanonicalRequest{
+		RequestID: "req-dev",
+		Protocol:  "openai-chat",
+		Model:     "anthropic/claude-sonnet-4",
+		Body:      []byte(`{"model":"anthropic/claude-sonnet-4","messages":[{"role":"developer","content":[{"type":"text","text":"Dev rules"}]},{"role":"user","content":"hi"}]}`),
+		Metadata:  make(map[string]any),
+	}
+	if err := env.mod.OnRequest(context.Background(), devReq); err != nil {
+		t.Fatalf("OnRequest dev: %v", err)
+	}
+	var devOut map[string]any
+	_ = json.Unmarshal(devReq.Body, &devOut)
+	msgs := devOut["messages"].([]any)
+	if len(msgs) != 2 {
+		t.Fatalf("expected developer message wrapped in-place (len 2), got len %d: %s", len(msgs), devReq.Body)
+	}
+
+	// Finding #5: Gemini system_instruction & generationConfig deep-merge with extra_params.
+	gemReq := &contracts.CanonicalRequest{
+		RequestID: "req-gem",
+		Protocol:  "gemini",
+		Model:     "google/claude-bridge",
+		Body:      []byte(`{"system_instruction":{"parts":[{"text":"Base"}]},"contents":[{"role":"user","parts":[{"text":"hi"}]}]}`),
+		Metadata:  make(map[string]any),
+	}
+	if err := env.mod.OnRequest(context.Background(), gemReq); err != nil {
+		t.Fatalf("OnRequest gem: %v", err)
+	}
+	var gemOut map[string]any
+	_ = json.Unmarshal(gemReq.Body, &gemOut)
+	if _, dup := gemOut["systemInstruction"]; dup {
+		t.Fatalf("expected existing system_instruction to be updated in place without duplicate systemInstruction: %s", gemReq.Body)
+	}
+	gc := gemOut["generationConfig"].(map[string]any)
+	if gc["temperature"] != 0.3 || gc["seed"] != float64(7) {
+		t.Fatalf("expected generationConfig deep-merged (temperature=0.3 & seed=7), got %+v", gc)
+	}
+}

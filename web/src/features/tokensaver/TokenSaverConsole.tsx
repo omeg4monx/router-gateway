@@ -100,8 +100,18 @@ export function TokenSaverConsole() {
     configQuery.error?.message ??
     statsQuery.error?.message ??
     updateConfig.error?.message ??
+    resetStats.error?.message ??
+    clearCache.error?.message ??
     previewMutation.error?.message ??
     previewErr;
+
+  const formFirstErr =
+    form.formState.errors.max_history_messages?.message ??
+    form.formState.errors.max_tool_output_chars?.message ??
+    form.formState.errors.prefix_depth?.message ??
+    form.formState.errors.max_cache_entries?.message ??
+    form.formState.errors.cache_ttl_seconds?.message ??
+    null;
 
   return (
     <div className="space-y-6">
@@ -174,7 +184,7 @@ export function TokenSaverConsole() {
         <Card className="p-4">
           <p className="text-xs text-[var(--text-secondary)]">Estimated Tokens Saved</p>
           <p className="mt-1 font-mono text-2xl font-semibold text-[var(--text-primary)]">
-            {stats?.compression.estimated_tokens_saved ?? 0}
+            {statsQuery.isLoading ? "..." : (stats?.compression.estimated_tokens_saved ?? 0)}
           </p>
           <p className="mt-1 font-mono text-xs text-[var(--text-secondary)]">
             {stats?.compression.bytes_saved ?? 0} bytes across{" "}
@@ -184,7 +194,7 @@ export function TokenSaverConsole() {
         <Card className="p-4">
           <p className="text-xs text-[var(--text-secondary)]">Headroom Hit Rate</p>
           <p className="mt-1 font-mono text-2xl font-semibold text-[var(--accent-primary)]">
-            {hitRatePct}
+            {statsQuery.isLoading ? "..." : hitRatePct}
           </p>
           <p className="mt-1 font-mono text-xs text-[var(--text-secondary)]">
             {stats?.headroom.cache_hits ?? 0} hits / {stats?.headroom.cache_misses ?? 0} misses
@@ -193,14 +203,16 @@ export function TokenSaverConsole() {
         <Card className="p-4">
           <p className="text-xs text-[var(--text-secondary)]">Active LRU Prefixes</p>
           <p className="mt-1 font-mono text-2xl font-semibold text-[var(--text-primary)]">
-            {stats?.headroom.active_entries ?? 0} / {stats?.headroom.max_entries ?? 1024}
+            {statsQuery.isLoading
+              ? "..."
+              : `${stats?.headroom.active_entries ?? 0} / ${stats?.headroom.max_entries ?? 1024}`}
           </p>
           <p className="mt-1 text-xs text-[var(--text-secondary)]">Bounded low-RAM cache</p>
         </Card>
         <Card className="p-4">
           <p className="text-xs text-[var(--text-secondary)]">Requests Processed</p>
           <p className="mt-1 font-mono text-2xl font-semibold text-[var(--text-primary)]">
-            {stats?.compression.requests_processed ?? 0}
+            {statsQuery.isLoading ? "..." : (stats?.compression.requests_processed ?? 0)}
           </p>
           <p className="mt-1 text-xs text-[var(--text-secondary)]">Active interceptor counter</p>
         </Card>
@@ -244,7 +256,7 @@ export function TokenSaverConsole() {
                 <Label htmlFor="ts-strategy">Compression Strategy</Label>
                 <select
                   id="ts-strategy"
-                  className="h-10 w-full rounded-md border border-[var(--border-default)] bg-[var(--bg-muted)] px-3 text-sm text-[var(--text-primary)]"
+                  className="h-10 w-full rounded-md border border-[var(--border-strong)] bg-[var(--bg-input)] px-3 text-sm text-[var(--text-primary)]"
                   {...form.register("strategy")}
                 >
                   {TOKEN_SAVER_STRATEGIES.map((s) => (
@@ -296,7 +308,11 @@ export function TokenSaverConsole() {
               </div>
             </div>
 
-            <Button type="submit" disabled={updateConfig.isPending}>
+            {formFirstErr ? (
+              <p className="text-xs text-[var(--accent-primary)]">{formFirstErr}</p>
+            ) : null}
+
+            <Button type="submit" disabled={updateConfig.isPending || configQuery.isLoading}>
               {updateConfig.isPending ? "Saving..." : "Save Configuration"}
             </Button>
           </form>
@@ -313,7 +329,7 @@ export function TokenSaverConsole() {
               rows={5}
               value={previewJson}
               onChange={(e) => setPreviewJson(e.target.value)}
-              className="w-full rounded-md border border-[var(--border-default)] bg-[var(--bg-muted)] p-3 font-mono text-xs text-[var(--text-primary)]"
+              className="w-full rounded-md border border-[var(--border-strong)] bg-[var(--bg-input)] p-3 font-mono text-xs text-[var(--text-primary)]"
             />
             <Button
               type="button"
@@ -325,7 +341,7 @@ export function TokenSaverConsole() {
               Test Compression
             </Button>
             {previewMutation.data ? (
-              <div className="space-y-2 rounded-md border border-[var(--border-default)] bg-[var(--bg-muted)] p-3 font-mono text-xs">
+              <div className="space-y-2 rounded-md border border-[var(--border-subtle)] bg-[var(--bg-surface-raised)] p-3 font-mono text-xs">
                 <div className="flex flex-wrap gap-2">
                   <Badge variant="secondary">
                     Saved {previewMutation.data.bytes_saved} B (~
@@ -346,7 +362,9 @@ export function TokenSaverConsole() {
         <CardHeader className="p-0 pb-4">
           <CardTitle className="text-base">Warm Headroom Prefixes</CardTitle>
         </CardHeader>
-        {(stats?.headroom.warm_prefixes ?? []).length === 0 ? (
+        {statsQuery.isLoading ? (
+          <p className="text-sm text-[var(--text-secondary)]">Loading Headroom prefix cache...</p>
+        ) : (stats?.headroom.warm_prefixes ?? []).length === 0 ? (
           <p className="text-sm text-[var(--text-secondary)]">
             No warm prefix affinity entries yet. Send repeated prompts to populate Headroom cache.
           </p>
@@ -355,7 +373,7 @@ export function TokenSaverConsole() {
             {(stats?.headroom.warm_prefixes ?? []).map((p) => (
               <div
                 key={p.key}
-                className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-[var(--border-default)] bg-[var(--bg-muted)] px-4 py-2.5 font-mono text-xs"
+                className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-[var(--border-subtle)] bg-[var(--bg-surface-raised)] px-4 py-2.5 font-mono text-xs"
               >
                 <div className="flex flex-wrap items-center gap-2">
                   <Badge variant="outline">{p.key}</Badge>

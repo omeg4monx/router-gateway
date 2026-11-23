@@ -141,8 +141,16 @@ func (m *Module) OnRequest(ctx context.Context, req *contracts.CanonicalRequest)
 		return nil
 	}
 
-	sanitize := cfg.Mode == ModeSanitize
-	outBody, hits, snippet := inspectAndMaybeSanitizeBody(req.Body, cfg, rules, sanitize)
+	outBody, hits, snippet, invalidJSON := inspectAndMaybeSanitizeBody(req.Body, cfg, rules)
+	if invalidJSON {
+		if cfg.Mode == ModeBlock {
+			return httpStatusError{
+				code: http.StatusBadRequest,
+				msg:  "prompt guard rejected non-object JSON payload",
+			}
+		}
+		return nil
+	}
 	if len(hits) == 0 {
 		if req.Metadata != nil {
 			req.Metadata["prompt_guard_action"] = "pass"
@@ -150,8 +158,14 @@ func (m *Module) OnRequest(ctx context.Context, req *contracts.CanonicalRequest)
 		return nil
 	}
 
+	action := highestAction(hits)
 	topHit := hits[0]
-	action := cfg.Mode
+	for _, h := range hits {
+		if h.Action == action {
+			topHit = h
+			break
+		}
+	}
 	if req.Metadata != nil {
 		req.Metadata["prompt_guard_action"] = action
 		req.Metadata["prompt_guard_rule"] = topHit.RuleName
@@ -434,10 +448,7 @@ func (m *Module) handleTest(w http.ResponseWriter, r *http.Request) {
 	}
 
 	sanitized, hits := evaluateText(body.Text, cfg, rules)
-	action := "pass"
-	if len(hits) > 0 {
-		action = cfg.Mode
-	}
+	action := highestAction(hits)
 	httpserver.WriteJSON(w, http.StatusOK, TestResult{
 		Matched:       len(hits) > 0,
 		Action:        action,
