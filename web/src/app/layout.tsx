@@ -1,9 +1,22 @@
-import { GeistMono } from "geist/font/mono";
-import { GeistSans } from "geist/font/sans";
 import type { Metadata } from "next";
+import { JetBrains_Mono, Plus_Jakarta_Sans } from "next/font/google";
 import type { ReactNode } from "react";
 import { QueryProvider } from "@/shared/api/QueryProvider";
 import "./globals.css";
+
+const plusJakartaSans = Plus_Jakarta_Sans({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-ui-sans",
+  display: "swap",
+});
+
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ["latin"],
+  weight: ["400", "500", "600"],
+  variable: "--font-ui-mono",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: "OMEG4MON ROUTER",
@@ -22,7 +35,7 @@ export default function RootLayout({ children }: RootLayoutProps) {
       lang="en"
       data-theme="light"
       data-locale="en"
-      className={`${GeistSans.variable} ${GeistMono.variable}`}
+      className={`${plusJakartaSans.variable} ${jetbrainsMono.variable}`}
       suppressHydrationWarning
     >
       <head>
