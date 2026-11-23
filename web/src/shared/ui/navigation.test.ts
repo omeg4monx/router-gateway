@@ -1,24 +1,23 @@
 import { describe, expect, test } from "bun:test";
 import {
   ALL_NAV_ITEMS,
-  filterNavGroups,
+  countVisibleNavItems,
+  EXTENSION_GROUPS,
   findActiveNavContext,
   getShellCopy,
   isNavItemActive,
-  NAV_GROUPS,
   normalizeRoute,
+  resolveVisibleNavigation,
 } from "./navigation";
 
-describe("shared/ui/navigation", () => {
-  test("preserves all 27 dashboard routes across 6 operational categories with unique trailing-slash hrefs and expanded defaults", () => {
-    expect(NAV_GROUPS).toHaveLength(6);
+describe("shared/ui/navigation (main LeftRail layout parity)", () => {
+  test("preserves all 27 dashboard routes with unique trailing-slash hrefs and expanded accordions", () => {
     expect(ALL_NAV_ITEMS).toHaveLength(27);
-    expect(NAV_GROUPS.every((group) => group.defaultExpanded)).toBe(true);
+    expect(EXTENSION_GROUPS).toHaveLength(2);
+    expect(EXTENSION_GROUPS.every((group) => group.defaultExpanded)).toBe(true);
 
     const hrefs = ALL_NAV_ITEMS.map((item) => item.href);
     expect(new Set(hrefs).size).toBe(27);
-    expect(hrefs).not.toContain("/login/");
-    expect(hrefs).not.toContain("/init/");
     for (const href of hrefs) {
       expect(href.startsWith("/dashboard/")).toBe(true);
       expect(href.endsWith("/")).toBe(true);
@@ -31,25 +30,43 @@ describe("shared/ui/navigation", () => {
     expect(isNavItemActive("/dashboard/providers/", "/dashboard/")).toBe(false);
     expect(isNavItemActive("/dashboard/providers/detail/", "/dashboard/providers/")).toBe(true);
 
-    const ctx = findActiveNavContext("/dashboard/providers/detail/");
-    expect(ctx?.item.href).toBe("/dashboard/providers/");
-    expect(ctx?.group.id).toBe("routing");
+    const providerCtx = findActiveNavContext("/dashboard/providers/detail/");
+    expect(providerCtx?.item.href).toBe("/dashboard/providers/");
+    expect(providerCtx?.sectionLabel.en).toBe("Routing");
+
+    const pluginCtx = findActiveNavContext("/dashboard/plugins/");
+    expect(pluginCtx?.accordionId).toBe("features");
   });
 
   test("filters menu items across English labels, Indonesian labels, and keywords", () => {
-    expect(filterNavGroups("", "en")).toHaveLength(6);
+    const all = resolveVisibleNavigation({ query: "" });
+    expect(countVisibleNavItems(all)).toBe(27);
 
-    const byEn = filterNavGroups("token saver", "en");
-    expect(byEn.flatMap((g) => g.items).map((i) => i.href)).toEqual(["/dashboard/token-saver/"]);
+    const byEn = resolveVisibleNavigation({ query: "token saver" });
+    expect(byEn.operations.map((i) => i.href)).toEqual(["/dashboard/token-saver/"]);
 
-    const byId = filterNavGroups("pengaturan", "id");
-    expect(byId.flatMap((g) => g.items).map((i) => i.href)).toContain("/dashboard/settings/");
+    const byId = resolveVisibleNavigation({ query: "pengaturan" });
+    expect(byId.settings?.href).toBe("/dashboard/settings/");
 
-    const byKeyword = filterNavGroups("bot", "en");
-    expect(byKeyword.flatMap((g) => g.items).map((i) => i.href)).toContain("/dashboard/telegram/");
+    const byKeyword = resolveVisibleNavigation({ query: "bot" });
+    expect(byKeyword.extensions.flatMap((g) => g.items).map((i) => i.href)).toContain(
+      "/dashboard/telegram/",
+    );
 
-    const none = filterNavGroups("nonexistent-xyz-query", "en");
-    expect(none).toHaveLength(0);
+    const none = resolveVisibleNavigation({ query: "nonexistent-xyz-query" });
+    expect(countVisibleNavItems(none)).toBe(0);
+  });
+
+  test("hides items whose backend moduleId is not registered in /api/health", () => {
+    const restricted = resolveVisibleNavigation({
+      query: "",
+      registeredModules: ["system", "providers", "keys", "settings"],
+    });
+
+    expect(restricted.routing.map((i) => i.href)).toEqual(["/dashboard/", "/dashboard/providers/"]);
+    expect(restricted.operations.map((i) => i.href)).toEqual(["/dashboard/keys/"]);
+    expect(restricted.extensions).toHaveLength(0);
+    expect(restricted.settings?.href).toBe("/dashboard/settings/");
   });
 
   test("provides localized shell copy for en and id", () => {

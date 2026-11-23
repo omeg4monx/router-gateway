@@ -18,7 +18,6 @@ import {
   Server,
   Shield,
   ShieldAlert,
-  ShieldCheck,
   Sliders,
   SlidersHorizontal,
   Sparkles,
@@ -32,255 +31,252 @@ import {
 } from "lucide-react";
 import type { UILocale } from "@/shared/store/uiStore";
 
-export type NavGroupId = "core" | "routing" | "network" | "access" | "workspace" | "system";
+export type NavAccordionId = "features" | "system";
 
 export interface NavItem {
   href: string;
+  moduleId: string;
   icon: typeof Activity;
   labels: Record<UILocale, string>;
   keywords: readonly string[];
 }
 
-export interface NavGroup {
-  id: NavGroupId;
+export interface NavAccordionGroup {
+  id: NavAccordionId;
   icon: typeof Activity;
   labels: Record<UILocale, string>;
   defaultExpanded: boolean;
   items: readonly NavItem[];
 }
 
-export const NAV_GROUPS: readonly NavGroup[] = [
+export interface MainNavLayout {
+  routing: readonly NavItem[];
+  operations: readonly NavItem[];
+  extensions: readonly NavAccordionGroup[];
+  settings: NavItem | null;
+}
+
+export const ROUTING_ITEMS: readonly NavItem[] = [
   {
-    id: "core",
+    href: "/dashboard/",
+    moduleId: "system",
     icon: Activity,
-    labels: {
-      en: "Core & Monitoring",
-      id: "Inti & Pemantauan",
-    },
-    defaultExpanded: true,
-    items: [
-      {
-        href: "/dashboard/",
-        icon: Activity,
-        labels: { en: "System Overview", id: "Ringkasan Sistem" },
-        keywords: ["home", "status", "health", "monitor", "dashboard", "utama"],
-      },
-      {
-        href: "/dashboard/usage/",
-        icon: Cpu,
-        labels: { en: "Usage & Telemetry", id: "Penggunaan & Telemetri" },
-        keywords: ["billing", "cost", "metrics", "tokens", "analytics", "biaya", "statistik"],
-      },
-      {
-        href: "/dashboard/notifications/",
-        icon: Bell,
-        labels: { en: "Notifications & Jobs", id: "Notifikasi & Tugas" },
-        keywords: ["alerts", "cron", "background", "events", "peringatan"],
-      },
-    ],
+    labels: { en: "Overview", id: "Ringkasan" },
+    keywords: ["endpoint", "home", "status", "health", "monitor", "dashboard", "utama"],
   },
   {
-    id: "routing",
+    href: "/dashboard/providers/",
+    moduleId: "providers",
+    icon: Server,
+    labels: { en: "Providers", id: "Provider" },
+    keywords: ["openai", "anthropic", "gemini", "upstream", "oauth", "koneksi"],
+  },
+  {
+    href: "/dashboard/models/",
+    moduleId: "combos",
     icon: Layers,
-    labels: {
-      en: "Routing & Providers",
-      id: "Rute & Provider",
-    },
-    defaultExpanded: true,
-    items: [
-      {
-        href: "/dashboard/providers/",
-        icon: Server,
-        labels: { en: "Providers", id: "Provider" },
-        keywords: ["openai", "anthropic", "gemini", "upstream", "oauth", "koneksi"],
-      },
-      {
-        href: "/dashboard/models/",
-        icon: Layers,
-        labels: { en: "Models & Routing", id: "Model & Routing" },
-        keywords: ["combos", "aliases", "fallback", "failover", "rute"],
-      },
-      {
-        href: "/dashboard/model-editor/",
-        icon: Sliders,
-        labels: { en: "Model Editor", id: "Editor Model" },
-        keywords: ["overrides", "temperature", "params", "tuning", "parameter"],
-      },
-      {
-        href: "/dashboard/translator/",
-        icon: ArrowRightLeft,
-        labels: { en: "Translator", id: "Penerjemah Protokol" },
-        keywords: ["protocol", "format", "convert", "openai", "anthropic", "konversi"],
-      },
-      {
-        href: "/dashboard/token-saver/",
-        icon: Zap,
-        labels: { en: "Token Saver", id: "Penghemat Token" },
-        keywords: ["compress", "cache", "headroom", "hemat", "optimasi"],
-      },
-    ],
+    labels: { en: "Combos & Models", id: "Combo & Model" },
+    keywords: ["combos", "models", "routing", "aliases", "fallback", "failover", "rute"],
+  },
+];
+
+export const OPERATIONS_ITEMS: readonly NavItem[] = [
+  {
+    href: "/dashboard/keys/",
+    moduleId: "keys",
+    icon: KeyRound,
+    labels: { en: "API Keys", id: "Kunci API" },
+    keywords: ["tokens", "credentials", "quota", "rate limit", "kunci"],
   },
   {
-    id: "network",
-    icon: Network,
-    labels: {
-      en: "Network & Gateway",
-      id: "Jaringan & Gateway",
-    },
-    defaultExpanded: true,
-    items: [
-      {
-        href: "/dashboard/proxy-pools/",
-        icon: Network,
-        labels: { en: "Proxy Pools", id: "Pool Proxy" },
-        keywords: ["http", "socks5", "egress", "ip", "jaringan"],
-      },
-      {
-        href: "/dashboard/media/",
-        icon: Image,
-        labels: { en: "Media Gateway", id: "Gateway Media" },
-        keywords: ["images", "vision", "audio", "files", "gambar"],
-      },
-      {
-        href: "/dashboard/tunnel/",
-        icon: Radio,
-        labels: { en: "Tunnel", id: "Tunnel" },
-        keywords: ["cloudflare", "tailscale", "expose", "remote", "terowongan"],
-      },
-      {
-        href: "/dashboard/mitm/",
-        icon: Shield,
-        labels: { en: "MITM Proxy", id: "Proxy MITM" },
-        keywords: ["intercept", "tls", "ca", "certificate", "sertifikat"],
-      },
-      {
-        href: "/dashboard/pxpipe/",
-        icon: Workflow,
-        labels: { en: "PXPIPE", id: "Pipeline PXPIPE" },
-        keywords: ["pipeline", "middleware", "transform", "alur"],
-      },
-    ],
+    href: "/dashboard/usage/",
+    moduleId: "usage",
+    icon: Cpu,
+    labels: { en: "Usage", id: "Penggunaan" },
+    keywords: ["telemetry", "billing", "cost", "metrics", "tokens", "analytics", "biaya"],
   },
   {
-    id: "access",
-    icon: ShieldCheck,
-    labels: {
-      en: "Access & Security",
-      id: "Akses & Keamanan",
-    },
+    href: "/dashboard/token-saver/",
+    moduleId: "tokensaver",
+    icon: Zap,
+    labels: { en: "Token Saver", id: "Penghemat Token" },
+    keywords: ["compress", "cache", "headroom", "hemat", "optimasi"],
+  },
+  {
+    href: "/dashboard/cli-tools/",
+    moduleId: "clitools",
+    icon: Terminal,
+    labels: { en: "CLI Tools", id: "Alat CLI" },
+    keywords: ["claude", "codex", "cursor", "setup", "terminal"],
+  },
+  {
+    href: "/dashboard/vouchers/",
+    moduleId: "vouchers",
+    icon: Ticket,
+    labels: { en: "Vouchers", id: "Voucher" },
+    keywords: ["redeem", "credits", "codes", "kupon", "kredit"],
+  },
+];
+
+export const EXTENSION_GROUPS: readonly NavAccordionGroup[] = [
+  {
+    id: "features",
+    icon: Sparkles,
+    labels: { en: "Features", id: "Fitur" },
     defaultExpanded: true,
     items: [
-      {
-        href: "/dashboard/keys/",
-        icon: KeyRound,
-        labels: { en: "API Keys", id: "Kunci API" },
-        keywords: ["tokens", "credentials", "quota", "rate limit", "kunci"],
-      },
       {
         href: "/dashboard/teams/",
+        moduleId: "teams",
         icon: Users,
         labels: { en: "Teams", id: "Tim" },
         keywords: ["org", "members", "budget", "quota", "anggota"],
       },
       {
-        href: "/dashboard/vouchers/",
-        icon: Ticket,
-        labels: { en: "Vouchers", id: "Voucher" },
-        keywords: ["redeem", "credits", "codes", "kupon", "kredit"],
+        href: "/dashboard/arena/",
+        moduleId: "arena",
+        icon: Swords,
+        labels: { en: "Compare Models", id: "Arena Model" },
+        keywords: ["arena", "battle", "compare", "benchmark", "eval", "banding"],
       },
-      {
-        href: "/dashboard/prompt-guard/",
-        icon: ShieldAlert,
-        labels: { en: "Prompt Guard", id: "Pelindung Prompt" },
-        keywords: ["injection", "firewall", "safety", "filter", "keamanan"],
-      },
-      {
-        href: "/dashboard/security/",
-        icon: Lock,
-        labels: { en: "Security", id: "Keamanan" },
-        keywords: ["audit", "logs", "policy", "compliance", "keamanan"],
-      },
-    ],
-  },
-  {
-    id: "workspace",
-    icon: Sparkles,
-    labels: {
-      en: "Workspace & Studios",
-      id: "Ruang Kerja & Studio",
-    },
-    defaultExpanded: true,
-    items: [
       {
         href: "/dashboard/chat/",
+        moduleId: "arena",
         icon: MessageSquare,
         labels: { en: "Basic Chat", id: "Obrolan Dasar" },
         keywords: ["playground", "prompt", "test", "messages", "chat"],
       },
       {
-        href: "/dashboard/arena/",
-        icon: Swords,
-        labels: { en: "Model Arena", id: "Arena Model" },
-        keywords: ["battle", "compare", "benchmark", "eval", "banding"],
+        href: "/dashboard/model-editor/",
+        moduleId: "modeleditor",
+        icon: Sliders,
+        labels: { en: "Custom Models", id: "Editor Model" },
+        keywords: ["overrides", "bypass", "temperature", "params", "tuning", "parameter"],
       },
       {
-        href: "/dashboard/telegram/",
-        icon: Send,
-        labels: { en: "Telegram Bot", id: "Bot Telegram" },
-        keywords: ["bot", "messaging", "webhook", "chat"],
+        href: "/dashboard/prompt-guard/",
+        moduleId: "promptinjection",
+        icon: ShieldAlert,
+        labels: { en: "Prompt Guard", id: "Pelindung Prompt" },
+        keywords: ["injection", "firewall", "safety", "filter", "keamanan"],
       },
       {
         href: "/dashboard/plugins/",
+        moduleId: "plugins",
         icon: Puzzle,
         labels: { en: "Plugins", id: "Plugin" },
         keywords: ["extensions", "addons", "modules", "ekstensi"],
       },
       {
         href: "/dashboard/skills/",
+        moduleId: "plugins",
         icon: BookOpen,
         labels: { en: "Skills", id: "Skill" },
         keywords: ["agents", "prompts", "playbooks", "panduan"],
+      },
+      {
+        href: "/dashboard/telegram/",
+        moduleId: "telegram",
+        icon: Send,
+        labels: { en: "Telegram Bot", id: "Bot Telegram" },
+        keywords: ["bot", "messaging", "webhook", "chat"],
       },
     ],
   },
   {
     id: "system",
     icon: Wrench,
-    labels: {
-      en: "System & Tools",
-      id: "Sistem & Utilitas",
-    },
+    labels: { en: "System", id: "Sistem" },
     defaultExpanded: true,
     items: [
       {
+        href: "/dashboard/media/",
+        moduleId: "media",
+        icon: Image,
+        labels: { en: "Media Gateway", id: "Gateway Media" },
+        keywords: ["images", "vision", "audio", "video", "web", "search", "gambar"],
+      },
+      {
+        href: "/dashboard/translator/",
+        moduleId: "translator",
+        icon: ArrowRightLeft,
+        labels: { en: "Translator", id: "Penerjemah" },
+        keywords: ["protocol", "format", "convert", "console", "openai", "anthropic"],
+      },
+      {
+        href: "/dashboard/proxy-pools/",
+        moduleId: "proxypools",
+        icon: Network,
+        labels: { en: "Proxy Pools", id: "Pool Proxy" },
+        keywords: ["http", "socks5", "egress", "ip", "jaringan"],
+      },
+      {
+        href: "/dashboard/tunnel/",
+        moduleId: "tunnel",
+        icon: Radio,
+        labels: { en: "Tunnel", id: "Tunnel" },
+        keywords: ["cloudflare", "tailscale", "expose", "remote", "terowongan"],
+      },
+      {
+        href: "/dashboard/mitm/",
+        moduleId: "mitm",
+        icon: Shield,
+        labels: { en: "MITM Proxy", id: "Proxy MITM" },
+        keywords: ["intercept", "tls", "ca", "certificate", "sertifikat"],
+      },
+      {
+        href: "/dashboard/pxpipe/",
+        moduleId: "pxpipe",
+        icon: Workflow,
+        labels: { en: "PXPIPE", id: "Pipeline PXPIPE" },
+        keywords: ["pipeline", "middleware", "transform", "alur"],
+      },
+      {
+        href: "/dashboard/security/",
+        moduleId: "security",
+        icon: Lock,
+        labels: { en: "Security", id: "Keamanan" },
+        keywords: ["audit", "logs", "policy", "compliance", "keamanan"],
+      },
+      {
+        href: "/dashboard/notifications/",
+        moduleId: "notifications",
+        icon: Bell,
+        labels: { en: "Notifications & Jobs", id: "Notifikasi & Tugas" },
+        keywords: ["alerts", "cron", "background", "events", "peringatan"],
+      },
+      {
         href: "/dashboard/cloud-sync/",
+        moduleId: "cloudsync",
         icon: Cloud,
         labels: { en: "Cloud Sync", id: "Sinkronisasi Cloud" },
         keywords: ["backup", "snapshot", "restore", "cadangan"],
       },
       {
         href: "/dashboard/importer/",
+        moduleId: "importer",
         icon: Database,
         labels: { en: "Legacy Importer", id: "Impor Data Lama" },
         keywords: ["migrate", "import", "sqlite", "migrasi"],
-      },
-      {
-        href: "/dashboard/cli-tools/",
-        icon: Terminal,
-        labels: { en: "CLI Tools", id: "Alat CLI" },
-        keywords: ["claude", "codex", "cursor", "setup", "terminal"],
-      },
-      {
-        href: "/dashboard/settings/",
-        icon: SlidersHorizontal,
-        labels: { en: "Settings", id: "Pengaturan" },
-        keywords: ["config", "preferences", "password", "locale", "theme", "konfigurasi"],
       },
     ],
   },
 ];
 
-export const ALL_NAV_ITEMS: readonly NavItem[] = NAV_GROUPS.flatMap((group) => group.items);
+export const SETTINGS_NAV_ITEM: NavItem = {
+  href: "/dashboard/settings/",
+  moduleId: "settings",
+  icon: SlidersHorizontal,
+  labels: { en: "Settings", id: "Pengaturan" },
+  keywords: ["config", "preferences", "password", "locale", "theme", "konfigurasi"],
+};
+
+export const ALL_NAV_ITEMS: readonly NavItem[] = [
+  ...ROUTING_ITEMS,
+  ...OPERATIONS_ITEMS,
+  ...EXTENSION_GROUPS.flatMap((group) => group.items),
+  SETTINGS_NAV_ITEM,
+];
 
 export function normalizeRoute(path: string): string {
   const trimmed = path.trim();
@@ -300,53 +296,107 @@ export function isNavItemActive(normalizedPathname: string, itemHref: string): b
 }
 
 export interface ActiveNavContext {
-  group: NavGroup;
+  sectionLabel: Record<UILocale, string>;
+  accordionId?: NavAccordionId;
   item: NavItem;
 }
 
 export function findActiveNavContext(pathname: string): ActiveNavContext | null {
   const normalized = normalizeRoute(pathname);
-  for (const group of NAV_GROUPS) {
+
+  for (const item of ROUTING_ITEMS) {
+    if (isNavItemActive(normalized, item.href)) {
+      return { sectionLabel: { en: "Routing", id: "Routing" }, item };
+    }
+  }
+  for (const item of OPERATIONS_ITEMS) {
+    if (isNavItemActive(normalized, item.href)) {
+      return { sectionLabel: { en: "Operations", id: "Operasional" }, item };
+    }
+  }
+  for (const group of EXTENSION_GROUPS) {
     for (const item of group.items) {
       if (isNavItemActive(normalized, item.href)) {
-        return { group, item };
+        return { sectionLabel: group.labels, accordionId: group.id, item };
       }
     }
+  }
+  if (isNavItemActive(normalized, SETTINGS_NAV_ITEM.href)) {
+    return { sectionLabel: { en: "System", id: "Sistem" }, item: SETTINGS_NAV_ITEM };
   }
   return null;
 }
 
-export function filterNavGroups(query: string, _locale: UILocale): NavGroup[] {
-  const normalizedQuery = query.trim().toLowerCase();
-  if (!normalizedQuery) {
-    return [...NAV_GROUPS];
+function itemMatchesQuery(item: NavItem, terms: readonly string[], extraHaystack = ""): boolean {
+  if (terms.length === 0) {
+    return true;
   }
+  const haystack =
+    `${item.labels.en} ${item.labels.id} ${item.href} ${item.keywords.join(" ")} ${extraHaystack}`.toLowerCase();
+  return terms.every((term) => haystack.includes(term));
+}
 
-  const terms = normalizedQuery.split(/\s+/).filter(Boolean);
-  const filtered: NavGroup[] = [];
+function isModuleRegistered(item: NavItem, registeredModules: ReadonlySet<string> | null): boolean {
+  if (!registeredModules) {
+    return true;
+  }
+  return registeredModules.has(item.moduleId);
+}
 
-  for (const group of NAV_GROUPS) {
-    const groupHaystack = `${group.labels.en} ${group.labels.id}`.toLowerCase();
-    const matchingItems = group.items.filter((item) => {
-      const itemHaystack =
-        `${item.labels.en} ${item.labels.id} ${item.href} ${item.keywords.join(" ")} ${groupHaystack}`.toLowerCase();
-      return terms.every((term) => itemHaystack.includes(term));
-    });
+export function resolveVisibleNavigation(options: {
+  query: string;
+  registeredModules?: readonly string[] | null;
+}): MainNavLayout {
+  const terms = options.query.trim().toLowerCase().split(/\s+/).filter(Boolean);
 
-    if (matchingItems.length > 0) {
-      filtered.push({
-        ...group,
-        items: matchingItems,
-      });
+  const moduleSet =
+    options.registeredModules && options.registeredModules.length > 0
+      ? new Set(options.registeredModules)
+      : null;
+
+  const filterList = (items: readonly NavItem[], extra = "") =>
+    items.filter(
+      (item) => isModuleRegistered(item, moduleSet) && itemMatchesQuery(item, terms, extra),
+    );
+
+  const routing = filterList(ROUTING_ITEMS, "routing");
+  const operations = filterList(OPERATIONS_ITEMS, "operations operasional");
+  const extensions: NavAccordionGroup[] = [];
+
+  for (const group of EXTENSION_GROUPS) {
+    const matching = filterList(group.items, `${group.labels.en} ${group.labels.id} extensions`);
+    if (matching.length > 0) {
+      extensions.push({ ...group, items: matching });
     }
   }
 
-  return filtered;
+  const settingsVisible =
+    isModuleRegistered(SETTINGS_NAV_ITEM, moduleSet) &&
+    itemMatchesQuery(SETTINGS_NAV_ITEM, terms, "system sistem settings pengaturan");
+
+  return {
+    routing,
+    operations,
+    extensions,
+    settings: settingsVisible ? SETTINGS_NAV_ITEM : null,
+  };
+}
+
+export function countVisibleNavItems(layout: MainNavLayout): number {
+  return (
+    layout.routing.length +
+    layout.operations.length +
+    layout.extensions.reduce((sum, group) => sum + group.items.length, 0) +
+    (layout.settings ? 1 : 0)
+  );
 }
 
 export interface ShellCopy {
   controlPlane: string;
   fallbackTitle: string;
+  sectionRouting: string;
+  sectionOperations: string;
+  sectionExtensions: string;
   searchPlaceholder: string;
   quickSearchLabel: string;
   clearSearchLabel: string;
@@ -374,6 +424,9 @@ const SHELL_COPY: Record<UILocale, ShellCopy> = {
   en: {
     controlPlane: "Control Plane",
     fallbackTitle: "Gateway Monitor",
+    sectionRouting: "Routing",
+    sectionOperations: "Operations",
+    sectionExtensions: "Extensions",
     searchPlaceholder: "Search menu...",
     quickSearchLabel: "Search",
     clearSearchLabel: "Clear search",
@@ -399,6 +452,9 @@ const SHELL_COPY: Record<UILocale, ShellCopy> = {
   id: {
     controlPlane: "Control Plane",
     fallbackTitle: "Monitor Gateway",
+    sectionRouting: "Routing",
+    sectionOperations: "Operasional",
+    sectionExtensions: "Ekstensi",
     searchPlaceholder: "Cari menu...",
     quickSearchLabel: "Cari",
     clearSearchLabel: "Hapus pencarian",

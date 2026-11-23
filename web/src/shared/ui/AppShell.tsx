@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  ChevronDown,
   ChevronRight,
   ChevronsDownUp,
   ChevronsUpDown,
@@ -25,13 +24,15 @@ import { CaduceusLogo } from "./CaduceusLogo";
 import { EmberRule } from "./EmberRule";
 import { LocaleToggle } from "./LocaleToggle";
 import {
-  filterNavGroups,
+  countVisibleNavItems,
+  EXTENSION_GROUPS,
   findActiveNavContext,
   getShellCopy,
   isNavItemActive,
-  NAV_GROUPS,
-  type NavGroupId,
+  type NavAccordionId,
+  type NavItem,
   normalizeRoute,
+  resolveVisibleNavigation,
 } from "./navigation";
 import { ThemeToggle } from "./ThemeToggle";
 
@@ -39,13 +40,13 @@ interface AppShellProps {
   children: ReactNode;
 }
 
-function createInitialExpandedGroups(): Record<NavGroupId, boolean> {
-  return NAV_GROUPS.reduce(
+function createInitialExpandedAccordions(): Record<NavAccordionId, boolean> {
+  return EXTENSION_GROUPS.reduce(
     (acc, group) => {
       acc[group.id] = group.defaultExpanded;
       return acc;
     },
-    {} as Record<NavGroupId, boolean>,
+    {} as Record<NavAccordionId, boolean>,
   );
 }
 
@@ -75,8 +76,8 @@ export function AppShell({ children }: AppShellProps) {
   const toggleSidebarCollapsed = useUIStore((state) => state.toggleSidebarCollapsed);
 
   const [searchQuery, setSearchQuery] = useState("");
-  const [expandedGroups, setExpandedGroups] = useState<Record<NavGroupId, boolean>>(
-    createInitialExpandedGroups,
+  const [expandedAccordions, setExpandedAccordions] = useState<Record<NavAccordionId, boolean>>(
+    createInitialExpandedAccordions,
   );
   const desktopSearchRef = useRef<HTMLInputElement>(null);
   const mobileSearchRef = useRef<HTMLInputElement>(null);
@@ -88,14 +89,12 @@ export function AppShell({ children }: AppShellProps) {
     [normalizedPathname],
   );
 
-  // Keep the active route's category expanded automatically on navigation.
   useEffect(() => {
-    if (!activeContext) {
+    const accId = activeContext?.accordionId;
+    if (!accId) {
       return;
     }
-    setExpandedGroups((prev) =>
-      prev[activeContext.group.id] ? prev : { ...prev, [activeContext.group.id]: true },
-    );
+    setExpandedAccordions((prev) => (prev[accId] ? prev : { ...prev, [accId]: true }));
   }, [activeContext]);
 
   const focusSidebarSearch = useCallback(() => {
@@ -159,38 +158,43 @@ export function AppShell({ children }: AppShellProps) {
     });
   };
 
-  const toggleGroup = (groupId: NavGroupId) => {
-    setExpandedGroups((prev) => ({ ...prev, [groupId]: !prev[groupId] }));
+  const toggleAccordion = (id: NavAccordionId) => {
+    setExpandedAccordions((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
-  const expandedCount = useMemo(
-    () => NAV_GROUPS.filter((group) => expandedGroups[group.id]).length,
-    [expandedGroups],
+  const isSearching = searchQuery.trim().length > 0;
+  const visibleNav = useMemo(
+    () =>
+      resolveVisibleNavigation({
+        query: searchQuery,
+        registeredModules: healthQuery.data?.modules ?? null,
+      }),
+    [searchQuery, healthQuery.data?.modules],
   );
-  const allGroupsExpanded = expandedCount === NAV_GROUPS.length;
+  const totalMatches = useMemo(() => countVisibleNavItems(visibleNav), [visibleNav]);
 
-  const handleToggleAllGroups = () => {
-    const nextExpanded = !allGroupsExpanded;
-    setExpandedGroups(
-      NAV_GROUPS.reduce(
+  const expandedCount = useMemo(
+    () => visibleNav.extensions.filter((group) => expandedAccordions[group.id]).length,
+    [expandedAccordions, visibleNav.extensions],
+  );
+  const allAccordionsExpanded =
+    visibleNav.extensions.length > 0 && expandedCount === visibleNav.extensions.length;
+
+  const handleToggleAllAccordions = () => {
+    const nextExpanded = !allAccordionsExpanded;
+    setExpandedAccordions(
+      EXTENSION_GROUPS.reduce(
         (acc, group) => {
           acc[group.id] = nextExpanded;
           return acc;
         },
-        {} as Record<NavGroupId, boolean>,
+        {} as Record<NavAccordionId, boolean>,
       ),
     );
   };
 
-  const isSearching = searchQuery.trim().length > 0;
-  const visibleGroups = useMemo(() => filterNavGroups(searchQuery, locale), [searchQuery, locale]);
-  const totalMatches = useMemo(
-    () => visibleGroups.reduce((sum, group) => sum + group.items.length, 0),
-    [visibleGroups],
-  );
-
   const activeCategoryLabel = activeContext
-    ? activeContext.group.labels[locale]
+    ? activeContext.sectionLabel[locale]
     : copy.controlPlane;
   const activeRouteLabel = activeContext ? activeContext.item.labels[locale] : copy.fallbackTitle;
 
@@ -206,57 +210,128 @@ export function AppShell({ children }: AppShellProps) {
     ? `v${versionQuery.data.version.replace(/^v/i, "")}`
     : "—";
 
+  const renderRailRow = (item: NavItem, compact: boolean) => {
+    const Icon = item.icon;
+    const isActive = isNavItemActive(normalizedPathname, item.href);
+    const label = item.labels[locale];
+
+    return (
+      <Link
+        key={item.href}
+        href={item.href}
+        onClick={closeMobileNav}
+        title={label}
+        aria-label={label}
+        aria-current={isActive ? "page" : undefined}
+        className={cn(
+          "relative flex h-8.5 w-full items-center gap-2.5 rounded-[10px] border transition-[background-color,border-color,color,transform] duration-150 active:scale-[0.98]",
+          compact ? "justify-center px-0" : "px-2.5",
+          isActive
+            ? "border-[var(--color-primary)]/20 bg-[var(--color-primary)]/12 font-medium text-[var(--color-primary)]"
+            : "border-transparent text-[var(--color-text-main)]/80 hover:bg-[var(--color-surface-2)]/80 hover:text-[var(--color-text-main)]",
+        )}
+      >
+        <Icon
+          className={cn(
+            "h-4 w-4 shrink-0",
+            isActive ? "text-[var(--color-primary)]" : "text-[var(--color-text-main)]/70",
+          )}
+          aria-hidden="true"
+        />
+        {!compact ? (
+          <span
+            className={cn(
+              "flex-1 truncate whitespace-nowrap text-[12.5px] leading-none",
+              isActive
+                ? "font-semibold text-[var(--color-primary)]"
+                : "text-[var(--color-text-main)]/85",
+            )}
+          >
+            {label}
+          </span>
+        ) : null}
+        {isActive ? (
+          <span
+            aria-hidden="true"
+            className="absolute left-0 top-1/2 h-4 w-[3px] -translate-y-1/2 rounded-r-full bg-[var(--color-primary)] shadow-[0_0_10px_color-mix(in_srgb,var(--color-primary)_65%,transparent)]"
+          />
+        ) : null}
+      </Link>
+    );
+  };
+
   const renderSidebar = (compact: boolean, surface: "desktop" | "mobile") => {
     const searchInputRef = surface === "mobile" ? mobileSearchRef : desktopSearchRef;
 
     return (
-      <div className="flex h-full flex-col bg-[var(--color-sidebar)] text-[var(--text-primary)] backdrop-blur-sm">
-        {/* Brand header (h-16 aligned with topbar) */}
+      <div className="flex h-full flex-col text-[var(--color-text-main)]">
+        {/* Brand header (main LeftRail parity) */}
         <div
           className={cn(
-            "flex h-16 shrink-0 items-center bg-[var(--bg-surface)]/65",
-            compact ? "justify-center px-3" : "justify-between px-4",
+            "flex h-13 shrink-0 items-center gap-2 border-b border-[var(--color-border-subtle)]/80 px-2.5",
+            compact ? "justify-center" : "justify-between",
           )}
         >
-          <Link
-            href="/dashboard/"
-            className="flex items-center gap-3 rounded-md focus-visible:outline-none"
-            onClick={closeMobileNav}
-            aria-label="OMEG4MON ROUTER Dashboard"
-          >
-            <CaduceusLogo size={26} decorative />
-            {!compact ? (
-              <div className="flex flex-col leading-tight">
-                <span className="text-sm font-semibold tracking-wider text-[var(--text-primary)]">
-                  OMEG4MON
-                </span>
-                <span className="font-mono text-[10px] tracking-[0.22em] text-[var(--text-muted)]">
-                  ROUTER
-                </span>
-              </div>
-            ) : null}
-          </Link>
           {!compact ? (
-            <Button
+            <>
+              <Link
+                href="/dashboard/"
+                className="flex min-w-0 flex-1 items-center gap-2.5 overflow-hidden transition-opacity hover:opacity-90"
+                onClick={closeMobileNav}
+                aria-label="OMEG4MON ROUTER Dashboard"
+              >
+                <div className="flex size-8 shrink-0 items-center justify-center rounded-xl border border-[var(--color-primary)]/25 bg-[var(--color-primary)]/10 p-1 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.25)]">
+                  <CaduceusLogo size={20} decorative />
+                </div>
+                <div className="flex min-w-0 flex-1 flex-col">
+                  <span className="truncate text-[11.5px] font-bold uppercase tracking-wider text-[var(--color-text-main)]">
+                    OMEG4MON
+                  </span>
+                  <span className="truncate font-mono text-[9.5px] text-[var(--color-text-muted)]">
+                    ROUTER · {versionTag}
+                  </span>
+                </div>
+              </Link>
+
+              {surface === "desktop" ? (
+                <button
+                  type="button"
+                  onClick={toggleSidebarCollapsed}
+                  className="flex size-7.5 shrink-0 cursor-pointer items-center justify-center rounded-[9px] border border-transparent text-[var(--color-primary)] transition-colors hover:border-[var(--color-border-subtle)] hover:bg-[var(--color-surface-2)]/80 active:scale-[0.96]"
+                  title={copy.collapseSidebarLabel}
+                  aria-label={copy.collapseSidebarLabel}
+                >
+                  <PanelLeftClose className="h-4 w-4" aria-hidden="true" />
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={closeMobileNav}
+                  className="flex size-7.5 shrink-0 cursor-pointer items-center justify-center rounded-[9px] border border-transparent text-[var(--color-text-muted)] transition-colors hover:border-[var(--color-border-subtle)] hover:bg-[var(--color-surface-2)]/80 hover:text-[var(--color-text-main)] active:scale-[0.96]"
+                  aria-label={copy.closeMenuLabel}
+                >
+                  <X className="h-4 w-4" aria-hidden="true" />
+                </button>
+              )}
+            </>
+          ) : (
+            <button
               type="button"
-              variant="secondary"
-              size="icon"
-              onClick={closeMobileNav}
-              className="h-8 w-8 lg:hidden"
-              aria-label={copy.closeMenuLabel}
+              onClick={toggleSidebarCollapsed}
+              className="flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-[10px] border border-[var(--color-border-subtle)]/80 text-[var(--color-primary)] transition-colors hover:border-[var(--color-primary)]/40 hover:bg-[var(--color-surface-2)]/80 active:scale-[0.96]"
+              title={copy.expandSidebarLabel}
+              aria-label={copy.expandSidebarLabel}
             >
-              <X className="h-4 w-4" aria-hidden="true" />
-            </Button>
-          ) : null}
+              <PanelLeftOpen className="h-4 w-4" aria-hidden="true" />
+            </button>
+          )}
         </div>
 
-        <EmberRule />
-
-        {/* Sidebar search control */}
+        {/* Inline search bar */}
         <div
           className={cn(
-            "shrink-0 border-b border-[var(--border-strong)]/70 py-3",
-            compact ? "px-3" : "px-3.5",
+            "shrink-0 border-b border-[var(--color-border-subtle)]/80 py-2",
+            compact ? "px-2" : "px-2.5",
           )}
         >
           {compact ? (
@@ -265,7 +340,7 @@ export function AppShell({ children }: AppShellProps) {
               onClick={focusSidebarSearch}
               title={`${copy.quickSearchLabel} (Ctrl+K)`}
               aria-label={copy.quickSearchLabel}
-              className="mx-auto flex h-9 w-9 items-center justify-center rounded-lg border border-[var(--border-strong)] bg-[var(--bg-surface)] text-[var(--text-secondary)] shadow-2xs transition-colors hover:border-[var(--accent-primary)]/50 hover:text-[var(--text-primary)]"
+              className="mx-auto flex size-9 cursor-pointer items-center justify-center rounded-[10px] border border-transparent text-[var(--color-text-main)]/75 transition-colors hover:bg-[var(--color-surface-2)]/80 hover:text-[var(--color-text-main)] active:scale-[0.98]"
             >
               <Search className="h-4 w-4" aria-hidden="true" />
             </button>
@@ -273,7 +348,7 @@ export function AppShell({ children }: AppShellProps) {
             <div className="space-y-1.5">
               <div className="relative">
                 <Search
-                  className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--text-muted)]"
+                  className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--color-text-subtle)]"
                   aria-hidden="true"
                 />
                 <input
@@ -283,7 +358,7 @@ export function AppShell({ children }: AppShellProps) {
                   onChange={(event) => setSearchQuery(event.target.value)}
                   placeholder={copy.searchPlaceholder}
                   aria-label={copy.searchPlaceholder}
-                  className="h-9 w-full rounded-lg border border-[var(--border-strong)] bg-[var(--bg-surface)] pl-8 pr-9 text-xs text-[var(--text-primary)] shadow-2xs placeholder:text-[var(--text-muted)] transition-colors focus:border-[var(--accent-primary)] focus:outline-none"
+                  className="h-8.5 w-full rounded-[10px] border border-[var(--color-field-border)] bg-[var(--color-field)] pl-8 pr-8 text-[12px] text-[var(--color-text-main)] placeholder:text-[var(--color-text-subtle)] transition-colors focus:border-[var(--color-primary)] focus:outline-none"
                 />
                 {isSearching ? (
                   <button
@@ -293,62 +368,38 @@ export function AppShell({ children }: AppShellProps) {
                       searchInputRef.current?.focus();
                     }}
                     aria-label={copy.clearSearchLabel}
-                    className="absolute right-2 top-1/2 flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded text-[var(--text-muted)] transition-colors hover:bg-[var(--bg-surface-raised)] hover:text-[var(--text-primary)]"
+                    className="absolute right-2 top-1/2 flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface-2)] hover:text-[var(--color-text-main)]"
                   >
                     <X className="h-3.5 w-3.5" aria-hidden="true" />
                   </button>
                 ) : (
-                  <kbd className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 rounded border border-[var(--border-subtle)] bg-[var(--bg-surface-raised)] px-1.5 py-0.5 font-mono text-[10px] text-[var(--text-muted)]">
+                  <kbd className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 rounded border border-[var(--color-border-subtle)] bg-[var(--color-surface-2)] px-1.5 py-0.5 font-mono text-[10px] text-[var(--color-text-subtle)]">
                     /
                   </kbd>
                 )}
               </div>
 
-              <div className="flex items-center justify-between gap-2 px-0.5 pt-0.5">
-                <span className="font-mono text-[10px] uppercase tracking-wider text-[var(--text-muted)] tabular-nums">
-                  {isSearching
-                    ? copy.searchResultsLabel(totalMatches)
-                    : copy.categoriesLabel(expandedCount, NAV_GROUPS.length)}
-                </span>
-                {!isSearching ? (
-                  <button
-                    type="button"
-                    onClick={handleToggleAllGroups}
-                    className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)]"
-                  >
-                    {allGroupsExpanded ? (
-                      <>
-                        <ChevronsDownUp className="h-3 w-3 shrink-0" aria-hidden="true" />
-                        <span>{copy.collapseAllLabel}</span>
-                      </>
-                    ) : (
-                      <>
-                        <ChevronsUpDown className="h-3 w-3 shrink-0" aria-hidden="true" />
-                        <span>{copy.expandAllLabel}</span>
-                      </>
-                    )}
-                  </button>
-                ) : null}
-              </div>
+              {isSearching ? (
+                <p className="px-1 font-mono text-[10px] uppercase tracking-wider text-[var(--color-text-subtle)] tabular-nums">
+                  {copy.searchResultsLabel(totalMatches)}
+                </p>
+              ) : null}
             </div>
           )}
         </div>
 
-        {/* Categorized navigation list */}
+        {/* Main navigation list (exact main LeftRail section order: Routing -> Operations -> Extensions) */}
         <nav
-          className={cn(
-            "flex-1 overflow-y-auto py-3",
-            compact ? "space-y-3 px-2.5" : "space-y-2.5 px-3",
-          )}
+          className="custom-scrollbar flex-1 space-y-3 overflow-y-auto overflow-x-hidden px-2 py-2.5"
           aria-label="Control plane navigation"
         >
-          {visibleGroups.length === 0 ? (
-            <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-[var(--border-strong)] bg-[var(--bg-canvas)]/60 px-4 py-8 text-center">
-              <SearchX className="h-5 w-5 text-[var(--text-muted)]" aria-hidden="true" />
-              <p className="mt-2.5 text-xs font-semibold text-[var(--text-primary)]">
+          {totalMatches === 0 ? (
+            <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-[var(--color-border)] bg-[var(--color-surface-2)]/40 px-3 py-8 text-center">
+              <SearchX className="h-5 w-5 text-[var(--color-text-subtle)]" aria-hidden="true" />
+              <p className="mt-2 text-xs font-semibold text-[var(--color-text-main)]">
                 {copy.emptySearchTitle}
               </p>
-              <p className="mt-1 text-[11px] leading-relaxed text-[var(--text-muted)]">
+              <p className="mt-1 text-[11px] leading-relaxed text-[var(--color-text-muted)]">
                 {copy.emptySearchSubtitle}
               </p>
               <Button
@@ -365,142 +416,221 @@ export function AppShell({ children }: AppShellProps) {
               </Button>
             </div>
           ) : (
-            visibleGroups.map((group, groupIndex) => {
-              const GroupIcon = group.icon;
-              const isExpanded = compact || isSearching || expandedGroups[group.id];
-              const groupHasActive = group.items.some((item) =>
-                isNavItemActive(normalizedPathname, item.href),
-              );
+            <>
+              {/* Section 1: Routing */}
+              {visibleNav.routing.length > 0 ? (
+                <div className="space-y-0.5">
+                  {!compact ? (
+                    <div className="px-2.5 pb-1 font-mono text-[10px] font-semibold uppercase tracking-wider text-[var(--color-text-subtle)]">
+                      {copy.sectionRouting}
+                    </div>
+                  ) : null}
+                  {visibleNav.routing.map((item) => renderRailRow(item, compact))}
+                </div>
+              ) : null}
 
-              return (
+              {/* Section 2: Operations */}
+              {visibleNav.operations.length > 0 ? (
                 <div
-                  key={group.id}
                   className={cn(
-                    compact && groupIndex > 0 && "border-t border-[var(--border-subtle)] pt-3",
+                    "space-y-0.5",
+                    visibleNav.routing.length > 0 &&
+                      "border-t border-[var(--color-border-subtle)]/80 pt-2",
                   )}
                 >
                   {!compact ? (
-                    <button
-                      type="button"
-                      onClick={() => toggleGroup(group.id)}
-                      aria-expanded={isExpanded}
-                      className={cn(
-                        "flex h-9 w-full items-center justify-between gap-2 rounded-lg border px-2.5 text-left transition-all",
-                        groupHasActive
-                          ? "border-[var(--accent-primary)]/40 bg-[color-mix(in_srgb,var(--accent-primary)_8%,var(--bg-surface))] text-[var(--text-primary)] shadow-2xs"
-                          : isExpanded
-                            ? "border-[var(--border-strong)] bg-[var(--bg-surface)] text-[var(--text-primary)] shadow-2xs hover:border-[var(--accent-primary)]/35"
-                            : "border-[var(--border-strong)]/75 bg-[var(--bg-surface)]/80 text-[var(--text-secondary)] hover:border-[var(--border-strong)] hover:bg-[var(--bg-surface)] hover:text-[var(--text-primary)]",
-                      )}
-                    >
-                      <span className="flex min-w-0 items-center gap-2">
-                        <GroupIcon
-                          className={cn(
-                            "h-3.5 w-3.5 shrink-0",
-                            groupHasActive
-                              ? "text-[var(--accent-primary)]"
-                              : "text-[var(--text-muted)]",
-                          )}
-                          aria-hidden="true"
-                        />
-                        <span className="truncate text-xs font-semibold tracking-tight">
-                          {group.labels[locale]}
-                        </span>
+                    <div className="px-2.5 pb-1 font-mono text-[10px] font-semibold uppercase tracking-wider text-[var(--color-text-subtle)]">
+                      {copy.sectionOperations}
+                    </div>
+                  ) : null}
+                  {visibleNav.operations.map((item) => renderRailRow(item, compact))}
+                </div>
+              ) : null}
+
+              {/* Section 3: Extensions (Features & System smooth accordions + Collapse/Expand All) */}
+              {visibleNav.extensions.length > 0 ? (
+                <div
+                  className={cn(
+                    "space-y-1",
+                    (visibleNav.routing.length > 0 || visibleNav.operations.length > 0) &&
+                      "border-t border-[var(--color-border-subtle)]/80 pt-2",
+                  )}
+                >
+                  {!compact ? (
+                    <div className="flex items-center justify-between px-2.5 pb-1">
+                      <span className="font-mono text-[10px] font-semibold uppercase tracking-wider text-[var(--color-text-subtle)]">
+                        {copy.sectionExtensions}
                       </span>
-                      <span className="flex shrink-0 items-center gap-1.5">
-                        <span
-                          className={cn(
-                            "rounded-md px-1.5 py-0.5 font-mono text-[10px] font-medium tabular-nums",
-                            groupHasActive
-                              ? "bg-[color-mix(in_srgb,var(--accent-primary)_14%,transparent)] text-[var(--accent-text)]"
-                              : "bg-[var(--bg-surface-raised)] text-[var(--text-secondary)]",
-                          )}
+                      {!isSearching ? (
+                        <button
+                          type="button"
+                          onClick={handleToggleAllAccordions}
+                          className="inline-flex cursor-pointer items-center gap-1 rounded px-1 py-0.5 text-[10px] font-medium text-[var(--color-text-subtle)] transition-colors hover:bg-[var(--color-surface-2)]/80 hover:text-[var(--color-text-main)]"
                         >
-                          {group.items.length}
-                        </span>
-                        <ChevronDown
-                          className={cn(
-                            "h-3.5 w-3.5 shrink-0 transition-transform duration-200 ease-out",
-                            groupHasActive
-                              ? "text-[var(--accent-primary)]"
-                              : "text-[var(--text-secondary)]",
-                            !isExpanded && "-rotate-90",
+                          {allAccordionsExpanded ? (
+                            <>
+                              <ChevronsDownUp className="h-3 w-3 shrink-0" aria-hidden="true" />
+                              <span>{copy.collapseAllLabel}</span>
+                            </>
+                          ) : (
+                            <>
+                              <ChevronsUpDown className="h-3 w-3 shrink-0" aria-hidden="true" />
+                              <span>{copy.expandAllLabel}</span>
+                            </>
                           )}
-                          aria-hidden="true"
-                        />
-                      </span>
-                    </button>
+                        </button>
+                      ) : null}
+                    </div>
                   ) : null}
 
-                  <div
-                    className={cn(
-                      "grid transition-[grid-template-rows,opacity] duration-200 ease-out",
-                      isExpanded ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0",
-                    )}
-                  >
-                    <div className="overflow-hidden">
-                      <div
-                        className={cn(
-                          "space-y-1",
-                          !compact &&
-                            "ml-3 mt-1.5 border-l-2 border-[var(--border-strong)]/80 pl-2.5 pb-0.5",
-                        )}
-                      >
-                        {group.items.map((item) => {
-                          const Icon = item.icon;
-                          const isActive = isNavItemActive(normalizedPathname, item.href);
-                          const itemLabel = item.labels[locale];
+                  {visibleNav.extensions.map((group) => {
+                    const GroupIcon = group.icon;
+                    const isExpanded = compact || isSearching || expandedAccordions[group.id];
+                    const groupHasActive = group.items.some((item) =>
+                      isNavItemActive(normalizedPathname, item.href),
+                    );
 
-                          return (
-                            <Link
-                              key={item.href}
-                              href={item.href}
-                              onClick={closeMobileNav}
-                              tabIndex={isExpanded ? undefined : -1}
-                              title={compact ? `${group.labels[locale]} · ${itemLabel}` : undefined}
-                              aria-current={isActive ? "page" : undefined}
+                    return (
+                      <div key={group.id}>
+                        {!compact ? (
+                          <button
+                            type="button"
+                            onClick={() => toggleAccordion(group.id)}
+                            aria-expanded={isExpanded}
+                            className={cn(
+                              "relative flex h-8.5 w-full cursor-pointer items-center gap-2.5 rounded-[10px] border px-2.5 transition-[background-color,border-color,color,transform] duration-150 active:scale-[0.98]",
+                              groupHasActive
+                                ? "border-[var(--color-primary)]/20 bg-[var(--color-primary)]/12 font-medium text-[var(--color-primary)]"
+                                : isExpanded
+                                  ? "border-[var(--color-border-subtle)] bg-[var(--color-surface-2)]/80 font-medium text-[var(--color-text-main)]"
+                                  : "border-transparent text-[var(--color-text-main)]/80 hover:bg-[var(--color-surface-2)]/80 hover:text-[var(--color-text-main)]",
+                            )}
+                          >
+                            <GroupIcon
                               className={cn(
-                                "group relative flex h-8.5 items-center rounded-lg border text-[13px] transition-all",
-                                compact ? "h-9 justify-center px-0" : "gap-2 px-2",
-                                isActive
-                                  ? "border-[var(--accent-primary)]/45 bg-[var(--bg-surface)] font-semibold text-[var(--text-primary)] shadow-xs"
-                                  : "border-transparent font-medium text-[var(--text-secondary)] hover:border-[var(--border-strong)]/70 hover:bg-[var(--bg-surface)]/85 hover:text-[var(--text-primary)]",
+                                "h-4 w-4 shrink-0",
+                                groupHasActive || isExpanded
+                                  ? "text-[var(--color-primary)]"
+                                  : "text-[var(--color-text-main)]/70",
+                              )}
+                              aria-hidden="true"
+                            />
+                            <span
+                              className={cn(
+                                "flex-1 truncate whitespace-nowrap text-left text-[12.5px] leading-none",
+                                groupHasActive
+                                  ? "font-semibold text-[var(--color-primary)]"
+                                  : isExpanded && "font-semibold text-[var(--color-text-main)]",
                               )}
                             >
-                              {isActive && !compact ? (
-                                <span
-                                  aria-hidden="true"
-                                  className="absolute -left-[12px] top-1.5 bottom-1.5 w-0.5 rounded-full bg-[var(--accent-primary)]"
-                                />
-                              ) : null}
+                              {group.labels[locale]}
+                            </span>
+                            <ChevronRight
+                              className="h-3.5 w-3.5 shrink-0 text-[var(--color-text-subtle)] transition-transform duration-200 ease-[var(--ease-spring)]"
+                              style={{ transform: isExpanded ? "rotate(90deg)" : "rotate(0deg)" }}
+                              aria-hidden="true"
+                            />
+                            {groupHasActive ? (
                               <span
-                                className={cn(
-                                  "flex h-6 w-6 shrink-0 items-center justify-center rounded-md transition-colors",
-                                  isActive
-                                    ? "bg-[color-mix(in_srgb,var(--accent-primary)_14%,transparent)] text-[var(--accent-primary)]"
-                                    : "text-[var(--text-muted)] group-hover:text-[var(--text-primary)]",
-                                )}
-                              >
-                                <Icon className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-                              </span>
-                              {!compact ? <span className="truncate">{itemLabel}</span> : null}
-                            </Link>
-                          );
-                        })}
+                                aria-hidden="true"
+                                className="absolute left-0 top-1/2 h-4 w-[3px] -translate-y-1/2 rounded-r-full bg-[var(--color-primary)] shadow-[0_0_10px_color-mix(in_srgb,var(--color-primary)_65%,transparent)]"
+                              />
+                            ) : null}
+                          </button>
+                        ) : null}
+
+                        <div
+                          className={cn(
+                            "grid transition-[grid-template-rows,opacity] duration-200 ease-[var(--ease-spring)]",
+                            isExpanded
+                              ? "grid-rows-[1fr] opacity-100"
+                              : "grid-rows-[0fr] opacity-0",
+                          )}
+                        >
+                          <div className="overflow-hidden">
+                            <div
+                              className={cn(
+                                "space-y-0.5",
+                                !compact &&
+                                  "ml-3.5 mt-1 border-l border-[var(--color-border-subtle)] pl-2 pb-0.5",
+                              )}
+                            >
+                              {group.items.map((item) => {
+                                const Icon = item.icon;
+                                const isActive = isNavItemActive(normalizedPathname, item.href);
+                                const itemLabel = item.labels[locale];
+
+                                return (
+                                  <Link
+                                    key={item.href}
+                                    href={item.href}
+                                    onClick={closeMobileNav}
+                                    tabIndex={isExpanded ? undefined : -1}
+                                    title={itemLabel}
+                                    aria-current={isActive ? "page" : undefined}
+                                    className={cn(
+                                      "relative flex items-center gap-2.5 border transition-[background-color,border-color,color,transform] duration-150 active:scale-[0.98]",
+                                      compact
+                                        ? "h-8.5 justify-center rounded-[10px] px-0"
+                                        : "rounded-[8px] px-2.5 py-2",
+                                      isActive
+                                        ? "border-[var(--color-primary)]/20 bg-[var(--color-primary)]/12 font-medium text-[var(--color-primary)]"
+                                        : "border-transparent text-[var(--color-text-main)]/80 hover:bg-[var(--color-surface-2)]/80 hover:text-[var(--color-text-main)]",
+                                    )}
+                                  >
+                                    <Icon
+                                      className={cn(
+                                        "shrink-0",
+                                        compact ? "h-4 w-4" : "h-3.5 w-3.5",
+                                        isActive
+                                          ? "text-[var(--color-primary)]"
+                                          : "text-[var(--color-text-main)]/70",
+                                      )}
+                                      aria-hidden="true"
+                                    />
+                                    {!compact ? (
+                                      <span
+                                        className={cn(
+                                          "flex-1 truncate text-[12px] leading-none",
+                                          isActive && "font-semibold text-[var(--color-primary)]",
+                                        )}
+                                      >
+                                        {itemLabel}
+                                      </span>
+                                    ) : null}
+                                    {isActive && compact ? (
+                                      <span
+                                        aria-hidden="true"
+                                        className="absolute left-0 top-1/2 h-4 w-[3px] -translate-y-1/2 rounded-r-full bg-[var(--color-primary)] shadow-[0_0_10px_color-mix(in_srgb,var(--color-primary)_65%,transparent)]"
+                                      />
+                                    ) : null}
+                                  </Link>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  </div>
+                    );
+                  })}
                 </div>
-              );
-            })
+              ) : null}
+            </>
           )}
         </nav>
 
-        {/* Live gateway status footer */}
+        {/* Docked Settings row (exact main LeftRail placement) */}
+        {visibleNav.settings ? (
+          <div className="shrink-0 border-t border-[var(--color-border-subtle)]/80 px-2 py-1.5">
+            {renderRailRow(visibleNav.settings, compact)}
+          </div>
+        ) : null}
+
+        {/* Footer status bar (main LeftRail parity) */}
         <div
           className={cn(
-            "shrink-0 border-t border-[var(--border-strong)]/80 bg-[var(--bg-surface)]/75 py-3",
-            compact ? "px-2" : "px-4",
+            "flex shrink-0 gap-1.5 rounded-b-2xl border-t border-[var(--color-border-subtle)]/80 bg-[var(--color-surface-2)]/45 p-2.5",
+            compact ? "flex-col items-center justify-center" : "items-center justify-between",
           )}
         >
           {compact ? (
@@ -526,32 +656,23 @@ export function AppShell({ children }: AppShellProps) {
               </span>
             </div>
           ) : (
-            <div className="flex items-center justify-between gap-2 text-xs">
-              <span className="inline-flex items-center gap-2 text-[var(--text-secondary)]">
-                <span className="relative flex h-2 w-2" aria-hidden="true">
-                  {gatewayStatus.pulse ? (
-                    <span
-                      className={cn(
-                        "absolute inline-flex h-full w-full animate-ping rounded-full opacity-55",
-                        gatewayStatus.dotClass,
-                      )}
-                    />
-                  ) : null}
+            <>
+              <div className="flex min-w-0 flex-col">
+                <span className="truncate text-[11.5px] font-semibold text-[var(--color-text-main)]">
+                  Instance Admin
+                </span>
+                <span className="flex items-center gap-1 whitespace-nowrap font-mono text-[10px] text-[var(--status-ok)]">
                   <span
-                    className={cn(
-                      "relative inline-flex h-2 w-2 rounded-full",
-                      gatewayStatus.dotClass,
-                    )}
+                    className={cn("size-1.5 shrink-0 rounded-full", gatewayStatus.dotClass)}
+                    aria-hidden="true"
                   />
+                  <span>{gatewayStatus.label}</span>
                 </span>
-                <span className="font-medium text-[var(--text-primary)]">
-                  {gatewayStatus.label}
-                </span>
-              </span>
-              <span className="rounded border border-[var(--border-subtle)] bg-[var(--bg-canvas)] px-1.5 py-0.5 font-mono text-[10px] tabular-nums text-[var(--text-muted)]">
+              </div>
+              <span className="rounded-md border border-[var(--color-border-subtle)] bg-[var(--color-surface)] px-1.5 py-0.5 font-mono text-[10px] tabular-nums text-[var(--color-text-muted)]">
                 {versionTag}
               </span>
-            </div>
+            </>
           )}
         </div>
       </div>
@@ -560,30 +681,33 @@ export function AppShell({ children }: AppShellProps) {
 
   return (
     <div className="flex min-h-screen bg-[var(--bg-canvas)] text-[var(--text-primary)]">
-      {/* Desktop sidebar */}
+      {/* Floating rounded desktop studio rail (main LeftRail parity) */}
       <aside
         className={cn(
-          "hidden shrink-0 border-r border-[var(--border-strong)] shadow-[1px_0_0_0_var(--border-subtle)] transition-[width] duration-200 lg:block",
-          sidebarCollapsed ? "w-[72px]" : "w-[272px]",
+          "shell-rail relative isolate z-[45] my-2.5 ml-2.5 hidden h-[calc(100dvh-20px)] shrink-0 select-none flex-col overflow-visible rounded-2xl transition-[width] duration-250 ease-[var(--ease-spring)] lg:flex",
+          sidebarCollapsed ? "w-[60px]" : "w-[244px]",
         )}
+        aria-label="Application navigation"
       >
-        <div className="sticky top-0 h-screen">{renderSidebar(sidebarCollapsed, "desktop")}</div>
+        <div className="sticky top-0 flex h-full flex-col">
+          {renderSidebar(sidebarCollapsed, "desktop")}
+        </div>
       </aside>
 
       {/* Mobile navigation drawer with translucent scrim */}
       {mobileNavOpen ? (
         <div
-          className="fixed inset-0 z-40 flex lg:hidden"
+          className="fixed inset-0 z-50 flex p-2.5 lg:hidden"
           role="dialog"
           aria-modal="true"
           aria-label="Navigation"
         >
-          <div className="w-[280px] max-w-[85vw] border-r border-[var(--border-strong)] bg-[var(--bg-surface)] shadow-2xl">
+          <div className="shell-rail relative z-10 w-[264px] max-w-[85vw] overflow-hidden rounded-2xl">
             {renderSidebar(false, "mobile")}
           </div>
           <button
             type="button"
-            className="flex-1 bg-black/45 backdrop-blur-[2px]"
+            className="fixed inset-0 bg-black/45 backdrop-blur-[2px]"
             aria-label={copy.dismissMenuLabel}
             onClick={closeMobileNav}
           />
@@ -592,7 +716,7 @@ export function AppShell({ children }: AppShellProps) {
 
       {/* Main content area */}
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-20 bg-[var(--bg-surface)]/90 backdrop-blur-md">
+        <header className="sticky top-0 z-20 bg-[var(--bg-canvas)]/90 backdrop-blur-md">
           <div className="flex h-16 items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
             <div className="flex min-w-0 items-center gap-3">
               <Button
@@ -604,20 +728,6 @@ export function AppShell({ children }: AppShellProps) {
                 aria-label={copy.openMenuLabel}
               >
                 <Menu className="h-4 w-4" aria-hidden="true" />
-              </Button>
-              <Button
-                type="button"
-                variant="secondary"
-                size="icon"
-                onClick={toggleSidebarCollapsed}
-                className="hidden h-9 w-9 shrink-0 lg:inline-flex"
-                aria-label={sidebarCollapsed ? copy.expandSidebarLabel : copy.collapseSidebarLabel}
-              >
-                {sidebarCollapsed ? (
-                  <PanelLeftOpen className="h-4 w-4" aria-hidden="true" />
-                ) : (
-                  <PanelLeftClose className="h-4 w-4" aria-hidden="true" />
-                )}
               </Button>
 
               <div className="min-w-0">
@@ -636,12 +746,12 @@ export function AppShell({ children }: AppShellProps) {
               <button
                 type="button"
                 onClick={focusSidebarSearch}
-                className="hidden h-9 items-center gap-2 rounded-md border border-[var(--border-subtle)] bg-[var(--bg-surface-raised)] px-3 text-xs font-medium text-[var(--text-muted)] transition-colors hover:border-[var(--border-strong)] hover:text-[var(--text-primary)] md:inline-flex"
+                className="hidden h-9 cursor-pointer items-center gap-2 rounded-md border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-3 text-xs font-medium text-[var(--text-muted)] transition-colors hover:border-[var(--border-strong)] hover:text-[var(--text-primary)] md:inline-flex"
                 aria-label={`${copy.quickSearchLabel} (Ctrl+K)`}
               >
                 <Search className="h-3.5 w-3.5" aria-hidden="true" />
                 <span>{copy.quickSearchLabel}</span>
-                <kbd className="rounded border border-[var(--border-subtle)] bg-[var(--bg-canvas)] px-1.5 py-0.5 font-mono text-[10px] text-[var(--text-muted)]">
+                <kbd className="rounded border border-[var(--border-subtle)] bg-[var(--bg-surface-raised)] px-1.5 py-0.5 font-mono text-[10px] text-[var(--text-muted)]">
                   Ctrl K
                 </kbd>
               </button>

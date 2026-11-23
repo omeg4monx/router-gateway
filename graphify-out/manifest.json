@@ -312,9 +312,9 @@
     "semantic_hash": ""
   },
   "web/src/features/system/SystemOverview.tsx": {
-    "mtime": 1795455720.6174867,
-    "seen": 1795455772.3288486,
-    "ast_hash": "7ec4559037e731bbc6c5087934aa51c4",
+    "mtime": 1795462109.649306,
+    "seen": 1795462181.3376114,
+    "ast_hash": "12949181c217498cbdf134f157ba7a9e",
     "semantic_hash": ""
   },
   "web/src/features/system/hooks.ts": {
@@ -384,9 +384,9 @@
     "semantic_hash": ""
   },
   "web/src/shared/ui/AppShell.tsx": {
-    "mtime": 1795458641.858472,
-    "seen": 1795458680.4759293,
-    "ast_hash": "ee9dbcfc4fd358119cad6447526ad6b6",
+    "mtime": 1795462428.6947389,
+    "seen": 1795462522.3666923,
+    "ast_hash": "283731f6215b58cbd9ddf35a4cf8817c",
     "semantic_hash": ""
   },
   "web/src/shared/ui/CaduceusLogo.tsx": {
@@ -402,9 +402,9 @@
     "semantic_hash": ""
   },
   "web/src/shared/ui/ThemeToggle.tsx": {
-    "mtime": 1795455711.7990015,
-    "seen": 1795455772.3305182,
-    "ast_hash": "e08d741f7f078606d4ba4d2d2a203afe",
+    "mtime": 1795462430.9819114,
+    "seen": 1795462522.3668923,
+    "ast_hash": "ae94c3576f4eda0fd90fa35951c6612d",
     "semantic_hash": ""
   },
   "web/src/shared/ui/alert.tsx": {
@@ -576,9 +576,9 @@
     "semantic_hash": ""
   },
   "web/src/features/auth/AuthGuard.tsx": {
-    "mtime": 1795381385.550771,
-    "seen": 1795454269.4713147,
-    "ast_hash": "ae63799b941a632260730cd4cafa9e4f",
+    "mtime": 1795462454.4440966,
+    "seen": 1795462522.3592207,
+    "ast_hash": "aba02d6b3d25a061bfef90950c3111a9",
     "semantic_hash": ""
   },
   "web/src/features/auth/LoginForm.tsx": {
@@ -2262,15 +2262,15 @@
     "semantic_hash": ""
   },
   "web/src/shared/ui/navigation.test.ts": {
-    "mtime": 1795459028.0117269,
-    "seen": 1795459065.0892217,
-    "ast_hash": "b25fe373cc01d3041dfec5e7567bbb3d",
+    "mtime": 1795460963.8038352,
+    "seen": 1795460994.8499913,
+    "ast_hash": "b7bc40859601e0c00dacdb49d5a487e7",
     "semantic_hash": ""
   },
   "web/src/shared/ui/navigation.ts": {
-    "mtime": 1795459030.314758,
-    "seen": 1795459065.0892258,
-    "ast_hash": "d6f07cc6a6a8fb23255d518b398319f7",
+    "mtime": 1795460963.7818348,
+    "seen": 1795460994.8499944,
+    "ast_hash": "8f179fe1603b7dbdef654eb22c40b75e",
     "semantic_hash": ""
   },
   "docs/superpowers/plans/2026-11-24-dashboard-shell-navigation.md": {
@@ -2289,6 +2289,24 @@
     "mtime": 1795457646.5259373,
     "seen": 1795458174.7333775,
     "ast_hash": "a1368eae90f72005a5ba95b02ecfef50",
+    "semantic_hash": ""
+  },
+  "web/src/features/system/overview.test.ts": {
+    "mtime": 1795461452.1089275,
+    "seen": 1795461531.8912046,
+    "ast_hash": "2a6b7c24a2bd0f2589e5c809b128657d",
+    "semantic_hash": ""
+  },
+  "web/src/features/system/overview.ts": {
+    "mtime": 1795461460.6320512,
+    "seen": 1795461531.8912103,
+    "ast_hash": "aec01ed4c380d00c96cc7f52b2813732",
+    "semantic_hash": ""
+  },
+  "docs/superpowers/specs/2026-11-24-dashboard-overview-design.md": {
+    "mtime": 1795459518.1203961,
+    "seen": 1795459662.6420138,
+    "ast_hash": "dedd62021b1546a9625e4b011b326069",
     "semantic_hash": ""
   }
 }
