@@ -1,0 +1,568 @@
+openapi: 3.1.0
+info:
+  title: omeg4mon-router Usage & Pricing Module API
+  version: 0.1.0
+paths:
+  /api/usage/summary:
+    get:
+      operationId: getUsageSummary
+      summary: Aggregate request volume, token counts, cost, latency, leaderboards, and time-series buckets
+      tags:
+        - usage
+      parameters:
+        - name: range
+          in: query
+          required: false
+          description: Time window for aggregation.
+          schema:
+            type: string
+            enum:
+              - 24h
+              - 7d
+              - 30d
+              - all
+            default: 24h
+      responses:
+        '200':
+          description: Usage summary statistics for the requested time window.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UsageSummaryResponse'
+        '400':
+          description: Invalid range query parameter.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Administrative authentication is required.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '500':
+          description: Failed to compute usage summary.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+  /api/usage/logs:
+    get:
+      operationId: listUsageLogs
+      summary: List paginated metadata-first gateway request logs with optional filters
+      tags:
+        - usage
+      parameters:
+        - name: model
+          in: query
+          required: false
+          description: Filter by exact model identifier.
+          schema:
+            type: string
+        - name: provider
+          in: query
+          required: false
+          description: Filter by exact provider identifier.
+          schema:
+            type: string
+        - name: key_id
+          in: query
+          required: false
+          description: Filter by gateway API key ID.
+          schema:
+            type: string
+        - name: status
+          in: query
+          required: false
+          description: Filter by 'success', 'error', or exact HTTP status code.
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          description: Maximum number of log entries to return (1..200).
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 50
+        - name: offset
+          in: query
+          required: false
+          description: Pagination offset.
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+      responses:
+        '200':
+          description: Paginated request usage logs ordered newest-first.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UsageLogsResponse'
+        '400':
+          description: Invalid query filter or pagination parameter.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Administrative authentication is required.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '500':
+          description: Failed to load usage logs.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+  /api/usage/stream:
+    get:
+      operationId: streamUsageEvents
+      summary: Subscribe to live Server-Sent Events (SSE) for newly recorded gateway usage logs
+      tags:
+        - usage
+      responses:
+        '200':
+          description: "SSE stream emitting 'event: usage' frames with UsageLog JSON payloads."
+          content:
+            text/event-stream:
+              schema:
+                type: string
+        '401':
+          description: Administrative authentication is required.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+  /api/usage/pricing:
+    get:
+      operationId: listModelPricing
+      summary: List built-in default and custom model pricing rates per million tokens
+      tags:
+        - usage
+      responses:
+        '200':
+          description: Merged model pricing catalog ordered alphabetically.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListModelPricingResponse'
+        '401':
+          description: Administrative authentication is required.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+  /api/usage/pricing/{model}:
+    parameters:
+      - name: model
+        in: path
+        required: true
+        description: Model identifier (percent-encode '/' if present).
+        schema:
+          type: string
+    put:
+      operationId: upsertModelPricing
+      summary: Create or update custom per-million-token pricing for a model
+      tags:
+        - usage
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpsertModelPricingRequest'
+      responses:
+        '200':
+          description: Custom model pricing saved.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModelPricing'
+        '400':
+          description: Invalid model parameter, malformed JSON body, or negative/non-finite rate.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Administrative authentication is required.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '413':
+          description: Request body exceeds maximum allowed size.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '500':
+          description: Failed to persist custom model pricing.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+    delete:
+      operationId: deleteModelPricing
+      summary: Remove a custom model pricing override and restore built-in defaults if applicable
+      tags:
+        - usage
+      responses:
+        '204':
+          description: Custom model pricing override removed.
+        '400':
+          description: Invalid model path parameter.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Administrative authentication is required.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Custom model pricing override not found.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '500':
+          description: Failed to delete custom model pricing override.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+components:
+  schemas:
+    UsageLog:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - request_id
+        - key_id
+        - model
+        - provider_id
+        - connection_id
+        - protocol
+        - input_tokens
+        - output_tokens
+        - cached_tokens
+        - cost_usd
+        - latency_ms
+        - ttft_ms
+        - status_code
+        - error_summary
+        - stream
+        - created_at
+      properties:
+        id:
+          type: integer
+          format: int64
+        request_id:
+          type: string
+        key_id:
+          type: string
+        model:
+          type: string
+        provider_id:
+          type: string
+        connection_id:
+          type: string
+        protocol:
+          type: string
+        input_tokens:
+          type: integer
+          format: int64
+        output_tokens:
+          type: integer
+          format: int64
+        cached_tokens:
+          type: integer
+          format: int64
+        cost_usd:
+          type: number
+          format: double
+        latency_ms:
+          type: integer
+          format: int64
+        ttft_ms:
+          type: integer
+          format: int64
+        status_code:
+          type: integer
+        error_summary:
+          type: string
+        stream:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+    UsageLogsResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - logs
+        - total
+        - limit
+        - offset
+      properties:
+        logs:
+          type: array
+          items:
+            $ref: '#/components/schemas/UsageLog'
+        total:
+          type: integer
+          format: int64
+        limit:
+          type: integer
+        offset:
+          type: integer
+    UsageSummaryTotals:
+      type: object
+      additionalProperties: false
+      required:
+        - requests
+        - input_tokens
+        - output_tokens
+        - cached_tokens
+        - cost_usd
+        - avg_latency_ms
+        - avg_ttft_ms
+        - error_count
+        - error_rate
+      properties:
+        requests:
+          type: integer
+          format: int64
+        input_tokens:
+          type: integer
+          format: int64
+        output_tokens:
+          type: integer
+          format: int64
+        cached_tokens:
+          type: integer
+          format: int64
+        cost_usd:
+          type: number
+          format: double
+        avg_latency_ms:
+          type: number
+          format: double
+        avg_ttft_ms:
+          type: number
+          format: double
+        error_count:
+          type: integer
+          format: int64
+        error_rate:
+          type: number
+          format: double
+    ModelUsageBreakdown:
+      type: object
+      additionalProperties: false
+      required:
+        - model
+        - requests
+        - input_tokens
+        - output_tokens
+        - cached_tokens
+        - cost_usd
+        - avg_latency_ms
+        - error_count
+      properties:
+        model:
+          type: string
+        requests:
+          type: integer
+          format: int64
+        input_tokens:
+          type: integer
+          format: int64
+        output_tokens:
+          type: integer
+          format: int64
+        cached_tokens:
+          type: integer
+          format: int64
+        cost_usd:
+          type: number
+          format: double
+        avg_latency_ms:
+          type: number
+          format: double
+        error_count:
+          type: integer
+          format: int64
+    ProviderUsageBreakdown:
+      type: object
+      additionalProperties: false
+      required:
+        - provider_id
+        - requests
+        - input_tokens
+        - output_tokens
+        - cached_tokens
+        - cost_usd
+        - avg_latency_ms
+        - error_count
+      properties:
+        provider_id:
+          type: string
+        requests:
+          type: integer
+          format: int64
+        input_tokens:
+          type: integer
+          format: int64
+        output_tokens:
+          type: integer
+          format: int64
+        cached_tokens:
+          type: integer
+          format: int64
+        cost_usd:
+          type: number
+          format: double
+        avg_latency_ms:
+          type: number
+          format: double
+        error_count:
+          type: integer
+          format: int64
+    UsageSeriesBucket:
+      type: object
+      additionalProperties: false
+      required:
+        - bucket
+        - requests
+        - input_tokens
+        - output_tokens
+        - cached_tokens
+        - cost_usd
+        - error_count
+      properties:
+        bucket:
+          type: string
+        requests:
+          type: integer
+          format: int64
+        input_tokens:
+          type: integer
+          format: int64
+        output_tokens:
+          type: integer
+          format: int64
+        cached_tokens:
+          type: integer
+          format: int64
+        cost_usd:
+          type: number
+          format: double
+        error_count:
+          type: integer
+          format: int64
+    UsageSummaryResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - range
+        - totals
+        - by_model
+        - by_provider
+        - series
+      properties:
+        range:
+          type: string
+          enum:
+            - 24h
+            - 7d
+            - 30d
+            - all
+        totals:
+          $ref: '#/components/schemas/UsageSummaryTotals'
+        by_model:
+          type: array
+          items:
+            $ref: '#/components/schemas/ModelUsageBreakdown'
+        by_provider:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProviderUsageBreakdown'
+        series:
+          type: array
+          items:
+            $ref: '#/components/schemas/UsageSeriesBucket'
+    ModelPricingSource:
+      type: string
+      enum:
+        - builtin
+        - custom
+    ModelPricing:
+      type: object
+      additionalProperties: false
+      required:
+        - model
+        - input_per_million
+        - output_per_million
+        - cached_per_million
+        - source
+      properties:
+        model:
+          type: string
+        input_per_million:
+          type: number
+          format: double
+          minimum: 0
+        output_per_million:
+          type: number
+          format: double
+          minimum: 0
+        cached_per_million:
+          type: number
+          format: double
+          minimum: 0
+        source:
+          $ref: '#/components/schemas/ModelPricingSource'
+        updated_at:
+          type: string
+          format: date-time
+    ListModelPricingResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - pricing
+      properties:
+        pricing:
+          type: array
+          items:
+            $ref: '#/components/schemas/ModelPricing'
+    UpsertModelPricingRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - input_per_million
+        - output_per_million
+      properties:
+        input_per_million:
+          type: number
+          format: double
+          minimum: 0
+        output_per_million:
+          type: number
+          format: double
+          minimum: 0
+        cached_per_million:
+          type: number
+          format: double
+          minimum: 0
+          default: 0

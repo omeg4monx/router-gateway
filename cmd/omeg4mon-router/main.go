@@ -16,12 +16,14 @@ import (
 	"time"
 
 	"github.com/omeg4monx/router-gateway/internal/modules/auth"
+	"github.com/omeg4monx/router-gateway/internal/modules/clitools"
 	"github.com/omeg4monx/router-gateway/internal/modules/combos"
 	"github.com/omeg4monx/router-gateway/internal/modules/gateway"
 	"github.com/omeg4monx/router-gateway/internal/modules/keys"
 	"github.com/omeg4monx/router-gateway/internal/modules/providers"
 	"github.com/omeg4monx/router-gateway/internal/modules/settings"
 	"github.com/omeg4monx/router-gateway/internal/modules/system"
+	"github.com/omeg4monx/router-gateway/internal/modules/usage"
 	"github.com/omeg4monx/router-gateway/internal/platform/config"
 	"github.com/omeg4monx/router-gateway/internal/platform/crypto"
 	"github.com/omeg4monx/router-gateway/internal/platform/db"
@@ -191,6 +193,11 @@ func buildApp(ctx context.Context, cfg config.Config, build system.BuildInfo) (*
 		Providers: providersMod,
 		Bus:       bus,
 	})
+	usageMod := usage.New(usage.Options{
+		DB:     database,
+		Bus:    bus,
+		Logger: logger,
+	})
 	gatewayMod := gateway.New(gateway.Options{
 		DB:         database,
 		HTTPClient: httpClient,
@@ -199,7 +206,11 @@ func buildApp(ctx context.Context, cfg config.Config, build system.BuildInfo) (*
 		Models:     combosMod,
 		Providers:  providersMod,
 		Health:     combosMod,
+		Usage:      usageMod,
 		Logger:     logger,
+	})
+	clitoolsMod := clitools.New(clitools.Options{
+		Config: cfg,
 	})
 
 	if err := registry.Register(sysMod); err != nil {
@@ -220,8 +231,14 @@ func buildApp(ctx context.Context, cfg config.Config, build system.BuildInfo) (*
 	if err := registry.Register(combosMod); err != nil {
 		return nil, fmt.Errorf("register combos module: %w", err)
 	}
+	if err := registry.Register(usageMod); err != nil {
+		return nil, fmt.Errorf("register usage module: %w", err)
+	}
 	if err := registry.Register(gatewayMod); err != nil {
 		return nil, fmt.Errorf("register gateway module: %w", err)
+	}
+	if err := registry.Register(clitoolsMod); err != nil {
+		return nil, fmt.Errorf("register clitools module: %w", err)
 	}
 
 	if err := registry.MigrateAll(ctx, database); err != nil {
@@ -237,6 +254,7 @@ func buildApp(ctx context.Context, cfg config.Config, build system.BuildInfo) (*
 	}
 	modulesStarted = true
 
+	jobRunner.Every("usage-prune", time.Hour, usageMod.PruneExpired)
 	jobRunner.Start(context.Background())
 	jobsStarted = true
 

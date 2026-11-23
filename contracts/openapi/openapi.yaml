@@ -19,6 +19,10 @@ tags:
     description: Provider adapter catalog, custom compatible nodes, vaulted connections, connectivity tests, and PKCE OAuth
   - name: combos
     description: Fallback combos, model aliases, disabled models, and upstream connection cooldowns
+  - name: usage
+    description: Request telemetry logs, aggregated usage statistics, live SSE stream, and model pricing overrides
+  - name: clitools
+    description: CLI coding-tool configuration generators and loopback-only local apply and rollback
 paths:
   /api/health:
     $ref: './modules/system.yaml#/paths/~1api~1health'
@@ -82,6 +86,24 @@ paths:
     $ref: './modules/combos.yaml#/paths/~1api~1models~1cooldowns'
   /api/models/cooldowns/{connectionId}:
     $ref: './modules/combos.yaml#/paths/~1api~1models~1cooldowns~1{connectionId}'
+  /api/usage/summary:
+    $ref: './modules/usage.yaml#/paths/~1api~1usage~1summary'
+  /api/usage/logs:
+    $ref: './modules/usage.yaml#/paths/~1api~1usage~1logs'
+  /api/usage/stream:
+    $ref: './modules/usage.yaml#/paths/~1api~1usage~1stream'
+  /api/usage/pricing:
+    $ref: './modules/usage.yaml#/paths/~1api~1usage~1pricing'
+  /api/usage/pricing/{model}:
+    $ref: './modules/usage.yaml#/paths/~1api~1usage~1pricing~1{model}'
+  /api/clitools:
+    $ref: './modules/clitools.yaml#/paths/~1api~1clitools'
+  /api/clitools/{tool}/generate:
+    $ref: './modules/clitools.yaml#/paths/~1api~1clitools~1{tool}~1generate'
+  /api/clitools/{tool}/apply:
+    $ref: './modules/clitools.yaml#/paths/~1api~1clitools~1{tool}~1apply'
+  /api/clitools/{tool}/rollback:
+    $ref: './modules/clitools.yaml#/paths/~1api~1clitools~1{tool}~1rollback'
 components:
   schemas:
     ErrorDetail:
@@ -224,3 +246,41 @@ components:
       $ref: './modules/combos.yaml#/components/schemas/CooldownEntry'
     ListCooldownsResponse:
       $ref: './modules/combos.yaml#/components/schemas/ListCooldownsResponse'
+    UsageLog:
+      $ref: './modules/usage.yaml#/components/schemas/UsageLog'
+    UsageLogsResponse:
+      $ref: './modules/usage.yaml#/components/schemas/UsageLogsResponse'
+    UsageSummaryTotals:
+      $ref: './modules/usage.yaml#/components/schemas/UsageSummaryTotals'
+    ModelUsageBreakdown:
+      $ref: './modules/usage.yaml#/components/schemas/ModelUsageBreakdown'
+    ProviderUsageBreakdown:
+      $ref: './modules/usage.yaml#/components/schemas/ProviderUsageBreakdown'
+    UsageSeriesBucket:
+      $ref: './modules/usage.yaml#/components/schemas/UsageSeriesBucket'
+    UsageSummaryResponse:
+      $ref: './modules/usage.yaml#/components/schemas/UsageSummaryResponse'
+    ModelPricingSource:
+      $ref: './modules/usage.yaml#/components/schemas/ModelPricingSource'
+    ModelPricing:
+      $ref: './modules/usage.yaml#/components/schemas/ModelPricing'
+    ListModelPricingResponse:
+      $ref: './modules/usage.yaml#/components/schemas/ListModelPricingResponse'
+    UpsertModelPricingRequest:
+      $ref: './modules/usage.yaml#/components/schemas/UpsertModelPricingRequest'
+    CLIToolID:
+      $ref: './modules/clitools.yaml#/components/schemas/CLIToolID'
+    CLIToolFormat:
+      $ref: './modules/clitools.yaml#/components/schemas/CLIToolFormat'
+    CLIToolDescriptor:
+      $ref: './modules/clitools.yaml#/components/schemas/CLIToolDescriptor'
+    CLIToolsCatalogResponse:
+      $ref: './modules/clitools.yaml#/components/schemas/CLIToolsCatalogResponse'
+    CLIToolConfigRequest:
+      $ref: './modules/clitools.yaml#/components/schemas/CLIToolConfigRequest'
+    GenerateCLIToolConfigResponse:
+      $ref: './modules/clitools.yaml#/components/schemas/GenerateCLIToolConfigResponse'
+    ApplyCLIToolConfigResponse:
+      $ref: './modules/clitools.yaml#/components/schemas/ApplyCLIToolConfigResponse'
+    RollbackCLIToolConfigResponse:
+      $ref: './modules/clitools.yaml#/components/schemas/RollbackCLIToolConfigResponse'
