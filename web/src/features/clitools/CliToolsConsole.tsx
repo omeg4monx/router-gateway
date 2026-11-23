@@ -164,7 +164,7 @@ export function CliToolsConsole() {
   };
 
   const handleCopyConfig = async () => {
-    if (!preview) {
+    if (!preview || preview.tool !== selectedTool) {
       return;
     }
     setCopyError(null);
@@ -180,7 +180,7 @@ export function CliToolsConsole() {
   };
 
   const handleDownloadConfig = () => {
-    if (!preview) {
+    if (!preview || preview.tool !== selectedTool) {
       return;
     }
     const mimeType = preview.format === "json" ? "application/json" : "application/toml";
@@ -244,6 +244,7 @@ export function CliToolsConsole() {
   };
 
   const previewStale = preview !== null && preview.tool !== selectedTool;
+  const activePreview = preview && !previewStale ? preview : null;
 
   return (
     <div className="space-y-6">
@@ -282,9 +283,16 @@ export function CliToolsConsole() {
 
       {catalogQuery.isError ? (
         <Alert variant="destructive">
-          <AlertTriangle className="h-4 w-4 text-[var(--status-error)]" aria-hidden="true" />
-          <AlertTitle>Unable to load CLI tools catalog</AlertTitle>
-          <AlertDescription className="font-mono">{catalogQuery.error.message}</AlertDescription>
+          <AlertTriangle
+            className="mt-0.5 h-4 w-4 shrink-0 text-[var(--status-error)]"
+            aria-hidden="true"
+          />
+          <div className="min-w-0 flex-1">
+            <AlertTitle>Unable to load CLI tools catalog</AlertTitle>
+            <AlertDescription className="font-mono break-all">
+              {catalogQuery.error.message}
+            </AlertDescription>
+          </div>
         </Alert>
       ) : null}
 
@@ -461,21 +469,48 @@ export function CliToolsConsole() {
                   {activeDescriptor?.target_path ?? "~/.config"}
                 </CardDescription>
               </div>
-              <Badge variant={localApplyEnabled ? "success" : "warning"}>
-                {localApplyEnabled ? "Loopback" : "Remote-Bind Disabled"}
-              </Badge>
+              {catalogQuery.isPending ? (
+                <Badge variant="secondary">Checking</Badge>
+              ) : catalogQuery.data ? (
+                <Badge variant={catalogQuery.data.local_apply_enabled ? "success" : "warning"}>
+                  {catalogQuery.data.local_apply_enabled ? "Loopback" : "Remote-Bind Disabled"}
+                </Badge>
+              ) : null}
             </CardHeader>
 
             <CardContent className="space-y-4 pt-5">
-              {!localApplyEnabled ? (
+              {catalogQuery.isPending ? (
+                <p className="text-xs text-[var(--text-muted)]">
+                  Checking local loopback apply availability...
+                </p>
+              ) : catalogQuery.isError || !catalogQuery.data ? (
+                <Alert variant="destructive">
+                  <AlertTriangle
+                    className="mt-0.5 h-4 w-4 shrink-0 text-[var(--status-error)]"
+                    aria-hidden="true"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <AlertTitle>Local apply status unavailable</AlertTitle>
+                    <AlertDescription>
+                      Unable to verify loopback bind status while the CLI tools catalog is
+                      unreachable.
+                    </AlertDescription>
+                  </div>
+                </Alert>
+              ) : !catalogQuery.data.local_apply_enabled ? (
                 <Alert variant="warning">
-                  <ShieldAlert className="h-4 w-4 text-[var(--status-warn)]" aria-hidden="true" />
-                  <AlertTitle>Remote-Bind Disabled</AlertTitle>
-                  <AlertDescription>
-                    Local filesystem writes and backup rollbacks are disabled because the router is
-                    bound to a non-loopback address. Use Copy Config or Download Config File to
-                    install manually.
-                  </AlertDescription>
+                  <ShieldAlert
+                    className="mt-0.5 h-4 w-4 shrink-0 text-[var(--status-warn)]"
+                    aria-hidden="true"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <AlertTitle>Remote-Bind Disabled</AlertTitle>
+                    <AlertDescription>
+                      Local filesystem writes and backup rollbacks are disabled because the router
+                      is bound to a non-loopback address. Use Copy Config or Download Config File to
+                      install manually.
+                    </AlertDescription>
+                  </div>
                 </Alert>
               ) : (
                 <>
@@ -490,42 +525,56 @@ export function CliToolsConsole() {
                   {localActionError ? (
                     <Alert variant="destructive">
                       <AlertTriangle
-                        className="h-4 w-4 text-[var(--status-error)]"
+                        className="mt-0.5 h-4 w-4 shrink-0 text-[var(--status-error)]"
                         aria-hidden="true"
                       />
-                      <AlertTitle>Local operation failed</AlertTitle>
-                      <AlertDescription className="font-mono">{localActionError}</AlertDescription>
+                      <div className="min-w-0 flex-1">
+                        <AlertTitle>Local operation failed</AlertTitle>
+                        <AlertDescription className="font-mono break-all">
+                          {localActionError}
+                        </AlertDescription>
+                      </div>
                     </Alert>
                   ) : null}
 
                   {applyOutcome ? (
                     <Alert className="border-[var(--status-ok-border)] bg-[var(--status-ok-bg)]">
                       <CheckCircle2
-                        className="h-4 w-4 text-[var(--status-ok)]"
+                        className="mt-0.5 h-4 w-4 shrink-0 text-[var(--status-ok)]"
                         aria-hidden="true"
                       />
-                      <AlertTitle>Configuration applied locally</AlertTitle>
-                      <AlertDescription className="space-y-1 font-mono text-xs">
-                        <p>Target: {applyOutcome.target_path}</p>
-                        <p>
-                          Backup:{" "}
-                          {applyOutcome.backup_path || "None (no pre-existing file to snapshot)"}
-                        </p>
-                      </AlertDescription>
+                      <div className="min-w-0 flex-1">
+                        <AlertTitle>Configuration applied locally</AlertTitle>
+                        <AlertDescription className="space-y-1 font-mono text-xs">
+                          <span className="block break-all">
+                            Target: {applyOutcome.target_path}
+                          </span>
+                          <span className="block break-all">
+                            Backup:{" "}
+                            {applyOutcome.backup_path || "None (no pre-existing file to snapshot)"}
+                          </span>
+                        </AlertDescription>
+                      </div>
                     </Alert>
                   ) : null}
 
                   {rollbackOutcome ? (
                     <Alert className="border-[var(--status-ok-border)] bg-[var(--status-ok-bg)]">
                       <CheckCircle2
-                        className="h-4 w-4 text-[var(--status-ok)]"
+                        className="mt-0.5 h-4 w-4 shrink-0 text-[var(--status-ok)]"
                         aria-hidden="true"
                       />
-                      <AlertTitle>Latest backup restored</AlertTitle>
-                      <AlertDescription className="space-y-1 font-mono text-xs">
-                        <p>Target: {rollbackOutcome.target_path}</p>
-                        <p>Restored from: {rollbackOutcome.backup_path}</p>
-                      </AlertDescription>
+                      <div className="min-w-0 flex-1">
+                        <AlertTitle>Latest backup restored</AlertTitle>
+                        <AlertDescription className="space-y-1 font-mono text-xs">
+                          <span className="block break-all">
+                            Target: {rollbackOutcome.target_path}
+                          </span>
+                          <span className="block break-all">
+                            Restored from: {rollbackOutcome.backup_path}
+                          </span>
+                        </AlertDescription>
+                      </div>
                     </Alert>
                   ) : null}
 
@@ -633,39 +682,47 @@ export function CliToolsConsole() {
                   <CardTitle>3. Generated Configuration Preview</CardTitle>
                 </div>
                 <CardDescription className="mt-1 font-mono text-xs">
-                  {preview
-                    ? `${preview.target_path} (${preview.filename})`
-                    : (activeDescriptor?.target_path ?? "Select a tool and generate preview")}
+                  {activePreview
+                    ? `${activePreview.target_path} (${activePreview.filename})`
+                    : activeDescriptor
+                      ? `${activeDescriptor.target_path} (${activeDescriptor.filename})`
+                      : "Select a tool and generate preview"}
                 </CardDescription>
               </div>
 
               <div className="flex flex-wrap items-center gap-2">
-                {preview ? (
-                  <Badge variant="default">{formatBadgeLabel(preview.format)}</Badge>
+                {activePreview ? (
+                  <Badge variant="default">{formatBadgeLabel(activePreview.format)}</Badge>
+                ) : activeDescriptor ? (
+                  <Badge variant="secondary">{formatBadgeLabel(activeDescriptor.format)}</Badge>
                 ) : null}
                 <Button
                   type="button"
                   variant="secondary"
                   size="sm"
-                  disabled={!preview || previewStale}
+                  disabled={!activePreview}
                   onClick={() => void handleCopyConfig()}
                 >
-                  {copiedTool === preview?.tool ? (
+                  {copiedTool === activePreview?.tool && activePreview ? (
                     <Check className="h-3.5 w-3.5 text-[var(--status-ok)]" aria-hidden="true" />
                   ) : (
                     <Copy className="h-3.5 w-3.5" aria-hidden="true" />
                   )}
-                  <span>{copiedTool === preview?.tool ? "Copied" : "Copy Config"}</span>
+                  <span>
+                    {copiedTool === activePreview?.tool && activePreview ? "Copied" : "Copy Config"}
+                  </span>
                 </Button>
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
-                  disabled={!preview || previewStale}
+                  disabled={!activePreview}
                   onClick={handleDownloadConfig}
                 >
                   <Download className="h-3.5 w-3.5 text-[#E56A4A]" aria-hidden="true" />
-                  <span>Download {preview?.filename ?? "File"}</span>
+                  <span>
+                    Download {activePreview?.filename ?? activeDescriptor?.filename ?? "File"}
+                  </span>
                 </Button>
               </div>
             </CardHeader>
@@ -674,32 +731,62 @@ export function CliToolsConsole() {
               {generateMutation.isError ? (
                 <Alert variant="destructive">
                   <AlertTriangle
-                    className="h-4 w-4 text-[var(--status-error)]"
+                    className="mt-0.5 h-4 w-4 shrink-0 text-[var(--status-error)]"
                     aria-hidden="true"
                   />
-                  <AlertTitle>Preview generation failed</AlertTitle>
-                  <AlertDescription className="font-mono">
-                    {generateMutation.error.message}
-                  </AlertDescription>
+                  <div className="min-w-0 flex-1">
+                    <AlertTitle>Preview generation failed</AlertTitle>
+                    <AlertDescription className="font-mono break-all">
+                      {generateMutation.error.message}
+                    </AlertDescription>
+                  </div>
                 </Alert>
               ) : null}
 
               {copyError ? (
                 <Alert variant="warning">
-                  <AlertTriangle className="h-4 w-4 text-[var(--status-warn)]" aria-hidden="true" />
-                  <AlertDescription>{copyError}</AlertDescription>
+                  <AlertTriangle
+                    className="mt-0.5 h-4 w-4 shrink-0 text-[var(--status-warn)]"
+                    aria-hidden="true"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <AlertDescription>{copyError}</AlertDescription>
+                  </div>
+                </Alert>
+              ) : null}
+
+              {previewStale && !generateMutation.isPending ? (
+                <Alert variant="warning">
+                  <AlertTriangle
+                    className="mt-0.5 h-4 w-4 shrink-0 text-[var(--status-warn)]"
+                    aria-hidden="true"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <AlertTitle>
+                      Preview out of date for {activeDescriptor?.name ?? selectedTool}
+                    </AlertTitle>
+                    <AlertDescription>
+                      Fix any invalid profile parameters and click Generate Preview to render the
+                      configuration for {activeDescriptor?.name ?? selectedTool}.
+                    </AlertDescription>
+                  </div>
                 </Alert>
               ) : null}
 
               <div className="flex-1 overflow-x-auto rounded-md border border-[var(--border-subtle)] bg-[var(--bg-canvas)] p-4">
-                {generateMutation.isPending && !preview ? (
+                {generateMutation.isPending && !activePreview ? (
                   <p className="font-mono text-xs text-[var(--text-muted)]">
-                    Rendering configuration preview...
+                    Rendering configuration preview for {activeDescriptor?.name ?? selectedTool}...
                   </p>
-                ) : preview ? (
+                ) : activePreview ? (
                   <pre className="font-mono text-xs leading-relaxed text-[var(--text-primary)]">
-                    <code>{preview.content}</code>
+                    <code>{activePreview.content}</code>
                   </pre>
+                ) : previewStale ? (
+                  <p className="font-mono text-xs text-[var(--text-muted)]">
+                    No current preview available for {activeDescriptor?.name ?? selectedTool}. Enter
+                    valid parameters and click Generate Preview.
+                  </p>
                 ) : (
                   <p className="font-mono text-xs text-[var(--text-muted)]">
                     Enter a valid gateway base URL and click Generate Preview.
@@ -707,13 +794,13 @@ export function CliToolsConsole() {
                 )}
               </div>
 
-              {preview ? (
+              {activePreview ? (
                 <div className="rounded-md border border-[var(--border-subtle)] bg-[var(--bg-surface-raised)] px-4 py-3">
                   <p className="font-mono text-[11px] uppercase tracking-wider text-[var(--text-muted)]">
                     Setup Instructions
                   </p>
                   <p className="mt-1 text-xs leading-relaxed text-[var(--text-secondary)]">
-                    {preview.instructions}
+                    {activePreview.instructions}
                   </p>
                 </div>
               ) : null}

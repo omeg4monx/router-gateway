@@ -1,7 +1,7 @@
 # Graph Report - omeg4mon-router  (2026-11-23)
 
 ## Corpus Check
-- 179 files · ~190,236 words
+- 179 files · ~190,482 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 8 file(s) not represented in the graph (top: (none) 6, .lock 1, .css 1)
 
@@ -11,7 +11,7 @@
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `500c2382`
+- Built from commit: `bff6bfd3`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -127,12 +127,12 @@
   docs/superpowers/plans/2026-11-23-wave1a-auth-settings-keys.md → web/src/shared/ui/AppShell.tsx
 - `Task 6: Binary Wiring (`cmd/omeg4mon-router/main.go`), Root OpenAPI Aggregation, `make codegen` & Live E2E Gateway Tests` --references--> `buildApp()`  [INFERRED]
   docs/superpowers/plans/2026-11-23-wave1b-providers-combos-gateway.md → cmd/omeg4mon-router/main.go
-- `Task 6: Frontend Auth Flow (`web/src/features/auth/`, Live `/login/`, `AuthGuard`, Sign-Out)` --references--> `AppShell()`  [INFERRED]
-  docs/superpowers/plans/2026-11-23-wave1a-auth-settings-keys.md → web/src/shared/ui/AppShell.tsx
 - `File Map` --references--> `GatewayInterceptor`  [INFERRED]
   docs/superpowers/plans/2026-11-23-wave1b-providers-combos-gateway.md → internal/contracts/contracts.go
 - `Task 5: `gateway` HTTP Pipeline — Streaming SSE Executor, Auth, Failover, OAuth Refresh, Response Chains & `GatewayInterceptor` Chain` --references--> `GatewayInterceptor`  [INFERRED]
   docs/superpowers/plans/2026-11-23-wave1b-providers-combos-gateway.md → internal/contracts/contracts.go
+- `Task 3: Binary Wiring (`cmd/omeg4mon-router/main.go`), Root OpenAPI Aggregation, `make codegen` & Live E2E Tests` --references--> `Options`  [INFERRED]
+  docs/superpowers/plans/2026-11-23-wave1c-usage-clitools.md → internal/modules/gateway/module.go
 
 ## Import Cycles
 - None detected.
@@ -472,7 +472,7 @@ Nodes (13): trackedResponseWriter, clearSessionCookie(), isSecureRequest(), read
 _Questions this graph is uniquely positioned to answer:_
 
 - **Why does `File Map` connect `APIKeySummary` to `Module`, `Server`, `newTestHarness`, `ProviderDetailView.tsx`?**
-  _High betweenness centrality (0.289) - this node is a cross-community bridge._
+  _High betweenness centrality (0.313) - this node is a cross-community bridge._
 - **Are the 5 inferred relationships involving `WriteError()` (e.g. with `.adminAuthMiddleware()` and `.recoverJSON()`) actually correct?**
   _`WriteError()` has 5 INFERRED edges - model-reasoned connections that need verification._
 - **What connects `github.com/omeg4monx/router-gateway`, `Structured Logging RingBuffer & Non-Blocking EventBus`, `Platform Crypto Vault, Bcrypt & Session Signer` to the rest of the system?**
@@ -480,8 +480,8 @@ _Questions this graph is uniquely positioned to answer:_
 - **Should `Binary Entrypoint & Embedded UI` be split into smaller, more focused modules?**
   _Cohesion score 0.053588516746411484 - nodes in this community are weakly interconnected._
 - **Why does `Task 6: Frontend Auth Flow (`web/src/features/auth/`, Live `/login/`, `AuthGuard`, Sign-Out)` connect `ProviderDetailView.tsx` to `AppShell.tsx`, `APIKeySummary`?**
-  _High betweenness centrality (0.204) - this node is a cross-community bridge._
+  _High betweenness centrality (0.220) - this node is a cross-community bridge._
 - **Should `extractErrorMessage` be split into smaller, more focused modules?**
   _Cohesion score 0.08076923076923077 - nodes in this community are weakly interconnected._
 - **Why does `AppShell()` connect `AppShell.tsx` to `ProviderDetailView.tsx`, `APIKeySummary`?**
-  _High betweenness centrality (0.170) - this node is a cross-community bridge._
+  _High betweenness centrality (0.185) - this node is a cross-community bridge._
