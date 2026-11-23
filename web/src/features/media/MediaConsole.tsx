@@ -99,7 +99,17 @@ export function MediaConsole() {
     updateCombo.error ??
     deleteCombo.error;
 
+  const clearMutationErrors = () => {
+    createProvider.reset();
+    updateProvider.reset();
+    deleteProvider.reset();
+    createCombo.reset();
+    updateCombo.reset();
+    deleteCombo.reset();
+  };
+
   const onCreateProvider = providerForm.handleSubmit((values) => {
+    clearMutationErrors();
     createProvider.mutate(
       {
         name: values.name,
@@ -120,6 +130,7 @@ export function MediaConsole() {
   });
 
   const onCreateCombo = comboForm.handleSubmit((values) => {
+    clearMutationErrors();
     createCombo.mutate(
       {
         name: values.name,
@@ -229,7 +240,7 @@ export function MediaConsole() {
                     {...providerForm.register("name")}
                   />
                   {providerForm.formState.errors.name ? (
-                    <p className="text-xs text-red-500">
+                    <p className="text-xs text-[var(--status-error)]">
                       {providerForm.formState.errors.name.message}
                     </p>
                   ) : null}
@@ -265,7 +276,7 @@ export function MediaConsole() {
                     ))}
                   </select>
                   {providerForm.formState.errors.driver ? (
-                    <p className="text-xs text-red-500">
+                    <p className="text-xs text-[var(--status-error)]">
                       {providerForm.formState.errors.driver.message}
                     </p>
                   ) : null}
@@ -277,6 +288,11 @@ export function MediaConsole() {
                     type="number"
                     {...providerForm.register("priority")}
                   />
+                  {providerForm.formState.errors.priority ? (
+                    <p className="text-xs text-[var(--status-error)]">
+                      {providerForm.formState.errors.priority.message}
+                    </p>
+                  ) : null}
                 </div>
               </div>
 
@@ -288,7 +304,7 @@ export function MediaConsole() {
                   {...providerForm.register("base_url")}
                 />
                 {providerForm.formState.errors.base_url ? (
-                  <p className="text-xs text-red-500">
+                  <p className="text-xs text-[var(--status-error)]">
                     {providerForm.formState.errors.base_url.message}
                   </p>
                 ) : null}
@@ -343,7 +359,7 @@ export function MediaConsole() {
                     {...comboForm.register("name")}
                   />
                   {comboForm.formState.errors.name ? (
-                    <p className="text-xs text-red-500">
+                    <p className="text-xs text-[var(--status-error)]">
                       {comboForm.formState.errors.name.message}
                     </p>
                   ) : null}
@@ -374,7 +390,7 @@ export function MediaConsole() {
                   {...comboForm.register("targets_text")}
                 />
                 {comboForm.formState.errors.targets_text ? (
-                  <p className="text-xs text-red-500">
+                  <p className="text-xs text-[var(--status-error)]">
                     {comboForm.formState.errors.targets_text.message}
                   </p>
                 ) : null}

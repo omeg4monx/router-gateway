@@ -302,3 +302,46 @@ func TestTunnelStopTerminatesRunningProcessOnShutdown(t *testing.T) {
 		t.Fatalf("expected mod.Stop to kill active tunnel process")
 	}
 }
+
+func TestTunnelLongOutputLineNoDeadlockAndTransientOverride(t *testing.T) {
+	longPrefix := strings.Repeat("x", 72*1024)
+	runner := &fakeRunner{
+		binaries: map[string]string{
+			"cloudflared": "/usr/local/bin/cloudflared",
+			"tailscale":   "/usr/bin/tailscale",
+		},
+		startLogLine: longPrefix + "\nINF https://long-line-ok.trycloudflare.com",
+	}
+	mod, r := setupTunnelTest(t, runner)
+
+	// Start with transient local_url override; persisted config must remain default.
+	startRec := doTunnelReq(t, r, http.MethodPost, "/tunnel/start", map[string]any{
+		"provider":  "cloudflare",
+		"local_url": "http://127.0.0.1:29999",
+	})
+	if startRec.Code != http.StatusOK {
+		t.Fatalf("start failed: %d %s", startRec.Code, startRec.Body.String())
+	}
+
+	deadline := time.Now().Add(2 * time.Second)
+	var st Status
+	for time.Now().Before(deadline) {
+		rec := doTunnelReq(t, r, http.MethodGet, "/tunnel/status", nil)
+		_ = json.Unmarshal(rec.Body.Bytes(), &st)
+		if st.PublicURL == "https://long-line-ok.trycloudflare.com" {
+			break
+		}
+		time.Sleep(15 * time.Millisecond)
+	}
+	if st.PublicURL != "https://long-line-ok.trycloudflare.com" {
+		t.Fatalf("expected URL after >64KiB log line without deadlock, got %+v", st)
+	}
+	// Persisted local_url must remain unchanged (not overwritten by transient start override).
+	if st.LocalURL != "http://127.0.0.1:20128" {
+		t.Fatalf("expected persisted local_url to remain http://127.0.0.1:20128, got %q", st.LocalURL)
+	}
+
+	if err := mod.Stop(context.Background()); err != nil {
+		t.Fatalf("Stop failed: %v", err)
+	}
+}

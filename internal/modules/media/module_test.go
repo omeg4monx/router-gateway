@@ -9,6 +9,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"net/netip"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -453,5 +454,48 @@ func TestMediaWebFetchSSRFGuardAndExtraction(t *testing.T) {
 	}
 	if !strings.Contains(fetched.Text, "Hello World") || !strings.Contains(fetched.Text, "Clean router text.") {
 		t.Fatalf("expected readable body text, got %q", fetched.Text)
+	}
+}
+
+func TestMediaSSRFReservedRangesAndRedirectBlock(t *testing.T) {
+	blockedIPs := []string{
+		"0.0.0.1",
+		"100.64.0.1",
+		"192.0.0.1",
+		"198.18.0.1",
+		"240.0.0.1",
+		"64:ff9b::7f00:1",
+		"::127.0.0.1",
+		"fe80::1%eth0",
+	}
+	for _, raw := range blockedIPs {
+		addr, err := netip.ParseAddr(raw)
+		if err != nil {
+			t.Fatalf("parse %q: %v", raw, err)
+		}
+		if !isBlockedAddr(addr) {
+			t.Fatalf("expected %q to be blocked by SSRF policy", raw)
+		}
+	}
+	if err := validateRedirectTarget(context.Background(), "http://127.0.0.1:20128/api/health", false); !errors.Is(err, errSSRFBlocked) {
+		t.Fatalf("expected redirect to loopback to be blocked with errSSRFBlocked, got %v", err)
+	}
+	if err := validateRedirectTarget(context.Background(), "file:///etc/passwd", false); !errors.Is(err, errInvalidFetchURL) {
+		t.Fatalf("expected file:// redirect to be blocked with errInvalidFetchURL, got %v", err)
+	}
+}
+
+func TestMediaKeyAllowedModelsEnforcement(t *testing.T) {
+	if !isModelAllowed(nil, "img-combo", CapabilityImage) {
+		t.Fatalf("empty allowed list must allow all")
+	}
+	if !isModelAllowed([]string{"*"}, "img-combo", CapabilityImage) {
+		t.Fatalf("wildcard must allow all")
+	}
+	if isModelAllowed([]string{"gpt-4o"}, "img-combo", CapabilityImage) {
+		t.Fatalf("restricted key must NOT allow unrelated media capability")
+	}
+	if !isModelAllowed([]string{"media/image"}, "", CapabilityImage) {
+		t.Fatalf("media/<capability> must be permitted")
 	}
 }

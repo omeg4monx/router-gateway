@@ -26,6 +26,7 @@ import (
 	"github.com/omeg4monx/router-gateway/internal/platform/crypto"
 	"github.com/omeg4monx/router-gateway/internal/platform/db"
 	"github.com/omeg4monx/router-gateway/internal/platform/eventbus"
+	"github.com/omeg4monx/router-gateway/internal/platform/httpclient"
 	"github.com/omeg4monx/router-gateway/internal/platform/httpserver"
 	"github.com/omeg4monx/router-gateway/internal/platform/lifecycle"
 )
@@ -606,16 +607,42 @@ func writeOpenAIError(w http.ResponseWriter, status int, errType, code, msg stri
 	})
 }
 
-func (m *Module) resolveCandidates(ctx context.Context, capability, selector string) ([]providerRecord, error) {
+func isModelAllowed(allowed []string, selector, capability string) bool {
+	if len(allowed) == 0 {
+		return true
+	}
+	for _, entry := range allowed {
+		trimmed := strings.TrimSpace(entry)
+		if trimmed == "*" {
+			return true
+		}
+		if selector != "" && strings.EqualFold(trimmed, selector) {
+			return true
+		}
+		if strings.EqualFold(trimmed, capability) || strings.EqualFold(trimmed, "media/"+capability) {
+			return true
+		}
+	}
+	return false
+}
+
+func (m *Module) resolveCandidates(ctx context.Context, capability, selector string, explicitTarget bool) ([]providerRecord, error) {
 	providers, err := m.repo.listProviders(ctx)
 	if err != nil {
 		return nil, err
 	}
 	byID := make(map[string]providerRecord, len(providers))
 	byName := make(map[string]providerRecord, len(providers))
+	allByID := make(map[string]providerRecord, len(providers))
+	allByName := make(map[string]providerRecord, len(providers))
 	capEnabled := make([]providerRecord, 0)
 	for _, p := range providers {
-		if !p.Enabled || p.Capability != capability {
+		if p.Capability != capability {
+			continue
+		}
+		allByID[p.ID] = p
+		allByName[strings.ToLower(p.Name)] = p
+		if !p.Enabled {
 			continue
 		}
 		byID[p.ID] = p
@@ -630,10 +657,13 @@ func (m *Module) resolveCandidates(ctx context.Context, capability, selector str
 			return nil, err
 		}
 		for _, c := range combos {
-			if !c.Enabled || c.Capability != capability {
+			if c.Capability != capability {
 				continue
 			}
 			if strings.EqualFold(c.Name, sel) || c.ID == sel {
+				if !c.Enabled {
+					return nil, nil
+				}
 				resolved := make([]providerRecord, 0, len(c.Targets))
 				for _, t := range c.Targets {
 					if p, ok := byID[t]; ok {
@@ -645,11 +675,20 @@ func (m *Module) resolveCandidates(ctx context.Context, capability, selector str
 				return resolved, nil
 			}
 		}
-		if p, ok := byID[sel]; ok {
+		if p, ok := allByID[sel]; ok {
+			if !p.Enabled {
+				return nil, nil
+			}
 			return []providerRecord{p}, nil
 		}
-		if p, ok := byName[strings.ToLower(sel)]; ok {
+		if p, ok := allByName[strings.ToLower(sel)]; ok {
+			if !p.Enabled {
+				return nil, nil
+			}
 			return []providerRecord{p}, nil
+		}
+		if explicitTarget {
+			return nil, nil
 		}
 	}
 	return capEnabled, nil
@@ -692,13 +731,25 @@ func (m *Module) handleMediaProxy(w http.ResponseWriter, r *http.Request, capabi
 		bodyBytes = raw
 	}
 
-	selector := extractMediaSelector(r, bodyBytes)
-	candidates, err := m.resolveCandidates(r.Context(), capability, selector)
+	selector, explicitTarget := extractMediaSelector(r, bodyBytes)
+	if !isModelAllowed(keyInfo.AllowedModels, selector, capability) {
+		writeOpenAIError(w, http.StatusForbidden, "permission_error", "model_forbidden", "requested media capability or model is not permitted for this API key")
+		return
+	}
+
+	candidates, err := m.resolveCandidates(r.Context(), capability, selector, explicitTarget)
 	if err != nil {
 		writeOpenAIError(w, http.StatusInternalServerError, "server_error", "media_resolve_failed", "failed to resolve media provider")
 		return
 	}
-	if len(candidates) == 0 {
+	// Filter out builtin_fetch when proxying remote HTTP requests.
+	remoteCandidates := make([]providerRecord, 0, len(candidates))
+	for _, c := range candidates {
+		if c.Driver != DriverBuiltinFetch && c.BaseURL != "" {
+			remoteCandidates = append(remoteCandidates, c)
+		}
+	}
+	if len(remoteCandidates) == 0 {
 		writeOpenAIError(w, http.StatusNotFound, "invalid_request_error", "media_provider_not_found", fmt.Sprintf("no enabled %s media provider configured", capability))
 		return
 	}
@@ -707,16 +758,23 @@ func (m *Module) handleMediaProxy(w http.ResponseWriter, r *http.Request, capabi
 		lastStatus int
 		lastBody   []byte
 		lastCT     string
+		lastCand   providerRecord
 		lastErr    error
 	)
 
-	for _, cand := range candidates {
+	for _, cand := range remoteCandidates {
 		targetURL := buildUpstreamMediaURL(cand, upstreamPath)
 		var reqBody io.Reader
 		if len(bodyBytes) > 0 {
 			reqBody = bytes.NewReader(bodyBytes)
 		}
-		upReq, reqErr := http.NewRequestWithContext(r.Context(), r.Method, targetURL, reqBody)
+		reqMethod := http.MethodPost
+		if r.Method == http.MethodGet {
+			reqMethod = http.MethodGet
+		}
+		upCtx := httpclient.WithProviderID(r.Context(), cand.ID)
+		// #nosec G704 -- upstream URL is admin-configured and scheme-validated on create/patch.
+		upReq, reqErr := http.NewRequestWithContext(upCtx, reqMethod, targetURL, reqBody)
 		if reqErr != nil {
 			lastErr = reqErr
 			continue
@@ -756,6 +814,7 @@ func (m *Module) handleMediaProxy(w http.ResponseWriter, r *http.Request, capabi
 		lastStatus = resp.StatusCode
 		lastBody = respBody
 		lastCT = resp.Header.Get("Content-Type")
+		lastCand = cand
 
 		// Failover only on provider/account errors (401/403/429/5xx).
 		// Client errors (400/404/422 etc.) return immediately without burning fallback providers.
@@ -773,7 +832,7 @@ func (m *Module) handleMediaProxy(w http.ResponseWriter, r *http.Request, capabi
 	}
 
 	if lastStatus > 0 {
-		m.recordUsage(r.Context(), keyInfo.ID, selector, candidates[len(candidates)-1], capability, lastStatus, time.Since(start), "upstream media error")
+		m.recordUsage(r.Context(), keyInfo.ID, selector, lastCand, capability, lastStatus, time.Since(start), "upstream media error")
 		if lastCT != "" {
 			w.Header().Set("Content-Type", lastCT)
 		}
@@ -786,7 +845,7 @@ func (m *Module) handleMediaProxy(w http.ResponseWriter, r *http.Request, capabi
 	if lastErr != nil {
 		errSummary = lastErr.Error()
 	}
-	m.recordUsage(r.Context(), keyInfo.ID, selector, candidates[0], capability, http.StatusBadGateway, time.Since(start), errSummary)
+	m.recordUsage(r.Context(), keyInfo.ID, selector, remoteCandidates[0], capability, http.StatusBadGateway, time.Since(start), errSummary)
 	writeOpenAIError(w, http.StatusBadGateway, "server_error", "media_upstream_failed", errSummary)
 }
 
@@ -801,16 +860,25 @@ func (m *Module) handleWebFetch(w http.ResponseWriter, r *http.Request) {
 		writeOpenAIError(w, http.StatusBadRequest, "invalid_request_error", "invalid_payload", err.Error())
 		return
 	}
+	if !isModelAllowed(keyInfo.AllowedModels, req.Provider, CapabilityFetch) {
+		writeOpenAIError(w, http.StatusForbidden, "permission_error", "model_forbidden", "web fetch is not permitted for this API key")
+		return
+	}
 
-	// If a remote fetch provider is explicitly selected or configured (non-builtin), proxy to it.
-	if candidates, err := m.resolveCandidates(r.Context(), CapabilityFetch, req.Provider); err == nil {
-		for _, c := range candidates {
-			if c.Driver != DriverBuiltinFetch && c.BaseURL != "" {
-				raw, _ := json.Marshal(req)
-				r.Body = io.NopCloser(bytes.NewReader(raw))
-				m.handleMediaProxy(w, r, CapabilityFetch, "/web/fetch")
-				return
-			}
+	// Respect configured provider priority: if highest-priority enabled fetch
+	// candidate is a remote provider, proxy to it; if it is builtin_fetch (or none),
+	// execute the built-in SSRF-guarded extractor.
+	explicit := strings.TrimSpace(req.Provider) != ""
+	if candidates, err := m.resolveCandidates(r.Context(), CapabilityFetch, req.Provider, explicit); err == nil {
+		if explicit && len(candidates) == 0 {
+			writeOpenAIError(w, http.StatusNotFound, "invalid_request_error", "media_provider_not_found", "requested fetch provider not found or disabled")
+			return
+		}
+		if len(candidates) > 0 && candidates[0].Driver != DriverBuiltinFetch && candidates[0].BaseURL != "" {
+			raw, _ := json.Marshal(req)
+			r.Body = io.NopCloser(bytes.NewReader(raw))
+			m.handleMediaProxy(w, r, CapabilityFetch, "/web/fetch")
+			return
 		}
 	}
 
@@ -854,16 +922,19 @@ func buildUpstreamMediaURL(cand providerRecord, upstreamPath string) string {
 	return base + upstreamPath
 }
 
-func extractMediaSelector(r *http.Request, body []byte) string {
+func extractMediaSelector(r *http.Request, body []byte) (selector string, explicit bool) {
 	if r.URL != nil {
-		for _, q := range []string{"combo", "provider", "model"} {
+		for _, q := range []string{"combo", "provider"} {
 			if v := strings.TrimSpace(r.URL.Query().Get(q)); v != "" {
-				return v
+				return v, true
 			}
+		}
+		if v := strings.TrimSpace(r.URL.Query().Get("model")); v != "" {
+			return v, false
 		}
 	}
 	if len(body) == 0 {
-		return ""
+		return "", false
 	}
 	ct := r.Header.Get("Content-Type")
 	mediaType, params, _ := mime.ParseMediaType(ct)
@@ -875,13 +946,13 @@ func extractMediaSelector(r *http.Request, body []byte) string {
 		}
 		if json.Unmarshal(body, &payload) == nil {
 			if v := strings.TrimSpace(payload.Combo); v != "" {
-				return v
+				return v, true
 			}
 			if v := strings.TrimSpace(payload.Provider); v != "" {
-				return v
+				return v, true
 			}
 			if v := strings.TrimSpace(payload.Model); v != "" {
-				return v
+				return v, false
 			}
 		}
 	}
@@ -893,18 +964,26 @@ func extractMediaSelector(r *http.Request, body []byte) string {
 				break
 			}
 			name := part.FormName()
-			if name == "model" || name == "combo" || name == "provider" {
+			if name == "combo" || name == "provider" {
 				val, _ := io.ReadAll(io.LimitReader(part, 256))
 				_ = part.Close()
 				if s := strings.TrimSpace(string(val)); s != "" {
-					return s
+					return s, true
+				}
+				continue
+			}
+			if name == "model" {
+				val, _ := io.ReadAll(io.LimitReader(part, 256))
+				_ = part.Close()
+				if s := strings.TrimSpace(string(val)); s != "" {
+					return s, false
 				}
 				continue
 			}
 			_ = part.Close()
 		}
 	}
-	return ""
+	return "", false
 }
 
 func (m *Module) recordUsage(ctx context.Context, keyID, model string, cand providerRecord, capability string, status int, latency time.Duration, errSummary string) {

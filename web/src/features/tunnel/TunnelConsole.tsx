@@ -47,7 +47,7 @@ export function TunnelConsole() {
   const events = eventsQuery.data?.events ?? [];
 
   useEffect(() => {
-    if (!status) {
+    if (!status || form.formState.isDirty) {
       return;
     }
     form.reset({
@@ -67,18 +67,34 @@ export function TunnelConsole() {
 
   const isRunning = status?.status === "running" || status?.status === "starting";
 
+  const clearMutationErrors = () => {
+    updateConfig.reset();
+    startTunnel.reset();
+    stopTunnel.reset();
+  };
+
   const onSaveConfig = form.handleSubmit((values) => {
-    updateConfig.mutate(values);
+    clearMutationErrors();
+    updateConfig.mutate(values, {
+      onSuccess: (updated) => {
+        form.reset({
+          provider: updated.provider,
+          local_url: updated.local_url,
+          tailscale_mode: updated.tailscale_mode,
+          auto_start: updated.auto_start,
+        });
+      },
+    });
   });
 
-  const handleStart = () => {
-    const values = form.getValues();
+  const handleStart = form.handleSubmit((values) => {
+    clearMutationErrors();
     startTunnel.mutate({
       provider: values.provider,
       local_url: values.local_url,
       tailscale_mode: values.tailscale_mode,
     });
-  };
+  });
 
   return (
     <div className="space-y-6">
@@ -113,7 +129,10 @@ export function TunnelConsole() {
               type="button"
               variant="destructive"
               size="sm"
-              onClick={() => stopTunnel.mutate()}
+              onClick={() => {
+                clearMutationErrors();
+                stopTunnel.mutate();
+              }}
               disabled={stopTunnel.isPending}
             >
               <Square className="h-3.5 w-3.5" aria-hidden="true" />
@@ -238,7 +257,9 @@ export function TunnelConsole() {
                   {...form.register("local_url")}
                 />
                 {form.formState.errors.local_url ? (
-                  <p className="text-xs text-red-500">{form.formState.errors.local_url.message}</p>
+                  <p className="text-xs text-[var(--status-error)]">
+                    {form.formState.errors.local_url.message}
+                  </p>
                 ) : null}
               </div>
             </div>

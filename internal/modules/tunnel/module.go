@@ -94,18 +94,19 @@ type Module struct {
 	logger *slog.Logger
 	runner ProcessRunner
 
-	mu            sync.Mutex
-	persisted     ConfigRecord
-	state         string
-	publicURL     string
-	pid           int
-	startedAt     string
-	lastError     string
-	activeHandle  ProcessHandle
-	activeProv    string
-	activeTSMode  string
-	runWG         sync.WaitGroup
-	stopRequested bool
+	mu             sync.Mutex
+	persisted      ConfigRecord
+	state          string
+	publicURL      string
+	pid            int
+	startedAt      string
+	lastError      string
+	activeHandle   ProcessHandle
+	activeProv     string
+	activeLocalURL string
+	activeTSMode   string
+	runWG          sync.WaitGroup
+	stopRequested  bool
 }
 
 var _ lifecycle.Module = (*Module)(nil)
@@ -181,11 +182,25 @@ func (m *Module) Start(ctx context.Context) error {
 	return nil
 }
 
-// Stop cleanly terminates any active tunnel process and waits for watcher goroutines.
+// Stop cleanly terminates any active tunnel process and waits for watcher
+// goroutines to finish or until ctx is canceled.
 func (m *Module) Stop(ctx context.Context) error {
 	_, _ = m.stopTunnel(ctx)
-	m.runWG.Wait()
-	return nil
+	done := make(chan struct{})
+	go func() {
+		m.runWG.Wait()
+		close(done)
+	}()
+	if ctx == nil {
+		<-done
+		return nil
+	}
+	select {
+	case <-done:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 }
 
 func validateProvider(p string) error {
@@ -438,8 +453,6 @@ func (m *Module) startTunnel(ctx context.Context, provider, localURL, tsMode str
 			m.mu.Unlock()
 			return Status{}, startErr
 		}
-		m.persisted.Provider = provider
-		m.persisted.LocalURL = normLocalURL
 		m.state = StateStarting
 		m.publicURL = ""
 		m.lastError = ""
@@ -447,6 +460,7 @@ func (m *Module) startTunnel(ctx context.Context, provider, localURL, tsMode str
 		m.startedAt = nowUTC()
 		m.activeHandle = handle
 		m.activeProv = provider
+		m.activeLocalURL = normLocalURL
 		m.stopRequested = false
 		st := m.snapshotLocked()
 		m.runWG.Add(1)
@@ -459,11 +473,20 @@ func (m *Module) startTunnel(ctx context.Context, provider, localURL, tsMode str
 		return st, nil
 	}
 
-	// Tailscale serve / funnel
+	// Tailscale serve / funnel: transition to StateStarting under lock BEFORE
+	// executing the CLI so concurrent Start/Stop calls are serialized safely.
 	if _, lpErr := m.runner.LookPath("tailscale"); lpErr != nil {
 		m.mu.Unlock()
 		return Status{}, fmt.Errorf("%w: tailscale is not installed", errBinaryNotFound)
 	}
+	m.state = StateStarting
+	m.publicURL = ""
+	m.lastError = ""
+	m.pid = 0
+	m.activeProv = provider
+	m.activeLocalURL = normLocalURL
+	m.activeTSMode = tsMode
+	m.stopRequested = false
 	m.mu.Unlock()
 
 	cmdCtx, cancel := context.WithTimeout(ctx, tailscaleCmdTimeout)
@@ -487,15 +510,23 @@ func (m *Module) startTunnel(ctx context.Context, provider, localURL, tsMode str
 	publicURL := reHTTPSURL.FindString(string(out))
 
 	m.mu.Lock()
-	m.persisted.Provider = provider
-	m.persisted.LocalURL = normLocalURL
-	m.persisted.TailscaleMode = tsMode
+	if m.stopRequested {
+		m.state = StateStopped
+		m.publicURL = ""
+		st := m.snapshotLocked()
+		m.mu.Unlock()
+		offCtx, offCancel := context.WithTimeout(context.Background(), tailscaleCmdTimeout)
+		_, _ = m.runner.Run(offCtx, "tailscale", tsMode, "--bg", "off")
+		offCancel()
+		return st, nil
+	}
 	m.state = StateRunning
 	m.publicURL = publicURL
 	m.lastError = ""
 	m.pid = 0
 	m.startedAt = nowUTC()
 	m.activeProv = provider
+	m.activeLocalURL = normLocalURL
 	m.activeTSMode = tsMode
 	st := m.snapshotLocked()
 	m.mu.Unlock()
@@ -508,9 +539,11 @@ func (m *Module) startTunnel(ctx context.Context, provider, localURL, tsMode str
 func (m *Module) watchCloudflared(handle ProcessHandle) {
 	defer m.runWG.Done()
 	if out := handle.Output(); out != nil {
-		scanner := bufio.NewScanner(out)
-		for scanner.Scan() {
-			line := scanner.Text()
+		// Read with bufio.Reader instead of bufio.Scanner so lines >64 KiB
+		// never abort draining and deadlock os/exec's pipe writer.
+		reader := bufio.NewReader(out)
+		for {
+			line, err := reader.ReadString('\n')
 			if found := reCloudflareURL.FindString(line); found != "" {
 				m.mu.Lock()
 				if m.activeHandle == handle && m.publicURL != found {
@@ -524,7 +557,11 @@ func (m *Module) watchCloudflared(handle ProcessHandle) {
 					m.mu.Unlock()
 				}
 			}
+			if err != nil {
+				break
+			}
 		}
+		_, _ = io.Copy(io.Discard, reader)
 	}
 
 	waitErr := handle.Wait()
@@ -571,6 +608,7 @@ func (m *Module) stopTunnel(ctx context.Context) (Status, error) {
 	handle := m.activeHandle
 	prov := m.activeProv
 	tsMode := m.activeTSMode
+	wasActive := m.state == StateRunning || m.state == StateStarting
 	if prov == "" {
 		prov = m.persisted.Provider
 	}
@@ -582,14 +620,31 @@ func (m *Module) stopTunnel(ctx context.Context) (Status, error) {
 
 	if handle != nil {
 		_ = handle.Kill()
-	} else if prov == ProviderTailscale && m.state == StateRunning {
+	} else if prov == ProviderTailscale && wasActive {
 		cmdCtx, cancel := context.WithTimeout(ctx, tailscaleCmdTimeout)
-		_, _ = m.runner.Run(cmdCtx, "tailscale", tsMode, "--bg", "off")
+		out, runErr := m.runner.Run(cmdCtx, "tailscale", tsMode, "--bg", "off")
 		cancel()
+		if runErr != nil {
+			msg := strings.TrimSpace(string(out))
+			if msg == "" {
+				msg = runErr.Error()
+			}
+			m.mu.Lock()
+			m.state = StateError
+			m.lastError = msg
+			st := m.snapshotLocked()
+			m.mu.Unlock()
+			_ = m.repo.appendEvent(ctx, prov, "error", "tailscale stop failed: "+msg, st.PublicURL)
+			m.publishStatus(st)
+			return st, errors.New(msg)
+		}
 	}
 
 	m.mu.Lock()
 	m.activeHandle = nil
+	m.activeProv = ""
+	m.activeLocalURL = ""
+	m.activeTSMode = ""
 	m.state = StateStopped
 	m.publicURL = ""
 	m.pid = 0

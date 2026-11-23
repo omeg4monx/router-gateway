@@ -30,6 +30,20 @@ var (
 	reTitleTag         = regexp.MustCompile(`(?is)<title\b[^>]*>(.*?)</title>`)
 	reHTMLTag          = regexp.MustCompile(`(?s)<[^>]+>`)
 	reMultiWhitespace  = regexp.MustCompile(`\s+`)
+
+	blockedPrefixes = []netip.Prefix{
+		netip.MustParsePrefix("0.0.0.0/8"),       // "This" network (RFC 1122)
+		netip.MustParsePrefix("100.64.0.0/10"),   // Shared Address Space / CGNAT (RFC 6598)
+		netip.MustParsePrefix("192.0.0.0/24"),    // IETF Protocol Assignments
+		netip.MustParsePrefix("192.0.2.0/24"),    // TEST-NET-1
+		netip.MustParsePrefix("198.18.0.0/15"),   // Benchmarking
+		netip.MustParsePrefix("198.51.100.0/24"), // TEST-NET-2
+		netip.MustParsePrefix("203.0.113.0/24"),  // TEST-NET-3
+		netip.MustParsePrefix("240.0.0.0/4"),     // Reserved / future use + broadcast
+		netip.MustParsePrefix("64:ff9b::/96"),    // NAT64 well-known prefix
+		netip.MustParsePrefix("64:ff9b:1::/48"),  // NAT64 local-use prefix
+		netip.MustParsePrefix("::/96"),           // IPv4-compatible IPv6
+	}
 )
 
 // WebFetchRequest describes a POST /v1/web/fetch request body.
@@ -72,42 +86,64 @@ func validateFetchURL(raw string) (*url.URL, error) {
 }
 
 func isBlockedAddr(addr netip.Addr) bool {
-	addr = addr.Unmap()
-	if !addr.IsValid() {
+	if !addr.IsValid() || addr.Zone() != "" {
 		return true
 	}
+	addr = addr.Unmap()
 	if addr.IsLoopback() || addr.IsPrivate() || addr.IsLinkLocalUnicast() ||
 		addr.IsLinkLocalMulticast() || addr.IsMulticast() || addr.IsUnspecified() ||
 		addr.IsInterfaceLocalMulticast() {
 		return true
 	}
-	// Block CGNAT 100.64.0.0/10 and benchmark/reserved ranges.
-	cgnat := netip.MustParsePrefix("100.64.0.0/10")
-	return cgnat.Contains(addr)
+	for _, pfx := range blockedPrefixes {
+		if pfx.Contains(addr) {
+			return true
+		}
+	}
+	return false
 }
 
-func checkHostSSRF(ctx context.Context, host string) error {
+// resolveAndCheckHostSSRF resolves host once, validates every returned IP
+// against the SSRF policy, and returns the verified IPs so callers can dial
+// a validated IP directly without a second DNS lookup (eliminating TOCTOU
+// DNS rebinding).
+func resolveAndCheckHostSSRF(ctx context.Context, host string) ([]netip.Addr, error) {
 	lower := strings.ToLower(strings.TrimSuffix(strings.TrimSpace(host), "."))
 	if lower == "" || lower == "localhost" || strings.HasSuffix(lower, ".localhost") ||
 		strings.HasSuffix(lower, ".local") || strings.HasSuffix(lower, ".internal") {
-		return fmt.Errorf("%w: host %q is not permitted", errSSRFBlocked, host)
+		return nil, fmt.Errorf("%w: host %q is not permitted", errSSRFBlocked, host)
 	}
 	if ip, err := netip.ParseAddr(lower); err == nil {
 		if isBlockedAddr(ip) {
-			return fmt.Errorf("%w: ip %s is not permitted", errSSRFBlocked, ip.String())
+			return nil, fmt.Errorf("%w: ip %s is not permitted", errSSRFBlocked, ip.String())
 		}
-		return nil
+		return []netip.Addr{ip.Unmap()}, nil
 	}
 	ips, err := net.DefaultResolver.LookupNetIP(ctx, "ip", lower)
 	if err != nil {
-		return fmt.Errorf("resolve host %q: %w", host, err)
+		return nil, fmt.Errorf("resolve host %q: %w", host, err)
 	}
 	if len(ips) == 0 {
-		return fmt.Errorf("%w: host %q resolved no addresses", errSSRFBlocked, host)
+		return nil, fmt.Errorf("%w: host %q resolved no addresses", errSSRFBlocked, host)
 	}
+	verified := make([]netip.Addr, 0, len(ips))
 	for _, ip := range ips {
 		if isBlockedAddr(ip) {
-			return fmt.Errorf("%w: host %q resolved to blocked address", errSSRFBlocked, host)
+			return nil, fmt.Errorf("%w: host %q resolved to blocked address", errSSRFBlocked, host)
+		}
+		verified = append(verified, ip.Unmap())
+	}
+	return verified, nil
+}
+
+func validateRedirectTarget(ctx context.Context, rawURL string, allowPrivate bool) error {
+	parsed, err := validateFetchURL(rawURL)
+	if err != nil {
+		return err
+	}
+	if !allowPrivate {
+		if _, err := resolveAndCheckHostSSRF(ctx, parsed.Hostname()); err != nil {
+			return err
 		}
 	}
 	return nil
@@ -119,7 +155,7 @@ func (m *Module) executeBuiltinFetch(ctx context.Context, req WebFetchRequest) (
 		return WebFetchResponse{}, err
 	}
 	if !m.allowPrivateFetch {
-		if err := checkHostSSRF(ctx, parsed.Hostname()); err != nil {
+		if _, err := resolveAndCheckHostSSRF(ctx, parsed.Hostname()); err != nil {
 			return WebFetchResponse{}, err
 		}
 	}
@@ -139,12 +175,24 @@ func (m *Module) executeBuiltinFetch(ctx context.Context, req WebFetchRequest) (
 			if splitErr != nil {
 				return nil, splitErr
 			}
-			if !m.allowPrivateFetch {
-				if err := checkHostSSRF(dctx, host); err != nil {
-					return nil, err
-				}
+			if m.allowPrivateFetch {
+				return dialer.DialContext(dctx, network, net.JoinHostPort(host, port))
 			}
-			return dialer.DialContext(dctx, network, net.JoinHostPort(host, port))
+			verifiedIPs, ssrfErr := resolveAndCheckHostSSRF(dctx, host)
+			if ssrfErr != nil {
+				return nil, ssrfErr
+			}
+			// Dial the already-validated IP directly to prevent DNS rebinding TOCTOU.
+			// http.Transport preserves the original hostname for TLS SNI verification.
+			var lastDialErr error
+			for _, ip := range verifiedIPs {
+				conn, dialErr := dialer.DialContext(dctx, network, net.JoinHostPort(ip.String(), port))
+				if dialErr == nil {
+					return conn, nil
+				}
+				lastDialErr = dialErr
+			}
+			return nil, lastDialErr
 		},
 	}
 	defer transport.CloseIdleConnections()
@@ -156,15 +204,7 @@ func (m *Module) executeBuiltinFetch(ctx context.Context, req WebFetchRequest) (
 			if len(via) >= maxFetchRedirects {
 				return errors.New("too many redirects")
 			}
-			if _, err := validateFetchURL(nextReq.URL.String()); err != nil {
-				return err
-			}
-			if !m.allowPrivateFetch {
-				if err := checkHostSSRF(nextReq.Context(), nextReq.URL.Hostname()); err != nil {
-					return err
-				}
-			}
-			return nil
+			return validateRedirectTarget(nextReq.Context(), nextReq.URL.String(), m.allowPrivateFetch)
 		},
 	}
 
