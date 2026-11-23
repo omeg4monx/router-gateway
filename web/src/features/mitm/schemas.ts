@@ -27,12 +27,28 @@ function isLoopbackHost(host: string): boolean {
 
 function isLoopbackListenAddr(raw: string): boolean {
   const trimmed = raw.trim();
-  const idx = trimmed.lastIndexOf(":");
-  if (idx <= 0 || idx === trimmed.length - 1) {
+  let host: string;
+  let portStr: string;
+  if (trimmed.startsWith("[")) {
+    const closeIdx = trimmed.indexOf("]:");
+    if (closeIdx <= 1) {
+      return false;
+    }
+    host = trimmed.slice(1, closeIdx);
+    portStr = trimmed.slice(closeIdx + 2);
+  } else {
+    const firstColon = trimmed.indexOf(":");
+    const lastColon = trimmed.lastIndexOf(":");
+    if (firstColon <= 0 || firstColon !== lastColon || lastColon === trimmed.length - 1) {
+      return false;
+    }
+    host = trimmed.slice(0, lastColon);
+    portStr = trimmed.slice(lastColon + 1);
+  }
+  if (!/^\d+$/.test(portStr)) {
     return false;
   }
-  const host = trimmed.slice(0, idx);
-  const port = Number(trimmed.slice(idx + 1));
+  const port = Number(portStr);
   if (!Number.isInteger(port) || port < 0 || port > 65535) {
     return false;
   }

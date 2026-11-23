@@ -13,11 +13,19 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"slices"
+	"strconv"
 	"strings"
 	"time"
 )
 
-const maxProxyBodyBytes = 8 << 20 // 8 MiB
+const (
+	maxProxyBodyBytes = 8 << 20 // 8 MiB
+	streamCopyBufSize = 32 << 10
+)
+
+// ErrAlreadyRunning indicates the MITM proxy is already active.
+var ErrAlreadyRunning = errors.New("mitm: proxy is already running")
 
 // ToolDescriptor describes an IDE traffic interception profile and its hosts.
 type ToolDescriptor struct {
@@ -54,6 +62,18 @@ var toolCatalog = []struct {
 	},
 }
 
+var hopByHopHeaders = map[string]struct{}{
+	"Connection":          {},
+	"Proxy-Connection":    {},
+	"Keep-Alive":          {},
+	"Proxy-Authenticate":  {},
+	"Proxy-Authorization": {},
+	"Te":                  {},
+	"Trailer":             {},
+	"Transfer-Encoding":   {},
+	"Upgrade":             {},
+}
+
 func validToolID(id string) bool {
 	for _, t := range toolCatalog {
 		if t.id == id {
@@ -83,12 +103,13 @@ func validateLoopbackListenAddr(addr string) error {
 	if trimmed == "" {
 		return errors.New("listen_addr must not be empty")
 	}
-	host, port, err := net.SplitHostPort(trimmed)
+	host, portStr, err := net.SplitHostPort(trimmed)
 	if err != nil {
 		return fmt.Errorf("listen_addr must be host:port: %w", err)
 	}
-	if port == "" {
-		return errors.New("listen_addr port must not be empty")
+	port, err := strconv.Atoi(portStr)
+	if err != nil || port < 0 || port > 65535 {
+		return fmt.Errorf("listen_addr port %q must be an integer between 0 and 65535", portStr)
 	}
 	if !isLoopbackHost(host) {
 		return fmt.Errorf("listen_addr host %q must be loopback (127.0.0.1, localhost, or ::1)", host)
@@ -111,6 +132,12 @@ func validateLoopbackURL(raw string) error {
 	if !isLoopbackHost(parsed.Hostname()) {
 		return fmt.Errorf("target_gateway_url host %q must be loopback (127.0.0.1, localhost, or ::1)", parsed.Hostname())
 	}
+	if portStr := parsed.Port(); portStr != "" {
+		port, err := strconv.Atoi(portStr)
+		if err != nil || port < 1 || port > 65535 {
+			return fmt.Errorf("target_gateway_url port %q must be between 1 and 65535", portStr)
+		}
+	}
 	return nil
 }
 
@@ -124,6 +151,22 @@ func isLoopbackHost(host string) bool {
 }
 
 func (m *Module) startProxyServer(cfg Config) (string, error) {
+	m.opMu.Lock()
+	defer m.opMu.Unlock()
+
+	m.mu.RLock()
+	alreadyRunning := m.state == StateRunning && m.srv != nil
+	m.mu.RUnlock()
+	if alreadyRunning {
+		return "", ErrAlreadyRunning
+	}
+
+	if err := validateLoopbackListenAddr(cfg.ListenAddr); err != nil {
+		return "", err
+	}
+	if err := validateLoopbackURL(cfg.TargetGatewayURL); err != nil {
+		return "", err
+	}
 	if _, err := m.certs.ensureCA(false); err != nil {
 		return "", fmt.Errorf("ensure root CA: %w", err)
 	}
@@ -143,6 +186,9 @@ func (m *Module) startProxyServer(cfg Config) (string, error) {
 
 	proxyClient := &http.Client{
 		Timeout: 0,
+		CheckRedirect: func(*http.Request, []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
 		Transport: &http.Transport{
 			MaxIdleConns:          32,
 			IdleConnTimeout:       60 * time.Second,
@@ -173,8 +219,13 @@ func (m *Module) startProxyServer(cfg Config) (string, error) {
 	go func() {
 		defer close(done)
 		if serveErr := srv.Serve(tlsListener); serveErr != nil && !errors.Is(serveErr, http.ErrServerClosed) {
+			proxyClient.CloseIdleConnections()
 			m.mu.Lock()
 			if m.srv == srv {
+				m.srv = nil
+				m.listener = nil
+				m.proxyClient = nil
+				m.serveDone = nil
 				m.state = StateError
 				m.lastError = serveErr.Error()
 				m.boundAddr = ""
@@ -188,6 +239,9 @@ func (m *Module) startProxyServer(cfg Config) (string, error) {
 }
 
 func (m *Module) stopProxyServer(ctx context.Context) error {
+	m.opMu.Lock()
+	defer m.opMu.Unlock()
+
 	m.mu.Lock()
 	srv := m.srv
 	done := m.serveDone
@@ -208,6 +262,9 @@ func (m *Module) stopProxyServer(ctx context.Context) error {
 	shutdownCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 	err := srv.Shutdown(shutdownCtx)
+	if err != nil {
+		_ = srv.Close()
+	}
 	if done != nil {
 		<-done
 	}
@@ -237,24 +294,32 @@ func (m *Module) buildProxyHandler(targetBase *url.URL, client *http.Client) htt
 			rawBody = b
 		}
 
-		sourceModel, targetModel, rewrittenBody := m.rewriteModelIfNeeded(r.Context(), tool, rawBody)
+		toolActive := tool == "generic" || m.isToolEnabled(r.Context(), tool)
+		sourceModel, targetModel, rewrittenBody := "", "", rawBody
+		if toolActive {
+			sourceModel, targetModel, rewrittenBody = m.rewriteModelIfNeeded(r.Context(), tool, rawBody)
+		}
 
 		outURL := *targetBase
 		outURL.Path = singleJoiningSlash(targetBase.Path, r.URL.Path)
 		outURL.RawQuery = r.URL.RawQuery
 
-		outReq, err := http.NewRequestWithContext(r.Context(), r.Method, outURL.String(), bytes.NewReader(rewrittenBody))
+		var bodyReader io.Reader
+		if len(rewrittenBody) > 0 {
+			bodyReader = bytes.NewReader(rewrittenBody)
+		}
+		outReq, err := http.NewRequestWithContext(r.Context(), r.Method, outURL.String(), bodyReader)
 		if err != nil {
 			http.Error(w, "failed to build upstream request", http.StatusBadGateway)
 			return
 		}
-		copyHeaders(outReq.Header, r.Header)
+		copyNonHopHeaders(outReq.Header, r.Header)
 		outReq.Header.Del("Host")
 		outReq.Header.Set("X-Mitm-Tool", tool)
 		outReq.Header.Set("X-Mitm-Original-Host", r.Host)
 		outReq.ContentLength = int64(len(rewrittenBody))
 
-		resp, err := client.Do(outReq) //nolint:gosec // targetBase is strictly validated as a loopback gateway URL
+		resp, err := client.Do(outReq) //nolint:gosec // targetBase is strictly validated as a loopback gateway URL and CheckRedirect refuses redirects
 		if err != nil {
 			m.recordInterceptEvent(r.Context(), tool, r.Host, r.Method, r.URL.Path, sourceModel, targetModel, http.StatusBadGateway, time.Since(start))
 			http.Error(w, "upstream gateway unreachable", http.StatusBadGateway)
@@ -262,12 +327,37 @@ func (m *Module) buildProxyHandler(targetBase *url.URL, client *http.Client) htt
 		}
 		defer func() { _ = resp.Body.Close() }()
 
-		copyHeaders(w.Header(), resp.Header)
+		copyNonHopHeaders(w.Header(), resp.Header)
 		w.WriteHeader(resp.StatusCode)
-		_, _ = io.Copy(w, resp.Body)
+		streamResponseBody(w, resp.Body)
 
 		m.recordInterceptEvent(r.Context(), tool, r.Host, r.Method, r.URL.Path, sourceModel, targetModel, resp.StatusCode, time.Since(start))
 	})
+}
+
+func (m *Module) isToolEnabled(ctx context.Context, tool string) bool {
+	cfg, err := m.repo.getConfig(ctx)
+	if err != nil {
+		return true
+	}
+	return slices.Contains(cfg.EnabledTools, tool)
+}
+
+func streamResponseBody(w http.ResponseWriter, body io.Reader) {
+	rc := http.NewResponseController(w)
+	buf := make([]byte, streamCopyBufSize)
+	for {
+		n, readErr := body.Read(buf)
+		if n > 0 {
+			if _, writeErr := w.Write(buf[:n]); writeErr != nil {
+				return
+			}
+			_ = rc.Flush()
+		}
+		if readErr != nil {
+			return
+		}
+	}
 }
 
 func (m *Module) rewriteModelIfNeeded(ctx context.Context, tool string, body []byte) (sourceModel, targetModel string, out []byte) {
@@ -310,8 +400,23 @@ func (m *Module) recordInterceptEvent(ctx context.Context, tool, host, method, p
 	_ = m.repo.recordEvent(ctx, ev)
 }
 
-func copyHeaders(dst, src http.Header) {
+func copyNonHopHeaders(dst, src http.Header) {
+	extraHop := make(map[string]struct{})
+	for _, connVal := range src.Values("Connection") {
+		for token := range strings.SplitSeq(connVal, ",") {
+			if name := http.CanonicalHeaderKey(strings.TrimSpace(token)); name != "" {
+				extraHop[name] = struct{}{}
+			}
+		}
+	}
 	for k, vals := range src {
+		ck := http.CanonicalHeaderKey(k)
+		if _, isHop := hopByHopHeaders[ck]; isHop {
+			continue
+		}
+		if _, isExtra := extraHop[ck]; isExtra {
+			continue
+		}
 		for _, v := range vals {
 			dst.Add(k, v)
 		}

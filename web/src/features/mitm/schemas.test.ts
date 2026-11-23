@@ -28,6 +28,22 @@ describe("mitm schemas", () => {
       auto_start: false,
     });
     expect(badTarget.success).toBe(false);
+
+    const unbracketedIPv6 = mitmConfigSchema.safeParse({
+      listen_addr: "::1:8443",
+      target_gateway_url: "http://127.0.0.1:20128",
+      enabled_tools: ["copilot"],
+      auto_start: false,
+    });
+    expect(unbracketedIPv6.success).toBe(false);
+
+    const bracketedIPv6 = mitmConfigSchema.safeParse({
+      listen_addr: "[::1]:8443",
+      target_gateway_url: "http://[::1]:20128",
+      enabled_tools: ["copilot"],
+      auto_start: false,
+    });
+    expect(bracketedIPv6.success).toBe(true);
   });
 
   test("validates model alias creation", () => {

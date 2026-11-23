@@ -1,6 +1,7 @@
 package pxpipe
 
 import (
+	"bytes"
 	"encoding/json"
 	"strings"
 )
@@ -10,6 +11,16 @@ type transformResult struct {
 	body          map[string]any
 	stagesApplied []string
 	changed       bool
+}
+
+func marshalNoEscape(v any) ([]byte, error) {
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	enc.SetEscapeHTML(false)
+	if err := enc.Encode(v); err != nil {
+		return nil, err
+	}
+	return bytes.TrimSuffix(buf.Bytes(), []byte("\n")), nil
 }
 
 func runTransformPipeline(raw []byte, cfg Config) (transformResult, error) {
@@ -63,7 +74,7 @@ func runTransformPipeline(raw []byte, cfg Config) (transformResult, error) {
 		}
 	}
 
-	encoded, err := json.Marshal(payload)
+	encoded, err := marshalNoEscape(payload)
 	if err != nil {
 		return transformResult{}, err
 	}
@@ -72,12 +83,20 @@ func runTransformPipeline(raw []byte, cfg Config) (transformResult, error) {
 	if len(encoded) < len(raw) && !containsString(stages, "json_minify") {
 		stages = append(stages, "json_minify")
 	}
+	if !changed {
+		return transformResult{
+			out:           raw,
+			body:          payload,
+			stagesApplied: stages,
+			changed:       false,
+		}, nil
+	}
 
 	return transformResult{
 		out:           encoded,
 		body:          payload,
 		stagesApplied: stages,
-		changed:       changed,
+		changed:       true,
 	}, nil
 }
 
@@ -133,7 +152,16 @@ func collapseMessageWhitespace(msgs []any) bool {
 
 func collapseRuns(s string) string {
 	lines := strings.Split(s, "\n")
+	inFence := false
 	for i, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "```") {
+			inFence = !inFence
+			continue
+		}
+		if inFence {
+			continue
+		}
 		lines[i] = strings.Join(strings.Fields(line), " ")
 	}
 	return strings.TrimSpace(strings.Join(lines, "\n"))
@@ -182,7 +210,19 @@ func windowHistoryMessages(msgs []any, maxNonSystem int) ([]any, bool) {
 	if len(otherMsgs) <= maxNonSystem {
 		return msgs, false
 	}
-	trimmed := otherMsgs[len(otherMsgs)-maxNonSystem:]
+	start := len(otherMsgs) - maxNonSystem
+	for start < len(otherMsgs) {
+		msg, ok := otherMsgs[start].(map[string]any)
+		if !ok {
+			break
+		}
+		role, _ := msg["role"].(string)
+		if !strings.EqualFold(role, "tool") {
+			break
+		}
+		start++
+	}
+	trimmed := otherMsgs[start:]
 	out := make([]any, 0, len(systemMsgs)+len(trimmed))
 	out = append(out, systemMsgs...)
 	out = append(out, trimmed...)

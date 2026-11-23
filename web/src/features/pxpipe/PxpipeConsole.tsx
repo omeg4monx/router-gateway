@@ -83,7 +83,7 @@ export function PxpipeConsole() {
   const status = statusQuery.data;
 
   useEffect(() => {
-    if (!status) {
+    if (!status || configForm.formState.isDirty) {
       return;
     }
     configForm.reset({
@@ -94,7 +94,17 @@ export function PxpipeConsole() {
       dedupe_system_prompts: status.config.dedupe_system_prompts,
       max_history_messages: status.config.max_history_messages,
     });
-  }, [status, configForm]);
+  }, [status, configForm, configForm.formState.isDirty]);
+
+  const resetMutationErrors = () => {
+    updateConfig.reset();
+    startPipe.reset();
+    stopPipe.reset();
+    restartPipe.reset();
+    resetStats.reset();
+    clearLogs.reset();
+    previewTransform.reset();
+  };
 
   const firstError =
     statusQuery.error ??
@@ -232,7 +242,21 @@ export function PxpipeConsole() {
 
           <form
             className="space-y-3.5 p-5 text-sm"
-            onSubmit={configForm.handleSubmit((values) => updateConfig.mutate(values))}
+            onSubmit={configForm.handleSubmit((values) => {
+              resetMutationErrors();
+              updateConfig.mutate(values, {
+                onSuccess: (updated) => {
+                  configForm.reset({
+                    enabled: updated.config.enabled,
+                    auto_start: updated.config.auto_start,
+                    strip_null_fields: updated.config.strip_null_fields,
+                    collapse_whitespace: updated.config.collapse_whitespace,
+                    dedupe_system_prompts: updated.config.dedupe_system_prompts,
+                    max_history_messages: updated.config.max_history_messages,
+                  });
+                },
+              });
+            })}
           >
             <label className="flex cursor-pointer items-center gap-2 text-[var(--text-primary)]">
               <input

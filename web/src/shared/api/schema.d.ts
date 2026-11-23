@@ -8919,6 +8919,24 @@ export interface operations {
                     "application/json": components["schemas"]["MitmStatus"];
                 };
             };
+            /** @description Invalid MITM listen or gateway URL */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
             /** @description MITM proxy already running */
             409: {
                 headers: {
@@ -8948,6 +8966,15 @@ export interface operations {
                     "application/json": components["schemas"]["MitmStatus"];
                 };
             };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
         };
     };
     generateMitmCA: {
@@ -8970,6 +8997,24 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MitmCAInfo"];
+                };
+            };
+            /** @description Invalid JSON request body */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
                 };
             };
         };
@@ -9083,6 +9128,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DeleteMitmAliasResponse"];
+                };
+            };
+            /** @description Invalid alias ID */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
                 };
             };
             /** @description Not found */

@@ -138,6 +138,22 @@ func TestMitmConfigValidationLoopbackOnly(t *testing.T) {
 		t.Fatalf("expected 400 for unknown tool, got %d: %s", rec.Code, rec.Body.String())
 	}
 
+	// Reject out-of-range or non-numeric port
+	for _, bad := range []string{"127.0.0.1:70000", "127.0.0.1:abc"} {
+		rec = doMitmJSON(t, handler, http.MethodPatch, "/api/mitm/config", map[string]any{
+			"listen_addr": bad,
+		})
+		if rec.Code != http.StatusBadRequest {
+			t.Fatalf("expected 400 for invalid port %q, got %d: %s", bad, rec.Code, rec.Body.String())
+		}
+	}
+
+	// Verify bracketed IPv6 defaultGatewayURL does not double-bracket
+	m6 := New(Options{Config: config.Config{Host: "[::1]", Port: 20128, DataDir: t.TempDir()}})
+	if got := m6.defaultGatewayURL(); got != "http://[::1]:20128" {
+		t.Fatalf("expected http://[::1]:20128, got %q", got)
+	}
+
 	// Accept valid loopback config
 	rec = doMitmJSON(t, handler, http.MethodPatch, "/api/mitm/config", map[string]any{
 		"listen_addr":        "127.0.0.1:0",
@@ -391,5 +407,149 @@ func TestMitmLiveTLSProxyInterceptAndAliasRewrite(t *testing.T) {
 	}
 	if stopped.Status != StateStopped || stopped.BoundAddr != "" {
 		t.Fatalf("expected stopped MITM, got %+v", stopped)
+	}
+}
+
+func TestMitmProxyStreamsSSEAndBlocksRedirectsAndStripsHopByHop(t *testing.T) {
+	_, handler, _ := setupTestMitm(t)
+
+	chunk1Received := make(chan struct{})
+	var sawCustomHop bool
+	mockGateway := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/redirect":
+			http.Redirect(w, r, "http://169.254.169.254/latest/meta-data", http.StatusFound)
+		case "/hop":
+			if r.Header.Get("X-Custom-Hop") != "" {
+				sawCustomHop = true
+			}
+			w.WriteHeader(http.StatusOK)
+		case "/sse":
+			w.Header().Set("Content-Type", "text/event-stream")
+			w.WriteHeader(http.StatusOK)
+			rc := http.NewResponseController(w)
+			_, _ = io.WriteString(w, "data: chunk1\n\n")
+			_ = rc.Flush()
+			<-chunk1Received
+			_, _ = io.WriteString(w, "data: chunk2\n\n")
+			_ = rc.Flush()
+		}
+	}))
+	t.Cleanup(mockGateway.Close)
+
+	rec := doMitmJSON(t, handler, http.MethodPatch, "/api/mitm/config", map[string]any{
+		"listen_addr":        "127.0.0.1:0",
+		"target_gateway_url": mockGateway.URL,
+	})
+	if rec.Code != http.StatusOK {
+		t.Fatalf("patch config: %d", rec.Code)
+	}
+	startRec := doMitmJSON(t, handler, http.MethodPost, "/api/mitm/start", nil)
+	if startRec.Code != http.StatusOK {
+		t.Fatalf("start mitm: %d", startRec.Code)
+	}
+	var st Status
+	_ = json.Unmarshal(startRec.Body.Bytes(), &st)
+
+	caRec := doMitmJSON(t, handler, http.MethodGet, "/api/mitm/ca/download", nil)
+	pool := x509.NewCertPool()
+	pool.AppendCertsFromPEM(caRec.Body.Bytes())
+	tlsClient := &http.Client{
+		CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{
+				RootCAs:    pool,
+				ServerName: "api.individual.githubcopilot.com",
+				MinVersion: tls.VersionTLS12,
+			},
+		},
+	}
+	t.Cleanup(tlsClient.CloseIdleConnections)
+
+	// 1. Redirect is NOT followed by MITM proxy (SSRF prevention)
+	redReq, _ := http.NewRequest(http.MethodGet, "https://"+st.BoundAddr+"/redirect", nil)
+	redResp, err := tlsClient.Do(redReq)
+	if err != nil {
+		t.Fatalf("redirect request failed: %v", err)
+	}
+	_ = redResp.Body.Close()
+	if redResp.StatusCode != http.StatusFound {
+		t.Fatalf("expected 302 returned verbatim without following redirect, got %d", redResp.StatusCode)
+	}
+
+	// 2. Hop-by-hop headers stripped
+	hopReq, _ := http.NewRequest(http.MethodGet, "https://"+st.BoundAddr+"/hop", nil)
+	hopReq.Header.Set("Connection", "X-Custom-Hop")
+	hopReq.Header.Set("X-Custom-Hop", "should-be-stripped")
+	hopResp, err := tlsClient.Do(hopReq)
+	if err != nil {
+		t.Fatalf("hop request failed: %v", err)
+	}
+	_ = hopResp.Body.Close()
+	if sawCustomHop {
+		t.Fatalf("expected Connection-nominated hop-by-hop header X-Custom-Hop to be stripped")
+	}
+
+	// 3. SSE chunks flush immediately before upstream finishes
+	sseReq, _ := http.NewRequest(http.MethodGet, "https://"+st.BoundAddr+"/sse", nil)
+	sseResp, err := tlsClient.Do(sseReq)
+	if err != nil {
+		t.Fatalf("sse request failed: %v", err)
+	}
+	defer func() { _ = sseResp.Body.Close() }()
+
+	buf := make([]byte, 64)
+	n, err := sseResp.Body.Read(buf)
+	if err != nil || !strings.Contains(string(buf[:n]), "chunk1") {
+		close(chunk1Received)
+		t.Fatalf("expected immediate chunk1 before stream close, got n=%d err=%v data=%q", n, err, string(buf[:n]))
+	}
+	close(chunk1Received)
+}
+
+func TestMitmConcurrentStartAndChunkedCARotation(t *testing.T) {
+	_, handler, _ := setupTestMitm(t)
+
+	// Generate initial CA
+	rec1 := doMitmJSON(t, handler, http.MethodPost, "/api/mitm/ca/generate", map[string]any{"force": false})
+	var ca1 CAInfo
+	_ = json.Unmarshal(rec1.Body.Bytes(), &ca1)
+
+	// Chunked request (ContentLength == -1) with {"force":true} must rotate CA
+	req := httptest.NewRequest(http.MethodPost, "/api/mitm/ca/generate", strings.NewReader(`{"force":true}`))
+	req.ContentLength = -1
+	req.Header.Set("Content-Type", "application/json")
+	rec2 := httptest.NewRecorder()
+	handler.ServeHTTP(rec2, req)
+	if rec2.Code != http.StatusOK {
+		t.Fatalf("chunked rotate CA: expected 200, got %d: %s", rec2.Code, rec2.Body.String())
+	}
+	var ca2 CAInfo
+	_ = json.Unmarshal(rec2.Body.Bytes(), &ca2)
+	if ca2.Fingerprint == ca1.Fingerprint {
+		t.Fatalf("expected chunked force=true to rotate CA fingerprint")
+	}
+
+	// Concurrent start: exactly 1 succeeds (200), others fail with 409
+	_ = doMitmJSON(t, handler, http.MethodPatch, "/api/mitm/config", map[string]any{"listen_addr": "127.0.0.1:0"})
+	codes := make(chan int, 5)
+	for range 5 {
+		go func() {
+			r := doMitmJSON(t, handler, http.MethodPost, "/api/mitm/start", nil)
+			codes <- r.Code
+		}()
+	}
+	okCount := 0
+	conflictCount := 0
+	for range 5 {
+		switch c := <-codes; c {
+		case http.StatusOK:
+			okCount++
+		case http.StatusConflict:
+			conflictCount++
+		}
+	}
+	if okCount != 1 || conflictCount != 4 {
+		t.Fatalf("expected 1x200 and 4x409 on concurrent start, got ok=%d conflict=%d", okCount, conflictCount)
 	}
 }

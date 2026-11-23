@@ -49,7 +49,9 @@ type cachedLeaf struct {
 type certManager struct {
 	dir string
 
+	caOpMu sync.Mutex
 	mu     sync.RWMutex
+	caGen  uint64
 	caCert *x509.Certificate
 	caKey  *ecdsa.PrivateKey
 	caPEM  []byte
@@ -103,6 +105,7 @@ func (c *certManager) loadFromDisk() error {
 	}
 
 	c.mu.Lock()
+	c.caGen++
 	c.caCert = parsedCert
 	c.caKey = parsedKey
 	c.caPEM = certPEM
@@ -113,6 +116,9 @@ func (c *certManager) loadFromDisk() error {
 
 // ensureCA returns existing Root CA metadata or generates a new ECDSA P-256 Root CA.
 func (c *certManager) ensureCA(force bool) (CAInfo, error) {
+	c.caOpMu.Lock()
+	defer c.caOpMu.Unlock()
+
 	c.mu.RLock()
 	hasCA := c.caCert != nil && c.caKey != nil
 	c.mu.RUnlock()
@@ -172,6 +178,7 @@ func (c *certManager) ensureCA(force bool) (CAInfo, error) {
 	}
 
 	c.mu.Lock()
+	c.caGen++
 	c.caCert = parsedCert
 	c.caKey = priv
 	c.caPEM = certPEM
@@ -226,6 +233,7 @@ func (c *certManager) getCertificate(hello *tls.ClientHelloInfo) (*tls.Certifica
 		c.mu.RUnlock()
 		return cached.cert, nil
 	}
+	caGen := c.caGen
 	caCert := c.caCert
 	caKey := c.caKey
 	c.mu.RUnlock()
@@ -275,10 +283,12 @@ func (c *certManager) getCertificate(hello *tls.ClientHelloInfo) (*tls.Certifica
 	}
 
 	c.mu.Lock()
-	if len(c.leaves) >= maxLeafCacheSize {
-		clear(c.leaves)
+	if c.caGen == caGen {
+		if len(c.leaves) >= maxLeafCacheSize {
+			clear(c.leaves)
+		}
+		c.leaves[host] = cachedLeaf{cert: tlsCert, expiresAt: expiresAt}
 	}
-	c.leaves[host] = cachedLeaf{cert: tlsCert, expiresAt: expiresAt}
 	c.mu.Unlock()
 
 	return tlsCert, nil
@@ -294,11 +304,22 @@ func randomSerial() (*big.Int, error) {
 }
 
 func writeAtomicFile(path string, data []byte, perm os.FileMode) error {
-	tmp := path + ".tmp"
-	if err := os.WriteFile(tmp, data, perm); err != nil {
+	f, err := os.CreateTemp(filepath.Dir(path), ".mitm-*.tmp")
+	if err != nil {
 		return err
 	}
-	if err := os.Chmod(tmp, perm); err != nil {
+	tmp := f.Name()
+	if err := f.Chmod(perm); err != nil {
+		_ = f.Close()
+		_ = os.Remove(tmp)
+		return err
+	}
+	if _, err := f.Write(data); err != nil {
+		_ = f.Close()
+		_ = os.Remove(tmp)
+		return err
+	}
+	if err := f.Close(); err != nil {
 		_ = os.Remove(tmp)
 		return err
 	}

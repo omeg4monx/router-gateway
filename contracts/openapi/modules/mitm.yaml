@@ -57,6 +57,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/MitmStatus'
+        '400':
+          description: Invalid MITM listen or gateway URL
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
         '409':
           description: MITM proxy already running
           content:
@@ -75,6 +87,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/MitmStatus'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
   /api/mitm/ca/generate:
     post:
       tags: [mitm]
@@ -93,6 +111,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/MitmCAInfo'
+        '400':
+          description: Invalid JSON request body
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
   /api/mitm/ca/download:
     get:
       tags: [mitm]
@@ -170,6 +200,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/DeleteMitmAliasResponse'
+        '400':
+          description: Invalid alias ID
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
         '404':
           description: Not found
           content:

@@ -234,3 +234,38 @@ func TestPxpipeInterceptorTransformsAndRuntimeGating(t *testing.T) {
 		t.Fatalf("expected preview savings and stages, got %+v", prev)
 	}
 }
+
+func TestPxpipePreservesCodeFencesAvoidsOrphanToolsAndEscaping(t *testing.T) {
+	mod, handler := setupTestPxpipe(t)
+	_ = doPxpipeJSON(t, handler, http.MethodPatch, "/api/pxpipe/config", map[string]any{
+		"max_history_messages": 2,
+	})
+
+	body := []byte(`{"model":"gpt-4o","messages":[{"role":"user","content":"q1"},{"role":"assistant","content":"call"},{"role":"tool","tool_call_id":"tc1","content":"result"},{"role":"user","content":"keep <tag>&val\n` + "```python\\n    def f():\\n        return 1\\n```" + `"}]}`)
+	creq := &contracts.CanonicalRequest{
+		RequestID: "req-fence",
+		Model:     "gpt-4o",
+		Body:      append([]byte(nil), body...),
+	}
+	if err := mod.OnRequest(context.Background(), creq); err != nil {
+		t.Fatalf("OnRequest: %v", err)
+	}
+	out := string(creq.Body)
+	if !bytes.Contains(creq.Body, []byte("    def f():")) {
+		t.Fatalf("expected fenced code indentation preserved, got: %s", out)
+	}
+	if !bytes.Contains(creq.Body, []byte("<tag>&val")) {
+		t.Fatalf("expected HTML characters not escaped, got: %s", out)
+	}
+	var parsed struct {
+		Messages []struct {
+			Role string `json:"role"`
+		} `json:"messages"`
+	}
+	if err := json.Unmarshal(creq.Body, &parsed); err != nil {
+		t.Fatalf("invalid json: %v", err)
+	}
+	if len(parsed.Messages) == 0 || parsed.Messages[0].Role == "tool" {
+		t.Fatalf("expected leading orphan tool message to be skipped, got: %+v", parsed.Messages)
+	}
+}

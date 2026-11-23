@@ -110,6 +110,7 @@ type Module struct {
 	bus    *eventbus.Bus
 	logger *slog.Logger
 
+	configMu  sync.Mutex
 	mu        sync.RWMutex
 	cfg       Config
 	running   bool
@@ -209,26 +210,28 @@ func (m *Module) OnRequest(_ context.Context, req *contracts.CanonicalRequest) e
 		return nil
 	}
 
+	if !res.changed {
+		m.bytesOut.Add(int64(before))
+		return nil
+	}
 	after := len(res.out)
 	m.bytesOut.Add(int64(after))
-	if res.changed {
-		req.Body = res.out
-		m.reqTransformed.Add(1)
-		saved := max(int64(before-after), 0)
-		if saved > 0 {
-			m.bytesSaved.Add(saved)
-			m.tokensSaved.Add((saved + 3) / 4)
-		}
-		m.appendLog(LogEntry{
-			Timestamp:     time.Now().UTC().Format(timestampLayout),
-			RequestID:     req.RequestID,
-			Model:         req.Model,
-			BytesBefore:   before,
-			BytesAfter:    after,
-			BytesSaved:    saved,
-			StagesApplied: res.stagesApplied,
-		})
+	req.Body = res.out
+	m.reqTransformed.Add(1)
+	saved := max(int64(before-after), 0)
+	if saved > 0 {
+		m.bytesSaved.Add(saved)
+		m.tokensSaved.Add((saved + 3) / 4)
 	}
+	m.appendLog(LogEntry{
+		Timestamp:     time.Now().UTC().Format(timestampLayout),
+		RequestID:     req.RequestID,
+		Model:         req.Model,
+		BytesBefore:   before,
+		BytesAfter:    after,
+		BytesSaved:    saved,
+		StagesApplied: res.stagesApplied,
+	})
 	return nil
 }
 
@@ -304,6 +307,9 @@ func (m *Module) handlePatchConfig(w http.ResponseWriter, r *http.Request) {
 		httpserver.WriteError(w, r, http.StatusBadRequest, "invalid_request", err.Error())
 		return
 	}
+	m.configMu.Lock()
+	defer m.configMu.Unlock()
+
 	cfg, _, _ := m.snapshot()
 	if req.Enabled != nil {
 		cfg.Enabled = *req.Enabled

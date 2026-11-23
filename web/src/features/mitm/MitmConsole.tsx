@@ -79,7 +79,7 @@ export function MitmConsole() {
   const status = statusQuery.data;
 
   useEffect(() => {
-    if (!status) {
+    if (!status || configForm.formState.isDirty) {
       return;
     }
     const validTools = status.enabled_tools.filter((t): t is (typeof MITM_TOOL_IDS)[number] =>
@@ -91,7 +91,17 @@ export function MitmConsole() {
       enabled_tools: validTools,
       auto_start: status.auto_start,
     });
-  }, [status, configForm]);
+  }, [status, configForm, configForm.formState.isDirty]);
+
+  const resetMutationErrors = () => {
+    updateConfig.reset();
+    startMitm.reset();
+    stopMitm.reset();
+    generateCA.reset();
+    createAlias.reset();
+    deleteAlias.reset();
+    clearEvents.reset();
+  };
 
   const firstError =
     statusQuery.error ??
@@ -106,6 +116,7 @@ export function MitmConsole() {
     clearEvents.error;
 
   const isRunning = status?.status === "running";
+  const isErrorState = status?.status === "error";
   const selectedTools = configForm.watch("enabled_tools") ?? [];
 
   const toggleTool = (toolId: (typeof MITM_TOOL_IDS)[number]) => {
@@ -132,7 +143,7 @@ export function MitmConsole() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5">
-          <Badge variant={isRunning ? "success" : "secondary"}>
+          <Badge variant={isRunning ? "success" : isErrorState ? "destructive" : "secondary"}>
             {status ? status.status.toUpperCase() : "LOADING"}
           </Badge>
           {isRunning ? (
@@ -140,7 +151,10 @@ export function MitmConsole() {
               type="button"
               variant="destructive"
               size="sm"
-              onClick={() => stopMitm.mutate()}
+              onClick={() => {
+                resetMutationErrors();
+                stopMitm.mutate();
+              }}
               disabled={stopMitm.isPending}
             >
               <Square className="h-3.5 w-3.5" aria-hidden="true" />
@@ -150,7 +164,10 @@ export function MitmConsole() {
             <Button
               type="button"
               size="sm"
-              onClick={() => startMitm.mutate()}
+              onClick={() => {
+                resetMutationErrors();
+                startMitm.mutate();
+              }}
               disabled={startMitm.isPending}
             >
               <Play className="h-3.5 w-3.5" aria-hidden="true" />
@@ -170,6 +187,16 @@ export function MitmConsole() {
         </Alert>
       ) : null}
 
+      {status?.last_error ? (
+        <Alert variant="destructive">
+          <AlertTriangle className="h-4 w-4 text-[var(--status-error)]" aria-hidden="true" />
+          <div>
+            <AlertTitle>Last MITM runtime error</AlertTitle>
+            <AlertDescription className="font-mono">{status.last_error}</AlertDescription>
+          </div>
+        </Alert>
+      ) : null}
+
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <Card>
           <CardHeader>
@@ -184,7 +211,23 @@ export function MitmConsole() {
 
           <form
             className="space-y-4 p-5"
-            onSubmit={configForm.handleSubmit((values) => updateConfig.mutate(values))}
+            onSubmit={configForm.handleSubmit((values) => {
+              resetMutationErrors();
+              updateConfig.mutate(values, {
+                onSuccess: (updated) => {
+                  const validTools = updated.enabled_tools.filter(
+                    (t): t is (typeof MITM_TOOL_IDS)[number] =>
+                      (MITM_TOOL_IDS as readonly string[]).includes(t),
+                  );
+                  configForm.reset({
+                    listen_addr: updated.listen_addr,
+                    target_gateway_url: updated.target_gateway_url,
+                    enabled_tools: validTools,
+                    auto_start: updated.auto_start,
+                  });
+                },
+              });
+            })}
           >
             <div className="space-y-1.5">
               <Label htmlFor="mitm-listen-addr">Listen Address (Loopback)</Label>
@@ -337,39 +380,51 @@ export function MitmConsole() {
 
           <div className="space-y-4 p-5">
             <form
-              className="grid grid-cols-1 gap-3 sm:grid-cols-4"
-              onSubmit={aliasForm.handleSubmit((values) =>
+              className="space-y-2"
+              onSubmit={aliasForm.handleSubmit((values) => {
+                resetMutationErrors();
                 createAlias.mutate(values, {
                   onSuccess: () =>
                     aliasForm.reset({ ...values, source_model: "", target_model: "" }),
-                }),
-              )}
+                });
+              })}
             >
-              <select
-                aria-label="IDE tool"
-                {...aliasForm.register("tool")}
-                className="h-9 rounded-md border border-[var(--border-subtle)] bg-[var(--bg-surface-raised)] px-2.5 font-mono text-xs text-[var(--text-primary)]"
-              >
-                {MITM_ALIAS_TOOLS.map((t) => (
-                  <option key={t} value={t}>
-                    {t}
-                  </option>
-                ))}
-              </select>
-              <Input
-                placeholder="source model"
-                className="font-mono text-xs"
-                {...aliasForm.register("source_model")}
-              />
-              <Input
-                placeholder="target model"
-                className="font-mono text-xs"
-                {...aliasForm.register("target_model")}
-              />
-              <Button type="submit" size="sm" disabled={createAlias.isPending}>
-                <Plus className="h-3.5 w-3.5" aria-hidden="true" />
-                <span>Add</span>
-              </Button>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
+                <select
+                  aria-label="IDE tool"
+                  {...aliasForm.register("tool")}
+                  className="h-9 rounded-md border border-[var(--border-subtle)] bg-[var(--bg-surface-raised)] px-2.5 font-mono text-xs text-[var(--text-primary)]"
+                >
+                  {MITM_ALIAS_TOOLS.map((t) => (
+                    <option key={t} value={t}>
+                      {t}
+                    </option>
+                  ))}
+                </select>
+                <Input
+                  placeholder="source model"
+                  aria-label="Source model"
+                  className="font-mono text-xs"
+                  {...aliasForm.register("source_model")}
+                />
+                <Input
+                  placeholder="target model"
+                  aria-label="Target model"
+                  className="font-mono text-xs"
+                  {...aliasForm.register("target_model")}
+                />
+                <Button type="submit" size="sm" disabled={createAlias.isPending}>
+                  <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+                  <span>Add</span>
+                </Button>
+              </div>
+              {aliasForm.formState.errors.source_model ||
+              aliasForm.formState.errors.target_model ? (
+                <p className="text-xs text-[var(--status-error)]">
+                  {aliasForm.formState.errors.source_model?.message ??
+                    aliasForm.formState.errors.target_model?.message}
+                </p>
+              ) : null}
             </form>
 
             <div className="divide-y divide-[var(--border-subtle)] rounded-md border border-[var(--border-subtle)]">

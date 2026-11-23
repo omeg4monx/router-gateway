@@ -90,6 +90,9 @@ type Module struct {
 	logger *slog.Logger
 	certs  *certManager
 
+	opMu     sync.Mutex
+	configMu sync.Mutex
+
 	mu          sync.RWMutex
 	state       string
 	boundAddr   string
@@ -131,7 +134,7 @@ func (m *Module) Migrations() fs.FS {
 }
 
 func (m *Module) defaultGatewayURL() string {
-	host := m.cfg.Host
+	host := strings.Trim(strings.TrimSpace(m.cfg.Host), "[]")
 	if !isLoopbackHost(host) {
 		host = "127.0.0.1"
 	}
@@ -286,13 +289,16 @@ func (m *Module) handlePatchConfig(w http.ResponseWriter, r *http.Request) {
 		httpserver.WriteError(w, r, http.StatusBadRequest, "invalid_request", err.Error())
 		return
 	}
+	m.configMu.Lock()
 	cfg, err := m.repo.getConfig(r.Context())
 	if err != nil {
+		m.configMu.Unlock()
 		httpserver.WriteError(w, r, http.StatusInternalServerError, "mitm_config_error", err.Error())
 		return
 	}
 	if req.ListenAddr != nil {
 		if err := validateLoopbackListenAddr(*req.ListenAddr); err != nil {
+			m.configMu.Unlock()
 			httpserver.WriteError(w, r, http.StatusBadRequest, "invalid_listen_addr", err.Error())
 			return
 		}
@@ -300,6 +306,7 @@ func (m *Module) handlePatchConfig(w http.ResponseWriter, r *http.Request) {
 	}
 	if req.TargetGatewayURL != nil {
 		if err := validateLoopbackURL(*req.TargetGatewayURL); err != nil {
+			m.configMu.Unlock()
 			httpserver.WriteError(w, r, http.StatusBadRequest, "invalid_target_url", err.Error())
 			return
 		}
@@ -310,6 +317,7 @@ func (m *Module) handlePatchConfig(w http.ResponseWriter, r *http.Request) {
 		for _, t := range *req.EnabledTools {
 			clean := strings.ToLower(strings.TrimSpace(t))
 			if !validToolID(clean) {
+				m.configMu.Unlock()
 				httpserver.WriteError(w, r, http.StatusBadRequest, "invalid_tool", fmt.Sprintf("unknown MITM tool %q", t))
 				return
 			}
@@ -323,9 +331,11 @@ func (m *Module) handlePatchConfig(w http.ResponseWriter, r *http.Request) {
 		cfg.AutoStart = *req.AutoStart
 	}
 	if _, err := m.repo.updateConfig(r.Context(), cfg); err != nil {
+		m.configMu.Unlock()
 		httpserver.WriteError(w, r, http.StatusInternalServerError, "mitm_config_error", err.Error())
 		return
 	}
+	m.configMu.Unlock()
 	st, err := m.buildStatus(r.Context())
 	if err != nil {
 		httpserver.WriteError(w, r, http.StatusInternalServerError, "mitm_status_error", err.Error())
@@ -335,14 +345,6 @@ func (m *Module) handlePatchConfig(w http.ResponseWriter, r *http.Request) {
 }
 
 func (m *Module) handleStart(w http.ResponseWriter, r *http.Request) {
-	m.mu.RLock()
-	running := m.state == StateRunning
-	m.mu.RUnlock()
-	if running {
-		httpserver.WriteError(w, r, http.StatusConflict, "mitm_already_running", "MITM proxy is already running")
-		return
-	}
-
 	cfg, err := m.repo.getConfig(r.Context())
 	if err != nil {
 		httpserver.WriteError(w, r, http.StatusInternalServerError, "mitm_config_error", err.Error())
@@ -357,9 +359,15 @@ func (m *Module) handleStart(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if _, err := m.startProxyServer(cfg); err != nil {
+		if errors.Is(err, ErrAlreadyRunning) {
+			httpserver.WriteError(w, r, http.StatusConflict, "mitm_already_running", "MITM proxy is already running")
+			return
+		}
 		m.mu.Lock()
-		m.state = StateError
-		m.lastError = err.Error()
+		if m.state != StateRunning {
+			m.state = StateError
+			m.lastError = err.Error()
+		}
 		m.mu.Unlock()
 		httpserver.WriteError(w, r, http.StatusInternalServerError, "mitm_start_failed", err.Error())
 		return
@@ -397,10 +405,24 @@ type generateCARequest struct {
 
 func (m *Module) handleGenerateCA(w http.ResponseWriter, r *http.Request) {
 	var req generateCARequest
-	if r.ContentLength > 0 {
-		if err := decodeStrictJSON(r, &req); err != nil {
+	if r.Body != nil {
+		raw, err := io.ReadAll(io.LimitReader(r.Body, maxJSONBodyBytes))
+		_ = r.Body.Close()
+		if err != nil {
 			httpserver.WriteError(w, r, http.StatusBadRequest, "invalid_request", err.Error())
 			return
+		}
+		if strings.TrimSpace(string(raw)) != "" {
+			dec := json.NewDecoder(strings.NewReader(string(raw)))
+			dec.DisallowUnknownFields()
+			if err := dec.Decode(&req); err != nil {
+				httpserver.WriteError(w, r, http.StatusBadRequest, "invalid_request", err.Error())
+				return
+			}
+			if err := dec.Decode(&struct{}{}); !errors.Is(err, io.EOF) {
+				httpserver.WriteError(w, r, http.StatusBadRequest, "invalid_request", "request body must contain a single JSON object")
+				return
+			}
 		}
 	}
 	info, err := m.certs.ensureCA(req.Force)
