@@ -37,6 +37,10 @@ tags:
     description: Live security posture report and redacted control-plane security audit trail
   - name: notifications
     description: System notifications inbox, live SSE notification stream, and background jobs telemetry
+  - name: teams
+    description: API-key grouping with shared USD budgets and RPM quotas
+  - name: vouchers
+    description: Redeemable voucher lifecycle, atomic API-key provisioning, and anti-abuse enforcement
 paths:
   /api/health:
     $ref: './modules/system.yaml#/paths/~1api~1health'
@@ -186,6 +190,24 @@ paths:
     $ref: './modules/notifications.yaml#/paths/~1api~1jobs'
   /api/jobs/{name}/trigger:
     $ref: './modules/notifications.yaml#/paths/~1api~1jobs~1{name}~1trigger'
+  /api/teams:
+    $ref: './modules/teams.yaml#/paths/~1api~1teams'
+  /api/teams/{id}:
+    $ref: './modules/teams.yaml#/paths/~1api~1teams~1{id}'
+  /api/teams/{id}/keys:
+    $ref: './modules/teams.yaml#/paths/~1api~1teams~1{id}~1keys'
+  /api/teams/{id}/keys/{keyId}:
+    $ref: './modules/teams.yaml#/paths/~1api~1teams~1{id}~1keys~1{keyId}'
+  /api/teams/{id}/reset-spend:
+    $ref: './modules/teams.yaml#/paths/~1api~1teams~1{id}~1reset-spend'
+  /api/vouchers:
+    $ref: './modules/vouchers.yaml#/paths/~1api~1vouchers'
+  /api/vouchers/{id}:
+    $ref: './modules/vouchers.yaml#/paths/~1api~1vouchers~1{id}'
+  /api/vouchers/{id}/redemptions:
+    $ref: './modules/vouchers.yaml#/paths/~1api~1vouchers~1{id}~1redemptions'
+  /api/vouchers/claim:
+    $ref: './modules/vouchers.yaml#/paths/~1api~1vouchers~1claim'
 components:
   schemas:
     ErrorDetail:
@@ -494,3 +516,33 @@ components:
       $ref: './modules/notifications.yaml#/components/schemas/BackgroundJobListResponse'
     TriggerJobResponse:
       $ref: './modules/notifications.yaml#/components/schemas/TriggerJobResponse'
+    Team:
+      $ref: './modules/teams.yaml#/components/schemas/Team'
+    TeamListResponse:
+      $ref: './modules/teams.yaml#/components/schemas/TeamListResponse'
+    CreateTeamRequest:
+      $ref: './modules/teams.yaml#/components/schemas/CreateTeamRequest'
+    UpdateTeamRequest:
+      $ref: './modules/teams.yaml#/components/schemas/UpdateTeamRequest'
+    AssignTeamKeyRequest:
+      $ref: './modules/teams.yaml#/components/schemas/AssignTeamKeyRequest'
+    DeleteTeamResponse:
+      $ref: './modules/teams.yaml#/components/schemas/DeleteTeamResponse'
+    Voucher:
+      $ref: './modules/vouchers.yaml#/components/schemas/Voucher'
+    VoucherListResponse:
+      $ref: './modules/vouchers.yaml#/components/schemas/VoucherListResponse'
+    CreateVoucherRequest:
+      $ref: './modules/vouchers.yaml#/components/schemas/CreateVoucherRequest'
+    UpdateVoucherRequest:
+      $ref: './modules/vouchers.yaml#/components/schemas/UpdateVoucherRequest'
+    DeleteVoucherResponse:
+      $ref: './modules/vouchers.yaml#/components/schemas/DeleteVoucherResponse'
+    VoucherRedemption:
+      $ref: './modules/vouchers.yaml#/components/schemas/VoucherRedemption'
+    VoucherRedemptionListResponse:
+      $ref: './modules/vouchers.yaml#/components/schemas/VoucherRedemptionListResponse'
+    ClaimVoucherRequest:
+      $ref: './modules/vouchers.yaml#/components/schemas/ClaimVoucherRequest'
+    ClaimVoucherResponse:
+      $ref: './modules/vouchers.yaml#/components/schemas/ClaimVoucherResponse'

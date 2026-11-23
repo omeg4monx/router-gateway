@@ -1342,6 +1342,164 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/teams": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List API-key teams with shared USD budgets and RPM limits */
+        get: operations["listTeams"];
+        put?: never;
+        /** Create a new API-key team */
+        post: operations["createTeam"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/teams/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get a single team by ID */
+        get: operations["getTeam"];
+        put?: never;
+        post?: never;
+        /** Delete a team and detach its key memberships */
+        delete: operations["deleteTeam"];
+        options?: never;
+        head?: never;
+        /** Update team budget, RPM limit, or enabled status */
+        patch: operations["updateTeam"];
+        trace?: never;
+    };
+    "/api/teams/{id}/keys": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Assign an API key to a team */
+        post: operations["assignKeyToTeam"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/teams/{id}/keys/{keyId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Remove an API key from a team */
+        delete: operations["removeKeyFromTeam"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/teams/{id}/reset-spend": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reset accumulated USD spend for a team to zero */
+        post: operations["resetTeamSpend"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/vouchers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List redeemable API-key vouchers */
+        get: operations["listVouchers"];
+        put?: never;
+        /** Create a redeemable voucher code */
+        post: operations["createVoucher"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/vouchers/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete a voucher and its redemption log */
+        delete: operations["deleteVoucher"];
+        options?: never;
+        head?: never;
+        /** Update voucher limits, expiration, or enabled status */
+        patch: operations["updateVoucher"];
+        trace?: never;
+    };
+    "/api/vouchers/{id}/redemptions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List redemption audit entries for a voucher */
+        get: operations["listVoucherRedemptions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/vouchers/claim": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Redeem a voucher code to provision a gateway API key */
+        post: operations["claimVoucher"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -2474,6 +2632,109 @@ export interface components {
         };
         TriggerJobResponse: {
             job: components["schemas"]["BackgroundJobStatus"];
+        };
+        Team: {
+            id: string;
+            name: string;
+            description: string;
+            budget_usd: number;
+            spent_usd: number;
+            rate_limit_rpm: number;
+            enabled: boolean;
+            key_ids: string[];
+            created_at: string;
+            updated_at: string;
+        };
+        TeamListResponse: {
+            teams: components["schemas"]["Team"][];
+        };
+        CreateTeamRequest: {
+            name: string;
+            description?: string;
+            budget_usd?: number;
+            rate_limit_rpm?: number;
+            enabled?: boolean;
+        };
+        UpdateTeamRequest: {
+            name?: string;
+            description?: string;
+            budget_usd?: number;
+            rate_limit_rpm?: number;
+            enabled?: boolean;
+        };
+        AssignTeamKeyRequest: {
+            key_id: string;
+        };
+        DeleteTeamResponse: {
+            deleted: boolean;
+        };
+        Voucher: {
+            id: string;
+            code: string;
+            name: string;
+            description: string;
+            quota_usd: number;
+            rate_limit_rpm: number;
+            allowed_models: string[];
+            team_id: string;
+            max_redemptions: number;
+            redeemed_count: number;
+            enabled: boolean;
+            expires_at: string;
+            created_at: string;
+            updated_at: string;
+        };
+        VoucherListResponse: {
+            vouchers: components["schemas"]["Voucher"][];
+        };
+        CreateVoucherRequest: {
+            code?: string;
+            name: string;
+            description?: string;
+            quota_usd?: number;
+            rate_limit_rpm?: number;
+            allowed_models?: string[];
+            team_id?: string;
+            max_redemptions?: number;
+            enabled?: boolean;
+            expires_at?: string;
+        };
+        UpdateVoucherRequest: {
+            name?: string;
+            description?: string;
+            max_redemptions?: number;
+            enabled?: boolean;
+            expires_at?: string;
+        };
+        DeleteVoucherResponse: {
+            deleted: boolean;
+        };
+        VoucherRedemption: {
+            id: string;
+            voucher_id: string;
+            code: string;
+            claimer_id: string;
+            key_id: string;
+            ip_address: string;
+            redeemed_at: string;
+        };
+        VoucherRedemptionListResponse: {
+            redemptions: components["schemas"]["VoucherRedemption"][];
+        };
+        ClaimVoucherRequest: {
+            code: string;
+            claimer_id?: string;
+            key_name?: string;
+        };
+        ClaimVoucherResponse: {
+            voucher_id: string;
+            code: string;
+            key_id: string;
+            key_prefix: string;
+            secret: string;
+            team_id: string;
+            quota_usd: number;
+            redeemed_at: string;
         };
     };
     responses: never;
@@ -6799,6 +7060,419 @@ export interface operations {
             };
             /** @description Job is already running */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    listTeams: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Teams list */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TeamListResponse"];
+                };
+            };
+        };
+    };
+    createTeam: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateTeamRequest"];
+            };
+        };
+        responses: {
+            /** @description Created team */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Team"];
+                };
+            };
+            /** @description Invalid payload */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Team name conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    getTeam: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Team detail */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Team"];
+                };
+            };
+            /** @description Team not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    deleteTeam: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted confirmation */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeleteTeamResponse"];
+                };
+            };
+        };
+    };
+    updateTeam: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateTeamRequest"];
+            };
+        };
+        responses: {
+            /** @description Updated team */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Team"];
+                };
+            };
+            /** @description Team not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    assignKeyToTeam: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AssignTeamKeyRequest"];
+            };
+        };
+        responses: {
+            /** @description Updated team with assigned key */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Team"];
+                };
+            };
+        };
+    };
+    removeKeyFromTeam: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                keyId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Updated team */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Team"];
+                };
+            };
+        };
+    };
+    resetTeamSpend: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Updated team with reset spend */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Team"];
+                };
+            };
+        };
+    };
+    listVouchers: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Vouchers list */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VoucherListResponse"];
+                };
+            };
+        };
+    };
+    createVoucher: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateVoucherRequest"];
+            };
+        };
+        responses: {
+            /** @description Created voucher */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Voucher"];
+                };
+            };
+            /** @description Invalid payload */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Duplicate voucher code */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    deleteVoucher: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted confirmation */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeleteVoucherResponse"];
+                };
+            };
+        };
+    };
+    updateVoucher: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateVoucherRequest"];
+            };
+        };
+        responses: {
+            /** @description Updated voucher */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Voucher"];
+                };
+            };
+            /** @description Voucher not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    listVoucherRedemptions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Redemptions list */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VoucherRedemptionListResponse"];
+                };
+            };
+        };
+    };
+    claimVoucher: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ClaimVoucherRequest"];
+            };
+        };
+        responses: {
+            /** @description Voucher redeemed and API key provisioned */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClaimVoucherResponse"];
+                };
+            };
+            /** @description Voucher not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Voucher exhausted or already claimed by actor */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Anti-abuse IP rate limit exceeded */
+            429: {
                 headers: {
                     [name: string]: unknown;
                 };

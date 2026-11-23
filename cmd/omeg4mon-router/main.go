@@ -31,9 +31,11 @@ import (
 	"github.com/omeg4monx/router-gateway/internal/modules/security"
 	"github.com/omeg4monx/router-gateway/internal/modules/settings"
 	"github.com/omeg4monx/router-gateway/internal/modules/system"
+	"github.com/omeg4monx/router-gateway/internal/modules/teams"
 	"github.com/omeg4monx/router-gateway/internal/modules/tokensaver"
 	"github.com/omeg4monx/router-gateway/internal/modules/translator"
 	"github.com/omeg4monx/router-gateway/internal/modules/usage"
+	"github.com/omeg4monx/router-gateway/internal/modules/vouchers"
 	"github.com/omeg4monx/router-gateway/internal/platform/config"
 	"github.com/omeg4monx/router-gateway/internal/platform/crypto"
 	"github.com/omeg4monx/router-gateway/internal/platform/db"
@@ -289,7 +291,26 @@ func buildApp(ctx context.Context, cfg config.Config, build system.BuildInfo) (*
 		Bus:    bus,
 		Logger: logger,
 	})
-	interceptors := make([]contracts.GatewayInterceptor, 0, 3)
+	teamsMod := teams.New(teams.Options{
+		DB:     database,
+		Bus:    bus,
+		Logger: logger,
+	})
+	var teamAssigner contracts.TeamAssigner
+	if !cfg.DisabledModules[teamsMod.Name()] {
+		teamAssigner = teamsMod
+	}
+	vouchersMod := vouchers.New(vouchers.Options{
+		DB:             database,
+		Bus:            bus,
+		Logger:         logger,
+		KeyProvisioner: keysMod,
+		TeamAssigner:   teamAssigner,
+	})
+	interceptors := make([]contracts.GatewayInterceptor, 0, 4)
+	if !cfg.DisabledModules[teamsMod.Name()] {
+		interceptors = append(interceptors, teamsMod)
+	}
 	if !cfg.DisabledModules[promptGuardMod.Name()] {
 		interceptors = append(interceptors, promptGuardMod)
 	}
@@ -386,6 +407,12 @@ func buildApp(ctx context.Context, cfg config.Config, build system.BuildInfo) (*
 	}
 	if err := registry.Register(notificationsMod); err != nil {
 		return nil, fmt.Errorf("register notifications module: %w", err)
+	}
+	if err := registry.Register(teamsMod); err != nil {
+		return nil, fmt.Errorf("register teams module: %w", err)
+	}
+	if err := registry.Register(vouchersMod); err != nil {
+		return nil, fmt.Errorf("register vouchers module: %w", err)
 	}
 
 	if err := registry.MigrateAll(ctx, database); err != nil {
