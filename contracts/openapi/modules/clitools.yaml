@@ -1,0 +1,305 @@
+openapi: 3.1.0
+info:
+  title: omeg4mon-router CLI Tools Module API
+  version: 0.1.0
+paths:
+  /api/clitools:
+    get:
+      operationId: listCLITools
+      summary: List supported CLI coding tools and whether loopback-only local apply is enabled
+      tags:
+        - clitools
+      responses:
+        '200':
+          description: Supported CLI tool catalog and local apply availability.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CLIToolsCatalogResponse'
+        '401':
+          description: Administrative authentication is required.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+  /api/clitools/{tool}/generate:
+    parameters:
+      - name: tool
+        in: path
+        required: true
+        description: Supported CLI tool identifier.
+        schema:
+          $ref: '#/components/schemas/CLIToolID'
+    post:
+      operationId: generateCLIToolConfig
+      summary: Generate configuration file content and setup instructions for a CLI tool
+      tags:
+        - clitools
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CLIToolConfigRequest'
+      responses:
+        '200':
+          description: Generated CLI tool configuration and setup instructions.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenerateCLIToolConfigResponse'
+        '400':
+          description: Invalid base_url or malformed JSON request body.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Administrative authentication is required.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Unknown CLI tool identifier.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '413':
+          description: Request body exceeds maximum allowed size.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+  /api/clitools/{tool}/apply:
+    parameters:
+      - name: tool
+        in: path
+        required: true
+        description: Supported CLI tool identifier.
+        schema:
+          $ref: '#/components/schemas/CLIToolID'
+    post:
+      operationId: applyCLIToolConfig
+      summary: Atomically write generated configuration to the local user home directory (loopback-only)
+      tags:
+        - clitools
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CLIToolConfigRequest'
+      responses:
+        '200':
+          description: Configuration atomically applied to disk with optional timestamped backup.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApplyCLIToolConfigResponse'
+        '400':
+          description: Invalid base_url or malformed JSON request body.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Administrative authentication is required.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Local apply is disabled because the router is not bound to a loopback address.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Unknown CLI tool identifier.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '413':
+          description: Request body exceeds maximum allowed size.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '500':
+          description: Failed to apply local tool configuration.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+  /api/clitools/{tool}/rollback:
+    parameters:
+      - name: tool
+        in: path
+        required: true
+        description: Supported CLI tool identifier.
+        schema:
+          $ref: '#/components/schemas/CLIToolID'
+    post:
+      operationId: rollbackCLIToolConfig
+      summary: Atomically restore the newest timestamped backup of a local CLI tool config (loopback-only)
+      tags:
+        - clitools
+      responses:
+        '200':
+          description: Configuration atomically restored from the newest backup file.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RollbackCLIToolConfigResponse'
+        '401':
+          description: Administrative authentication is required.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Local rollback is disabled because the router is not bound to a loopback address.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Unknown CLI tool identifier or no backup file found.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '500':
+          description: Failed to rollback local tool configuration.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+components:
+  schemas:
+    CLIToolID:
+      type: string
+      enum:
+        - claude-code
+        - codex-cli
+        - opencode
+        - cline
+        - roo-code
+        - droid
+    CLIToolFormat:
+      type: string
+      enum:
+        - json
+        - toml
+    CLIToolDescriptor:
+      type: object
+      additionalProperties: false
+      required:
+        - tool
+        - name
+        - format
+        - filename
+        - target_path
+        - description
+      properties:
+        tool:
+          $ref: '#/components/schemas/CLIToolID'
+        name:
+          type: string
+        format:
+          $ref: '#/components/schemas/CLIToolFormat'
+        filename:
+          type: string
+        target_path:
+          type: string
+        description:
+          type: string
+    CLIToolsCatalogResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - local_apply_enabled
+        - tools
+      properties:
+        local_apply_enabled:
+          type: boolean
+        tools:
+          type: array
+          items:
+            $ref: '#/components/schemas/CLIToolDescriptor'
+    CLIToolConfigRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - base_url
+      properties:
+        base_url:
+          type: string
+          format: uri
+        api_key:
+          type: string
+        model:
+          type: string
+    GenerateCLIToolConfigResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - tool
+        - name
+        - format
+        - filename
+        - target_path
+        - content
+        - instructions
+      properties:
+        tool:
+          $ref: '#/components/schemas/CLIToolID'
+        name:
+          type: string
+        format:
+          $ref: '#/components/schemas/CLIToolFormat'
+        filename:
+          type: string
+        target_path:
+          type: string
+        content:
+          type: string
+        instructions:
+          type: string
+    ApplyCLIToolConfigResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - applied
+        - tool
+        - target_path
+        - backup_path
+      properties:
+        applied:
+          type: boolean
+        tool:
+          $ref: '#/components/schemas/CLIToolID'
+        target_path:
+          type: string
+        backup_path:
+          type: string
+    RollbackCLIToolConfigResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - restored
+        - tool
+        - target_path
+        - backup_path
+      properties:
+        restored:
+          type: boolean
+        tool:
+          $ref: '#/components/schemas/CLIToolID'
+        target_path:
+          type: string
+        backup_path:
+          type: string

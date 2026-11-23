@@ -946,5 +946,35 @@
     "seen": 1795404031.928439,
     "ast_hash": "fbcc5b16900ed395b05762bdf548298a",
     "semantic_hash": ""
+  },
+  "contracts/openapi/modules/clitools.yaml": {
+    "mtime": 1795404528.8679507,
+    "seen": 1795404624.369619,
+    "ast_hash": "b18186a49751e07969bae7d08f6b54fe",
+    "semantic_hash": ""
+  },
+  "internal/modules/clitools/apply.go": {
+    "mtime": 1795404568.0918267,
+    "seen": 1795404624.3699932,
+    "ast_hash": "1c061e185c3eadba9a87ab2c6ee2ecb0",
+    "semantic_hash": ""
+  },
+  "internal/modules/clitools/catalog.go": {
+    "mtime": 1795404563.489287,
+    "seen": 1795404624.3699954,
+    "ast_hash": "c2b45dfb43b216abc3fb2401c1001a6d",
+    "semantic_hash": ""
+  },
+  "internal/modules/clitools/module.go": {
+    "mtime": 1795404526.9978833,
+    "seen": 1795404624.3699973,
+    "ast_hash": "55a752453270c236014b3b6045820b01",
+    "semantic_hash": ""
+  },
+  "internal/modules/clitools/module_test.go": {
+    "mtime": 1795404602.307698,
+    "seen": 1795404624.3699992,
+    "ast_hash": "a0ccded36f3d9f3c4acd7e10917127bb",
+    "semantic_hash": ""
   }
 }
