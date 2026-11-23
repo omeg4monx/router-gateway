@@ -1,0 +1,373 @@
+paths:
+  /api/plugins:
+    get:
+      operationId: listPlugins
+      tags: [plugins]
+      summary: List built-in gateway request-enhancement plugins and their runtime configuration
+      responses:
+        '200':
+          description: Plugin catalog and configuration
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PluginListResponse'
+  /api/plugins/{key}:
+    put:
+      operationId: updatePlugin
+      tags: [plugins]
+      summary: Update configuration for a built-in plugin
+      parameters:
+        - name: key
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdatePluginRequest'
+      responses:
+        '200':
+          description: Updated plugin state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PluginState'
+        '400':
+          description: Invalid payload
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Plugin not found
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+  /api/plugins/preview:
+    post:
+      operationId: previewPlugins
+      tags: [plugins]
+      summary: Dry-run active request-enhancement plugins against a sample gateway payload
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PreviewPluginsRequest'
+      responses:
+        '200':
+          description: Dry-run transformation output
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PreviewPluginsResponse'
+        '400':
+          description: Invalid payload
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+  /api/skills:
+    get:
+      operationId: listSkills
+      tags: [plugins]
+      summary: List built-in and custom agent/IDE skills
+      responses:
+        '200':
+          description: Skills list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SkillListResponse'
+    post:
+      operationId: createSkill
+      tags: [plugins]
+      summary: Create a custom reusable skill
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSkillRequest'
+      responses:
+        '201':
+          description: Created skill
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Skill'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '409':
+          description: Duplicate slug
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+  /api/skills/{id}:
+    get:
+      operationId: getSkill
+      tags: [plugins]
+      summary: Fetch a single skill by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Skill details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Skill'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+    patch:
+      operationId: updateSkill
+      tags: [plugins]
+      summary: Update an existing skill
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateSkillRequest'
+      responses:
+        '200':
+          description: Updated skill
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Skill'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+    delete:
+      operationId: deleteSkill
+      tags: [plugins]
+      summary: Delete a custom skill
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Deleted skill confirmation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeleteSkillResponse'
+        '400':
+          description: Built-in skill protected
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+  /api/skills/{id}/export:
+    get:
+      operationId: exportSkill
+      tags: [plugins]
+      summary: Export a skill as a frontmatter-formatted SKILL.md document
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Markdown SKILL.md document
+          content:
+            text/markdown:
+              schema:
+                type: string
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+components:
+  schemas:
+    PluginState:
+      type: object
+      additionalProperties: false
+      required: [key, name, description, category, enabled, models, config, updated_at]
+      properties:
+        key:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        category:
+          type: string
+        enabled:
+          type: boolean
+        models:
+          type: array
+          items:
+            type: string
+        config:
+          type: object
+          additionalProperties: true
+        updated_at:
+          type: string
+    PluginListResponse:
+      type: object
+      additionalProperties: false
+      required: [plugins]
+      properties:
+        plugins:
+          type: array
+          items:
+            $ref: '#/components/schemas/PluginState'
+    UpdatePluginRequest:
+      type: object
+      additionalProperties: false
+      required: [enabled]
+      properties:
+        enabled:
+          type: boolean
+        models:
+          type: array
+          items:
+            type: string
+        config:
+          type: object
+          additionalProperties: true
+    PreviewPluginsRequest:
+      type: object
+      additionalProperties: false
+      required: [model, payload]
+      properties:
+        model:
+          type: string
+        payload:
+          type: object
+          additionalProperties: true
+    PreviewPluginsResponse:
+      type: object
+      additionalProperties: false
+      required: [changed, applied_plugins, payload]
+      properties:
+        changed:
+          type: boolean
+        applied_plugins:
+          type: array
+          items:
+            type: string
+        payload:
+          type: object
+          additionalProperties: true
+    Skill:
+      type: object
+      additionalProperties: false
+      required: [id, slug, name, description, category, content, enabled, builtin, created_at, updated_at]
+      properties:
+        id:
+          type: string
+        slug:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        category:
+          type: string
+        content:
+          type: string
+        enabled:
+          type: boolean
+        builtin:
+          type: boolean
+        created_at:
+          type: string
+        updated_at:
+          type: string
+    SkillListResponse:
+      type: object
+      additionalProperties: false
+      required: [skills]
+      properties:
+        skills:
+          type: array
+          items:
+            $ref: '#/components/schemas/Skill'
+    CreateSkillRequest:
+      type: object
+      additionalProperties: false
+      required: [slug, name, content]
+      properties:
+        slug:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        category:
+          type: string
+        content:
+          type: string
+        enabled:
+          type: boolean
+    UpdateSkillRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        category:
+          type: string
+        content:
+          type: string
+        enabled:
+          type: boolean
+    DeleteSkillResponse:
+      type: object
+      additionalProperties: false
+      required: [deleted, id]
+      properties:
+        deleted:
+          type: boolean
+        id:
+          type: string
