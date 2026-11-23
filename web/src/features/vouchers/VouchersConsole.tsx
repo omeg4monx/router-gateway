@@ -31,6 +31,7 @@ export function VouchersConsole() {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [claimedResult, setClaimedResult] = useState<ClaimVoucherResponse | null>(null);
   const [copiedSecret, setCopiedSecret] = useState(false);
+  const [clipboardError, setClipboardError] = useState<string | null>(null);
 
   const vouchersQuery = useVouchersList();
   const teamsQuery = useTeamsList();
@@ -106,9 +107,14 @@ export function VouchersConsole() {
 
   const handleCopySecret = async () => {
     if (!claimedResult?.secret) return;
-    await navigator.clipboard.writeText(claimedResult.secret);
-    setCopiedSecret(true);
-    setTimeout(() => setCopiedSecret(false), 1500);
+    setClipboardError(null);
+    try {
+      await navigator.clipboard.writeText(claimedResult.secret);
+      setCopiedSecret(true);
+      setTimeout(() => setCopiedSecret(false), 1500);
+    } catch {
+      setClipboardError("Clipboard access denied; copy the secret manually.");
+    }
   };
 
   const vouchers = vouchersQuery.data?.vouchers ?? [];
@@ -119,7 +125,8 @@ export function VouchersConsole() {
     createMutation.error?.message ??
     updateMutation.error?.message ??
     deleteMutation.error?.message ??
-    claimMutation.error?.message;
+    claimMutation.error?.message ??
+    clipboardError;
 
   return (
     <div className="space-y-6">
@@ -170,7 +177,11 @@ export function VouchersConsole() {
           <h3 className="mb-4 text-sm font-semibold text-[var(--text-primary)]">
             New Redeemable Voucher
           </h3>
-          <form onSubmit={onCreateSubmit} className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <form
+            onSubmit={onCreateSubmit}
+            noValidate
+            className="grid grid-cols-1 gap-4 md:grid-cols-2"
+          >
             <div className="space-y-1.5">
               <Label htmlFor="voucher-name">Name</Label>
               <Input id="voucher-name" {...createForm.register("name")} placeholder="Beta Cohort" />
@@ -188,6 +199,11 @@ export function VouchersConsole() {
                 {...createForm.register("code")}
                 placeholder="OMG-BETA-2026"
               />
+              {createForm.formState.errors.code ? (
+                <p className="text-xs text-[var(--status-error)]">
+                  {createForm.formState.errors.code.message}
+                </p>
+              ) : null}
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="voucher-quota">Key Quota USD</Label>
@@ -196,8 +212,15 @@ export function VouchersConsole() {
                 type="number"
                 step="0.01"
                 min="0"
-                {...createForm.register("quota_usd", { valueAsNumber: true })}
+                {...createForm.register("quota_usd", {
+                  setValueAs: (v: string) => (v === "" ? 0 : Number(v)),
+                })}
               />
+              {createForm.formState.errors.quota_usd ? (
+                <p className="text-xs text-[var(--status-error)]">
+                  {createForm.formState.errors.quota_usd.message}
+                </p>
+              ) : null}
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="voucher-rpm">Key RPM Limit</Label>
@@ -205,8 +228,15 @@ export function VouchersConsole() {
                 id="voucher-rpm"
                 type="number"
                 min="0"
-                {...createForm.register("rate_limit_rpm", { valueAsNumber: true })}
+                {...createForm.register("rate_limit_rpm", {
+                  setValueAs: (v: string) => (v === "" ? 0 : Number(v)),
+                })}
               />
+              {createForm.formState.errors.rate_limit_rpm ? (
+                <p className="text-xs text-[var(--status-error)]">
+                  {createForm.formState.errors.rate_limit_rpm.message}
+                </p>
+              ) : null}
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="voucher-max">Max Redemptions</Label>
@@ -214,7 +244,9 @@ export function VouchersConsole() {
                 id="voucher-max"
                 type="number"
                 min="1"
-                {...createForm.register("max_redemptions", { valueAsNumber: true })}
+                {...createForm.register("max_redemptions", {
+                  setValueAs: (v: string) => (v === "" ? 1 : Number(v)),
+                })}
               />
               {createForm.formState.errors.max_redemptions ? (
                 <p className="text-xs text-[var(--status-error)]">

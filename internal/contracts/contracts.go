@@ -282,9 +282,10 @@ type ProvisionedKey struct {
 	Secret    string
 }
 
-// KeyProvisioner mints gateway API keys on behalf of authorized modules.
+// KeyProvisioner mints and revokes gateway API keys on behalf of authorized modules.
 type KeyProvisioner interface {
 	ProvisionKey(ctx context.Context, req ProvisionKeyRequest) (ProvisionedKey, error)
+	RevokeKey(ctx context.Context, keyID string) error
 }
 
 // TeamAssigner binds a gateway API key to a team for shared budget/RPM grouping.

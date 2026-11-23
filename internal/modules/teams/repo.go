@@ -191,10 +191,29 @@ func (r *repo) create(ctx context.Context, in createTeamInput) (Team, error) {
 }
 
 func (r *repo) patch(ctx context.Context, id string, in patchTeamInput) (Team, error) {
-	cur, err := r.getByID(ctx, id)
+	tx, err := r.db.Writer().BeginTx(ctx, nil)
 	if err != nil {
-		return Team{}, err
+		return Team{}, fmt.Errorf("begin patch team tx: %w", err)
 	}
+	defer func() { _ = tx.Rollback() }()
+
+	var cur Team
+	var enabled int
+	err = tx.QueryRowContext(ctx,
+		`SELECT id, name, description, budget_usd, spent_usd, rate_limit_rpm, enabled, created_at, updated_at
+		 FROM teams WHERE id = ?`, id,
+	).Scan(
+		&cur.ID, &cur.Name, &cur.Description, &cur.BudgetUSD, &cur.SpentUSD,
+		&cur.RateLimitRPM, &enabled, &cur.CreatedAt, &cur.UpdatedAt,
+	)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return Team{}, errTeamNotFound
+		}
+		return Team{}, fmt.Errorf("load team for patch: %w", err)
+	}
+	cur.Enabled = enabled != 0
+
 	if in.Name != nil {
 		cur.Name = strings.TrimSpace(*in.Name)
 	}
@@ -216,7 +235,7 @@ func (r *repo) patch(ctx context.Context, id string, in patchTeamInput) (Team, e
 	if cur.Enabled {
 		enabledInt = 1
 	}
-	_, err = r.db.Writer().ExecContext(ctx,
+	_, err = tx.ExecContext(ctx,
 		`UPDATE teams SET name = ?, description = ?, budget_usd = ?, rate_limit_rpm = ?, enabled = ?, updated_at = ?
 		 WHERE id = ?`,
 		cur.Name, cur.Description, cur.BudgetUSD, cur.RateLimitRPM, enabledInt, cur.UpdatedAt, id,
@@ -226,6 +245,9 @@ func (r *repo) patch(ctx context.Context, id string, in patchTeamInput) (Team, e
 			return Team{}, errTeamExists
 		}
 		return Team{}, fmt.Errorf("update team: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return Team{}, fmt.Errorf("commit patch team tx: %w", err)
 	}
 	return r.getByID(ctx, id)
 }
@@ -280,8 +302,14 @@ func (r *repo) addSpendForKey(ctx context.Context, keyID string, costUSD float64
 	if costUSD <= 0 || strings.TrimSpace(keyID) == "" {
 		return "", nil
 	}
+	tx, err := r.db.Writer().BeginTx(ctx, nil)
+	if err != nil {
+		return "", fmt.Errorf("begin add spend tx: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+
 	var teamID string
-	err := r.db.Reader().QueryRowContext(ctx, `SELECT team_id FROM team_keys WHERE key_id = ?`, keyID).Scan(&teamID)
+	err = tx.QueryRowContext(ctx, `SELECT team_id FROM team_keys WHERE key_id = ?`, keyID).Scan(&teamID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return "", nil
@@ -289,12 +317,15 @@ func (r *repo) addSpendForKey(ctx context.Context, keyID string, costUSD float64
 		return "", fmt.Errorf("lookup team for key: %w", err)
 	}
 	now := formatUTC(time.Now())
-	_, err = r.db.Writer().ExecContext(ctx,
+	_, err = tx.ExecContext(ctx,
 		`UPDATE teams SET spent_usd = spent_usd + ?, updated_at = ? WHERE id = ?`,
 		costUSD, now, teamID,
 	)
 	if err != nil {
 		return "", fmt.Errorf("increment team spend: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return "", fmt.Errorf("commit add spend tx: %w", err)
 	}
 	return teamID, nil
 }

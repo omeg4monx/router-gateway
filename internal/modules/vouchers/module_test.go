@@ -23,6 +23,7 @@ import (
 
 type stubKeyProvisioner struct {
 	counter atomic.Int64
+	revoked atomic.Int64
 }
 
 func (s *stubKeyProvisioner) ProvisionKey(_ context.Context, req contracts.ProvisionKeyRequest) (contracts.ProvisionedKey, error) {
@@ -35,15 +36,24 @@ func (s *stubKeyProvisioner) ProvisionKey(_ context.Context, req contracts.Provi
 	}, nil
 }
 
+func (s *stubKeyProvisioner) RevokeKey(_ context.Context, _ string) error {
+	s.revoked.Add(1)
+	return nil
+}
+
 type stubTeamAssigner struct {
 	mu          sync.Mutex
 	assignments []string
+	failErr     error
 }
 
 func (s *stubTeamAssigner) AssignKeyToTeam(_ context.Context, teamID, keyID string) error {
 	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.failErr != nil {
+		return s.failErr
+	}
 	s.assignments = append(s.assignments, teamID+":"+keyID)
-	s.mu.Unlock()
 	return nil
 }
 
@@ -219,5 +229,92 @@ func TestVouchersConcurrentSingleUseAtomicityAndIPRateLimit(t *testing.T) {
 		if i == 2 && w.Code != http.StatusTooManyRequests {
 			t.Fatalf("expected 429 on 3rd rapid claim from same IP, got %d: %s", w.Code, w.Body.String())
 		}
+	}
+}
+
+func TestVouchersTeamAssignmentFailureRevokesKeyAndRollsBack(t *testing.T) {
+	t.Parallel()
+
+	_, router, prov, assigner := setupVouchersTest(t, 20)
+	assigner.failErr = fmt.Errorf("team deleted")
+
+	createBody, _ := json.Marshal(map[string]any{
+		"code":            "TEAMBOUND",
+		"name":            "Team Bound",
+		"quota_usd":       10.0,
+		"team_id":         "team_missing",
+		"max_redemptions": 1,
+	})
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/api/vouchers", bytes.NewReader(createBody))
+	req.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(rec, req)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("create voucher = %d: %s", rec.Code, rec.Body.String())
+	}
+
+	// Claim must fail (not 200), revoke the provisioned key, and roll back redeemed_count so a retry after team fix succeeds.
+	claimBody, _ := json.Marshal(map[string]any{"code": "TEAMBOUND", "claimer_id": "alice"})
+	cRec := httptest.NewRecorder()
+	cReq := httptest.NewRequest(http.MethodPost, "/api/vouchers/claim", bytes.NewReader(claimBody))
+	cReq.Header.Set("Content-Type", "application/json")
+	cReq.RemoteAddr = "10.2.0.1:1234"
+	router.ServeHTTP(cRec, cReq)
+	if cRec.Code == http.StatusOK {
+		t.Fatalf("expected claim to fail when team assignment fails, got 200: %s", cRec.Body.String())
+	}
+	if prov.revoked.Load() != 1 {
+		t.Fatalf("expected minted key to be revoked on team assign failure, revoked=%d", prov.revoked.Load())
+	}
+
+	// Clear error -> alice can now claim the rolled-back single-use voucher.
+	assigner.mu.Lock()
+	assigner.failErr = nil
+	assigner.mu.Unlock()
+
+	retryRec := httptest.NewRecorder()
+	retryReq := httptest.NewRequest(http.MethodPost, "/api/vouchers/claim", bytes.NewReader(claimBody))
+	retryReq.Header.Set("Content-Type", "application/json")
+	retryReq.RemoteAddr = "10.2.0.2:1234"
+	router.ServeHTTP(retryRec, retryReq)
+	if retryRec.Code != http.StatusOK {
+		t.Fatalf("expected retry claim to succeed after rollback, got %d: %s", retryRec.Code, retryRec.Body.String())
+	}
+}
+
+func TestVouchersValidationRejectsNegativeMaxAndInvalidPatchName(t *testing.T) {
+	t.Parallel()
+
+	_, router, _, _ := setupVouchersTest(t, 20)
+
+	// Negative max_redemptions must return 400 (not silently coerced to 1).
+	badCreate, _ := json.Marshal(map[string]any{
+		"name":            "Bad Max",
+		"max_redemptions": -5,
+	})
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/api/vouchers", bytes.NewReader(badCreate))
+	req.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(rec, req)
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("negative max_redemptions status = %d, want 400", rec.Code)
+	}
+
+	// Create valid voucher then try patching with blank name -> 400.
+	goodCreate, _ := json.Marshal(map[string]any{"name": "Good", "code": "GOOD1"})
+	gRec := httptest.NewRecorder()
+	gReq := httptest.NewRequest(http.MethodPost, "/api/vouchers", bytes.NewReader(goodCreate))
+	gReq.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(gRec, gReq)
+	var created struct{ ID string }
+	_ = json.Unmarshal(gRec.Body.Bytes(), &created)
+
+	badPatch, _ := json.Marshal(map[string]any{"name": "   "})
+	pRec := httptest.NewRecorder()
+	pReq := httptest.NewRequest(http.MethodPatch, "/api/vouchers/"+created.ID, bytes.NewReader(badPatch))
+	pReq.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(pRec, pReq)
+	if pRec.Code != http.StatusBadRequest {
+		t.Fatalf("blank patch name status = %d, want 400", pRec.Code)
 	}
 }

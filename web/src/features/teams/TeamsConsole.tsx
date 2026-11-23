@@ -111,13 +111,13 @@ export function TeamsConsole() {
         </div>
       </section>
 
-      {teamsQuery.isError || mutationError ? (
+      {teamsQuery.isError || keysQuery.isError || mutationError ? (
         <Alert variant="destructive">
           <AlertTriangle className="h-4 w-4 text-[var(--status-error)]" aria-hidden="true" />
           <div>
             <AlertTitle>Teams request failed</AlertTitle>
             <AlertDescription className="font-mono">
-              {teamsQuery.error?.message ?? mutationError?.message}
+              {teamsQuery.error?.message ?? keysQuery.error?.message ?? mutationError?.message}
             </AlertDescription>
           </div>
         </Alert>
@@ -128,7 +128,7 @@ export function TeamsConsole() {
           <h3 className="mb-4 text-sm font-semibold text-[var(--text-primary)]">
             Create API-Key Team
           </h3>
-          <form onSubmit={onSubmit} className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <form onSubmit={onSubmit} noValidate className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div className="space-y-1.5">
               <Label htmlFor="team-name">Team Name</Label>
               <Input id="team-name" {...form.register("name")} placeholder="Engineering" />
@@ -145,6 +145,11 @@ export function TeamsConsole() {
                 {...form.register("description")}
                 placeholder="Shared budget for backend services"
               />
+              {form.formState.errors.description ? (
+                <p className="text-xs text-[var(--status-error)]">
+                  {form.formState.errors.description.message}
+                </p>
+              ) : null}
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="team-budget">Shared USD Budget (0 = unlimited)</Label>
@@ -153,7 +158,9 @@ export function TeamsConsole() {
                 type="number"
                 step="0.01"
                 min="0"
-                {...form.register("budget_usd", { valueAsNumber: true })}
+                {...form.register("budget_usd", {
+                  setValueAs: (v: string) => (v === "" ? 0 : Number(v)),
+                })}
               />
               {form.formState.errors.budget_usd ? (
                 <p className="text-xs text-[var(--status-error)]">
@@ -167,7 +174,9 @@ export function TeamsConsole() {
                 id="team-rpm"
                 type="number"
                 min="0"
-                {...form.register("rate_limit_rpm", { valueAsNumber: true })}
+                {...form.register("rate_limit_rpm", {
+                  setValueAs: (v: string) => (v === "" ? 0 : Number(v)),
+                })}
               />
               {form.formState.errors.rate_limit_rpm ? (
                 <p className="text-xs text-[var(--status-error)]">

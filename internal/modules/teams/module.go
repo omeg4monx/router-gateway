@@ -61,10 +61,11 @@ type Module struct {
 	bus    *eventbus.Bus
 	logger *slog.Logger
 
-	mu         sync.RWMutex
-	teamsByID  map[string]Team
-	keyToTeam  map[string]string
-	rpmWindows map[string][]time.Time
+	mu          sync.RWMutex
+	cacheSyncMu sync.Mutex
+	teamsByID   map[string]Team
+	keyToTeam   map[string]string
+	rpmWindows  map[string][]time.Time
 
 	lifeMu  sync.Mutex
 	started bool
@@ -261,6 +262,9 @@ func (m *Module) OnStreamChunk(_ context.Context, _ *contracts.StreamEvent) erro
 }
 
 func (m *Module) refreshCache(ctx context.Context) error {
+	m.cacheSyncMu.Lock()
+	defer m.cacheSyncMu.Unlock()
+
 	list, err := m.repo.list(ctx)
 	if err != nil {
 		return err
@@ -298,10 +302,12 @@ func (m *Module) consumeUsage(ctx context.Context, ch <-chan eventbus.Event, uns
 			if keyID == "" || costUSD <= 0 {
 				continue
 			}
+			m.cacheSyncMu.Lock()
 			writeCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 			teamID, err := m.repo.addSpendForKey(writeCtx, keyID, costUSD)
 			cancel()
 			if err != nil {
+				m.cacheSyncMu.Unlock()
 				if ctx.Err() == nil {
 					m.logger.Warn("failed to accumulate team spend", "key_id", keyID, "error", err)
 				}
@@ -315,6 +321,7 @@ func (m *Module) consumeUsage(ctx context.Context, ch <-chan eventbus.Event, uns
 				}
 				m.mu.Unlock()
 			}
+			m.cacheSyncMu.Unlock()
 		}
 	}
 }

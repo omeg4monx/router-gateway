@@ -18,6 +18,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode/utf8"
 
 	"github.com/go-chi/chi/v5"
 
@@ -132,6 +133,24 @@ func (m *Module) allowIP(ip string) bool {
 				delete(m.ipWindows, k)
 			}
 		}
+		for len(m.ipWindows) > maxTrackedIPs {
+			var oldestKey string
+			var oldestTime time.Time
+			for k, times := range m.ipWindows {
+				last := time.Time{}
+				if len(times) > 0 {
+					last = times[len(times)-1]
+				}
+				if oldestKey == "" || last.Before(oldestTime) {
+					oldestKey = k
+					oldestTime = last
+				}
+			}
+			if oldestKey == "" {
+				break
+			}
+			delete(m.ipWindows, oldestKey)
+		}
 	}
 
 	window := m.ipWindows[ip]
@@ -176,7 +195,7 @@ func (m *Module) handleCreate(w http.ResponseWriter, r *http.Request) {
 		RateLimitRPM   int      `json:"rate_limit_rpm"`
 		AllowedModels  []string `json:"allowed_models"`
 		TeamID         string   `json:"team_id"`
-		MaxRedemptions int      `json:"max_redemptions"`
+		MaxRedemptions *int     `json:"max_redemptions"`
 		Enabled        *bool    `json:"enabled"`
 		ExpiresAt      string   `json:"expires_at"`
 	}
@@ -185,8 +204,12 @@ func (m *Module) handleCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	req.Name = strings.TrimSpace(req.Name)
-	if req.Name == "" || len(req.Name) > 128 {
+	if req.Name == "" || utf8.RuneCountInString(req.Name) > 128 {
 		httpserver.WriteError(w, r, http.StatusBadRequest, "invalid_name", "name must be 1..128 characters")
+		return
+	}
+	if utf8.RuneCountInString(strings.TrimSpace(req.Code)) > 64 {
+		httpserver.WriteError(w, r, http.StatusBadRequest, "invalid_code", "code must be at most 64 characters")
 		return
 	}
 	if req.QuotaUSD < 0 || math.IsNaN(req.QuotaUSD) || math.IsInf(req.QuotaUSD, 0) {
@@ -197,9 +220,24 @@ func (m *Module) handleCreate(w http.ResponseWriter, r *http.Request) {
 		httpserver.WriteError(w, r, http.StatusBadRequest, "invalid_rate_limit", "rate_limit_rpm must be non-negative")
 		return
 	}
-	maxRed := req.MaxRedemptions
-	if maxRed <= 0 {
-		maxRed = 1
+	if len(req.AllowedModels) > 256 {
+		httpserver.WriteError(w, r, http.StatusBadRequest, "invalid_allowed_models", "allowed_models must have at most 256 entries")
+		return
+	}
+	for _, model := range req.AllowedModels {
+		trimmed := strings.TrimSpace(model)
+		if trimmed == "" || utf8.RuneCountInString(trimmed) > 128 {
+			httpserver.WriteError(w, r, http.StatusBadRequest, "invalid_allowed_models", "each allowed_models entry must be 1..128 characters")
+			return
+		}
+	}
+	maxRed := 1
+	if req.MaxRedemptions != nil {
+		if *req.MaxRedemptions <= 0 {
+			httpserver.WriteError(w, r, http.StatusBadRequest, "invalid_max_redemptions", "max_redemptions must be >= 1")
+			return
+		}
+		maxRed = *req.MaxRedemptions
 	}
 	if req.ExpiresAt != "" {
 		parsed, err := time.Parse(time.RFC3339, strings.TrimSpace(req.ExpiresAt))
@@ -250,6 +288,13 @@ func (m *Module) handlePatch(w http.ResponseWriter, r *http.Request) {
 	if err := decodeStrictJSON(w, r, &req); err != nil {
 		httpserver.WriteError(w, r, http.StatusBadRequest, "invalid_request", err.Error())
 		return
+	}
+	if req.Name != nil {
+		trimmed := strings.TrimSpace(*req.Name)
+		if trimmed == "" || utf8.RuneCountInString(trimmed) > 128 {
+			httpserver.WriteError(w, r, http.StatusBadRequest, "invalid_name", "name must be 1..128 characters")
+			return
+		}
 	}
 	if req.MaxRedemptions != nil && *req.MaxRedemptions <= 0 {
 		httpserver.WriteError(w, r, http.StatusBadRequest, "invalid_max_redemptions", "max_redemptions must be >= 1")
@@ -333,6 +378,11 @@ func (m *Module) handleClaim(w http.ResponseWriter, r *http.Request) {
 		httpserver.WriteError(w, r, http.StatusBadRequest, "invalid_code", "voucher code is required")
 		return
 	}
+	keyName := strings.TrimSpace(req.KeyName)
+	if utf8.RuneCountInString(keyName) > 128 {
+		httpserver.WriteError(w, r, http.StatusBadRequest, "invalid_key_name", "key_name must be at most 128 characters")
+		return
+	}
 	claimerID := strings.TrimSpace(req.ClaimerID)
 	if claimerID == "" {
 		claimerID = "ip:" + ip
@@ -362,12 +412,27 @@ func (m *Module) handleClaim(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	keyName := strings.TrimSpace(req.KeyName)
-	if keyName == "" {
-		keyName = fmt.Sprintf("voucher-%s-%s", strings.ToLower(voucher.Code), claimerID)
-		if len(keyName) > 120 {
-			keyName = keyName[:120]
+	compensate := func(keyID string) {
+		if keyID != "" {
+			revCtx, cancel := context.WithTimeout(context.WithoutCancel(r.Context()), 5*time.Second)
+			if revErr := m.keys.RevokeKey(revCtx, keyID); revErr != nil {
+				m.logger.Error("failed to revoke provisioned voucher key during rollback", "key_id", keyID, "error", revErr)
+			}
+			cancel()
 		}
+		if rbErr := m.repo.rollbackClaim(r.Context(), voucher.ID, red.ID); rbErr != nil {
+			m.logger.Error("failed to rollback voucher claim reservation", "voucher_id", voucher.ID, "redemption_id", red.ID, "error", rbErr)
+		}
+	}
+
+	if voucher.TeamID != "" && m.teams == nil {
+		compensate("")
+		httpserver.WriteError(w, r, http.StatusServiceUnavailable, "teams_unavailable", "teams module is disabled; cannot redeem team-bound voucher")
+		return
+	}
+
+	if keyName == "" {
+		keyName = truncateRunes(fmt.Sprintf("voucher-%s-%s", strings.ToLower(voucher.Code), claimerID), 120)
 	}
 
 	var expiresPtr *string
@@ -387,15 +452,21 @@ func (m *Module) handleClaim(w http.ResponseWriter, r *http.Request) {
 		Actor:         "voucher:" + voucher.Code,
 	})
 	if err != nil {
-		m.repo.rollbackClaim(r.Context(), voucher.ID, red.ID)
+		compensate("")
 		httpserver.WriteError(w, r, http.StatusInternalServerError, "key_provision_failed", "failed to provision API key for voucher")
 		return
 	}
 
-	_ = m.repo.attachRedemptionKey(r.Context(), red.ID, provisioned.ID)
-	if voucher.TeamID != "" && m.teams != nil {
+	if err := m.repo.attachRedemptionKey(r.Context(), red.ID, provisioned.ID); err != nil {
+		compensate(provisioned.ID)
+		httpserver.WriteError(w, r, http.StatusInternalServerError, "voucher_claim_failed", "failed to record provisioned key on voucher redemption")
+		return
+	}
+	if voucher.TeamID != "" {
 		if assignErr := m.teams.AssignKeyToTeam(r.Context(), voucher.TeamID, provisioned.ID); assignErr != nil {
-			m.logger.Warn("failed to attach voucher key to team", "team_id", voucher.TeamID, "key_id", provisioned.ID, "error", assignErr)
+			compensate(provisioned.ID)
+			httpserver.WriteError(w, r, http.StatusConflict, "team_assignment_failed", "failed to attach voucher key to target team")
+			return
 		}
 	}
 
@@ -410,6 +481,22 @@ func (m *Module) handleClaim(w http.ResponseWriter, r *http.Request) {
 		"quota_usd":   voucher.QuotaUSD,
 		"redeemed_at": red.RedeemedAt,
 	})
+}
+
+func truncateRunes(s string, maxRunes int) string {
+	if maxRunes <= 0 || utf8.RuneCountInString(s) <= maxRunes {
+		return s
+	}
+	var b strings.Builder
+	count := 0
+	for _, r := range s {
+		if count >= maxRunes {
+			break
+		}
+		b.WriteRune(r)
+		count++
+	}
+	return b.String()
 }
 
 func clientIP(r *http.Request) string {

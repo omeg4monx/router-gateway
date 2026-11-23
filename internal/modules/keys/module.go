@@ -212,6 +212,21 @@ func (m *Module) ProvisionKey(ctx context.Context, req contracts.ProvisionKeyReq
 	}, nil
 }
 
+// RevokeKey deletes a provisioned API key by ID and invalidates the validation cache.
+func (m *Module) RevokeKey(ctx context.Context, keyID string) error {
+	id := strings.TrimSpace(keyID)
+	if id == "" {
+		return ErrKeyNotFound
+	}
+	res, err := m.repo.Delete(ctx, id)
+	if err != nil {
+		return err
+	}
+	m.cache.Delete(res.OldHash)
+	m.publishChanged("deleted", id, "system", res.DeletedAt)
+	return nil
+}
+
 // ValidateKey validates rawKey by SHA-256 hash using an in-memory read-through
 // cache backed by SQLite, rejecting invalid, disabled, or expired keys.
 func (m *Module) ValidateKey(ctx context.Context, rawKey string) (contracts.KeyInfo, error) {

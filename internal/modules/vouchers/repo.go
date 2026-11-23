@@ -190,7 +190,18 @@ func (r *repo) create(ctx context.Context, in createVoucherInput) (Voucher, erro
 }
 
 func (r *repo) patch(ctx context.Context, id string, in patchVoucherInput) (Voucher, error) {
-	cur, err := r.getByID(ctx, id)
+	tx, err := r.db.Writer().BeginTx(ctx, nil)
+	if err != nil {
+		return Voucher{}, fmt.Errorf("begin patch voucher tx: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	row := tx.QueryRowContext(ctx,
+		`SELECT id, code, name, description, quota_usd, rate_limit_rpm, allowed_models_json,
+		        team_id, max_redemptions, redeemed_count, enabled, expires_at, created_at, updated_at
+		 FROM vouchers WHERE id = ?`, id,
+	)
+	cur, err := scanVoucherRow(row)
 	if err != nil {
 		return Voucher{}, err
 	}
@@ -215,13 +226,16 @@ func (r *repo) patch(ctx context.Context, id string, in patchVoucherInput) (Vouc
 	if cur.Enabled {
 		enabledInt = 1
 	}
-	_, err = r.db.Writer().ExecContext(ctx,
+	_, err = tx.ExecContext(ctx,
 		`UPDATE vouchers SET name = ?, description = ?, max_redemptions = ?, enabled = ?, expires_at = ?, updated_at = ?
 		 WHERE id = ?`,
 		cur.Name, cur.Description, cur.MaxRedemptions, enabledInt, cur.ExpiresAt, cur.UpdatedAt, id,
 	)
 	if err != nil {
 		return Voucher{}, fmt.Errorf("update voucher: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return Voucher{}, fmt.Errorf("commit patch voucher tx: %w", err)
 	}
 	return r.getByID(ctx, id)
 }
@@ -349,15 +363,25 @@ func (r *repo) attachRedemptionKey(ctx context.Context, redemptionID, keyID stri
 	return err
 }
 
-func (r *repo) rollbackClaim(ctx context.Context, voucherID, redemptionID string) {
-	tx, err := r.db.Writer().BeginTx(ctx, nil)
+func (r *repo) rollbackClaim(ctx context.Context, voucherID, redemptionID string) error {
+	rbCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+	defer cancel()
+
+	tx, err := r.db.Writer().BeginTx(rbCtx, nil)
 	if err != nil {
-		return
+		return fmt.Errorf("begin rollback claim tx: %w", err)
 	}
 	defer func() { _ = tx.Rollback() }()
-	_, _ = tx.ExecContext(ctx, `DELETE FROM voucher_redemptions WHERE id = ?`, redemptionID)
-	_, _ = tx.ExecContext(ctx, `UPDATE vouchers SET redeemed_count = MAX(0, redeemed_count - 1) WHERE id = ?`, voucherID)
-	_ = tx.Commit()
+	if _, err := tx.ExecContext(rbCtx, `DELETE FROM voucher_redemptions WHERE id = ?`, redemptionID); err != nil {
+		return fmt.Errorf("delete rolled back redemption: %w", err)
+	}
+	if _, err := tx.ExecContext(rbCtx, `UPDATE vouchers SET redeemed_count = MAX(0, redeemed_count - 1) WHERE id = ?`, voucherID); err != nil {
+		return fmt.Errorf("decrement redeemed_count: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit rollback claim tx: %w", err)
+	}
+	return nil
 }
 
 func scanVoucher(rows *sql.Rows) (Voucher, error) {

@@ -71,6 +71,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Voucher"
+        "400":
+          description: Invalid payload
+          content:
+            application/json:
+              schema:
+                $ref: "../openapi.yaml#/components/schemas/ErrorEnvelope"
         "404":
           description: Voucher not found
           content:
@@ -95,6 +101,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/DeleteVoucherResponse"
+        "404":
+          description: Voucher not found
+          content:
+            application/json:
+              schema:
+                $ref: "../openapi.yaml#/components/schemas/ErrorEnvelope"
   /api/vouchers/{id}/redemptions:
     get:
       operationId: listVoucherRedemptions
@@ -114,6 +126,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/VoucherRedemptionListResponse"
+        "404":
+          description: Voucher not found
+          content:
+            application/json:
+              schema:
+                $ref: "../openapi.yaml#/components/schemas/ErrorEnvelope"
   /api/vouchers/claim:
     post:
       operationId: claimVoucher
@@ -133,6 +151,18 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ClaimVoucherResponse"
+        "400":
+          description: Invalid claim payload
+          content:
+            application/json:
+              schema:
+                $ref: "../openapi.yaml#/components/schemas/ErrorEnvelope"
+        "403":
+          description: Voucher disabled
+          content:
+            application/json:
+              schema:
+                $ref: "../openapi.yaml#/components/schemas/ErrorEnvelope"
         "404":
           description: Voucher not found
           content:
@@ -140,13 +170,25 @@ paths:
               schema:
                 $ref: "../openapi.yaml#/components/schemas/ErrorEnvelope"
         "409":
-          description: Voucher exhausted or already claimed by actor
+          description: Voucher exhausted, already claimed by actor, or team assignment failed
+          content:
+            application/json:
+              schema:
+                $ref: "../openapi.yaml#/components/schemas/ErrorEnvelope"
+        "410":
+          description: Voucher expired
           content:
             application/json:
               schema:
                 $ref: "../openapi.yaml#/components/schemas/ErrorEnvelope"
         "429":
           description: Anti-abuse IP rate limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: "../openapi.yaml#/components/schemas/ErrorEnvelope"
+        "503":
+          description: Key provisioner or target teams module unavailable
           content:
             application/json:
               schema:

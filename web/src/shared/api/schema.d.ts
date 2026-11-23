@@ -7182,6 +7182,15 @@ export interface operations {
                     "application/json": components["schemas"]["DeleteTeamResponse"];
                 };
             };
+            /** @description Team not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
         };
     };
     updateTeam: {
@@ -7208,8 +7217,26 @@ export interface operations {
                     "application/json": components["schemas"]["Team"];
                 };
             };
+            /** @description Invalid payload */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
             /** @description Team not found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Team name conflict */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -7243,6 +7270,24 @@ export interface operations {
                     "application/json": components["schemas"]["Team"];
                 };
             };
+            /** @description Invalid key ID */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Team not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
         };
     };
     removeKeyFromTeam: {
@@ -7266,6 +7311,15 @@ export interface operations {
                     "application/json": components["schemas"]["Team"];
                 };
             };
+            /** @description Team or key membership not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
         };
     };
     resetTeamSpend: {
@@ -7286,6 +7340,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Team"];
+                };
+            };
+            /** @description Team not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
                 };
             };
         };
@@ -7372,6 +7435,15 @@ export interface operations {
                     "application/json": components["schemas"]["DeleteVoucherResponse"];
                 };
             };
+            /** @description Voucher not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
         };
     };
     updateVoucher: {
@@ -7396,6 +7468,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Voucher"];
+                };
+            };
+            /** @description Invalid payload */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
                 };
             };
             /** @description Voucher not found */
@@ -7429,6 +7510,15 @@ export interface operations {
                     "application/json": components["schemas"]["VoucherRedemptionListResponse"];
                 };
             };
+            /** @description Voucher not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
         };
     };
     claimVoucher: {
@@ -7453,6 +7543,24 @@ export interface operations {
                     "application/json": components["schemas"]["ClaimVoucherResponse"];
                 };
             };
+            /** @description Invalid claim payload */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Voucher disabled */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
             /** @description Voucher not found */
             404: {
                 headers: {
@@ -7462,8 +7570,17 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorEnvelope"];
                 };
             };
-            /** @description Voucher exhausted or already claimed by actor */
+            /** @description Voucher exhausted, already claimed by actor, or team assignment failed */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Voucher expired */
+            410: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -7473,6 +7590,15 @@ export interface operations {
             };
             /** @description Anti-abuse IP rate limit exceeded */
             429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Key provisioner or target teams module unavailable */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };

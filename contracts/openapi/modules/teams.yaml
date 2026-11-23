@@ -95,8 +95,20 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Team"
+        "400":
+          description: Invalid payload
+          content:
+            application/json:
+              schema:
+                $ref: "../openapi.yaml#/components/schemas/ErrorEnvelope"
         "404":
           description: Team not found
+          content:
+            application/json:
+              schema:
+                $ref: "../openapi.yaml#/components/schemas/ErrorEnvelope"
+        "409":
+          description: Team name conflict
           content:
             application/json:
               schema:
@@ -119,6 +131,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/DeleteTeamResponse"
+        "404":
+          description: Team not found
+          content:
+            application/json:
+              schema:
+                $ref: "../openapi.yaml#/components/schemas/ErrorEnvelope"
   /api/teams/{id}/keys:
     post:
       operationId: assignKeyToTeam
@@ -144,6 +162,18 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Team"
+        "400":
+          description: Invalid key ID
+          content:
+            application/json:
+              schema:
+                $ref: "../openapi.yaml#/components/schemas/ErrorEnvelope"
+        "404":
+          description: Team not found
+          content:
+            application/json:
+              schema:
+                $ref: "../openapi.yaml#/components/schemas/ErrorEnvelope"
   /api/teams/{id}/keys/{keyId}:
     delete:
       operationId: removeKeyFromTeam
@@ -168,6 +198,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Team"
+        "404":
+          description: Team or key membership not found
+          content:
+            application/json:
+              schema:
+                $ref: "../openapi.yaml#/components/schemas/ErrorEnvelope"
   /api/teams/{id}/reset-spend:
     post:
       operationId: resetTeamSpend
@@ -187,6 +223,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Team"
+        "404":
+          description: Team not found
+          content:
+            application/json:
+              schema:
+                $ref: "../openapi.yaml#/components/schemas/ErrorEnvelope"
 components:
   schemas:
     Team:
