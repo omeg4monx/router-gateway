@@ -1216,5 +1216,41 @@
     "seen": 1795415188.608276,
     "ast_hash": "1196dfa3993bdb39fbece569e41da082",
     "semantic_hash": ""
+  },
+  "contracts/openapi/modules/tokensaver.yaml": {
+    "mtime": 1795415296.3753574,
+    "seen": 1795415354.5177946,
+    "ast_hash": "7c539a477035871059c9e4890a711e88",
+    "semantic_hash": ""
+  },
+  "internal/modules/tokensaver/compressor.go": {
+    "mtime": 1795415330.1704826,
+    "seen": 1795415354.5190654,
+    "ast_hash": "43ff0108f8806f90e180057f808bf3b8",
+    "semantic_hash": ""
+  },
+  "internal/modules/tokensaver/headroom.go": {
+    "mtime": 1795415325.9686742,
+    "seen": 1795415354.5190668,
+    "ast_hash": "12246c430daabcb8768581e325530a53",
+    "semantic_hash": ""
+  },
+  "internal/modules/tokensaver/module.go": {
+    "mtime": 1795415294.480693,
+    "seen": 1795415354.5190682,
+    "ast_hash": "5fdbf0ae6564342dfaa5d71465526057",
+    "semantic_hash": ""
+  },
+  "internal/modules/tokensaver/module_test.go": {
+    "mtime": 1795415194.39026,
+    "seen": 1795415354.5190692,
+    "ast_hash": "2cf3d19e241a299066eb0cebfc6fb54f",
+    "semantic_hash": ""
+  },
+  "internal/modules/tokensaver/repo.go": {
+    "mtime": 1795415287.1592581,
+    "seen": 1795415354.5190706,
+    "ast_hash": "fe241058bf880d1a2060749658718eb6",
+    "semantic_hash": ""
   }
 }
