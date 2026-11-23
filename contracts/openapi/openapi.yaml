@@ -66,6 +66,8 @@ paths:
     $ref: './modules/system.yaml#/paths/~1api~1version'
   /api/init:
     $ref: './modules/system.yaml#/paths/~1api~1init'
+  /api/system/telemetry:
+    $ref: './modules/system.yaml#/paths/~1api~1system~1telemetry'
   /api/shutdown:
     $ref: './modules/system.yaml#/paths/~1api~1shutdown'
   /api/auth/login:
@@ -382,6 +384,8 @@ components:
       $ref: './modules/system.yaml#/components/schemas/InitCompleteResponse'
     ShutdownResponse:
       $ref: './modules/system.yaml#/components/schemas/ShutdownResponse'
+    SystemTelemetryResponse:
+      $ref: './modules/system.yaml#/components/schemas/SystemTelemetryResponse'
     LoginRequest:
       $ref: './modules/auth.yaml#/components/schemas/LoginRequest'
     LoginResponse:

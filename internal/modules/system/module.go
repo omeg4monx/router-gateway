@@ -63,6 +63,7 @@ type Module struct {
 	startedAt    time.Time
 	shutdownOnce sync.Once
 	initMu       sync.Mutex
+	telemetry    telemetryCollector
 }
 
 var (
@@ -112,6 +113,7 @@ func (m *Module) RegisterRoutes(mounts lifecycle.RouteMounts) {
 		mounts.PublicAPI.Post("/init", m.handlePostInit)
 	}
 	if mounts.AdminAPI != nil {
+		mounts.AdminAPI.Get("/system/telemetry", m.handleTelemetry)
 		mounts.AdminAPI.Post("/shutdown", m.handleShutdown)
 	}
 }

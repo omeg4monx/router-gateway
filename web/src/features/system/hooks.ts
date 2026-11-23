@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   apiClient,
   extractErrorMessage,
@@ -8,6 +8,7 @@ import {
   type InitCompleteResponse,
   type InitRequest,
   type InitStatusResponse,
+  type SystemTelemetryResponse,
   type VersionResponse,
 } from "@/shared/api/client";
 
@@ -15,6 +16,7 @@ export const systemKeys = {
   health: ["system", "health"] as const,
   version: ["system", "version"] as const,
   initStatus: ["system", "init"] as const,
+  telemetry: ["system", "telemetry"] as const,
 };
 
 function isHealthResponse(value: unknown): value is HealthResponse {
@@ -58,6 +60,26 @@ export function useSystemVersion() {
       throw new Error(extractErrorMessage(error));
     },
     staleTime: 60_000,
+  });
+}
+
+export function useSystemTelemetry() {
+  return useQuery<SystemTelemetryResponse, Error>({
+    queryKey: systemKeys.telemetry,
+    queryFn: async ({ signal }) => {
+      const { data, error } = await apiClient.GET("/api/system/telemetry", {
+        signal,
+      });
+      if (data) {
+        return data;
+      }
+      throw new Error(extractErrorMessage(error));
+    },
+    refetchInterval: 2_000,
+    refetchIntervalInBackground: false,
+    placeholderData: keepPreviousData,
+    retry: 1,
+    gcTime: 30_000,
   });
 }
 

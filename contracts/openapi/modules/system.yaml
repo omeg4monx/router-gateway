@@ -96,6 +96,25 @@ paths:
             application/json:
               schema:
                 $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+  /api/system/telemetry:
+    get:
+      operationId: getSystemTelemetry
+      summary: Retrieve host machine, OS, CPU, memory, and disk telemetry
+      tags:
+        - system
+      responses:
+        '200':
+          description: Current host machine and runtime telemetry snapshot.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SystemTelemetryResponse'
+        '401':
+          description: Administrative authentication is required.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
   /api/shutdown:
     post:
       operationId: shutdownSystem
@@ -207,3 +226,68 @@ components:
           type: string
           enum:
             - shutting_down
+    SystemTelemetryResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - hostname
+        - os
+        - arch
+        - goVersion
+        - cpuModel
+        - cpuCores
+        - cpuUsagePercent
+        - loadAvg
+        - memTotalBytes
+        - memUsedBytes
+        - diskTotalBytes
+        - diskUsedBytes
+        - hostUptimeSeconds
+        - appUptimeSeconds
+        - dbStatus
+        - sampledAt
+      properties:
+        hostname:
+          type: string
+        os:
+          type: string
+        arch:
+          type: string
+        goVersion:
+          type: string
+        cpuModel:
+          type: string
+        cpuCores:
+          type: integer
+        cpuUsagePercent:
+          type: number
+        loadAvg:
+          type: array
+          items:
+            type: number
+        memTotalBytes:
+          type: integer
+          format: int64
+        memUsedBytes:
+          type: integer
+          format: int64
+        diskTotalBytes:
+          type: integer
+          format: int64
+        diskUsedBytes:
+          type: integer
+          format: int64
+        hostUptimeSeconds:
+          type: integer
+          format: int64
+        appUptimeSeconds:
+          type: integer
+          format: int64
+        dbStatus:
+          type: string
+          enum:
+            - ok
+            - error
+        sampledAt:
+          type: string
+          format: date-time

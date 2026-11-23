@@ -56,6 +56,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/system/telemetry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Retrieve host machine, OS, CPU, memory, and disk telemetry */
+        get: operations["getSystemTelemetry"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/shutdown": {
         parameters: {
             query?: never;
@@ -2567,6 +2584,32 @@ export interface components {
             /** @enum {string} */
             status: "shutting_down";
         };
+        SystemTelemetryResponse: {
+            hostname: string;
+            os: string;
+            arch: string;
+            goVersion: string;
+            cpuModel: string;
+            cpuCores: number;
+            cpuUsagePercent: number;
+            loadAvg: number[];
+            /** Format: int64 */
+            memTotalBytes: number;
+            /** Format: int64 */
+            memUsedBytes: number;
+            /** Format: int64 */
+            diskTotalBytes: number;
+            /** Format: int64 */
+            diskUsedBytes: number;
+            /** Format: int64 */
+            hostUptimeSeconds: number;
+            /** Format: int64 */
+            appUptimeSeconds: number;
+            /** @enum {string} */
+            dbStatus: "ok" | "error";
+            /** Format: date-time */
+            sampledAt: string;
+        };
         LoginRequest: {
             /** Format: password */
             password: string;
@@ -4557,6 +4600,35 @@ export interface operations {
             };
             /** @description Internal error while persisting initialization state. */
             500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    getSystemTelemetry: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current host machine and runtime telemetry snapshot. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SystemTelemetryResponse"];
+                };
+            };
+            /** @description Administrative authentication is required. */
+            401: {
                 headers: {
                     [name: string]: unknown;
                 };
