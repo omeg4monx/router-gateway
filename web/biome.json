@@ -14,7 +14,8 @@
       "!out",
       "!node_modules",
       "!next-env.d.ts",
-      "!src/shared/api/schema.d.ts"
+      "!src/shared/api/schema.d.ts",
+      "!public/providers"
     ]
   },
   "formatter": {

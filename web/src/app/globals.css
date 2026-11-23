@@ -371,6 +371,11 @@ input:focus-visible {
   background-color: color-mix(in srgb, var(--color-surface) 92%, transparent);
 }
 
+/* Monochrome provider brand logos invert cleanly on dark surfaces */
+[data-theme="dark"] .provider-logo-invert {
+  filter: invert(1);
+}
+
 /* Subtle thin scrollbar for floating sidebar & internal panels */
 .custom-scrollbar {
   scrollbar-width: thin;
