@@ -84,16 +84,16 @@
     "semantic_hash": "074f40b7451a4938947e89aa47ab9f64"
   },
   "internal/platform/httpclient/client.go": {
-    "mtime": 1795408686.0590022,
-    "seen": 1795408787.675369,
-    "ast_hash": "9f12033676dcffcc076fbdde47a96774",
-    "semantic_hash": "9f12033676dcffcc076fbdde47a96774"
+    "mtime": 1795408958.9959457,
+    "seen": 1795409055.0555422,
+    "ast_hash": "56cc7218e92953d29f59ef2197ad7ae9",
+    "semantic_hash": ""
   },
   "internal/platform/httpclient/client_test.go": {
-    "mtime": 1795408686.0598242,
-    "seen": 1795408787.6753705,
-    "ast_hash": "0fb789d425e1d77f2104e2a41da86726",
-    "semantic_hash": "0fb789d425e1d77f2104e2a41da86726"
+    "mtime": 1795408837.2336915,
+    "seen": 1795409055.0555441,
+    "ast_hash": "18e7a8243b4fb96f50f847e51f4fdb7a",
+    "semantic_hash": ""
   },
   "internal/platform/httpserver/response.go": {
     "mtime": 1795408686.0600023,
@@ -1041,6 +1041,36 @@
     "mtime": 1795408601.0029514,
     "seen": 1795408787.6755009,
     "ast_hash": "29addfd27250b5c4983607951fec98ec",
+    "semantic_hash": ""
+  },
+  "contracts/openapi/modules/proxypools.yaml": {
+    "mtime": 1795408968.3130417,
+    "seen": 1795409055.053691,
+    "ast_hash": "b0100fd6a73013ff807ca152a043edb0",
+    "semantic_hash": ""
+  },
+  "internal/modules/proxypools/module.go": {
+    "mtime": 1795409003.1334002,
+    "seen": 1795409055.054866,
+    "ast_hash": "93d62a38d76458ef38fe76879c092dd8",
+    "semantic_hash": ""
+  },
+  "internal/modules/proxypools/module_test.go": {
+    "mtime": 1795409023.7696128,
+    "seen": 1795409055.054868,
+    "ast_hash": "1a50386eb82da8fd3b3aed99c888b448",
+    "semantic_hash": ""
+  },
+  "internal/modules/proxypools/repo.go": {
+    "mtime": 1795408962.4759815,
+    "seen": 1795409055.0548694,
+    "ast_hash": "946a0ada18d86c093d10369a77af5e49",
+    "semantic_hash": ""
+  },
+  "internal/modules/proxypools/scanner.go": {
+    "mtime": 1795408964.5830033,
+    "seen": 1795409055.054871,
+    "ast_hash": "942b5174242281bd62fcfc915e181a3a",
     "semantic_hash": ""
   }
 }

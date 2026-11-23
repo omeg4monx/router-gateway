@@ -224,3 +224,71 @@ func TestNewClientRequestContextCancellationAbortsStream(t *testing.T) {
 		t.Fatalf("expected context.Canceled on stream read, got %v", err)
 	}
 }
+
+type stubProxyResolver struct {
+	byProvider map[string]*url.URL
+	err        error
+}
+
+func (s *stubProxyResolver) ProxyURLForProvider(_ context.Context, providerID string) (*url.URL, error) {
+	if s.err != nil {
+		return nil, s.err
+	}
+	return s.byProvider[providerID], nil
+}
+
+func TestProviderProxyFuncContextRouting(t *testing.T) {
+	t.Parallel()
+
+	wantProxy, err := url.Parse("http://proxy.bound.local:8080")
+	if err != nil {
+		t.Fatalf("parse proxy url: %v", err)
+	}
+
+	resolver := &stubProxyResolver{
+		byProvider: map[string]*url.URL{
+			"openai": wantProxy,
+		},
+	}
+	proxyFn := httpclient.NewProviderProxyFunc(resolver)
+
+	// Bound provider resolves to bound proxy URL.
+	ctx := httpclient.WithProviderID(context.Background(), "openai")
+	if got := httpclient.ProviderIDFromContext(ctx); got != "openai" {
+		t.Fatalf("ProviderIDFromContext = %q, want %q", got, "openai")
+	}
+	reqBound, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://api.openai.com/v1/models", nil)
+	if err != nil {
+		t.Fatalf("new bound req: %v", err)
+	}
+	gotURL, err := proxyFn(reqBound)
+	if err != nil {
+		t.Fatalf("proxyFn(bound) err: %v", err)
+	}
+	if gotURL == nil || gotURL.String() != wantProxy.String() {
+		t.Fatalf("proxyFn(bound) = %v, want %v", gotURL, wantProxy)
+	}
+
+	// Unbound provider returns nil (no error).
+	ctxUnbound := httpclient.WithProviderID(context.Background(), "anthropic")
+	reqUnbound, err := http.NewRequestWithContext(ctxUnbound, http.MethodGet, "https://api.anthropic.com/v1/models", nil)
+	if err != nil {
+		t.Fatalf("new unbound req: %v", err)
+	}
+	gotUnbound, err := proxyFn(reqUnbound)
+	if err != nil {
+		t.Fatalf("proxyFn(unbound) err: %v", err)
+	}
+	if gotUnbound != nil {
+		t.Fatalf("proxyFn(unbound) = %v, want nil", gotUnbound)
+	}
+
+	// Untagged request falls back cleanly without error.
+	reqPlain, err := http.NewRequestWithContext(context.Background(), http.MethodGet, "https://example.com", nil)
+	if err != nil {
+		t.Fatalf("new plain req: %v", err)
+	}
+	if _, err := proxyFn(reqPlain); err != nil {
+		t.Fatalf("proxyFn(plain) err: %v", err)
+	}
+}

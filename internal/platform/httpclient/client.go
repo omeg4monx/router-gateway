@@ -3,11 +3,60 @@
 package httpclient
 
 import (
+	"context"
 	"net"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
+
+	"github.com/omeg4monx/router-gateway/internal/contracts"
 )
+
+type providerIDContextKey struct{}
+
+// WithProviderID tags ctx with the target upstream provider identifier so
+// NewProviderProxyFunc can route requests through provider-bound proxy pools.
+func WithProviderID(ctx context.Context, providerID string) context.Context {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	trimmed := strings.TrimSpace(providerID)
+	if trimmed == "" {
+		return ctx
+	}
+	return context.WithValue(ctx, providerIDContextKey{}, trimmed)
+}
+
+// ProviderIDFromContext extracts the upstream provider identifier previously
+// attached via WithProviderID, or returns an empty string if unset.
+func ProviderIDFromContext(ctx context.Context) string {
+	if ctx == nil {
+		return ""
+	}
+	v, _ := ctx.Value(providerIDContextKey{}).(string)
+	return v
+}
+
+// NewProviderProxyFunc returns an http.Transport Proxy function that resolves
+// provider-bound outbound proxies via resolver when a request context carries a
+// provider ID, falling back to http.ProxyFromEnvironment when unbound.
+func NewProviderProxyFunc(resolver contracts.ProxyDialerResolver) func(*http.Request) (*url.URL, error) {
+	return func(req *http.Request) (*url.URL, error) {
+		if req != nil && resolver != nil {
+			if providerID := ProviderIDFromContext(req.Context()); providerID != "" {
+				proxyURL, err := resolver.ProxyURLForProvider(req.Context(), providerID)
+				if err != nil {
+					return nil, err
+				}
+				if proxyURL != nil {
+					return proxyURL, nil
+				}
+			}
+		}
+		return http.ProxyFromEnvironment(req)
+	}
+}
 
 const (
 	defaultDialTimeout           = 10 * time.Second
