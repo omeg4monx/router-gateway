@@ -22,7 +22,6 @@ import { type ReactNode, useEffect } from "react";
 import { useAuthSession, useLogoutMutation } from "@/features/auth/hooks";
 import { cn } from "@/shared/lib/utils";
 import { useUIStore } from "@/shared/store/uiStore";
-import { Badge } from "./badge";
 import { Button } from "./button";
 import { CaduceusLogo } from "./CaduceusLogo";
 import { EmberRule } from "./EmberRule";
@@ -38,23 +37,14 @@ interface ActiveNavItem {
   icon: typeof Activity;
 }
 
-interface PlannedNavItem {
-  label: string;
-  icon: typeof Activity;
-  phase: string;
-}
-
 const ACTIVE_NAV_ITEMS: ActiveNavItem[] = [
   { label: "System Overview", href: "/dashboard/", icon: Activity },
   { label: "Providers", href: "/dashboard/providers/", icon: Server },
   { label: "Models & Routing", href: "/dashboard/models/", icon: Layers },
   { label: "API Keys", href: "/dashboard/keys/", icon: KeyRound },
+  { label: "Usage & Telemetry", href: "/dashboard/usage/", icon: Cpu },
+  { label: "CLI Tools", href: "/dashboard/cli-tools/", icon: Terminal },
   { label: "Settings", href: "/dashboard/settings/", icon: SlidersHorizontal },
-];
-
-const PLANNED_NAV_ITEMS: PlannedNavItem[] = [
-  { label: "Usage & Telemetry", icon: Cpu, phase: "Wave 1C" },
-  { label: "CLI Tools", icon: Terminal, phase: "Wave 1C" },
 ];
 
 const ACCESS_NAV_ITEMS: ActiveNavItem[] = [
@@ -199,33 +189,6 @@ export function AppShell({ children }: AppShellProps) {
         <div className="mt-6 space-y-1">
           {!compact ? (
             <p className="px-2.5 pb-1.5 text-[11px] font-medium uppercase tracking-wider text-[var(--text-muted)]">
-              Control Plane Modules
-            </p>
-          ) : null}
-          {PLANNED_NAV_ITEMS.map((item) => {
-            const Icon = item.icon;
-            return (
-              <div
-                key={item.label}
-                title={compact ? `${item.label} (${item.phase})` : undefined}
-                className={cn(
-                  "flex cursor-default items-center rounded-md border border-transparent px-2.5 py-2 text-sm text-[var(--text-muted)]",
-                  compact ? "justify-center" : "justify-between",
-                )}
-              >
-                <span className="flex items-center gap-2.5">
-                  <Icon className="h-4 w-4 shrink-0 opacity-75" aria-hidden="true" />
-                  {!compact ? <span>{item.label}</span> : null}
-                </span>
-                {!compact ? <Badge variant="secondary">{item.phase}</Badge> : null}
-              </div>
-            );
-          })}
-        </div>
-
-        <div className="mt-6 space-y-1">
-          {!compact ? (
-            <p className="px-2.5 pb-1.5 text-[11px] font-medium uppercase tracking-wider text-[var(--text-muted)]">
               Access
             </p>
           ) : null}
@@ -268,11 +231,11 @@ export function AppShell({ children }: AppShellProps) {
           )}
         >
           {compact ? (
-            <span className="text-[var(--text-secondary)]">W1B</span>
+            <span className="text-[var(--text-secondary)]">W1</span>
           ) : (
             <>
               <span>KERNEL</span>
-              <span className="text-[var(--text-secondary)]">WAVE 1B</span>
+              <span className="text-[var(--text-secondary)]">WAVE 1 COMPLETE</span>
             </>
           )}
         </div>

@@ -312,9 +312,9 @@
     "semantic_hash": ""
   },
   "web/src/features/system/SystemOverview.tsx": {
-    "mtime": 1795403527.7628696,
-    "seen": 1795403630.2546186,
-    "ast_hash": "cd1da71963a62dba8d6dfdf55e90856f",
+    "mtime": 1795406061.1487873,
+    "seen": 1795406234.3347812,
+    "ast_hash": "9b61d8f50f8c1db03cb1941d18617f9b",
     "semantic_hash": ""
   },
   "web/src/features/system/hooks.ts": {
@@ -354,8 +354,8 @@
     "semantic_hash": "bb80d375646eeb2d8c259c26500224b0"
   },
   "web/src/shared/api/schema.d.ts": {
-    "mtime": 1795404946.4284484,
-    "seen": 1795404999.2794557,
+    "mtime": 1795406199.3780527,
+    "seen": 1795406234.3350606,
     "ast_hash": "0753ac556000cd53193d5d7e90209122",
     "semantic_hash": ""
   },
@@ -384,9 +384,9 @@
     "semantic_hash": ""
   },
   "web/src/shared/ui/AppShell.tsx": {
-    "mtime": 1795403527.763482,
-    "seen": 1795403630.2551107,
-    "ast_hash": "370caf01160f8b1e9fb2e572fe0800b6",
+    "mtime": 1795406056.6847184,
+    "seen": 1795406234.3351738,
+    "ast_hash": "6e80b9e957d919f636b67c898e3fbd7c",
     "semantic_hash": ""
   },
   "web/src/shared/ui/CaduceusLogo.tsx": {
@@ -924,9 +924,9 @@
     "semantic_hash": ""
   },
   "internal/modules/usage/module.go": {
-    "mtime": 1795403953.6410654,
-    "seen": 1795404031.9284344,
-    "ast_hash": "de0bfd9e0ccabb70269e3e195d7f20ce",
+    "mtime": 1795406122.9007404,
+    "seen": 1795406234.3327556,
+    "ast_hash": "4729c672b64baa88ee081dd3d6da5b2b",
     "semantic_hash": ""
   },
   "internal/modules/usage/module_test.go": {
@@ -1005,6 +1005,36 @@
     "mtime": 1795405304.4534903,
     "seen": 1795405384.6766834,
     "ast_hash": "c16deeba71da1b965c449513f4aee525",
+    "semantic_hash": ""
+  },
+  "web/src/app/(dashboard)/dashboard/cli-tools/page.tsx": {
+    "mtime": 1795406039.224449,
+    "seen": 1795406234.3337293,
+    "ast_hash": "613daf6539ea6bd018865514d3d6fff9",
+    "semantic_hash": ""
+  },
+  "web/src/features/clitools/CliToolsConsole.tsx": {
+    "mtime": 1795406168.250459,
+    "seen": 1795406234.3342612,
+    "ast_hash": "c47b4ccc5da6e90f3a13037c471dbd3f",
+    "semantic_hash": ""
+  },
+  "web/src/features/clitools/hooks.ts": {
+    "mtime": 1795406035.3663895,
+    "seen": 1795406234.334263,
+    "ast_hash": "406bd877a79987224f57ead5f6866f94",
+    "semantic_hash": ""
+  },
+  "web/src/features/clitools/schemas.test.ts": {
+    "mtime": 1795406074.6589959,
+    "seen": 1795406234.3342676,
+    "ast_hash": "000c915266afab48dea72c43efba42fe",
+    "semantic_hash": ""
+  },
+  "web/src/features/clitools/schemas.ts": {
+    "mtime": 1795406033.2883575,
+    "seen": 1795406234.334269,
+    "ast_hash": "43fac3881020b99aa6bc2989dd381485",
     "semantic_hash": ""
   }
 }

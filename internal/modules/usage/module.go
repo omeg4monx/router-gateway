@@ -301,19 +301,19 @@ func (m *Module) handleStreamUsage(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("X-Accel-Buffering", "no")
 	w.WriteHeader(http.StatusOK)
 
+	var events <-chan eventbus.Event
+	if m.bus != nil {
+		var unsub func()
+		events, unsub = m.bus.Subscribe(TopicUsageRecorded, sseSubscriberBufSize)
+		defer unsub()
+	}
+
 	rc := http.NewResponseController(w)
 	if _, err := io.WriteString(w, ": connected\n\n"); err != nil {
 		return
 	}
 	if err := rc.Flush(); err != nil {
 		return
-	}
-
-	var events <-chan eventbus.Event
-	if m.bus != nil {
-		var unsub func()
-		events, unsub = m.bus.Subscribe(TopicUsageRecorded, sseSubscriberBufSize)
-		defer unsub()
 	}
 
 	keepalive := time.NewTicker(sseKeepaliveInterval)

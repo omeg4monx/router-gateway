@@ -26,18 +26,9 @@ const MODULE_SCOPES: Record<string, string> = {
   providers: "Upstream LLM adapters, OAuth PKCE & AES-256-GCM credential vault",
   combos: "Ordered fallback chains, model aliases, disabled list & cooldowns",
   gateway: "OpenAI, Anthropic, Responses & Gemini SSE translation proxy",
+  usage: "Async token accounting, pricing & request telemetry",
+  clitools: "CLI client integrations & local developer profiles",
 };
-
-const PLANNED_WAVE1_MODULES = [
-  { name: "auth", scope: MODULE_SCOPES.auth },
-  { name: "settings", scope: MODULE_SCOPES.settings },
-  { name: "keys", scope: MODULE_SCOPES.keys },
-  { name: "providers", scope: MODULE_SCOPES.providers },
-  { name: "combos", scope: MODULE_SCOPES.combos },
-  { name: "gateway", scope: MODULE_SCOPES.gateway },
-  { name: "usage", scope: "Async token accounting, pricing & request telemetry" },
-  { name: "clitools", scope: "CLI client integrations & local developer profiles" },
-];
 
 function formatUptime(totalSeconds: number): string {
   const safe = Math.max(0, Math.floor(totalSeconds));
@@ -82,9 +73,6 @@ export function SystemOverview() {
   const isHealthy = health?.status === "ok";
   const isDegraded = health?.status === "degraded";
   const hasError = healthQuery.isError || versionQuery.isError;
-
-  const mountedSet = new Set(health?.modules ?? []);
-  const pendingWave1Modules = PLANNED_WAVE1_MODULES.filter((mod) => !mountedSet.has(mod.name));
 
   const lastSyncTimestamp = Math.max(healthQuery.dataUpdatedAt, versionQuery.dataUpdatedAt);
 
@@ -312,21 +300,6 @@ export function SystemOverview() {
                   : "No active modules reported."}
               </div>
             )}
-
-            {pendingWave1Modules.map((mod) => (
-              <div
-                key={mod.name}
-                className="flex items-center justify-between bg-[var(--bg-canvas)] px-5 py-2.5"
-              >
-                <div>
-                  <p className="font-mono text-xs font-medium text-[var(--text-secondary)]">
-                    {mod.name}
-                  </p>
-                  <p className="text-xs text-[var(--text-muted)]">{mod.scope}</p>
-                </div>
-                <Badge variant="outline">Wave 1C</Badge>
-              </div>
-            ))}
           </div>
         </Card>
 
