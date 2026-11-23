@@ -39,6 +39,8 @@ const MODULE_SCOPES: Record<string, string> = {
   vouchers: "Redeemable voucher lifecycle, atomic key provisioning & anti-abuse guards",
   media: "Audio, image, video, search & SSRF-guarded web fetch gateway with combos",
   tunnel: "Cloudflare quick tunnel and Tailscale serve/funnel lifecycle manager",
+  mitm: "Loopback TLS MITM proxy, ECDSA Root CA engine, IDE hosts & model aliases",
+  pxpipe: "In-process request transform pipeline, self-test health & savings telemetry",
 };
 
 function formatUptime(totalSeconds: number): string {
