@@ -1,0 +1,30 @@
+{
+  "name": "@omeg4mon/router",
+  "version": "0.1.0",
+  "description": "Thin multi-platform launcher for the single-binary omeg4mon-router Go + Next.js LLM gateway.",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "omeg4mon-router": "./bin/omeg4mon-router.js"
+  },
+  "files": [
+    "bin/",
+    "lib/",
+    "vendor/",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "test": "bun test"
+  },
+  "keywords": [
+    "llm-gateway",
+    "openai",
+    "anthropic",
+    "gemini",
+    "router",
+    "cli"
+  ]
+}
