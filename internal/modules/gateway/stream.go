@@ -62,14 +62,14 @@ func (m *Module) streamUpstreamSSE(
 	)
 
 	flushFrames := func(frames [][]byte, evDone bool) error {
-		for _, frame := range frames {
+		for i, frame := range frames {
 			if len(frame) == 0 {
 				continue
 			}
 			if res.ttft == 0 {
 				res.ttft = time.Since(startTime)
 			}
-			outFrame, err := m.applyStreamInterceptors(ctx, reqID, frame, evDone)
+			outFrame, err := m.applyStreamInterceptors(ctx, reqID, frame, evDone && i == len(frames)-1)
 			if err != nil {
 				return err
 			}

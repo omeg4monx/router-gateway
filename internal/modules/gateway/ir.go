@@ -248,8 +248,9 @@ func RewriteModelField(body []byte, proto, upstreamModel string) ([]byte, error)
 // DecodeRequest decodes a protocol-specific request body into the Canonical IR.
 // If modelOverride is non-empty, it replaces the decoded Model field.
 func DecodeRequest(proto string, body []byte, modelOverride string) (*CanonicalChatRequest, error) {
-	if len(bytes.TrimSpace(body)) == 0 {
-		return nil, fmt.Errorf("%w: empty request body", ErrInvalidPayload)
+	trimmed := bytes.TrimSpace(body)
+	if len(trimmed) == 0 || trimmed[0] != '{' {
+		return nil, fmt.Errorf("%w: request body must be a JSON object", ErrInvalidPayload)
 	}
 
 	var (
@@ -298,8 +299,9 @@ func EncodeRequest(proto string, req *CanonicalChatRequest) ([]byte, error) {
 
 // DecodeResponse decodes a protocol-specific non-streaming response into the Canonical IR.
 func DecodeResponse(proto string, body []byte) (*CanonicalChatResponse, error) {
-	if len(bytes.TrimSpace(body)) == 0 {
-		return nil, fmt.Errorf("%w: empty response body", ErrInvalidPayload)
+	trimmed := bytes.TrimSpace(body)
+	if len(trimmed) == 0 || trimmed[0] != '{' {
+		return nil, fmt.Errorf("%w: response body must be a JSON object", ErrInvalidPayload)
 	}
 	switch proto {
 	case ProtocolOpenAIChat:

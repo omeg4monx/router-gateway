@@ -1172,3 +1172,54 @@ func TestEstimateTokens(t *testing.T) {
 		t.Fatalf("EstimateTokens(large)=%d appears to count raw base64 bytes instead of fixed image heuristic", largeCount)
 	}
 }
+
+func TestResponsesStreamEncoderUniqueDefaultIDs(t *testing.T) {
+	t.Parallel()
+
+	e1 := newResponsesStreamEncoder("gemini-2.5-pro")
+	e2 := newResponsesStreamEncoder("gemini-2.5-pro")
+
+	if !strings.HasPrefix(e1.id, "resp_") || len(e1.id) <= len("resp_") {
+		t.Fatalf("e1.id = %q, want non-empty resp_ ID", e1.id)
+	}
+	if !strings.HasPrefix(e2.id, "resp_") || len(e2.id) <= len("resp_") {
+		t.Fatalf("e2.id = %q, want non-empty resp_ ID", e2.id)
+	}
+	if e1.id == e2.id {
+		t.Fatalf("expected distinct stream IDs across instances, both got %q", e1.id)
+	}
+}
+
+func TestDecodeRejectsNonObjectJSONPayloads(t *testing.T) {
+	t.Parallel()
+
+	invalidPayloads := [][]byte{
+		nil,
+		[]byte(""),
+		[]byte("   \n\t "),
+		[]byte("null"),
+		[]byte("  null  "),
+		[]byte("[]"),
+		[]byte(`"hello"`),
+		[]byte("123"),
+		[]byte("true"),
+	}
+
+	protos := []string{
+		ProtocolOpenAIChat,
+		ProtocolOpenAIResponses,
+		ProtocolAnthropic,
+		ProtocolGemini,
+	}
+
+	for _, proto := range protos {
+		for _, body := range invalidPayloads {
+			if _, err := DecodeRequest(proto, body, ""); !errors.Is(err, ErrInvalidPayload) {
+				t.Fatalf("DecodeRequest(%s, %q) err = %v, want ErrInvalidPayload", proto, string(body), err)
+			}
+			if _, err := DecodeResponse(proto, body); !errors.Is(err, ErrInvalidPayload) {
+				t.Fatalf("DecodeResponse(%s, %q) err = %v, want ErrInvalidPayload", proto, string(body), err)
+			}
+		}
+	}
+}

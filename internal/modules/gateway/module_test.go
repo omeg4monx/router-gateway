@@ -1010,6 +1010,131 @@ func TestGatewayErrorClassificationAndOAuthSingleRetry(t *testing.T) {
 			t.Fatalf("expected failure recorded for c1 401, got %+v", failures)
 		}
 	})
+
+	t.Run("canceled client context during OAuth refresh does not call RecordFailure", func(t *testing.T) {
+		env := setupGatewayTest(t, nil, time.Hour, true)
+
+		up := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusUnauthorized)
+			_, _ = w.Write([]byte(`{"error":{"message":"expired token"}}`))
+		}))
+		defer up.Close()
+
+		refreshEntered := make(chan struct{})
+		env.providers.creds["c-oauth"] = contracts.UpstreamCredentials{
+			ConnectionID: "c-oauth", ProviderID: "claude", Protocol: "anthropic",
+			BaseURL: up.URL, AuthType: "oauth", AccessToken: "stale-token",
+		}
+		env.providers.refreshFn = func(ctx context.Context, _ string) (contracts.UpstreamCredentials, error) {
+			close(refreshEntered)
+			<-ctx.Done()
+			return contracts.UpstreamCredentials{}, ctx.Err()
+		}
+		env.resolver.fn = func(context.Context, string, []string) ([]contracts.ResolvedTarget, error) {
+			return []contracts.ResolvedTarget{{
+				ProviderID: "claude", ProviderType: "anthropic", ConnectionID: "c-oauth",
+				Model: "claude-sonnet-4", UpstreamModel: "claude-sonnet-4", Endpoint: up.URL,
+			}}, nil
+		}
+
+		reqCtx, cancel := context.WithCancel(context.Background())
+		req := httptest.NewRequest(http.MethodPost, "/v1/messages", strings.NewReader(`{"model":"claude-sonnet-4","max_tokens":16,"messages":[{"role":"user","content":"hi"}]}`)).WithContext(reqCtx)
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("x-api-key", "sk-valid")
+		rec := httptest.NewRecorder()
+
+		handlerDone := make(chan struct{})
+		go func() {
+			defer close(handlerDone)
+			env.server.Handler().ServeHTTP(rec, req)
+		}()
+
+		<-refreshEntered
+		cancel()
+		<-handlerDone
+
+		if env.providers.RefreshCount("c-oauth") != 1 {
+			t.Fatalf("expected 1 refresh call, got %d", env.providers.RefreshCount("c-oauth"))
+		}
+		if failures := env.health.Failures(); len(failures) != 0 {
+			t.Fatalf("expected zero RecordFailure calls on canceled client context, got: %+v", failures)
+		}
+	})
+}
+
+func TestGatewayStreamFinalMultiFrameDoneFlag(t *testing.T) {
+	type seenChunk struct {
+		event string
+		done  bool
+	}
+	var (
+		mu     sync.Mutex
+		chunks []seenChunk
+	)
+	ic := &recordingInterceptor{
+		name:     "done-checker",
+		priority: 1,
+		onStreamChunkFn: func(_ context.Context, ev *contracts.StreamEvent) error {
+			mu.Lock()
+			chunks = append(chunks, seenChunk{event: ev.Event, done: ev.Done})
+			mu.Unlock()
+			return nil
+		},
+	}
+
+	env := setupGatewayTest(t, []contracts.GatewayInterceptor{ic}, time.Hour, true)
+
+	// Upstream is OpenAI chat; inbound is Anthropic so a terminal finish_reason chunk
+	// emits multiple frames (content_block_stop, message_delta, message_stop) in one batch.
+	up := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/event-stream")
+		_, _ = io.WriteString(w, "data: {\"id\":\"chat-1\",\"object\":\"chat.completion.chunk\",\"model\":\"gpt-4o\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"hi\"},\"finish_reason\":null}]}\n\n")
+		_, _ = io.WriteString(w, "data: {\"id\":\"chat-1\",\"object\":\"chat.completion.chunk\",\"model\":\"gpt-4o\",\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"stop\"}]}\n\n")
+		_, _ = io.WriteString(w, "data: [DONE]\n\n")
+	}))
+	defer up.Close()
+
+	env.providers.creds["c1"] = contracts.UpstreamCredentials{
+		ConnectionID: "c1", ProviderID: "openai", Protocol: "openai-chat",
+		BaseURL: up.URL, AuthType: "api_key", APIKey: "k1",
+	}
+	env.resolver.fn = func(context.Context, string, []string) ([]contracts.ResolvedTarget, error) {
+		return []contracts.ResolvedTarget{{
+			ProviderID: "openai", ProviderType: "openai-chat", ConnectionID: "c1",
+			Model: "claude-sonnet-4", UpstreamModel: "gpt-4o", Endpoint: up.URL,
+		}}, nil
+	}
+
+	req, _ := http.NewRequest(http.MethodPost, env.baseURL+"/v1/messages", strings.NewReader(`{"model":"claude-sonnet-4","max_tokens":16,"stream":true,"messages":[{"role":"user","content":"hi"}]}`))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("x-api-key", "sk-valid")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("Do: %v", err)
+	}
+	_, _ = io.ReadAll(resp.Body)
+	_ = resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+
+	mu.Lock()
+	defer mu.Unlock()
+	if len(chunks) < 3 {
+		t.Fatalf("expected at least 3 stream chunks, got %+v", chunks)
+	}
+	var doneCount int
+	for i, ch := range chunks {
+		if ch.done {
+			doneCount++
+			if i != len(chunks)-1 {
+				t.Fatalf("chunk[%d] (%s) unexpectedly had Done=true before final chunk %+v", i, ch.event, chunks)
+			}
+		}
+	}
+	if doneCount != 1 || !chunks[len(chunks)-1].done {
+		t.Fatalf("expected exactly the final chunk to have Done=true, got %+v", chunks)
+	}
 }
 
 func TestGatewayInterceptorsPriorityOrdering(t *testing.T) {

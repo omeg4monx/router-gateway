@@ -354,8 +354,8 @@
     "semantic_hash": "bb80d375646eeb2d8c259c26500224b0"
   },
   "web/src/shared/api/schema.d.ts": {
-    "mtime": 1795387088.7445233,
-    "seen": 1795387118.908945,
+    "mtime": 1795402953.956789,
+    "seen": 1795402973.4199286,
     "ast_hash": "6f2125e76c8ba0cfffc6c88377e0d783",
     "semantic_hash": ""
   },
@@ -756,9 +756,9 @@
     "semantic_hash": ""
   },
   "internal/modules/gateway/ir.go": {
-    "mtime": 1795384659.848239,
-    "seen": 1795384677.3009646,
-    "ast_hash": "5e75b9498607dc5a4e46464df7a55e03",
+    "mtime": 1795402896.10721,
+    "seen": 1795402973.417449,
+    "ast_hash": "85bf1aed403de97b22ad284acd0f31a8",
     "semantic_hash": ""
   },
   "internal/modules/gateway/tokens.go": {
@@ -786,15 +786,15 @@
     "semantic_hash": ""
   },
   "internal/modules/gateway/translate_responses.go": {
-    "mtime": 1795384667.496355,
-    "seen": 1795384677.300982,
-    "ast_hash": "1a5e5b96cb3376b67a72002cc8a92916",
+    "mtime": 1795402887.626125,
+    "seen": 1795402973.417561,
+    "ast_hash": "949df986ce20c95ba703ae4643c06edb",
     "semantic_hash": ""
   },
   "internal/modules/gateway/translate_test.go": {
-    "mtime": 1795384942.7079043,
-    "seen": 1795385014.6294131,
-    "ast_hash": "d6d8ff9b028bf86aad4388a28da80819",
+    "mtime": 1795387812.1212866,
+    "seen": 1795402973.4175627,
+    "ast_hash": "97677be60e7d1dfb345cad50c15ba18c",
     "semantic_hash": ""
   },
   "internal/modules/gateway/auth.go": {
@@ -816,21 +816,21 @@
     "semantic_hash": ""
   },
   "internal/modules/gateway/module.go": {
-    "mtime": 1795385638.4423647,
-    "seen": 1795385684.4813597,
-    "ast_hash": "f2a97debb3a80f0ae3a51032eb7fb650",
+    "mtime": 1795402889.9021478,
+    "seen": 1795402973.4174514,
+    "ast_hash": "ce3b954d27132f58832db8807e367fad",
     "semantic_hash": ""
   },
   "internal/modules/gateway/module_test.go": {
-    "mtime": 1795385552.5988805,
-    "seen": 1795385684.4813614,
-    "ast_hash": "7be04e2a6151b953c12d99310452be13",
+    "mtime": 1795402914.5713947,
+    "seen": 1795402973.4174528,
+    "ast_hash": "a054d101208ff7222af170e1f675dc25",
     "semantic_hash": ""
   },
   "internal/modules/gateway/stream.go": {
-    "mtime": 1795385510.7971578,
-    "seen": 1795385684.4813626,
-    "ast_hash": "679ba27b38147ddb600b5f9e7079b6aa",
+    "mtime": 1795402891.9401684,
+    "seen": 1795402973.4174542,
+    "ast_hash": "b89d3a372501eaa6272f74d3971b079a",
     "semantic_hash": ""
   },
   "web/src/app/(dashboard)/dashboard/providers/detail/page.tsx": {

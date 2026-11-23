@@ -919,7 +919,7 @@ type responsesStreamEncoder struct {
 
 func newResponsesStreamEncoder(model string) *responsesStreamEncoder {
 	return &responsesStreamEncoder{
-		id:         "resp_gateway",
+		id:         randomResponseID(),
 		model:      model,
 		stopReason: StopReasonStop,
 		blocks:     make(map[int]*responsesStreamBlockState),

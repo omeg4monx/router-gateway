@@ -541,6 +541,9 @@ func (m *Module) handleInference(w http.ResponseWriter, r *http.Request, inProto
 				refreshed = true
 				newCreds, refErr := m.providers.RefreshOAuthToken(r.Context(), cand.ConnectionID)
 				if refErr != nil {
+					if r.Context().Err() != nil || errors.Is(refErr, context.Canceled) {
+						return
+					}
 					m.health.RecordFailure(cand.ConnectionID, http.StatusUnauthorized, 0)
 					lastStatus = http.StatusUnauthorized
 					lastMsg = "oauth token refresh failed"
