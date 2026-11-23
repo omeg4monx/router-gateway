@@ -1,0 +1,366 @@
+openapi: 3.1.0
+info:
+  title: Model Editor & Bypass API
+  version: 0.1.0
+paths:
+  /api/modeleditor/overrides:
+    get:
+      operationId: listModelOverrides
+      tags: [modeleditor]
+      summary: List model parameter overrides
+      responses:
+        '200':
+          description: Override list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModelOverrideList'
+    post:
+      operationId: createModelOverride
+      tags: [modeleditor]
+      summary: Create a model parameter override
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateModelOverrideRequest'
+      responses:
+        '201':
+          description: Created override
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModelOverride'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+  /api/modeleditor/overrides/{id}:
+    patch:
+      operationId: updateModelOverride
+      tags: [modeleditor]
+      summary: Update a model parameter override
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateModelOverrideRequest'
+      responses:
+        '200':
+          description: Updated override
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModelOverride'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+    delete:
+      operationId: deleteModelOverride
+      tags: [modeleditor]
+      summary: Delete a model parameter override
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Deleted
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+  /api/modeleditor/bypass:
+    get:
+      operationId: listModelBypassRules
+      tags: [modeleditor]
+      summary: List conditional model bypass rules
+      responses:
+        '200':
+          description: Bypass rule list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModelBypassRuleList'
+    post:
+      operationId: createModelBypassRule
+      tags: [modeleditor]
+      summary: Create a conditional model bypass rule
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateModelBypassRuleRequest'
+      responses:
+        '201':
+          description: Created bypass rule
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModelBypassRule'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+  /api/modeleditor/bypass/{id}:
+    patch:
+      operationId: updateModelBypassRule
+      tags: [modeleditor]
+      summary: Update a model bypass rule
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateModelBypassRuleRequest'
+      responses:
+        '200':
+          description: Updated bypass rule
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModelBypassRule'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+    delete:
+      operationId: deleteModelBypassRule
+      tags: [modeleditor]
+      summary: Delete a model bypass rule
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Deleted
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+  /api/modeleditor/preview:
+    post:
+      operationId: previewModelEditor
+      tags: [modeleditor]
+      summary: Dry-run a request through bypass and model override rules
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ModelEditorPreviewRequest'
+      responses:
+        '200':
+          description: Mutated preview result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModelEditorPreviewResult'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+components:
+  schemas:
+    ModelOverride:
+      type: object
+      required: [id, name, model_pattern, target_model, system_prompt_prefix, system_prompt_suffix, extra_params, strip_params, priority, enabled, created_at, updated_at]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        model_pattern: { type: string }
+        target_model: { type: string }
+        system_prompt_prefix: { type: string }
+        system_prompt_suffix: { type: string }
+        temperature: { type: number }
+        max_tokens: { type: integer }
+        top_p: { type: number }
+        extra_params:
+          type: object
+          additionalProperties: true
+        strip_params:
+          type: array
+          items: { type: string }
+        priority: { type: integer }
+        enabled: { type: boolean }
+        created_at: { type: string }
+        updated_at: { type: string }
+    ModelOverrideList:
+      type: object
+      required: [overrides]
+      properties:
+        overrides:
+          type: array
+          items:
+            $ref: '#/components/schemas/ModelOverride'
+    CreateModelOverrideRequest:
+      type: object
+      required: [name, model_pattern]
+      properties:
+        name: { type: string }
+        model_pattern: { type: string }
+        target_model: { type: string }
+        system_prompt_prefix: { type: string }
+        system_prompt_suffix: { type: string }
+        temperature: { type: number }
+        max_tokens: { type: integer }
+        top_p: { type: number }
+        extra_params:
+          type: object
+          additionalProperties: true
+        strip_params:
+          type: array
+          items: { type: string }
+        priority: { type: integer }
+        enabled: { type: boolean }
+    UpdateModelOverrideRequest:
+      type: object
+      properties:
+        name: { type: string }
+        model_pattern: { type: string }
+        target_model: { type: string }
+        system_prompt_prefix: { type: string }
+        system_prompt_suffix: { type: string }
+        temperature: { type: number }
+        clear_temperature: { type: boolean }
+        max_tokens: { type: integer }
+        clear_max_tokens: { type: boolean }
+        top_p: { type: number }
+        clear_top_p: { type: boolean }
+        extra_params:
+          type: object
+          additionalProperties: true
+        strip_params:
+          type: array
+          items: { type: string }
+        priority: { type: integer }
+        enabled: { type: boolean }
+    ModelBypassRule:
+      type: object
+      required: [id, name, model_pattern, key_id, protocol, header_name, header_value, action, target_model, priority, enabled, created_at, updated_at]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        model_pattern: { type: string }
+        key_id: { type: string }
+        protocol: { type: string }
+        header_name: { type: string }
+        header_value: { type: string }
+        action: { type: string, enum: [rewrite_model, bypass_overrides, bypass_tokensaver, bypass_headroom] }
+        target_model: { type: string }
+        priority: { type: integer }
+        enabled: { type: boolean }
+        created_at: { type: string }
+        updated_at: { type: string }
+    ModelBypassRuleList:
+      type: object
+      required: [rules]
+      properties:
+        rules:
+          type: array
+          items:
+            $ref: '#/components/schemas/ModelBypassRule'
+    CreateModelBypassRuleRequest:
+      type: object
+      required: [name, model_pattern, action]
+      properties:
+        name: { type: string }
+        model_pattern: { type: string }
+        key_id: { type: string }
+        protocol: { type: string }
+        header_name: { type: string }
+        header_value: { type: string }
+        action: { type: string, enum: [rewrite_model, bypass_overrides, bypass_tokensaver, bypass_headroom] }
+        target_model: { type: string }
+        priority: { type: integer }
+        enabled: { type: boolean }
+    UpdateModelBypassRuleRequest:
+      type: object
+      properties:
+        name: { type: string }
+        model_pattern: { type: string }
+        key_id: { type: string }
+        protocol: { type: string }
+        header_name: { type: string }
+        header_value: { type: string }
+        action: { type: string, enum: [rewrite_model, bypass_overrides, bypass_tokensaver, bypass_headroom] }
+        target_model: { type: string }
+        priority: { type: integer }
+        enabled: { type: boolean }
+    ModelEditorPreviewRequest:
+      type: object
+      required: [model]
+      properties:
+        protocol: { type: string }
+        model: { type: string }
+        key_id: { type: string }
+        headers:
+          type: object
+          additionalProperties: { type: string }
+        body:
+          type: object
+          additionalProperties: true
+    ModelEditorPreviewResult:
+      type: object
+      required: [model, body, applied_overrides, applied_bypass_rules, metadata]
+      properties:
+        model: { type: string }
+        body:
+          type: object
+          additionalProperties: true
+        applied_overrides:
+          type: array
+          items: { type: string }
+        applied_bypass_rules:
+          type: array
+          items: { type: string }
+        metadata:
+          type: object
+          additionalProperties: true

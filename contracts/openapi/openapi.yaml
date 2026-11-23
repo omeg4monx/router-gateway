@@ -27,6 +27,12 @@ tags:
     description: Encrypted HTTP/SOCKS5 outbound proxy pools, latency probes, auto-scanner, and provider bindings
   - name: translator
     description: Interactive wire-protocol translator workbench and live console log SSE stream
+  - name: promptinjection
+    description: Configurable prompt injection guard rules, dry-run tester, and audit event log
+  - name: modeleditor
+    description: Custom model parameter overrides, conditional bypass rules, and dry-run preview
+  - name: tokensaver
+    description: Go-native token compression, Headroom prefix cache affinity, and live savings metrics
 paths:
   /api/health:
     $ref: './modules/system.yaml#/paths/~1api~1health'
@@ -126,6 +132,36 @@ paths:
     $ref: './modules/translator.yaml#/paths/~1api~1translator~1logs'
   /api/translator/logs/stream:
     $ref: './modules/translator.yaml#/paths/~1api~1translator~1logs~1stream'
+  /api/prompt-guard/config:
+    $ref: './modules/promptinjection.yaml#/paths/~1api~1prompt-guard~1config'
+  /api/prompt-guard/rules:
+    $ref: './modules/promptinjection.yaml#/paths/~1api~1prompt-guard~1rules'
+  /api/prompt-guard/rules/{id}:
+    $ref: './modules/promptinjection.yaml#/paths/~1api~1prompt-guard~1rules~1{id}'
+  /api/prompt-guard/test:
+    $ref: './modules/promptinjection.yaml#/paths/~1api~1prompt-guard~1test'
+  /api/prompt-guard/events:
+    $ref: './modules/promptinjection.yaml#/paths/~1api~1prompt-guard~1events'
+  /api/modeleditor/overrides:
+    $ref: './modules/modeleditor.yaml#/paths/~1api~1modeleditor~1overrides'
+  /api/modeleditor/overrides/{id}:
+    $ref: './modules/modeleditor.yaml#/paths/~1api~1modeleditor~1overrides~1{id}'
+  /api/modeleditor/bypass:
+    $ref: './modules/modeleditor.yaml#/paths/~1api~1modeleditor~1bypass'
+  /api/modeleditor/bypass/{id}:
+    $ref: './modules/modeleditor.yaml#/paths/~1api~1modeleditor~1bypass~1{id}'
+  /api/modeleditor/preview:
+    $ref: './modules/modeleditor.yaml#/paths/~1api~1modeleditor~1preview'
+  /api/tokensaver/config:
+    $ref: './modules/tokensaver.yaml#/paths/~1api~1tokensaver~1config'
+  /api/tokensaver/stats:
+    $ref: './modules/tokensaver.yaml#/paths/~1api~1tokensaver~1stats'
+  /api/tokensaver/stats/reset:
+    $ref: './modules/tokensaver.yaml#/paths/~1api~1tokensaver~1stats~1reset'
+  /api/tokensaver/cache/clear:
+    $ref: './modules/tokensaver.yaml#/paths/~1api~1tokensaver~1cache~1clear'
+  /api/tokensaver/preview:
+    $ref: './modules/tokensaver.yaml#/paths/~1api~1tokensaver~1preview'
 components:
   schemas:
     ErrorDetail:
@@ -346,3 +382,61 @@ components:
       $ref: './modules/translator.yaml#/components/schemas/ConsoleLogEntry'
     ConsoleLogsResponse:
       $ref: './modules/translator.yaml#/components/schemas/ConsoleLogsResponse'
+    PromptGuardConfig:
+      $ref: './modules/promptinjection.yaml#/components/schemas/PromptGuardConfig'
+    PromptGuardConfigPatch:
+      $ref: './modules/promptinjection.yaml#/components/schemas/PromptGuardConfigPatch'
+    PromptGuardRule:
+      $ref: './modules/promptinjection.yaml#/components/schemas/PromptGuardRule'
+    PromptGuardRuleList:
+      $ref: './modules/promptinjection.yaml#/components/schemas/PromptGuardRuleList'
+    CreatePromptGuardRuleRequest:
+      $ref: './modules/promptinjection.yaml#/components/schemas/CreatePromptGuardRuleRequest'
+    UpdatePromptGuardRuleRequest:
+      $ref: './modules/promptinjection.yaml#/components/schemas/UpdatePromptGuardRuleRequest'
+    PromptGuardTestRequest:
+      $ref: './modules/promptinjection.yaml#/components/schemas/PromptGuardTestRequest'
+    PromptGuardMatchHit:
+      $ref: './modules/promptinjection.yaml#/components/schemas/PromptGuardMatchHit'
+    PromptGuardTestResult:
+      $ref: './modules/promptinjection.yaml#/components/schemas/PromptGuardTestResult'
+    PromptGuardEvent:
+      $ref: './modules/promptinjection.yaml#/components/schemas/PromptGuardEvent'
+    PromptGuardEventList:
+      $ref: './modules/promptinjection.yaml#/components/schemas/PromptGuardEventList'
+    ModelOverride:
+      $ref: './modules/modeleditor.yaml#/components/schemas/ModelOverride'
+    ModelOverrideList:
+      $ref: './modules/modeleditor.yaml#/components/schemas/ModelOverrideList'
+    CreateModelOverrideRequest:
+      $ref: './modules/modeleditor.yaml#/components/schemas/CreateModelOverrideRequest'
+    UpdateModelOverrideRequest:
+      $ref: './modules/modeleditor.yaml#/components/schemas/UpdateModelOverrideRequest'
+    ModelBypassRule:
+      $ref: './modules/modeleditor.yaml#/components/schemas/ModelBypassRule'
+    ModelBypassRuleList:
+      $ref: './modules/modeleditor.yaml#/components/schemas/ModelBypassRuleList'
+    CreateModelBypassRuleRequest:
+      $ref: './modules/modeleditor.yaml#/components/schemas/CreateModelBypassRuleRequest'
+    UpdateModelBypassRuleRequest:
+      $ref: './modules/modeleditor.yaml#/components/schemas/UpdateModelBypassRuleRequest'
+    ModelEditorPreviewRequest:
+      $ref: './modules/modeleditor.yaml#/components/schemas/ModelEditorPreviewRequest'
+    ModelEditorPreviewResult:
+      $ref: './modules/modeleditor.yaml#/components/schemas/ModelEditorPreviewResult'
+    TokenSaverConfig:
+      $ref: './modules/tokensaver.yaml#/components/schemas/TokenSaverConfig'
+    TokenSaverConfigPatch:
+      $ref: './modules/tokensaver.yaml#/components/schemas/TokenSaverConfigPatch'
+    CompressionStats:
+      $ref: './modules/tokensaver.yaml#/components/schemas/CompressionStats'
+    WarmPrefixSummary:
+      $ref: './modules/tokensaver.yaml#/components/schemas/WarmPrefixSummary'
+    HeadroomStats:
+      $ref: './modules/tokensaver.yaml#/components/schemas/HeadroomStats'
+    TokenSaverStats:
+      $ref: './modules/tokensaver.yaml#/components/schemas/TokenSaverStats'
+    TokenSaverPreviewRequest:
+      $ref: './modules/tokensaver.yaml#/components/schemas/TokenSaverPreviewRequest'
+    TokenSaverPreviewResult:
+      $ref: './modules/tokensaver.yaml#/components/schemas/TokenSaverPreviewResult'

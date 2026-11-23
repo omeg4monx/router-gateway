@@ -904,6 +904,270 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/prompt-guard/config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get prompt guard configuration */
+        get: operations["getPromptGuardConfig"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update prompt guard configuration */
+        patch: operations["updatePromptGuardConfig"];
+        trace?: never;
+    };
+    "/api/prompt-guard/rules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List built-in and custom prompt guard rules */
+        get: operations["listPromptGuardRules"];
+        put?: never;
+        /** Create a custom prompt guard rule */
+        post: operations["createPromptGuardRule"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/prompt-guard/rules/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete a custom prompt guard rule */
+        delete: operations["deletePromptGuardRule"];
+        options?: never;
+        head?: never;
+        /** Update a prompt guard rule */
+        patch: operations["updatePromptGuardRule"];
+        trace?: never;
+    };
+    "/api/prompt-guard/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Dry-run prompt text against active prompt guard rules */
+        post: operations["testPromptGuard"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/prompt-guard/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List recent prompt guard audit events */
+        get: operations["listPromptGuardEvents"];
+        put?: never;
+        post?: never;
+        /** Clear prompt guard audit events */
+        delete: operations["clearPromptGuardEvents"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/modeleditor/overrides": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List model parameter overrides */
+        get: operations["listModelOverrides"];
+        put?: never;
+        /** Create a model parameter override */
+        post: operations["createModelOverride"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/modeleditor/overrides/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete a model parameter override */
+        delete: operations["deleteModelOverride"];
+        options?: never;
+        head?: never;
+        /** Update a model parameter override */
+        patch: operations["updateModelOverride"];
+        trace?: never;
+    };
+    "/api/modeleditor/bypass": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List conditional model bypass rules */
+        get: operations["listModelBypassRules"];
+        put?: never;
+        /** Create a conditional model bypass rule */
+        post: operations["createModelBypassRule"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/modeleditor/bypass/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete a model bypass rule */
+        delete: operations["deleteModelBypassRule"];
+        options?: never;
+        head?: never;
+        /** Update a model bypass rule */
+        patch: operations["updateModelBypassRule"];
+        trace?: never;
+    };
+    "/api/modeleditor/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Dry-run a request through bypass and model override rules */
+        post: operations["previewModelEditor"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tokensaver/config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Token Saver and Headroom configuration */
+        get: operations["getTokenSaverConfig"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Token Saver and Headroom configuration */
+        patch: operations["updateTokenSaverConfig"];
+        trace?: never;
+    };
+    "/api/tokensaver/stats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get live compression and Headroom cache statistics */
+        get: operations["getTokenSaverStats"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tokensaver/stats/reset": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reset compression and Headroom counters */
+        post: operations["resetTokenSaverStats"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tokensaver/cache/clear": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Clear in-memory Headroom prefix affinity cache */
+        post: operations["clearHeadroomCache"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tokensaver/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Dry-run token compression and prefix fingerprint on a payload */
+        post: operations["previewTokenSaver"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1631,6 +1895,298 @@ export interface components {
         ConsoleLogsResponse: {
             entries: components["schemas"]["ConsoleLogEntry"][];
             total: number;
+        };
+        PromptGuardConfig: {
+            enabled: boolean;
+            /** @enum {string} */
+            mode: "block" | "sanitize" | "audit";
+            /** @enum {string} */
+            sensitivity: "low" | "medium" | "high";
+            /** @enum {integer} */
+            block_status_code: 400 | 403 | 422;
+            updated_at: string;
+        };
+        PromptGuardConfigPatch: {
+            enabled?: boolean;
+            /** @enum {string} */
+            mode?: "block" | "sanitize" | "audit";
+            /** @enum {string} */
+            sensitivity?: "low" | "medium" | "high";
+            /** @enum {integer} */
+            block_status_code?: 400 | 403 | 422;
+        };
+        PromptGuardRule: {
+            id: string;
+            name: string;
+            pattern: string;
+            /** @enum {string} */
+            match_type: "substring" | "regex";
+            /** @enum {string} */
+            action: "block" | "sanitize" | "audit";
+            /** @enum {string} */
+            severity: "low" | "medium" | "high";
+            enabled: boolean;
+            builtin: boolean;
+            description: string;
+            created_at: string;
+            updated_at: string;
+        };
+        PromptGuardRuleList: {
+            rules: components["schemas"]["PromptGuardRule"][];
+        };
+        CreatePromptGuardRuleRequest: {
+            name: string;
+            pattern: string;
+            /** @enum {string} */
+            match_type: "substring" | "regex";
+            /** @enum {string} */
+            action: "block" | "sanitize" | "audit";
+            /** @enum {string} */
+            severity: "low" | "medium" | "high";
+            enabled?: boolean;
+            description?: string;
+        };
+        UpdatePromptGuardRuleRequest: {
+            name?: string;
+            pattern?: string;
+            /** @enum {string} */
+            match_type?: "substring" | "regex";
+            /** @enum {string} */
+            action?: "block" | "sanitize" | "audit";
+            /** @enum {string} */
+            severity?: "low" | "medium" | "high";
+            enabled?: boolean;
+            description?: string;
+        };
+        PromptGuardTestRequest: {
+            text: string;
+            /** @enum {string} */
+            mode?: "block" | "sanitize" | "audit";
+            /** @enum {string} */
+            sensitivity?: "low" | "medium" | "high";
+        };
+        PromptGuardMatchHit: {
+            rule_id: string;
+            rule_name: string;
+            action: string;
+            severity: string;
+            matched: string;
+        };
+        PromptGuardTestResult: {
+            matched: boolean;
+            action: string;
+            hits: components["schemas"]["PromptGuardMatchHit"][];
+            sanitized_text: string;
+        };
+        PromptGuardEvent: {
+            id: string;
+            request_id: string;
+            model: string;
+            key_id: string;
+            rule_id: string;
+            rule_name: string;
+            action: string;
+            severity: string;
+            snippet: string;
+            created_at: string;
+        };
+        PromptGuardEventList: {
+            events: components["schemas"]["PromptGuardEvent"][];
+        };
+        ModelOverride: {
+            id: string;
+            name: string;
+            model_pattern: string;
+            target_model: string;
+            system_prompt_prefix: string;
+            system_prompt_suffix: string;
+            temperature?: number;
+            max_tokens?: number;
+            top_p?: number;
+            extra_params: {
+                [key: string]: unknown;
+            };
+            strip_params: string[];
+            priority: number;
+            enabled: boolean;
+            created_at: string;
+            updated_at: string;
+        };
+        ModelOverrideList: {
+            overrides: components["schemas"]["ModelOverride"][];
+        };
+        CreateModelOverrideRequest: {
+            name: string;
+            model_pattern: string;
+            target_model?: string;
+            system_prompt_prefix?: string;
+            system_prompt_suffix?: string;
+            temperature?: number;
+            max_tokens?: number;
+            top_p?: number;
+            extra_params?: {
+                [key: string]: unknown;
+            };
+            strip_params?: string[];
+            priority?: number;
+            enabled?: boolean;
+        };
+        UpdateModelOverrideRequest: {
+            name?: string;
+            model_pattern?: string;
+            target_model?: string;
+            system_prompt_prefix?: string;
+            system_prompt_suffix?: string;
+            temperature?: number;
+            clear_temperature?: boolean;
+            max_tokens?: number;
+            clear_max_tokens?: boolean;
+            top_p?: number;
+            clear_top_p?: boolean;
+            extra_params?: {
+                [key: string]: unknown;
+            };
+            strip_params?: string[];
+            priority?: number;
+            enabled?: boolean;
+        };
+        ModelBypassRule: {
+            id: string;
+            name: string;
+            model_pattern: string;
+            key_id: string;
+            protocol: string;
+            header_name: string;
+            header_value: string;
+            /** @enum {string} */
+            action: "rewrite_model" | "bypass_overrides" | "bypass_tokensaver" | "bypass_headroom";
+            target_model: string;
+            priority: number;
+            enabled: boolean;
+            created_at: string;
+            updated_at: string;
+        };
+        ModelBypassRuleList: {
+            rules: components["schemas"]["ModelBypassRule"][];
+        };
+        CreateModelBypassRuleRequest: {
+            name: string;
+            model_pattern: string;
+            key_id?: string;
+            protocol?: string;
+            header_name?: string;
+            header_value?: string;
+            /** @enum {string} */
+            action: "rewrite_model" | "bypass_overrides" | "bypass_tokensaver" | "bypass_headroom";
+            target_model?: string;
+            priority?: number;
+            enabled?: boolean;
+        };
+        UpdateModelBypassRuleRequest: {
+            name?: string;
+            model_pattern?: string;
+            key_id?: string;
+            protocol?: string;
+            header_name?: string;
+            header_value?: string;
+            /** @enum {string} */
+            action?: "rewrite_model" | "bypass_overrides" | "bypass_tokensaver" | "bypass_headroom";
+            target_model?: string;
+            priority?: number;
+            enabled?: boolean;
+        };
+        ModelEditorPreviewRequest: {
+            protocol?: string;
+            model: string;
+            key_id?: string;
+            headers?: {
+                [key: string]: string;
+            };
+            body?: {
+                [key: string]: unknown;
+            };
+        };
+        ModelEditorPreviewResult: {
+            model: string;
+            body: {
+                [key: string]: unknown;
+            };
+            applied_overrides: string[];
+            applied_bypass_rules: string[];
+            metadata: {
+                [key: string]: unknown;
+            };
+        };
+        TokenSaverConfig: {
+            enabled: boolean;
+            /** @enum {string} */
+            strategy: "off" | "whitespace" | "dedupe" | "aggressive";
+            max_history_messages: number;
+            max_tool_output_chars: number;
+            headroom_enabled: boolean;
+            prefix_depth: number;
+            max_cache_entries: number;
+            cache_ttl_seconds: number;
+            inject_cache_control: boolean;
+            updated_at: string;
+        };
+        TokenSaverConfigPatch: {
+            enabled?: boolean;
+            /** @enum {string} */
+            strategy?: "off" | "whitespace" | "dedupe" | "aggressive";
+            max_history_messages?: number;
+            max_tool_output_chars?: number;
+            headroom_enabled?: boolean;
+            prefix_depth?: number;
+            max_cache_entries?: number;
+            cache_ttl_seconds?: number;
+            inject_cache_control?: boolean;
+        };
+        CompressionStats: {
+            requests_processed: number;
+            requests_compressed: number;
+            bytes_saved: number;
+            estimated_tokens_saved: number;
+        };
+        WarmPrefixSummary: {
+            key: string;
+            protocol: string;
+            model: string;
+            provider_id: string;
+            connection_id: string;
+            hits: number;
+            last_seen_at: string;
+        };
+        HeadroomStats: {
+            cache_hits: number;
+            cache_misses: number;
+            hit_rate: number;
+            active_entries: number;
+            max_entries: number;
+            warm_prefixes: components["schemas"]["WarmPrefixSummary"][];
+        };
+        TokenSaverStats: {
+            compression: components["schemas"]["CompressionStats"];
+            headroom: components["schemas"]["HeadroomStats"];
+        };
+        TokenSaverPreviewRequest: {
+            protocol?: string;
+            model?: string;
+            /** @enum {string} */
+            strategy?: "off" | "whitespace" | "dedupe" | "aggressive";
+            body: {
+                [key: string]: unknown;
+            };
+        };
+        TokenSaverPreviewResult: {
+            original_bytes: number;
+            compressed_bytes: number;
+            bytes_saved: number;
+            estimated_tokens_saved: number;
+            cache_key: string;
+            body: {
+                [key: string]: unknown;
+            };
         };
     };
     responses: never;
@@ -4893,6 +5449,685 @@ export interface operations {
             };
             /** @description Administrative authentication is required. */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    getPromptGuardConfig: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current prompt guard policy */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PromptGuardConfig"];
+                };
+            };
+        };
+    };
+    updatePromptGuardConfig: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PromptGuardConfigPatch"];
+            };
+        };
+        responses: {
+            /** @description Updated prompt guard policy */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PromptGuardConfig"];
+                };
+            };
+            /** @description Validation error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    listPromptGuardRules: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Rule list */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PromptGuardRuleList"];
+                };
+            };
+        };
+    };
+    createPromptGuardRule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreatePromptGuardRuleRequest"];
+            };
+        };
+        responses: {
+            /** @description Created rule */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PromptGuardRule"];
+                };
+            };
+            /** @description Invalid rule or regex */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    deletePromptGuardRule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Custom rule not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    updatePromptGuardRule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdatePromptGuardRuleRequest"];
+            };
+        };
+        responses: {
+            /** @description Updated rule */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PromptGuardRule"];
+                };
+            };
+            /** @description Invalid rule */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Rule not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    testPromptGuard: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PromptGuardTestRequest"];
+            };
+        };
+        responses: {
+            /** @description Evaluation result */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PromptGuardTestResult"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    listPromptGuardEvents: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Recent events */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PromptGuardEventList"];
+                };
+            };
+        };
+    };
+    clearPromptGuardEvents: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Cleared */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    listModelOverrides: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Override list */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModelOverrideList"];
+                };
+            };
+        };
+    };
+    createModelOverride: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateModelOverrideRequest"];
+            };
+        };
+        responses: {
+            /** @description Created override */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModelOverride"];
+                };
+            };
+            /** @description Validation error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    deleteModelOverride: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    updateModelOverride: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateModelOverrideRequest"];
+            };
+        };
+        responses: {
+            /** @description Updated override */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModelOverride"];
+                };
+            };
+            /** @description Validation error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    listModelBypassRules: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Bypass rule list */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModelBypassRuleList"];
+                };
+            };
+        };
+    };
+    createModelBypassRule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateModelBypassRuleRequest"];
+            };
+        };
+        responses: {
+            /** @description Created bypass rule */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModelBypassRule"];
+                };
+            };
+            /** @description Validation error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    deleteModelBypassRule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    updateModelBypassRule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateModelBypassRuleRequest"];
+            };
+        };
+        responses: {
+            /** @description Updated bypass rule */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModelBypassRule"];
+                };
+            };
+            /** @description Validation error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    previewModelEditor: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ModelEditorPreviewRequest"];
+            };
+        };
+        responses: {
+            /** @description Mutated preview result */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModelEditorPreviewResult"];
+                };
+            };
+            /** @description Validation error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    getTokenSaverConfig: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current configuration */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TokenSaverConfig"];
+                };
+            };
+        };
+    };
+    updateTokenSaverConfig: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TokenSaverConfigPatch"];
+            };
+        };
+        responses: {
+            /** @description Updated configuration */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TokenSaverConfig"];
+                };
+            };
+            /** @description Validation error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    getTokenSaverStats: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Live metrics */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TokenSaverStats"];
+                };
+            };
+        };
+    };
+    resetTokenSaverStats: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Reset */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    clearHeadroomCache: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Cleared */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    previewTokenSaver: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TokenSaverPreviewRequest"];
+            };
+        };
+        responses: {
+            /** @description Preview output */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TokenSaverPreviewResult"];
+                };
+            };
+            /** @description Validation error */
+            400: {
                 headers: {
                     [name: string]: unknown;
                 };

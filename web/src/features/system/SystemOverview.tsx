@@ -30,6 +30,9 @@ const MODULE_SCOPES: Record<string, string> = {
   clitools: "CLI client integrations & local developer profiles",
   proxypools: "Encrypted HTTP/SOCKS5 outbound proxy pools & provider routing",
   translator: "Interactive protocol translator workbench & live console SSE",
+  promptinjection: "Configurable prompt injection guard, RE2 rules & audit trail",
+  modeleditor: "Custom model parameter overrides & conditional bypass rules",
+  tokensaver: "Go-native token compression & Headroom LRU prefix cache affinity",
 };
 
 function formatUptime(totalSeconds: number): string {

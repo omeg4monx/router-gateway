@@ -23,10 +23,13 @@ import (
 	"github.com/omeg4monx/router-gateway/internal/modules/combos"
 	"github.com/omeg4monx/router-gateway/internal/modules/gateway"
 	"github.com/omeg4monx/router-gateway/internal/modules/keys"
+	"github.com/omeg4monx/router-gateway/internal/modules/modeleditor"
+	"github.com/omeg4monx/router-gateway/internal/modules/promptinjection"
 	"github.com/omeg4monx/router-gateway/internal/modules/providers"
 	"github.com/omeg4monx/router-gateway/internal/modules/proxypools"
 	"github.com/omeg4monx/router-gateway/internal/modules/settings"
 	"github.com/omeg4monx/router-gateway/internal/modules/system"
+	"github.com/omeg4monx/router-gateway/internal/modules/tokensaver"
 	"github.com/omeg4monx/router-gateway/internal/modules/translator"
 	"github.com/omeg4monx/router-gateway/internal/modules/usage"
 	"github.com/omeg4monx/router-gateway/internal/platform/config"
@@ -226,16 +229,42 @@ func buildApp(ctx context.Context, cfg config.Config, build system.BuildInfo) (*
 		Bus:    bus,
 		Logger: logger,
 	})
+	promptGuardMod := promptinjection.New(promptinjection.Options{
+		DB:     database,
+		Bus:    bus,
+		Logger: logger,
+	})
+	modelEditorMod := modeleditor.New(modeleditor.Options{
+		DB:     database,
+		Bus:    bus,
+		Logger: logger,
+	})
+	tokenSaverMod := tokensaver.New(tokensaver.Options{
+		DB:     database,
+		Bus:    bus,
+		Logger: logger,
+	})
+	interceptors := make([]contracts.GatewayInterceptor, 0, 3)
+	if !cfg.DisabledModules[promptGuardMod.Name()] {
+		interceptors = append(interceptors, promptGuardMod)
+	}
+	if !cfg.DisabledModules[modelEditorMod.Name()] {
+		interceptors = append(interceptors, modelEditorMod)
+	}
+	if !cfg.DisabledModules[tokenSaverMod.Name()] {
+		interceptors = append(interceptors, tokenSaverMod)
+	}
 	gatewayMod := gateway.New(gateway.Options{
-		DB:         database,
-		HTTPClient: httpClient,
-		Keys:       keysMod,
-		Resolver:   combosMod,
-		Models:     combosMod,
-		Providers:  providersMod,
-		Health:     combosMod,
-		Usage:      usageMod,
-		Logger:     logger,
+		DB:           database,
+		HTTPClient:   httpClient,
+		Keys:         keysMod,
+		Resolver:     combosMod,
+		Models:       combosMod,
+		Providers:    providersMod,
+		Health:       combosMod,
+		Interceptors: interceptors,
+		Usage:        usageMod,
+		Logger:       logger,
 	})
 	clitoolsMod := clitools.New(clitools.Options{
 		Config: cfg,
@@ -283,6 +312,15 @@ func buildApp(ctx context.Context, cfg config.Config, build system.BuildInfo) (*
 	}
 	if err := registry.Register(translatorMod); err != nil {
 		return nil, fmt.Errorf("register translator module: %w", err)
+	}
+	if err := registry.Register(promptGuardMod); err != nil {
+		return nil, fmt.Errorf("register promptinjection module: %w", err)
+	}
+	if err := registry.Register(modelEditorMod); err != nil {
+		return nil, fmt.Errorf("register modeleditor module: %w", err)
+	}
+	if err := registry.Register(tokenSaverMod); err != nil {
+		return nil, fmt.Errorf("register tokensaver module: %w", err)
 	}
 
 	if err := registry.MigrateAll(ctx, database); err != nil {
