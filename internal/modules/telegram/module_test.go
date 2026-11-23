@@ -408,3 +408,64 @@ func TestTelegramCommandsTestMessageAndEventBusForwarding(t *testing.T) {
 		t.Fatalf("DELETE events status=%d", resp.StatusCode)
 	}
 }
+
+func TestTelegramNetworkErrorRedactsBotToken(t *testing.T) {
+	// Create a closed server to force a *url.Error on sendMessage.
+	closedSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+	closedURL := closedSrv.URL
+	closedSrv.Close()
+
+	database, err := db.Open(filepath.Join(t.TempDir(), "tg-redact.sqlite"))
+	if err != nil {
+		t.Fatalf("db.Open: %v", err)
+	}
+	t.Cleanup(func() { _ = database.Close() })
+
+	vault, err := crypto.NewVault(bytes.Repeat([]byte{0x55}, 32))
+	if err != nil {
+		t.Fatalf("NewVault: %v", err)
+	}
+
+	mod := telegram.New(telegram.Options{
+		DB:         database,
+		Vault:      vault,
+		HTTPClient: &http.Client{Timeout: 2 * time.Second},
+		Logger:     slog.New(slog.NewTextHandler(io.Discard, nil)),
+		APIBaseURL: closedURL,
+	})
+	reg := lifecycle.NewRegistry(nil)
+	_ = reg.Register(stubSystem{})
+	_ = reg.Register(mod)
+	if err := reg.MigrateAll(context.Background(), database); err != nil {
+		t.Fatalf("MigrateAll: %v", err)
+	}
+	r := chi.NewRouter()
+	r.Route("/api", func(ar chi.Router) {
+		mod.RegisterRoutes(lifecycle.RouteMounts{AdminAPI: ar})
+	})
+	srv := httptest.NewServer(r)
+	t.Cleanup(srv.Close)
+
+	secretToken := "999888777:AAH-SUPER-SECRET-TOKEN-DO-NOT-LEAK"
+	resp, _ := doJSON(t, http.MethodPatch, srv.URL+"/api/telegram/config", map[string]any{
+		"enabled":   true,
+		"bot_token": secretToken,
+		"chat_id":   "12345",
+	}, nil)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("PATCH config status=%d", resp.StatusCode)
+	}
+
+	resp, raw := doJSON(t, http.MethodPost, srv.URL+"/api/telegram/test", map[string]any{"message": "ping"}, nil)
+	if resp.StatusCode != http.StatusBadGateway {
+		t.Fatalf("expected 502 on closed Telegram API, got %d body=%s", resp.StatusCode, raw)
+	}
+	if strings.Contains(string(raw), secretToken) {
+		t.Fatalf("bot token leaked in 502 error response: %s", raw)
+	}
+
+	_, evRaw := doJSON(t, http.MethodGet, srv.URL+"/api/telegram/events", nil, nil)
+	if strings.Contains(string(evRaw), secretToken) {
+		t.Fatalf("bot token leaked in telegram_events: %s", evRaw)
+	}
+}

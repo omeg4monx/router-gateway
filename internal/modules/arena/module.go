@@ -98,13 +98,14 @@ func (m *Module) Migrations() fs.FS {
 }
 
 // RegisterRoutes mounts Arena and Basic Chat AdminAPI endpoints.
+// Long-running inference routes mount on AdminStreamAPI when available so
+// per-model timeouts (60s) are not truncated by the default 30s APITimeout.
 func (m *Module) RegisterRoutes(mounts lifecycle.RouteMounts) {
 	if mounts.AdminAPI == nil {
 		return
 	}
 	mounts.AdminAPI.Get("/arena/models", m.handleListModels)
 	mounts.AdminAPI.Get("/arena/battles", m.handleListBattles)
-	mounts.AdminAPI.Post("/arena/battles/run", m.handleRunBattle)
 	mounts.AdminAPI.Get("/arena/battles/{id}", m.handleGetBattle)
 	mounts.AdminAPI.Post("/arena/battles/{id}/vote", m.handleVoteBattle)
 	mounts.AdminAPI.Delete("/arena/battles/{id}", m.handleDeleteBattle)
@@ -115,7 +116,13 @@ func (m *Module) RegisterRoutes(mounts lifecycle.RouteMounts) {
 	mounts.AdminAPI.Get("/chat/sessions/{id}", m.handleGetSession)
 	mounts.AdminAPI.Patch("/chat/sessions/{id}", m.handleUpdateSession)
 	mounts.AdminAPI.Delete("/chat/sessions/{id}", m.handleDeleteSession)
-	mounts.AdminAPI.Post("/chat/sessions/{id}/messages", m.handleSendMessage)
+
+	inferenceRouter := mounts.AdminStreamAPI
+	if inferenceRouter == nil {
+		inferenceRouter = mounts.AdminAPI
+	}
+	inferenceRouter.Post("/arena/battles/run", m.handleRunBattle)
+	inferenceRouter.Post("/chat/sessions/{id}/messages", m.handleSendMessage)
 }
 
 // Start validates module wiring.
@@ -274,7 +281,9 @@ func (m *Module) handleRunBattle(w http.ResponseWriter, r *http.Request) {
 		CreatedAt:    nowTimestamp(),
 		Contenders:   contenders,
 	}
-	if err := m.repo.createBattle(r.Context(), battle); err != nil {
+	saveCtx, saveCancel := context.WithTimeout(context.WithoutCancel(r.Context()), 5*time.Second)
+	defer saveCancel()
+	if err := m.repo.createBattle(saveCtx, battle); err != nil {
 		httpserver.WriteError(w, r, http.StatusInternalServerError, "arena_save_failed", "failed to save battle")
 		return
 	}
@@ -571,7 +580,8 @@ func (m *Module) handleSendMessage(w http.ResponseWriter, r *http.Request) {
 	callCtx, cancel := context.WithTimeout(r.Context(), perModelTimeout)
 	defer cancel()
 
-	userTS := nowTimestamp()
+	userTime := time.Now().UTC()
+	userTS := userTime.Format(timestampFormat)
 	start := time.Now()
 	res, err := m.completer.CompleteChat(callCtx, contracts.ChatCompletionRequest{
 		Model:       model,
@@ -594,10 +604,11 @@ func (m *Module) handleSendMessage(w http.ResponseWriter, r *http.Request) {
 	if latencyMs <= 0 {
 		latencyMs = time.Since(start).Milliseconds()
 	}
-	assistantTS := nowTimestamp()
-	if assistantTS <= userTS {
-		assistantTS = time.Now().UTC().Add(time.Microsecond).Format(timestampFormat)
+	assistantTime := time.Now().UTC()
+	if !assistantTime.After(userTime) {
+		assistantTime = userTime.Add(time.Microsecond)
 	}
+	assistantTS := assistantTime.Format(timestampFormat)
 
 	userMsg := ChatMessage{
 		ID:        randomHexID("msg"),

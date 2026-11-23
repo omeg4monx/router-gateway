@@ -107,6 +107,16 @@ export function TelegramConsole() {
     });
   }, [cfg, configForm]);
 
+  const clearMutationErrors = () => {
+    updateConfig.reset();
+    rotateSecret.reset();
+    registerWebhook.reset();
+    deleteWebhook.reset();
+    sendTest.reset();
+    simulateCommand.reset();
+    clearEvents.reset();
+  };
+
   const activeError =
     configQuery.error ??
     eventsQuery.error ??
@@ -119,6 +129,7 @@ export function TelegramConsole() {
     clearEvents.error;
 
   const onSaveConfig = configForm.handleSubmit((values) => {
+    clearMutationErrors();
     setStatusNotice(null);
     updateConfig.mutate(
       {
@@ -150,6 +161,7 @@ export function TelegramConsole() {
   });
 
   const onRunCommand = commandForm.handleSubmit((values) => {
+    clearMutationErrors();
     simulateCommand.mutate(
       { command: values.command },
       {
@@ -161,6 +173,7 @@ export function TelegramConsole() {
   });
 
   const onSendTest = testForm.handleSubmit((values) => {
+    clearMutationErrors();
     setStatusNotice(null);
     sendTest.mutate(
       { message: values.message },
@@ -282,7 +295,7 @@ export function TelegramConsole() {
                   {...configForm.register("webhook_url")}
                 />
                 {configForm.formState.errors.webhook_url ? (
-                  <p className="text-xs text-red-500">
+                  <p className="text-xs text-[var(--status-error)]">
                     {configForm.formState.errors.webhook_url.message}
                   </p>
                 ) : null}
@@ -327,14 +340,15 @@ export function TelegramConsole() {
                   type="button"
                   variant="secondary"
                   disabled={rotateSecret.isPending}
-                  onClick={() =>
+                  onClick={() => {
+                    clearMutationErrors();
                     rotateSecret.mutate(undefined, {
                       onSuccess: () =>
                         setStatusNotice(
                           "Webhook secret rotated. Click Register Webhook to sync Telegram.",
                         ),
-                    })
-                  }
+                    });
+                  }}
                 >
                   <KeyRound className="h-3.5 w-3.5" aria-hidden="true" />
                   <span>Rotate Secret</span>
@@ -343,12 +357,13 @@ export function TelegramConsole() {
                   type="button"
                   variant="outline"
                   disabled={registerWebhook.isPending}
-                  onClick={() =>
+                  onClick={() => {
+                    clearMutationErrors();
                     registerWebhook.mutate(undefined, {
                       onSuccess: (res) =>
                         setStatusNotice(`Webhook registered: ${res.webhook_url ?? "ok"}`),
-                    })
-                  }
+                    });
+                  }}
                 >
                   <Link2 className="h-3.5 w-3.5" aria-hidden="true" />
                   <span>Register Webhook</span>
@@ -357,11 +372,12 @@ export function TelegramConsole() {
                   type="button"
                   variant="outline"
                   disabled={deleteWebhook.isPending}
-                  onClick={() =>
+                  onClick={() => {
+                    clearMutationErrors();
                     deleteWebhook.mutate(undefined, {
                       onSuccess: () => setStatusNotice("Webhook removed from Telegram Bot API."),
-                    })
-                  }
+                    });
+                  }}
                 >
                   <Unlink className="h-3.5 w-3.5" aria-hidden="true" />
                   <span>Delete Webhook</span>
@@ -391,6 +407,7 @@ export function TelegramConsole() {
                     size="sm"
                     variant="secondary"
                     onClick={() => {
+                      clearMutationErrors();
                       commandForm.setValue("command", cmd);
                       simulateCommand.mutate(
                         { command: cmd },
@@ -403,16 +420,23 @@ export function TelegramConsole() {
                 ))}
               </div>
 
-              <form onSubmit={onRunCommand} className="flex gap-2">
-                <Input
-                  placeholder="/status"
-                  className="font-mono"
-                  {...commandForm.register("command")}
-                />
-                <Button type="submit" disabled={simulateCommand.isPending}>
-                  <Play className="h-3.5 w-3.5" aria-hidden="true" />
-                  <span>Run</span>
-                </Button>
+              <form onSubmit={onRunCommand} className="space-y-1.5">
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="/status"
+                    className="font-mono"
+                    {...commandForm.register("command")}
+                  />
+                  <Button type="submit" disabled={simulateCommand.isPending}>
+                    <Play className="h-3.5 w-3.5" aria-hidden="true" />
+                    <span>Run</span>
+                  </Button>
+                </div>
+                {commandForm.formState.errors.command ? (
+                  <p className="text-xs text-[var(--status-error)]">
+                    {commandForm.formState.errors.command.message}
+                  </p>
+                ) : null}
               </form>
 
               {lastCommandReply ? (
@@ -440,11 +464,18 @@ export function TelegramConsole() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <form onSubmit={onSendTest} className="flex gap-2">
-                <Input placeholder="Test message payload..." {...testForm.register("message")} />
-                <Button type="submit" variant="outline" disabled={sendTest.isPending}>
-                  {sendTest.isPending ? "Sending..." : "Send Test"}
-                </Button>
+              <form onSubmit={onSendTest} className="space-y-1.5">
+                <div className="flex gap-2">
+                  <Input placeholder="Test message payload..." {...testForm.register("message")} />
+                  <Button type="submit" variant="outline" disabled={sendTest.isPending}>
+                    {sendTest.isPending ? "Sending..." : "Send Test"}
+                  </Button>
+                </div>
+                {testForm.formState.errors.message ? (
+                  <p className="text-xs text-[var(--status-error)]">
+                    {testForm.formState.errors.message.message}
+                  </p>
+                ) : null}
               </form>
             </CardContent>
           </Card>

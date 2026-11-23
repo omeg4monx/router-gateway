@@ -491,7 +491,7 @@ func (r *repo) listMessages(ctx context.Context, sessionID string) ([]ChatMessag
 		       prompt_tokens, completion_tokens, total_tokens, created_at
 		FROM chat_messages
 		WHERE session_id = ?
-		ORDER BY created_at ASC
+		ORDER BY created_at ASC, rowid ASC
 	`, sessionID)
 	if err != nil {
 		return nil, fmt.Errorf("list chat messages: %w", err)

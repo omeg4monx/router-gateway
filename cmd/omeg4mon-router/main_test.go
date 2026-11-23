@@ -937,7 +937,7 @@ func TestAppWave1CUsageAndCLIToolsEndToEnd(t *testing.T) {
 	if err := json.Unmarshal(healthBody, &health); err != nil {
 		t.Fatalf("decode /api/health JSON: %v", err)
 	}
-	wantModules := []string{"auth", "clitools", "combos", "gateway", "keys", "media", "mitm", "modeleditor", "notifications", "promptinjection", "providers", "proxypools", "pxpipe", "security", "settings", "system", "teams", "tokensaver", "translator", "tunnel", "usage", "vouchers"}
+	wantModules := []string{"arena", "auth", "clitools", "combos", "gateway", "keys", "media", "mitm", "modeleditor", "notifications", "promptinjection", "providers", "proxypools", "pxpipe", "security", "settings", "system", "teams", "telegram", "tokensaver", "translator", "tunnel", "usage", "vouchers"}
 	for _, wantMod := range wantModules {
 		if !slices.Contains(health.Modules, wantMod) {
 			t.Fatalf("GET /api/health modules = %v, missing %q", health.Modules, wantMod)

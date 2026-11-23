@@ -53,12 +53,6 @@ func (m *Module) CompleteChat(ctx context.Context, req contracts.ChatCompletionR
 		return contracts.ChatCompletionResult{}, fmt.Errorf("%w: at least one message is required", ErrInvalidPayload)
 	}
 
-	// Pre-check model resolution so sentinel errors (e.g. ErrModelNotFound,
-	// ErrAllAccountsCoolingDown) propagate cleanly to callers.
-	if _, err := m.resolver.Resolve(ctx, model, nil); err != nil {
-		return contracts.ChatCompletionResult{}, err
-	}
-
 	payload := map[string]any{
 		"model":    model,
 		"messages": req.Messages,
@@ -89,8 +83,18 @@ func (m *Module) CompleteChat(ctx context.Context, req contracts.ChatCompletionR
 	}, ProtocolOpenAIChat, "", false, false)
 	latencyMs := time.Since(start).Milliseconds()
 
+	if rec.body.Len() == 0 && ctx.Err() != nil {
+		return contracts.ChatCompletionResult{Model: model, LatencyMs: latencyMs}, ctx.Err()
+	}
+
 	if rec.status < 200 || rec.status >= 300 {
-		msg := extractGatewayErrorMessage(rec.body.Bytes())
+		code, msg := extractGatewayError(rec.body.Bytes())
+		switch code {
+		case "model_not_found":
+			return contracts.ChatCompletionResult{Model: model, LatencyMs: latencyMs}, fmt.Errorf("%w: %s", contracts.ErrModelNotFound, msg)
+		case "all_accounts_cooling_down":
+			return contracts.ChatCompletionResult{Model: model, LatencyMs: latencyMs}, fmt.Errorf("%w: %s", contracts.ErrAllAccountsCoolingDown, msg)
+		}
 		if msg == "" {
 			msg = fmt.Sprintf("gateway returned HTTP %d", rec.status)
 		}
@@ -138,16 +142,17 @@ func (m *Module) CompleteChat(ctx context.Context, req contracts.ChatCompletionR
 	}, nil
 }
 
-func extractGatewayErrorMessage(raw []byte) string {
+func extractGatewayError(raw []byte) (code, message string) {
 	var envelope struct {
 		Error struct {
+			Code    string `json:"code"`
 			Message string `json:"message"`
 		} `json:"error"`
 	}
-	if err := json.Unmarshal(raw, &envelope); err == nil && strings.TrimSpace(envelope.Error.Message) != "" {
-		return strings.TrimSpace(envelope.Error.Message)
+	if err := json.Unmarshal(raw, &envelope); err == nil {
+		return strings.TrimSpace(envelope.Error.Code), strings.TrimSpace(envelope.Error.Message)
 	}
-	return strings.TrimSpace(string(raw))
+	return "", strings.TrimSpace(string(raw))
 }
 
 func stringifyMessageContent(v any) string {

@@ -41,9 +41,16 @@ export function ChatConsole() {
   const activeSession = detailQuery.data?.session;
   const messages = detailQuery.data?.messages ?? [];
 
+  const clearMutationErrors = () => {
+    setValidationError(null);
+    createSession.reset();
+    deleteSession.reset();
+    sendMessage.reset();
+  };
+
   const handleCreateSession = (e: React.FormEvent) => {
     e.preventDefault();
-    setValidationError(null);
+    clearMutationErrors();
     const chosenModel = newModel.trim() || models[0]?.id || "";
     const parsed = createChatSessionFormSchema.safeParse({
       model: chosenModel,
@@ -72,7 +79,7 @@ export function ChatConsole() {
     if (!activeSessionId) {
       return;
     }
-    setValidationError(null);
+    clearMutationErrors();
     const parsed = chatMessageFormSchema.safeParse({ content: draft });
     if (!parsed.success) {
       setValidationError(parsed.error.issues[0]?.message ?? "Message cannot be empty");
@@ -180,7 +187,10 @@ export function ChatConsole() {
                     <button
                       type="button"
                       className="min-w-0 flex-1 text-left"
-                      onClick={() => setSelectedSessionId(s.id)}
+                      onClick={() => {
+                        clearMutationErrors();
+                        setSelectedSessionId(s.id);
+                      }}
                     >
                       <p className="truncate text-sm font-medium text-[var(--text-primary)]">
                         {s.title}

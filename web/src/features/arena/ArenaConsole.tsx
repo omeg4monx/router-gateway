@@ -68,9 +68,16 @@ export function ArenaConsole() {
     setCustomModel("");
   };
 
+  const clearMutationErrors = () => {
+    setValidationError(null);
+    runBattle.reset();
+    voteBattle.reset();
+    deleteBattle.reset();
+  };
+
   const handleRunBattle = (e: React.FormEvent) => {
     e.preventDefault();
-    setValidationError(null);
+    clearMutationErrors();
 
     const parsed = arenaBattleFormSchema.safeParse({
       prompt,
@@ -327,7 +334,7 @@ export function ArenaConsole() {
                           {c.content || "(empty response)"}
                         </pre>
                       ) : (
-                        <p className="font-mono text-xs text-red-500">{c.error}</p>
+                        <p className="font-mono text-xs text-[var(--status-error)]">{c.error}</p>
                       )}
                     </div>
 
@@ -340,9 +347,10 @@ export function ArenaConsole() {
                         size="sm"
                         variant={isWinner ? "default" : "outline"}
                         disabled={voteBattle.isPending}
-                        onClick={() =>
-                          voteBattle.mutate({ id: activeBattle.id, winner_model: c.model })
-                        }
+                        onClick={() => {
+                          clearMutationErrors();
+                          voteBattle.mutate({ id: activeBattle.id, winner_model: c.model });
+                        }}
                       >
                         <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
                         <span>{isWinner ? "Winner" : "Vote Winner"}</span>

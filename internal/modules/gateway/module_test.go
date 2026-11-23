@@ -1658,4 +1658,51 @@ func TestGatewayCompleteChat(t *testing.T) {
 	}); !errors.Is(err, contracts.ErrModelNotFound) {
 		t.Fatalf("expected ErrModelNotFound, got %v", err)
 	}
+
+	// Canceled context must return context.Canceled, not a JSON decode error.
+	canceledCtx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if _, err := completer.CompleteChat(canceledCtx, contracts.ChatCompletionRequest{
+		Model:    "gpt-4o",
+		Messages: []contracts.ChatMessage{{Role: "user", Content: "hi"}},
+	}); !errors.Is(err, context.Canceled) {
+		t.Fatalf("expected context.Canceled, got %v", err)
+	}
+
+	// Interceptor model rewrite must run before resolution.
+	rewriter := &recordingInterceptor{
+		name:     "virtual-rewriter",
+		priority: 10,
+		onRequestFn: func(_ context.Context, req *contracts.CanonicalRequest) error {
+			if req.Model == "virtual-alias" {
+				req.Model = "gpt-4o"
+			}
+			return nil
+		},
+	}
+	env2 := setupGatewayTest(t, []contracts.GatewayInterceptor{rewriter}, time.Hour, true)
+	env2.providers.creds["c1"] = env.providers.creds["c1"]
+	env2.resolver.fn = func(_ context.Context, model string, _ []string) ([]contracts.ResolvedTarget, error) {
+		if model != "gpt-4o" {
+			return nil, contracts.ErrModelNotFound
+		}
+		return []contracts.ResolvedTarget{{
+			ProviderID:    "openai",
+			ProviderType:  "openai-chat",
+			ConnectionID:  "c1",
+			Model:         "gpt-4o",
+			UpstreamModel: "gpt-4o",
+			Endpoint:      upstream.URL,
+		}}, nil
+	}
+	rewrittenRes, err := env2.module.CompleteChat(context.Background(), contracts.ChatCompletionRequest{
+		Model:    "virtual-alias",
+		Messages: []contracts.ChatMessage{{Role: "user", Content: "hi"}},
+	})
+	if err != nil {
+		t.Fatalf("CompleteChat with interceptor rewrite failed: %v", err)
+	}
+	if rewrittenRes.Content != "hello from internal gateway" {
+		t.Fatalf("unexpected rewritten content: %q", rewrittenRes.Content)
+	}
 }

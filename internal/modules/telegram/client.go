@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 )
@@ -74,13 +75,13 @@ func (c *botAPIClient) post(ctx context.Context, botToken, method string, payloa
 	endpoint := fmt.Sprintf("%s/bot%s/%s", c.baseURL, botToken, method)
 	req, err := http.NewRequestWithContext(callCtx, http.MethodPost, endpoint, bytes.NewReader(body))
 	if err != nil {
-		return fmt.Errorf("build telegram %s request: %w", method, err)
+		return fmt.Errorf("build telegram %s request: %w", method, sanitizeBotError(err, botToken))
 	}
 	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return fmt.Errorf("telegram %s request failed: %w", method, err)
+		return fmt.Errorf("telegram %s request failed: %w", method, sanitizeBotError(err, botToken))
 	}
 	defer resp.Body.Close()
 
@@ -107,6 +108,21 @@ func (c *botAPIClient) post(ctx context.Context, botToken, method string, payloa
 		return fmt.Errorf("telegram %s error: %s", method, desc)
 	}
 	return nil
+}
+
+func sanitizeBotError(err error, botToken string) error {
+	if err == nil {
+		return nil
+	}
+	var uerr *url.Error
+	if errors.As(err, &uerr) && uerr.Err != nil {
+		err = uerr.Err
+	}
+	msg := err.Error()
+	if botToken != "" {
+		msg = strings.ReplaceAll(msg, botToken, "[REDACTED]")
+	}
+	return errors.New(msg)
 }
 
 func truncateText(s string, maxLen int) string {
