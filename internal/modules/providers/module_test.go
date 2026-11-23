@@ -1187,3 +1187,116 @@ func TestOAuthExchangePreValidationAndConnectionCompatibility(t *testing.T) {
 		t.Fatalf("expected updated claude oauth access token, got creds=%+v err=%v", newCreds, err)
 	}
 }
+
+func TestWave2ProviderAdaptersRegisteredAndTestable(t *testing.T) {
+	t.Parallel()
+
+	h := newTestHarness(t, nil, nil)
+	rec := h.doRequest(t, http.MethodGet, "/api/providers/catalog", "", false)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("GET /api/providers/catalog status = %d, want 200: %s", rec.Code, rec.Body.String())
+	}
+
+	var catalog struct {
+		Adapters []struct {
+			ID             string   `json:"id"`
+			DisplayName    string   `json:"display_name"`
+			Category       string   `json:"category"`
+			Protocol       string   `json:"protocol"`
+			AuthType       string   `json:"auth_type"`
+			DefaultBaseURL string   `json:"default_base_url"`
+			DefaultModels  []string `json:"default_models"`
+			OAuth          *struct {
+				AuthorizeURL string   `json:"authorize_url"`
+				TokenURL     string   `json:"token_url"`
+				Scopes       []string `json:"scopes"`
+			} `json:"oauth"`
+		} `json:"adapters"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &catalog); err != nil {
+		t.Fatalf("unmarshal catalog: %v", err)
+	}
+
+	byID := make(map[string]int, len(catalog.Adapters))
+	for i, a := range catalog.Adapters {
+		byID[a.ID] = i
+	}
+
+	type wantAdapter struct {
+		protocol  string
+		authType  string
+		wantOAuth bool
+		wantAuthH string
+	}
+	wants := map[string]wantAdapter{
+		"qwen":           {protocol: "openai-chat", authType: "oauth", wantOAuth: true, wantAuthH: "Authorization"},
+		"github-copilot": {protocol: "openai-chat", authType: "oauth", wantOAuth: true, wantAuthH: "Authorization"},
+		"kiro":           {protocol: "anthropic", authType: "oauth", wantOAuth: true, wantAuthH: "Authorization"},
+		"cursor":         {protocol: "openai-chat", authType: "api_key", wantOAuth: false, wantAuthH: "Authorization"},
+		"antigravity":    {protocol: "gemini", authType: "oauth", wantOAuth: true, wantAuthH: "Authorization"},
+	}
+
+	for id, want := range wants {
+		idx, ok := byID[id]
+		if !ok {
+			t.Fatalf("missing Wave 2 adapter %q in catalog", id)
+		}
+		got := catalog.Adapters[idx]
+		if got.Protocol != want.protocol {
+			t.Errorf("adapter %q protocol = %q, want %q", id, got.Protocol, want.protocol)
+		}
+		if got.AuthType != want.authType {
+			t.Errorf("adapter %q auth_type = %q, want %q", id, got.AuthType, want.authType)
+		}
+		if got.DefaultBaseURL == "" {
+			t.Errorf("adapter %q default_base_url is empty", id)
+		}
+		if len(got.DefaultModels) == 0 {
+			t.Errorf("adapter %q default_models is empty", id)
+		}
+		if want.wantOAuth {
+			if got.OAuth == nil || got.OAuth.AuthorizeURL == "" || got.OAuth.TokenURL == "" {
+				t.Errorf("adapter %q oauth config missing or incomplete: %+v", id, got.OAuth)
+			}
+		} else if got.OAuth != nil {
+			t.Errorf("adapter %q should not expose oauth config", id)
+		}
+
+		// Verify live connection quick-test against a local mock upstream.
+		var sawAuth string
+		upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			sawAuth = r.Header.Get(want.wantAuthH)
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"data":[]}`))
+		}))
+		t.Cleanup(upstream.Close)
+
+		payload := map[string]any{
+			"provider_id": id,
+			"name":        "Test " + id,
+			"base_url":    upstream.URL,
+		}
+		if want.authType == "oauth" {
+			payload["access_token"] = "tok-" + id
+		} else {
+			payload["api_key"] = "key-" + id
+		}
+		bodyBytes, _ := json.Marshal(payload)
+		createRec := h.doRequest(t, http.MethodPost, "/api/providers/connections", string(bodyBytes), false)
+		if createRec.Code != http.StatusCreated {
+			t.Fatalf("create connection for %q status = %d: %s", id, createRec.Code, createRec.Body.String())
+		}
+		var conn providers.ConnectionSummary
+		if err := json.Unmarshal(createRec.Body.Bytes(), &conn); err != nil {
+			t.Fatalf("unmarshal connection for %q: %v", id, err)
+		}
+
+		testRec := h.doRequest(t, http.MethodPost, "/api/providers/connections/"+conn.ID+"/test", "", false)
+		if testRec.Code != http.StatusOK {
+			t.Fatalf("test connection for %q status = %d: %s", id, testRec.Code, testRec.Body.String())
+		}
+		if !strings.HasPrefix(sawAuth, "Bearer ") {
+			t.Errorf("adapter %q test request header %q = %q, want Bearer token", id, want.wantAuthH, sawAuth)
+		}
+	}
+}

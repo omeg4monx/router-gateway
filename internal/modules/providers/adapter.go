@@ -200,6 +200,83 @@ func defaultBuiltInAdapters() []ProviderAdapter {
 				},
 			},
 		},
+		&builtinAdapter{
+			id:             "qwen",
+			displayName:    "Qwen (DashScope / OAuth)",
+			category:       authTypeOAuth,
+			protocol:       protocolOpenAIChat,
+			authType:       authTypeOAuth,
+			defaultBaseURL: "https://portal.qwen.ai/v1",
+			defaultModels:  []string{"qwen3-coder-plus", "qwen3-235b-a22b", "qwen-max"},
+			//nolint:gosec // G101: public OAuth2 authorization/token endpoint URLs, not credentials
+			oauthConfig: &OAuthConfig{
+				AuthorizeURL:       "https://chat.qwen.ai/api/v1/oauth2/authorize",
+				TokenURL:           "https://chat.qwen.ai/api/v1/oauth2/token",
+				Scopes:             []string{"openid", "profile", "email", "model.completion"},
+				DefaultRedirectURI: defaultOAuthRedirectURI,
+			},
+		},
+		&builtinAdapter{
+			id:             "github-copilot",
+			displayName:    "GitHub Copilot (OAuth)",
+			category:       authTypeOAuth,
+			protocol:       protocolOpenAIChat,
+			authType:       authTypeOAuth,
+			defaultBaseURL: "https://api.githubcopilot.com",
+			defaultModels:  []string{"gpt-4o", "claude-sonnet-4", "o3-mini"},
+			//nolint:gosec // G101: public OAuth2 authorization/token endpoint URLs, not credentials
+			oauthConfig: &OAuthConfig{
+				AuthorizeURL:       "https://github.com/login/oauth/authorize",
+				TokenURL:           "https://github.com/login/oauth/access_token",
+				Scopes:             []string{"read:user"},
+				DefaultRedirectURI: defaultOAuthRedirectURI,
+			},
+		},
+		&builtinAdapter{
+			id:             "kiro",
+			displayName:    "Kiro (OAuth)",
+			category:       authTypeOAuth,
+			protocol:       protocolAnthropic,
+			authType:       authTypeOAuth,
+			defaultBaseURL: "https://codewhisperer.us-east-1.amazonaws.com",
+			defaultModels:  []string{"claude-sonnet-4-20250514", "claude-3-7-sonnet-20250219"},
+			//nolint:gosec // G101: public OAuth2 authorization/token endpoint URLs, not credentials
+			oauthConfig: &OAuthConfig{
+				AuthorizeURL:       "https://prod.us-east-1.auth.desktop.kiro.dev/login",
+				TokenURL:           "https://prod.us-east-1.auth.desktop.kiro.dev/oauth/token",
+				Scopes:             []string{"codewhisperer:completions", "codewhisperer:analysis"},
+				DefaultRedirectURI: defaultOAuthRedirectURI,
+			},
+		},
+		&builtinAdapter{
+			id:             "cursor",
+			displayName:    "Cursor",
+			category:       authTypeAPIKey,
+			protocol:       protocolOpenAIChat,
+			authType:       authTypeAPIKey,
+			defaultBaseURL: "https://api2.cursor.sh/v1",
+			defaultModels:  []string{"claude-sonnet-4", "gpt-4.1", "gemini-2.5-pro"},
+		},
+		&builtinAdapter{
+			id:             "antigravity",
+			displayName:    "Antigravity (OAuth)",
+			category:       authTypeOAuth,
+			protocol:       protocolGemini,
+			authType:       authTypeOAuth,
+			defaultBaseURL: "https://cloudcode-pa.googleapis.com",
+			defaultModels:  []string{"gemini-2.5-pro", "gemini-2.5-flash", "claude-sonnet-4"},
+			//nolint:gosec // G101: public OAuth2 authorization/token endpoint URLs, not credentials
+			oauthConfig: &OAuthConfig{
+				AuthorizeURL:       "https://accounts.google.com/o/oauth2/v2/auth",
+				TokenURL:           "https://oauth2.googleapis.com/token",
+				Scopes:             []string{"https://www.googleapis.com/auth/cloud-platform", "https://www.googleapis.com/auth/userinfo.email"},
+				DefaultRedirectURI: defaultOAuthRedirectURI,
+				ExtraAuthParams: map[string]string{
+					"access_type": "offline",
+					"prompt":      "consent",
+				},
+			},
+		},
 	}
 }
 
