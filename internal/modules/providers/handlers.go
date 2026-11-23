@@ -612,6 +612,7 @@ func (m *Module) handlePatchConnection(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	m.clearRefreshCooldown(summary.ID)
 	m.publishChanged("updated", "connection", summary.ID, summary.ProviderID, actorFromContext(r.Context()), summary.UpdatedAt)
 	httpserver.WriteJSON(w, http.StatusOK, summary)
 }
@@ -633,6 +634,7 @@ func (m *Module) handleDeleteConnection(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	m.clearRefreshCooldown(id)
 	m.publishChanged("deleted", "connection", id, providerID, actorFromContext(r.Context()), deletedAt)
 	w.WriteHeader(http.StatusNoContent)
 }

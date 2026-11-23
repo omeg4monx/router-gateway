@@ -20,12 +20,20 @@ import (
 )
 
 const (
-	oauthSessionTTL       = 10 * time.Minute
-	oauthVerifierBytes    = 32 // 43 base64url chars (RFC 7636 §4.1)
-	oauthStateBytes       = 24 // 32 base64url chars
-	maxOAuthResponseBytes = 1 << 20
-	oauthRefreshTimeout   = 30 * time.Second
+	oauthSessionTTL             = 10 * time.Minute
+	oauthVerifierBytes          = 32 // 43 base64url chars (RFC 7636 §4.1)
+	oauthStateBytes             = 24 // 32 base64url chars
+	maxOAuthResponseBytes       = 1 << 20
+	oauthRefreshTimeout         = 30 * time.Second
+	oauthNoRefreshTokenCooldown = 10 * time.Minute
+	oauthRefreshFailureCooldown = 30 * time.Second
+	maxRefreshCooldownEntries   = 1024
 )
+
+type refreshCooldownEntry struct {
+	until  time.Time
+	reason string
+}
 
 type refreshCall struct {
 	done  chan struct{}
@@ -235,7 +243,8 @@ func (m *Module) postTokenEndpoint(ctx context.Context, tokenURL string, form ur
 
 // RefreshOAuthToken refreshes the OAuth access token for connectionID,
 // coalescing concurrent refresh calls for the same connectionID via an
-// in-flight single-flight map so only one upstream token-endpoint POST fires.
+// in-flight single-flight map so only one upstream token-endpoint POST fires,
+// and applying per-connection cooldowns after failed or unsupported refreshes.
 func (m *Module) RefreshOAuthToken(ctx context.Context, connectionID string) (contracts.UpstreamCredentials, error) {
 	if ctx == nil {
 		ctx = context.Background()
@@ -244,6 +253,7 @@ func (m *Module) RefreshOAuthToken(ctx context.Context, connectionID string) (co
 		return contracts.UpstreamCredentials{}, err
 	}
 
+	now := time.Now().UTC()
 	m.refreshMu.Lock()
 	if existing, ok := m.refreshCalls[connectionID]; ok {
 		m.refreshMu.Unlock()
@@ -253,6 +263,13 @@ func (m *Module) RefreshOAuthToken(ctx context.Context, connectionID string) (co
 		case <-ctx.Done():
 			return contracts.UpstreamCredentials{}, ctx.Err()
 		}
+	}
+	if entry, cooling := m.getRefreshCooldownLocked(connectionID, now); cooling {
+		m.refreshMu.Unlock()
+		if entry.reason == "no_refresh_token" {
+			return contracts.UpstreamCredentials{}, contracts.ErrOAuthRefreshUnsupported
+		}
+		return contracts.UpstreamCredentials{}, fmt.Errorf("providers: oauth refresh cooling down for %s", connectionID)
 	}
 
 	call := &refreshCall{done: make(chan struct{})}
@@ -267,8 +284,17 @@ func (m *Module) RefreshOAuthToken(ctx context.Context, connectionID string) (co
 		call.creds = creds
 		call.err = err
 
+		doneNow := time.Now().UTC()
 		m.refreshMu.Lock()
 		delete(m.refreshCalls, connectionID)
+		switch {
+		case err == nil:
+			delete(m.refreshCooldowns, connectionID)
+		case errors.Is(err, contracts.ErrOAuthRefreshUnsupported):
+			m.markRefreshCooldownLocked(connectionID, "no_refresh_token", doneNow)
+		default:
+			m.markRefreshCooldownLocked(connectionID, "refresh_failed", doneNow)
+		}
 		close(call.done)
 		m.refreshMu.Unlock()
 	}()
@@ -279,6 +305,55 @@ func (m *Module) RefreshOAuthToken(ctx context.Context, connectionID string) (co
 	case <-ctx.Done():
 		return contracts.UpstreamCredentials{}, ctx.Err()
 	}
+}
+
+func (m *Module) getRefreshCooldownLocked(connectionID string, now time.Time) (refreshCooldownEntry, bool) {
+	entry, ok := m.refreshCooldowns[connectionID]
+	if !ok {
+		return refreshCooldownEntry{}, false
+	}
+	if !now.Before(entry.until) {
+		delete(m.refreshCooldowns, connectionID)
+		return refreshCooldownEntry{}, false
+	}
+	return entry, true
+}
+
+func (m *Module) markRefreshCooldownLocked(connectionID, reason string, now time.Time) {
+	ttl := oauthRefreshFailureCooldown
+	if reason == "no_refresh_token" {
+		ttl = oauthNoRefreshTokenCooldown
+	}
+	if len(m.refreshCooldowns) >= maxRefreshCooldownEntries {
+		for k, v := range m.refreshCooldowns {
+			if !now.Before(v.until) {
+				delete(m.refreshCooldowns, k)
+			}
+		}
+		if len(m.refreshCooldowns) >= maxRefreshCooldownEntries {
+			var oldestKey string
+			var oldestUntil time.Time
+			for k, v := range m.refreshCooldowns {
+				if oldestKey == "" || v.until.Before(oldestUntil) {
+					oldestKey = k
+					oldestUntil = v.until
+				}
+			}
+			if oldestKey != "" {
+				delete(m.refreshCooldowns, oldestKey)
+			}
+		}
+	}
+	m.refreshCooldowns[connectionID] = refreshCooldownEntry{
+		until:  now.Add(ttl),
+		reason: reason,
+	}
+}
+
+func (m *Module) clearRefreshCooldown(connectionID string) {
+	m.refreshMu.Lock()
+	delete(m.refreshCooldowns, connectionID)
+	m.refreshMu.Unlock()
 }
 
 func (m *Module) doRefreshOAuthToken(ctx context.Context, connectionID string) (contracts.UpstreamCredentials, error) {

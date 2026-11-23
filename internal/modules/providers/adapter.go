@@ -7,11 +7,25 @@ import (
 	"maps"
 	"net/http"
 	"net/url"
+	"regexp"
 	"slices"
 	"strings"
 
 	"github.com/omeg4monx/router-gateway/internal/contracts"
 )
+
+var (
+	legacyFakeAntigravityProjectRE = regexp.MustCompile(`^(?i)(useful|bright|swift|calm|bold)-(fuze|wave|spark|flow|core)-[a-f0-9]+$`)
+	legacyCloudAICompanionProjRE   = regexp.MustCompile(`^(?i)cloudaicompanion-proj-[a-f0-9]+$`)
+)
+
+func isBlockedAntigravityProjectID(projectID string) bool {
+	trimmed := strings.TrimSpace(projectID)
+	if trimmed == "" || strings.EqualFold(trimmed, "aicode-consumers") {
+		return true
+	}
+	return legacyFakeAntigravityProjectRE.MatchString(trimmed) || legacyCloudAICompanionProjRE.MatchString(trimmed)
+}
 
 const (
 	protocolOpenAIChat      = "openai-chat"
@@ -277,6 +291,64 @@ func defaultBuiltInAdapters() []ProviderAdapter {
 				},
 			},
 		},
+		&builtinAdapter{
+			id:             "aws-quick",
+			displayName:    "Amazon Quick (AWS)",
+			category:       authTypeOAuth,
+			protocol:       protocolOpenAIChat,
+			authType:       authTypeOAuth,
+			defaultBaseURL: "https://quick.aws.com",
+			defaultModels:  []string{"fast", "balanced", "smart", "advanced"},
+			//nolint:gosec // G101: public AWS OIDC discovery/token endpoint URLs, not credentials
+			oauthConfig: &OAuthConfig{
+				AuthorizeURL:       "https://quick.aws.com/sn",
+				TokenURL:           "https://oidc.us-east-1.amazonaws.com/token",
+				Scopes:             []string{"quicksight:read_write"},
+				DefaultRedirectURI: "http://127.0.0.1:20128",
+			},
+		},
+		&builtinAdapter{
+			id:             "venice",
+			displayName:    "Venice AI",
+			category:       authTypeAPIKey,
+			protocol:       protocolOpenAIChat,
+			authType:       authTypeAPIKey,
+			defaultBaseURL: "https://outerface.venice.ai/api/inference/chat",
+			defaultModels: []string{
+				"deepseek-v4-1-flash-uncensored",
+				"olafangensan-glm-4.7-flash-heretic",
+				"venice-uncensored-1-2",
+				"qwen3-coder-480b-a35b-instruct-turbo",
+				"nvidia-nemotron-3-nano-30b-a3b",
+				"nvidia-nemotron-3-ultra-550b-a55b",
+			},
+		},
+		&builtinAdapter{
+			id:             "freepi",
+			displayName:    "FreePI",
+			category:       authTypeOAuth,
+			protocol:       protocolOpenAIChat,
+			authType:       authTypeOAuth,
+			defaultBaseURL: "https://api.freepi.ai/v1",
+			defaultModels: []string{
+				"particle",
+				"deepseek-v4.1-flash",
+				"glm-5.3-flash",
+				"deepseek-v4-pro",
+				"gemini-4-carbon",
+				"gemini-4-neon",
+				"gpt-6.2-astra",
+				"kimi-k3.1-pro",
+				"qwen3.7-flash",
+			},
+			//nolint:gosec // G101: public OAuth2 authorization/token endpoint URLs, not credentials
+			oauthConfig: &OAuthConfig{
+				AuthorizeURL:       "https://api.freepi.ai/auth/consent",
+				TokenURL:           "https://api.freepi.ai/auth/token",
+				Scopes:             []string{"read:user"},
+				DefaultRedirectURI: defaultOAuthRedirectURI,
+			},
+		},
 	}
 }
 
@@ -319,6 +391,9 @@ func buildProtocolTestRequest(ctx context.Context, creds contracts.UpstreamCrede
 	for k, v := range creds.ExtraHeaders {
 		cleanKey := strings.TrimSpace(k)
 		if cleanKey == "" {
+			continue
+		}
+		if creds.ProviderID == "antigravity" && strings.EqualFold(cleanKey, "x-goog-user-project") && isBlockedAntigravityProjectID(v) {
 			continue
 		}
 		req.Header.Set(cleanKey, v)

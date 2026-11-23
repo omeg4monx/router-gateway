@@ -74,8 +74,9 @@ type Module struct {
 	adapters       map[string]ProviderAdapter
 	oauthOverrides map[string]OAuthConfig
 
-	refreshMu    sync.Mutex
-	refreshCalls map[string]*refreshCall
+	refreshMu        sync.Mutex
+	refreshCalls     map[string]*refreshCall
+	refreshCooldowns map[string]refreshCooldownEntry
 }
 
 var (
@@ -104,8 +105,9 @@ func New(opts Options) *Module {
 		bus:            opts.Bus,
 		repo:           newRepository(opts.DB),
 		adapters:       make(map[string]ProviderAdapter),
-		oauthOverrides: overrides,
-		refreshCalls:   make(map[string]*refreshCall),
+		oauthOverrides:   overrides,
+		refreshCalls:     make(map[string]*refreshCall),
+		refreshCooldowns: make(map[string]refreshCooldownEntry),
 	}
 
 	for _, adapter := range defaultBuiltInAdapters() {

@@ -68,6 +68,7 @@ type Module struct {
 	usage        contracts.UsageRecorder
 	logger       *slog.Logger
 	chains       *chainStore
+	agQuota      *antigravityQuotaMonitor
 }
 
 var (
@@ -168,6 +169,7 @@ func New(opts Options) *Module {
 		usage:        opts.Usage,
 		logger:       logger,
 		chains:       newChainStore(opts.DB, opts.ChainTTL),
+		agQuota:      newAntigravityQuotaMonitor(),
 	}
 }
 
@@ -735,21 +737,74 @@ func (m *Module) executeCandidateAttempt(
 		m.health.RecordFailure(cand.ConnectionID, http.StatusBadGateway, 0)
 		return attemptOutcome{statusCode: http.StatusBadGateway, errMsg: err.Error()}
 	}
-	upCtx := httpclient.WithProviderID(ctx, cand.ProviderID)
-	upReq, err := http.NewRequestWithContext(upCtx, http.MethodPost, upURL, bytes.NewReader(upBody))
-	if err != nil {
-		m.health.RecordFailure(cand.ConnectionID, http.StatusBadGateway, 0)
-		return attemptOutcome{statusCode: http.StatusBadGateway, errMsg: err.Error()}
-	}
-	applyUpstreamHeaders(upReq, creds, stream)
 
-	resp, err := m.httpClient.Do(upReq)
-	if err != nil {
-		if ctx.Err() != nil {
-			return attemptOutcome{clientCanceled: true}
+	// Proactive Antigravity quota pre-check: skip accounts whose family bucket
+	// is already <= 2% remaining without burning a 429 on generateContent.
+	if cand.ProviderID == "antigravity" && creds.AccessToken != "" && m.agQuota != nil {
+		if drained, resetAfter := m.agQuota.checkDrained(ctx, m.httpClient, baseURL, creds.AccessToken, upstreamModel, cand.ConnectionID); drained {
+			m.health.RecordFailure(cand.ConnectionID, http.StatusTooManyRequests, resetAfter)
+			return attemptOutcome{
+				statusCode: http.StatusTooManyRequests,
+				errMsg:     "antigravity quota proactively drained",
+			}
 		}
-		m.health.RecordFailure(cand.ConnectionID, http.StatusBadGateway, 0)
-		return attemptOutcome{statusCode: http.StatusBadGateway, errMsg: err.Error()}
+	}
+
+	upCtx := httpclient.WithProviderID(ctx, cand.ProviderID)
+	curBody := upBody
+	retriedSystemToUser := false
+
+	var resp *http.Response
+	var errBody []byte
+	for {
+		upReq, reqErr := http.NewRequestWithContext(upCtx, http.MethodPost, upURL, bytes.NewReader(curBody))
+		if reqErr != nil {
+			m.health.RecordFailure(cand.ConnectionID, http.StatusBadGateway, 0)
+			return attemptOutcome{statusCode: http.StatusBadGateway, errMsg: reqErr.Error()}
+		}
+		applyUpstreamHeaders(upReq, creds, stream)
+
+		var doErr error
+		resp, doErr = m.httpClient.Do(upReq)
+		if doErr != nil {
+			if ctx.Err() != nil {
+				return attemptOutcome{clientCanceled: true}
+			}
+			m.health.RecordFailure(cand.ConnectionID, http.StatusBadGateway, 0)
+			return attemptOutcome{statusCode: http.StatusBadGateway, errMsg: doErr.Error()}
+		}
+
+		if resp.StatusCode == http.StatusTooManyRequests && cand.ProviderID == "antigravity" {
+			errBody, _ = io.ReadAll(io.LimitReader(resp.Body, maxErrorBodyBytes))
+			if isAntigravityPromptRejection(resp.StatusCode, errBody) {
+				if !retriedSystemToUser {
+					if rewritten, ok := moveGeminiSystemInstructionToContents(curBody); ok {
+						_ = resp.Body.Close()
+						curBody = rewritten
+						retriedSystemToUser = true
+						errBody = nil
+						continue
+					}
+				}
+				_ = resp.Body.Close()
+				m.emitUsage(ctx, contracts.UsageRecord{
+					RequestID:    reqID,
+					KeyID:        keyID,
+					Model:        requestedModel,
+					ProviderID:   cand.ProviderID,
+					ConnectionID: cand.ConnectionID,
+					Protocol:     inProto,
+					Latency:      time.Since(startTime),
+					StatusCode:   http.StatusBadRequest,
+					ErrorSummary: antigravityPromptRejectedMessage,
+					Stream:       stream,
+					Timestamp:    time.Now().UTC(),
+				})
+				writeGatewayError(w, r, inProto, http.StatusBadRequest, "invalid_request_error", "antigravity_prompt_rejected", antigravityPromptRejectedMessage)
+				return attemptOutcome{handled: true}
+			}
+		}
+		break
 	}
 	defer resp.Body.Close()
 
@@ -892,7 +947,9 @@ func (m *Module) executeCandidateAttempt(
 		return attemptOutcome{needsRefresh: true}
 	}
 
-	errBody, _ := io.ReadAll(io.LimitReader(resp.Body, maxErrorBodyBytes))
+	if errBody == nil {
+		errBody, _ = io.ReadAll(io.LimitReader(resp.Body, maxErrorBodyBytes))
+	}
 	errMsg := extractUpstreamErrorMessage(errBody, resp.StatusCode)
 
 	if classifyStatus(resp.StatusCode, errBody) == dispositionClientError {

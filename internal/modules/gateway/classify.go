@@ -103,6 +103,9 @@ func applyUpstreamHeaders(req *http.Request, creds contracts.UpstreamCredentials
 		if cleanKey == "" || isProtectedRequestHeader(cleanKey) {
 			continue
 		}
+		if creds.ProviderID == "antigravity" && strings.EqualFold(cleanKey, "x-goog-user-project") && isBlockedAntigravityProjectID(v) {
+			continue
+		}
 		req.Header.Set(cleanKey, v)
 	}
 
