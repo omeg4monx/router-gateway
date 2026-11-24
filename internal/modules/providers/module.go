@@ -143,6 +143,7 @@ func (m *Module) RegisterRoutes(mounts lifecycle.RouteMounts) {
 
 		mounts.AdminAPI.Get("/providers/nodes", m.handleListNodes)
 		mounts.AdminAPI.Post("/providers/nodes", m.handleCreateNode)
+		mounts.AdminAPI.Post("/providers/nodes/test", m.handleTestNodeDraft)
 		mounts.AdminAPI.Delete("/providers/nodes/{id}", m.handleDeleteNode)
 
 		mounts.AdminAPI.Get("/providers/connections", m.handleListConnections)

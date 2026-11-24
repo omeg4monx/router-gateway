@@ -101,6 +101,43 @@ paths:
             application/json:
               schema:
                 $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+  /api/providers/nodes/test:
+    post:
+      operationId: testProviderNodeDraft
+      summary: Statelessly probe a draft custom endpoint or provider credential before saving
+      tags:
+        - providers
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TestProviderNodeRequest'
+      responses:
+        '200':
+          description: Connectivity probe result (never writes to database and redacts secrets).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TestProviderConnectionResponse'
+        '400':
+          description: Malformed request body or validation error.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Administrative authentication is required.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '413':
+          description: Request body exceeds maximum allowed size.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
   /api/providers/nodes/{id}:
     parameters:
       - name: id
@@ -658,6 +695,26 @@ components:
           type: array
           items:
             type: string
+        headers:
+          type: object
+          additionalProperties:
+            type: string
+    TestProviderNodeRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - protocol
+        - base_url
+      properties:
+        provider_id:
+          type: string
+        protocol:
+          $ref: '#/components/schemas/ProviderProtocol'
+        base_url:
+          type: string
+          format: uri
+        api_key:
+          type: string
         headers:
           type: object
           additionalProperties:

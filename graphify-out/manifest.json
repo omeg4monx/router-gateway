@@ -216,9 +216,9 @@
     "semantic_hash": ""
   },
   "contracts/openapi/openapi.yaml": {
-    "mtime": 1795462735.4150004,
-    "seen": 1795462935.7812493,
-    "ast_hash": "9ba897872b79025d0bbf5c14f7ef8a72",
+    "mtime": 1795491163.9495616,
+    "seen": 1795491474.1913009,
+    "ast_hash": "4de3956086eaafd55811eebbf9a35ffc",
     "semantic_hash": ""
   },
   "internal/modules/system/migrations/0001_init.sql": {
@@ -354,9 +354,9 @@
     "semantic_hash": ""
   },
   "web/src/shared/api/schema.d.ts": {
-    "mtime": 1795463294.229862,
-    "seen": 1795463352.6214461,
-    "ast_hash": "6bc1e11516d43306cf4b09acbf9eada7",
+    "mtime": 1795491177.99097,
+    "seen": 1795491474.1985176,
+    "ast_hash": "13446f30742bf29224ee5b7a219792e6",
     "semantic_hash": ""
   },
   "web/src/shared/lib/utils.test.ts": {
@@ -678,9 +678,9 @@
     "semantic_hash": ""
   },
   "contracts/openapi/modules/providers.yaml": {
-    "mtime": 1795403527.742842,
-    "seen": 1795454269.470984,
-    "ast_hash": "6e2a5f54c980dc756fa9bbdae74009b3",
+    "mtime": 1795491160.427459,
+    "seen": 1795491474.191031,
+    "ast_hash": "f331870397d2cc8c4ea0ea636175b5f9",
     "semantic_hash": ""
   },
   "internal/modules/providers/adapter.go": {
@@ -690,21 +690,21 @@
     "semantic_hash": ""
   },
   "internal/modules/providers/handlers.go": {
-    "mtime": 1795454172.464439,
-    "seen": 1795454269.4711373,
-    "ast_hash": "a2f49f05ab8ede9cf1c98f7ba799f148",
+    "mtime": 1795491143.0049522,
+    "seen": 1795491474.1929107,
+    "ast_hash": "ef0ade0fd27741df5acb10be8f5ed14e",
     "semantic_hash": ""
   },
   "internal/modules/providers/module.go": {
-    "mtime": 1795454166.7573614,
-    "seen": 1795454269.4711385,
-    "ast_hash": "608a59ee8f5826fcbf038064765c2b1c",
+    "mtime": 1795491087.1853285,
+    "seen": 1795491474.1929119,
+    "ast_hash": "350dea8f077e1edbc2b5e8a61119c02e",
     "semantic_hash": ""
   },
   "internal/modules/providers/module_test.go": {
-    "mtime": 1795414552.8672066,
-    "seen": 1795454269.47114,
-    "ast_hash": "88f8ce3bd3f5045c88aecf5e79489ed4",
+    "mtime": 1795491044.6184282,
+    "seen": 1795491474.192913,
+    "ast_hash": "655a26c3054bc850cf8694028bbeefae",
     "semantic_hash": ""
   },
   "internal/modules/providers/oauth.go": {
@@ -852,15 +852,15 @@
     "semantic_hash": ""
   },
   "web/src/features/providers/ProvidersConsole.tsx": {
-    "mtime": 1795464723.5932844,
-    "seen": 1795464747.9281988,
-    "ast_hash": "e6759912446864861cc897929f4cb211",
+    "mtime": 1795491231.4049304,
+    "seen": 1795491474.1971953,
+    "ast_hash": "3003ad67141c1815dde96503c06251d3",
     "semantic_hash": ""
   },
   "web/src/features/providers/hooks.ts": {
-    "mtime": 1795403527.7623646,
-    "seen": 1795454269.4713817,
-    "ast_hash": "0ac353197134d18fdf0ce3526fe5c3c4",
+    "mtime": 1795491169.5277238,
+    "seen": 1795491474.1972446,
+    "ast_hash": "d5474ae962f2011551448c2b847577c7",
     "semantic_hash": ""
   },
   "web/src/features/providers/schemas.test.ts": {
@@ -870,9 +870,9 @@
     "semantic_hash": ""
   },
   "web/src/features/providers/schemas.ts": {
-    "mtime": 1795403527.7626371,
-    "seen": 1795454269.4713843,
-    "ast_hash": "577d42f6888682c96785ffac56dc3724",
+    "mtime": 1795491165.543608,
+    "seen": 1795491474.1972983,
+    "ast_hash": "acf0c217fa4e878a8e9bfdd5dd241c35",
     "semantic_hash": ""
   },
   "web/src/app/(dashboard)/dashboard/models/page.tsx": {
@@ -2346,9 +2346,9 @@
     "semantic_hash": ""
   },
   "web/src/features/providers/ProvidersModals.tsx": {
-    "mtime": 1795464855.4701843,
-    "seen": 1795464906.089391,
-    "ast_hash": "5ef798e8a31fe730b4423e40a4520a8e",
+    "mtime": 1795491448.9368956,
+    "seen": 1795491474.197197,
+    "ast_hash": "4c611e1f7489c498ba0e4f33ba38974e",
     "semantic_hash": ""
   },
   "web/src/features/providers/catalogUtils.test.ts": {
@@ -3477,6 +3477,30 @@
     "mtime": 1795464849.0849624,
     "seen": 1795464906.0894222,
     "ast_hash": "4a18dc7b228508422199e33edbb5cd47",
+    "semantic_hash": ""
+  },
+  "web/src/features/providers/modalUtils.test.ts": {
+    "mtime": 1795491448.8808951,
+    "seen": 1795491474.1972463,
+    "ast_hash": "d8b455004fc7b3c306eb15a73fb9e7ce",
+    "semantic_hash": ""
+  },
+  "web/src/features/providers/modalUtils.ts": {
+    "mtime": 1795491091.943467,
+    "seen": 1795491474.1972477,
+    "ast_hash": "f20a01a3a384e399a41625371d48fdaa",
+    "semantic_hash": ""
+  },
+  "docs/superpowers/plans/2026-11-24-provider-setup-modals.md": {
+    "mtime": 1795491023.1351302,
+    "seen": 1795491474.1993294,
+    "ast_hash": "29e4d4bc59b9082812cb2cec849b06e2",
+    "semantic_hash": ""
+  },
+  "docs/superpowers/specs/2026-11-24-provider-setup-modals-design.md": {
+    "mtime": 1795491028.7692082,
+    "seen": 1795491474.1994162,
+    "ast_hash": "643e669b4ca2b52b1a9f184fe42a7edc",
     "semantic_hash": ""
   }
 }

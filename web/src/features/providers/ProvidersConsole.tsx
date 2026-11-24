@@ -1372,11 +1372,15 @@ export function ProvidersConsole() {
         onClose={() => setCustomNodeModal((prev) => ({ ...prev, open: false }))}
         initialProtocol={customNodeModal.protocol}
         isId={isId}
-        onCreated={(node) =>
+        onCreated={(node, meta) =>
           setFeedbackBanner(
-            isId
-              ? `Custom endpoint "${node.name}" berhasil didaftarkan.`
-              : `Registered custom endpoint "${node.name}".`,
+            meta?.connectionCreated
+              ? isId
+                ? `Custom endpoint "${node.name}" beserta koneksi awalnya berhasil disimpan.`
+                : `Registered custom endpoint "${node.name}" with its initial connection.`
+              : isId
+                ? `Custom endpoint "${node.name}" berhasil didaftarkan.`
+                : `Registered custom endpoint "${node.name}".`,
           )
         }
       />

@@ -1,6 +1,7 @@
 package providers
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -106,6 +107,14 @@ type testConnectionResponse struct {
 	StatusCode int    `json:"status_code"`
 	LatencyMS  int64  `json:"latency_ms"`
 	Error      string `json:"error"`
+}
+
+type testDraftNodeRequest struct {
+	ProviderID string            `json:"provider_id"`
+	Protocol   string            `json:"protocol"`
+	BaseURL    string            `json:"base_url"`
+	APIKey     string            `json:"api_key"`
+	Headers    map[string]string `json:"headers"`
 }
 
 type oauthStartRequest struct {
@@ -639,33 +648,23 @@ func (m *Module) handleDeleteConnection(w http.ResponseWriter, r *http.Request) 
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func (m *Module) handleTestConnection(w http.ResponseWriter, r *http.Request) {
-	id := strings.TrimSpace(chi.URLParam(r, "id"))
-	if id == "" {
-		httpserver.WriteError(w, r, http.StatusBadRequest, "invalid_request", "connection id is required")
-		return
-	}
-
-	creds, err := m.ResolveCredentials(r.Context(), id)
-	if err != nil {
-		if errors.Is(err, contracts.ErrConnectionNotFound) {
-			httpserver.WriteError(w, r, http.StatusNotFound, "connection_not_found", "provider connection not found")
-			return
+func (m *Module) executeConnectivityTest(ctx context.Context, creds contracts.UpstreamCredentials) (testConnectionResponse, string, error) {
+	testCtx := httpclient.WithProviderID(ctx, creds.ProviderID)
+	var (
+		testReq *http.Request
+		err     error
+	)
+	if creds.ProviderID != "" {
+		if adapter, ok := m.GetAdapter(creds.ProviderID); ok {
+			testReq, err = adapter.BuildTestRequest(testCtx, creds)
+		} else {
+			testReq, err = buildProtocolTestRequest(testCtx, creds)
 		}
-		httpserver.WriteError(w, r, http.StatusInternalServerError, "internal_error", "failed to resolve connection credentials")
-		return
-	}
-
-	testCtx := httpclient.WithProviderID(r.Context(), creds.ProviderID)
-	var testReq *http.Request
-	if adapter, ok := m.GetAdapter(creds.ProviderID); ok {
-		testReq, err = adapter.BuildTestRequest(testCtx, creds)
 	} else {
 		testReq, err = buildProtocolTestRequest(testCtx, creds)
 	}
 	if err != nil {
-		httpserver.WriteError(w, r, http.StatusBadRequest, "invalid_request", "failed to build connectivity test request")
-		return
+		return testConnectionResponse{}, "error", err
 	}
 
 	start := time.Now()
@@ -695,6 +694,72 @@ func (m *Module) handleTestConnection(w http.ResponseWriter, r *http.Request) {
 			}
 			result.Error = truncateError(msg)
 		}
+	}
+
+	return result, statusText, nil
+}
+
+func (m *Module) handleTestNodeDraft(w http.ResponseWriter, r *http.Request) {
+	var req testDraftNodeRequest
+	if !decodeJSONBody(w, r, &req) {
+		return
+	}
+
+	protocol := strings.TrimSpace(req.Protocol)
+	if !isValidProtocol(protocol) {
+		httpserver.WriteError(w, r, http.StatusBadRequest, "invalid_request", "protocol must be one of openai-chat, openai-responses, anthropic, gemini")
+		return
+	}
+	baseURL, err := validateHTTPURL(req.BaseURL)
+	if err != nil {
+		httpserver.WriteError(w, r, http.StatusBadRequest, "invalid_request", "base_url: "+err.Error())
+		return
+	}
+	headers, err := validateHeaders(req.Headers)
+	if err != nil {
+		httpserver.WriteError(w, r, http.StatusBadRequest, "invalid_request", err.Error())
+		return
+	}
+
+	creds := contracts.UpstreamCredentials{
+		ProviderID:   strings.TrimSpace(req.ProviderID),
+		Protocol:     protocol,
+		BaseURL:      baseURL,
+		AuthType:     authTypeAPIKey,
+		APIKey:       strings.TrimSpace(req.APIKey),
+		ExtraHeaders: headers,
+	}
+
+	result, _, err := m.executeConnectivityTest(r.Context(), creds)
+	if err != nil {
+		httpserver.WriteError(w, r, http.StatusBadRequest, "invalid_request", "failed to build connectivity test request")
+		return
+	}
+
+	httpserver.WriteJSON(w, http.StatusOK, result)
+}
+
+func (m *Module) handleTestConnection(w http.ResponseWriter, r *http.Request) {
+	id := strings.TrimSpace(chi.URLParam(r, "id"))
+	if id == "" {
+		httpserver.WriteError(w, r, http.StatusBadRequest, "invalid_request", "connection id is required")
+		return
+	}
+
+	creds, err := m.ResolveCredentials(r.Context(), id)
+	if err != nil {
+		if errors.Is(err, contracts.ErrConnectionNotFound) {
+			httpserver.WriteError(w, r, http.StatusNotFound, "connection_not_found", "provider connection not found")
+			return
+		}
+		httpserver.WriteError(w, r, http.StatusInternalServerError, "internal_error", "failed to resolve connection credentials")
+		return
+	}
+
+	result, statusText, err := m.executeConnectivityTest(r.Context(), creds)
+	if err != nil {
+		httpserver.WriteError(w, r, http.StatusBadRequest, "invalid_request", "failed to build connectivity test request")
+		return
 	}
 
 	testedAt := time.Now().UTC().Format(rfc3339NanoFixed)

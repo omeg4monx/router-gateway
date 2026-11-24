@@ -12,6 +12,7 @@ import type {
   ProviderNode,
   ProvidersCatalogResponse,
   TestProviderConnectionResponse,
+  TestProviderNodeRequest,
   UpdateProviderConnectionRequest,
 } from "./schemas";
 
@@ -193,6 +194,20 @@ export function useDeleteProviderConnectionMutation() {
         queryClient.invalidateQueries({ queryKey: providersQueryKeys.connections }),
         queryClient.invalidateQueries({ queryKey: providersQueryKeys.connection(id) }),
       ]);
+    },
+  });
+}
+
+export function useTestProviderNodeDraftMutation() {
+  return useMutation<TestProviderConnectionResponse, Error, TestProviderNodeRequest>({
+    mutationFn: async (payload) => {
+      const { data, error } = await apiClient.POST("/api/providers/nodes/test", {
+        body: payload,
+      });
+      if (data) {
+        return data;
+      }
+      throw new Error(extractErrorMessage(error));
     },
   });
 }

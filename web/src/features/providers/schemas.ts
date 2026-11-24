@@ -9,6 +9,7 @@ export type ProviderNode = components["schemas"]["ProviderNode"];
 export type ProvidersCatalogResponse = components["schemas"]["ProvidersCatalogResponse"];
 export type ListProviderNodesResponse = components["schemas"]["ListProviderNodesResponse"];
 export type CreateProviderNodeRequest = components["schemas"]["CreateProviderNodeRequest"];
+export type TestProviderNodeRequest = components["schemas"]["TestProviderNodeRequest"];
 export type ProviderConnectionSummary = components["schemas"]["ProviderConnectionSummary"];
 export type ListProviderConnectionsResponse =
   components["schemas"]["ListProviderConnectionsResponse"];

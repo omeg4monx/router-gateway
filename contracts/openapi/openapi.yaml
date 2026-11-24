@@ -96,6 +96,8 @@ paths:
     $ref: './modules/providers.yaml#/paths/~1api~1providers~1catalog'
   /api/providers/nodes:
     $ref: './modules/providers.yaml#/paths/~1api~1providers~1nodes'
+  /api/providers/nodes/test:
+    $ref: './modules/providers.yaml#/paths/~1api~1providers~1nodes~1test'
   /api/providers/nodes/{id}:
     $ref: './modules/providers.yaml#/paths/~1api~1providers~1nodes~1{id}'
   /api/providers/connections:
@@ -444,6 +446,8 @@ components:
       $ref: './modules/providers.yaml#/components/schemas/ListProviderNodesResponse'
     CreateProviderNodeRequest:
       $ref: './modules/providers.yaml#/components/schemas/CreateProviderNodeRequest'
+    TestProviderNodeRequest:
+      $ref: './modules/providers.yaml#/components/schemas/TestProviderNodeRequest'
     ProviderConnectionSummary:
       $ref: './modules/providers.yaml#/components/schemas/ProviderConnectionSummary'
     ListProviderConnectionsResponse:

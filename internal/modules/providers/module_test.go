@@ -1300,3 +1300,114 @@ func TestWave2ProviderAdaptersRegisteredAndTestable(t *testing.T) {
 		}
 	}
 }
+
+func TestProviderDraftProbe(t *testing.T) {
+	var seenAuth atomic.Value
+	var seenExtra atomic.Value
+	var seenPath atomic.Value
+	var returnStatus atomic.Int32
+	var echoBody atomic.Value
+	returnStatus.Store(http.StatusOK)
+	echoBody.Store(`{"data":[{"id":"llama-3.3-70b"}]}`)
+
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		seenAuth.Store(r.Header.Get("Authorization"))
+		seenExtra.Store(r.Header.Get("X-Custom-Probe"))
+		seenPath.Store(r.URL.Path)
+		w.WriteHeader(int(returnStatus.Load()))
+		_, _ = w.Write([]byte(echoBody.Load().(string)))
+	}))
+	defer upstream.Close()
+
+	h := newTestHarness(t, nil, nil)
+
+	// 1. Authenticated openai-chat draft probe succeeds and forwards Bearer + custom headers.
+	const secretKey = "sk-draft-probe-secret-value"
+	rec := h.doRequest(t, http.MethodPost, "/api/providers/nodes/test", `{
+		"protocol": "openai-chat",
+		"base_url": "`+upstream.URL+`/v1",
+		"api_key": "`+secretKey+`",
+		"headers": {"X-Custom-Probe": "ok-123"}
+	}`, false)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("POST /api/providers/nodes/test status = %d: %s", rec.Code, rec.Body.String())
+	}
+	var resp struct {
+		OK         bool   `json:"ok"`
+		StatusCode int    `json:"status_code"`
+		LatencyMS  int64  `json:"latency_ms"`
+		Error      string `json:"error"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if !resp.OK || resp.StatusCode != http.StatusOK || resp.Error != "" {
+		t.Fatalf("unexpected success probe response: %+v", resp)
+	}
+	if seenAuth.Load() != "Bearer "+secretKey || seenExtra.Load() != "ok-123" || seenPath.Load() != "/v1/models" {
+		t.Fatalf("unexpected upstream request: auth=%v extra=%v path=%v", seenAuth.Load(), seenExtra.Load(), seenPath.Load())
+	}
+
+	// 2. Local / no-auth draft probe (e.g. Ollama) succeeds with no API key and leaves DB untouched.
+	seenAuth.Store("")
+	recNoAuth := h.doRequest(t, http.MethodPost, "/api/providers/nodes/test", `{
+		"protocol": "openai-chat",
+		"base_url": "`+upstream.URL+`/v1"
+	}`, false)
+	if recNoAuth.Code != http.StatusOK {
+		t.Fatalf("no-auth probe status = %d: %s", recNoAuth.Code, recNoAuth.Body.String())
+	}
+	if seenAuth.Load() != "" {
+		t.Fatalf("expected empty Authorization header for no-auth probe, got %v", seenAuth.Load())
+	}
+
+	nodesRec := h.doRequest(t, http.MethodGet, "/api/providers/nodes", "", false)
+	var nodesList struct {
+		Nodes []providers.ProviderNode `json:"nodes"`
+	}
+	_ = json.Unmarshal(nodesRec.Body.Bytes(), &nodesList)
+	if len(nodesList.Nodes) != 0 {
+		t.Fatalf("stateless probe must not persist nodes, got %d", len(nodesList.Nodes))
+	}
+
+	// 3. Upstream 401 echoing secret key must redact the secret from returned error.
+	returnStatus.Store(http.StatusUnauthorized)
+	echoBody.Store(`{"error":"invalid token ` + secretKey + `"}`)
+	recFail := h.doRequest(t, http.MethodPost, "/api/providers/nodes/test", `{
+		"protocol": "openai-chat",
+		"base_url": "`+upstream.URL+`/v1",
+		"api_key": "`+secretKey+`"
+	}`, false)
+	if recFail.Code != http.StatusOK {
+		t.Fatalf("401 probe status = %d: %s", recFail.Code, recFail.Body.String())
+	}
+	if strings.Contains(recFail.Body.String(), secretKey) {
+		t.Fatalf("probe response leaked api_key: %s", recFail.Body.String())
+	}
+	var failResp struct {
+		OK         bool   `json:"ok"`
+		StatusCode int    `json:"status_code"`
+		Error      string `json:"error"`
+	}
+	_ = json.Unmarshal(recFail.Body.Bytes(), &failResp)
+	if failResp.OK || failResp.StatusCode != http.StatusUnauthorized || failResp.Error == "" {
+		t.Fatalf("unexpected 401 probe response: %+v", failResp)
+	}
+
+	// 4. Invalid protocol or base_url returns HTTP 400.
+	badProto := h.doRequest(t, http.MethodPost, "/api/providers/nodes/test", `{
+		"protocol": "invalid-proto",
+		"base_url": "`+upstream.URL+`/v1"
+	}`, false)
+	if badProto.Code != http.StatusBadRequest {
+		t.Fatalf("bad protocol status = %d, want 400", badProto.Code)
+	}
+
+	badURL := h.doRequest(t, http.MethodPost, "/api/providers/nodes/test", `{
+		"protocol": "openai-chat",
+		"base_url": "ftp://example.com"
+	}`, false)
+	if badURL.Code != http.StatusBadRequest {
+		t.Fatalf("bad base_url status = %d, want 400", badURL.Code)
+	}
+}

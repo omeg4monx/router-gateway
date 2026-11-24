@@ -322,6 +322,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/providers/nodes/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Statelessly probe a draft custom endpoint or provider credential before saving */
+        post: operations["testProviderNodeDraft"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/providers/nodes/{id}": {
         parameters: {
             query?: never;
@@ -2809,6 +2826,16 @@ export interface components {
             /** Format: uri */
             base_url: string;
             models?: string[];
+            headers?: {
+                [key: string]: string;
+            };
+        };
+        TestProviderNodeRequest: {
+            provider_id?: string;
+            protocol: components["schemas"]["ProviderProtocol"];
+            /** Format: uri */
+            base_url: string;
+            api_key?: string;
             headers?: {
                 [key: string]: string;
             };
@@ -5605,6 +5632,57 @@ export interface operations {
             };
             /** @description Failed to create custom provider node. */
             500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    testProviderNodeDraft: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TestProviderNodeRequest"];
+            };
+        };
+        responses: {
+            /** @description Connectivity probe result (never writes to database and redacts secrets). */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TestProviderConnectionResponse"];
+                };
+            };
+            /** @description Malformed request body or validation error. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Administrative authentication is required. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Request body exceeds maximum allowed size. */
+            413: {
                 headers: {
                     [name: string]: unknown;
                 };
