@@ -128,6 +128,8 @@ paths:
     $ref: './modules/combos.yaml#/paths/~1api~1models~1catalog'
   /api/models/test:
     $ref: './modules/combos.yaml#/paths/~1api~1models~1test'
+  /api/models/identify:
+    $ref: './modules/combos.yaml#/paths/~1api~1models~1identify'
   /api/models/test-all:
     $ref: './modules/combos.yaml#/paths/~1api~1models~1test-all'
   /api/models/aliases:

@@ -142,6 +142,7 @@ func (m *Module) RegisterRoutes(mounts lifecycle.RouteMounts) {
 
 	mounts.AdminAPI.Get("/models/catalog", m.handleModelCatalog)
 	mounts.AdminAPI.Post("/models/test", m.handleTestModel)
+	mounts.AdminAPI.Post("/models/identify", m.handleIdentifyModel)
 	mounts.AdminAPI.Post("/models/test-all", m.handleTestAllModels)
 
 	mounts.AdminAPI.Get("/models/aliases", m.handleListAliases)

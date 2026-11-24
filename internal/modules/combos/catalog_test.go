@@ -21,6 +21,7 @@ import (
 type catalogFakeProviderStore struct {
 	connections []contracts.ProviderConnection
 	creds       map[string]contracts.UpstreamCredentials
+	refreshFn   func(connectionID string) (contracts.UpstreamCredentials, error)
 }
 
 func (f *catalogFakeProviderStore) ListEnabledConnections(_ context.Context) ([]contracts.ProviderConnection, error) {
@@ -35,7 +36,10 @@ func (f *catalogFakeProviderStore) ResolveCredentials(_ context.Context, connect
 	return c, nil
 }
 
-func (f *catalogFakeProviderStore) RefreshOAuthToken(_ context.Context, _ string) (contracts.UpstreamCredentials, error) {
+func (f *catalogFakeProviderStore) RefreshOAuthToken(_ context.Context, connectionID string) (contracts.UpstreamCredentials, error) {
+	if f.refreshFn != nil {
+		return f.refreshFn(connectionID)
+	}
 	return contracts.UpstreamCredentials{}, contracts.ErrOAuthRefreshUnsupported
 }
 
@@ -340,5 +344,132 @@ func TestModelAndComboLiveProbeEndpoints(t *testing.T) {
 	_ = json.Unmarshal(comboTestRec.Body.Bytes(), &comboTestResp)
 	if comboTestResp.ResolvedBy != "openai/gpt-4o" || len(comboTestResp.Results) != 2 {
 		t.Errorf("expected resolvedBy=openai/gpt-4o with 2 results, got %+v", comboTestResp)
+	}
+}
+
+func TestModelProbeOpenAIResponsesAndOAuthRefresh(t *testing.T) {
+	var seenResponsesPath string
+	var seenResponsesPayload map[string]any
+	var oauthAttempts int
+
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case strings.HasSuffix(r.URL.Path, "/responses"):
+			seenResponsesPath = r.URL.Path
+			_ = json.NewDecoder(r.Body).Decode(&seenResponsesPayload)
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(`{"id":"resp_ok","output":[]}`))
+		case strings.HasSuffix(r.URL.Path, "/chat/completions"):
+			oauthAttempts++
+			if r.Header.Get("Authorization") != "Bearer fresh-token" {
+				w.WriteHeader(http.StatusUnauthorized)
+				_, _ = w.Write([]byte(`{"error":{"message":"expired token"}}`))
+				return
+			}
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(`{"id":"chat_ok","choices":[]}`))
+		default:
+			w.WriteHeader(http.StatusNotFound)
+			_, _ = w.Write([]byte(`{"error":{"message":"unexpected path ` + r.URL.Path + `"}}`))
+		}
+	}))
+	defer upstream.Close()
+
+	refreshCalls := 0
+	store := &catalogFakeProviderStore{
+		connections: []contracts.ProviderConnection{
+			{
+				ID:         "conn_responses",
+				ProviderID: "codex",
+				Name:       "Codex Responses",
+				Protocol:   "openai-responses",
+				BaseURL:    upstream.URL + "/v1",
+				Priority:   1,
+				Enabled:    true,
+			},
+			{
+				ID:         "conn_oauth",
+				ProviderID: "qwen",
+				Name:       "Qwen OAuth",
+				Protocol:   "openai-chat",
+				BaseURL:    upstream.URL + "/v1",
+				Priority:   1,
+				Enabled:    true,
+			},
+		},
+		creds: map[string]contracts.UpstreamCredentials{
+			"conn_responses": {
+				ConnectionID: "conn_responses",
+				ProviderID:   "codex",
+				Protocol:     "openai-responses",
+				BaseURL:      upstream.URL + "/v1",
+				AuthType:     "api_key",
+				APIKey:       "sk-responses",
+			},
+			"conn_oauth": {
+				ConnectionID: "conn_oauth",
+				ProviderID:   "qwen",
+				Protocol:     "openai-chat",
+				BaseURL:      upstream.URL + "/v1",
+				AuthType:     "oauth",
+				AccessToken:  "stale-token",
+			},
+		},
+		refreshFn: func(connectionID string) (contracts.UpstreamCredentials, error) {
+			refreshCalls++
+			return contracts.UpstreamCredentials{
+				ConnectionID: connectionID,
+				ProviderID:   "qwen",
+				Protocol:     "openai-chat",
+				BaseURL:      upstream.URL + "/v1",
+				AuthType:     "oauth",
+				AccessToken:  "fresh-token",
+			}, nil
+		},
+	}
+
+	_, router := setupCatalogTestModule(t, store, upstream.Client())
+
+	// 1. openai-responses protocol should target /v1/responses with "input" payload.
+	req1 := httptest.NewRequest(http.MethodPost, "/api/models/test", bytes.NewBufferString(`{"providerId":"codex","modelId":"gpt-5-codex"}`))
+	rec1 := httptest.NewRecorder()
+	router.ServeHTTP(rec1, req1)
+	if rec1.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rec1.Code, rec1.Body.String())
+	}
+	var resp1 struct {
+		OK         bool   `json:"ok"`
+		StatusCode int    `json:"statusCode"`
+		Error      string `json:"error"`
+	}
+	_ = json.Unmarshal(rec1.Body.Bytes(), &resp1)
+	if !resp1.OK || resp1.StatusCode != http.StatusOK {
+		t.Fatalf("expected openai-responses probe to succeed, got %+v", resp1)
+	}
+	if seenResponsesPath != "/v1/responses" {
+		t.Errorf("expected path /v1/responses, got %q", seenResponsesPath)
+	}
+	if seenResponsesPayload["model"] != "gpt-5-codex" || seenResponsesPayload["input"] == nil {
+		t.Errorf("expected model + input payload for openai-responses, got %+v", seenResponsesPayload)
+	}
+
+	// 2. OAuth connection getting 401 should refresh once and succeed on retry.
+	req2 := httptest.NewRequest(http.MethodPost, "/api/models/test", bytes.NewBufferString(`{"providerId":"qwen","modelId":"qwen3-coder-plus"}`))
+	rec2 := httptest.NewRecorder()
+	router.ServeHTTP(rec2, req2)
+	if rec2.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rec2.Code, rec2.Body.String())
+	}
+	var resp2 struct {
+		OK         bool   `json:"ok"`
+		StatusCode int    `json:"statusCode"`
+		Error      string `json:"error"`
+	}
+	_ = json.Unmarshal(rec2.Body.Bytes(), &resp2)
+	if !resp2.OK || resp2.StatusCode != http.StatusOK {
+		t.Fatalf("expected OAuth retry probe to succeed, got %+v", resp2)
+	}
+	if refreshCalls != 1 || oauthAttempts != 2 {
+		t.Errorf("expected 1 refresh and 2 upstream attempts, got refresh=%d attempts=%d", refreshCalls, oauthAttempts)
 	}
 }

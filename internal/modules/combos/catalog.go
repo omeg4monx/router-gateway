@@ -449,39 +449,49 @@ func (m *Module) probeConnectionModel(ctx context.Context, connectionID, modelID
 	defer cancel()
 	probeCtx = httpclient.WithProviderID(probeCtx, creds.ProviderID)
 
-	req, err := buildModelProbeRequest(probeCtx, creds, modelID)
-	if err != nil {
-		return ModelTestResult{
-			OK:     false,
-			Status: "error",
-			Error:  sanitizeProbeError(err.Error(), creds),
-		}
-	}
-
 	client := m.httpClient
 	if client == nil {
 		client = &http.Client{Timeout: defaultProbeTimeout}
 	}
 
-	start := time.Now()
-	resp, doErr := client.Do(req)
-	latency := time.Since(start).Milliseconds()
+	executeProbe := func(activeCreds contracts.UpstreamCredentials) (int, []byte, int64, error) {
+		req, reqErr := buildModelProbeRequest(probeCtx, activeCreds, modelID)
+		if reqErr != nil {
+			return 0, nil, 0, reqErr
+		}
+		start := time.Now()
+		resp, doErr := client.Do(req)
+		latency := time.Since(start).Milliseconds()
+		if doErr != nil {
+			return 0, nil, latency, doErr
+		}
+		defer func() { _ = resp.Body.Close() }()
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, maxProbeResponseBytes))
+		return resp.StatusCode, body, latency, nil
+	}
 
-	if doErr != nil {
-		isTimeout := errors.Is(doErr, context.DeadlineExceeded) || strings.Contains(strings.ToLower(doErr.Error()), "timeout")
+	statusCode, body, latency, probeErr := executeProbe(creds)
+	if probeErr == nil && strings.EqualFold(creds.AuthType, "oauth") &&
+		(statusCode == http.StatusUnauthorized || statusCode == http.StatusForbidden) {
+		if refreshed, refreshErr := m.providers.RefreshOAuthToken(probeCtx, connectionID); refreshErr == nil &&
+			strings.TrimSpace(refreshed.AccessToken) != "" {
+			creds = refreshed
+			statusCode, body, latency, probeErr = executeProbe(creds)
+		}
+	}
+
+	if probeErr != nil {
+		isTimeout := errors.Is(probeErr, context.DeadlineExceeded) || strings.Contains(strings.ToLower(probeErr.Error()), "timeout")
 		return ModelTestResult{
 			OK:        false,
 			Status:    "error",
 			LatencyMS: latency,
-			Error:     sanitizeProbeError(doErr.Error(), creds),
+			Error:     sanitizeProbeError(probeErr.Error(), creds),
 			IsTimeout: isTimeout,
 		}
 	}
-	defer func() { _ = resp.Body.Close() }()
 
-	body, _ := io.ReadAll(io.LimitReader(resp.Body, maxProbeResponseBytes))
-
-	if resp.StatusCode >= http.StatusOK && resp.StatusCode < http.StatusMultipleChoices {
+	if statusCode >= http.StatusOK && statusCode < http.StatusMultipleChoices {
 		m.cooldown.RecordSuccess(connectionID)
 		status := "ok"
 		if latency >= slowModelThresholdMS {
@@ -491,21 +501,21 @@ func (m *Module) probeConnectionModel(ctx context.Context, connectionID, modelID
 			OK:         true,
 			Status:     status,
 			LatencyMS:  latency,
-			StatusCode: resp.StatusCode,
+			StatusCode: statusCode,
 		}
 	}
 
-	errMsg := extractUpstreamProbeError(resp.StatusCode, body, creds)
+	errMsg := extractUpstreamProbeError(statusCode, body, creds)
 	lowerErr := strings.ToLower(errMsg)
-	rateLimited := resp.StatusCode == http.StatusTooManyRequests || strings.Contains(lowerErr, "rate limit") || strings.Contains(lowerErr, "rate_limit")
+	rateLimited := statusCode == http.StatusTooManyRequests || strings.Contains(lowerErr, "rate limit") || strings.Contains(lowerErr, "rate_limit")
 	isQuota := strings.Contains(lowerErr, "quota") || strings.Contains(lowerErr, "insufficient") || strings.Contains(lowerErr, "billing") || strings.Contains(lowerErr, "credit")
-	isTimeout := resp.StatusCode == http.StatusRequestTimeout || resp.StatusCode == http.StatusGatewayTimeout || strings.Contains(lowerErr, "timeout")
+	isTimeout := statusCode == http.StatusRequestTimeout || statusCode == http.StatusGatewayTimeout || strings.Contains(lowerErr, "timeout")
 
 	return ModelTestResult{
 		OK:          false,
 		Status:      "error",
 		LatencyMS:   latency,
-		StatusCode:  resp.StatusCode,
+		StatusCode:  statusCode,
 		Error:       errMsg,
 		RateLimited: rateLimited,
 		IsQuota:     isQuota,
@@ -548,6 +558,17 @@ func buildModelProbeRequest(ctx context.Context, creds contracts.UpstreamCredent
 		payload = map[string]any{
 			"contents":         []map[string]any{{"role": "user", "parts": []map[string]string{{"text": "hi"}}}},
 			"generationConfig": map[string]int{"maxOutputTokens": 1},
+		}
+	case "openai-responses":
+		if strings.HasSuffix(baseURL, "/responses") {
+			targetURL = baseURL
+		} else {
+			targetURL = baseURL + "/responses"
+		}
+		payload = map[string]any{
+			"model":             modelID,
+			"input":             "hi",
+			"max_output_tokens": 16,
 		}
 	default:
 		if strings.HasSuffix(baseURL, "/chat/completions") || strings.HasSuffix(baseURL, "/responses") {

@@ -3,8 +3,13 @@ import {
   Activity,
   AlertCircle,
   AlertTriangle,
+  ArrowDownAZ,
+  ArrowDownWideNarrow,
   ArrowLeft,
+  ArrowUpNarrowWide,
+  ArrowUpZA,
   Bot,
+  Brain,
   Check,
   CheckCircle2,
   ChevronDown,
@@ -20,6 +25,7 @@ import {
   Plus,
   RefreshCw,
   Save,
+  ScanEye,
   Search,
   Server,
   Settings2,
@@ -38,6 +44,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/sha
 import { EmberRule } from "@/shared/ui/EmberRule";
 import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
+import {
+  type ModelIdentityResult,
+  runModelIdentityProbe,
+  runSingleModelTest,
+} from "../models/hooks";
+import type { CatalogTestResult } from "../models/types";
 import { buildProviderEntries, type ProviderEntry } from "./catalogUtils";
 import {
   type FetchConnectionModelsResponse,
@@ -50,6 +62,13 @@ import {
   useTestProviderConnectionMutation,
   useUpdateProviderConnectionMutation,
 } from "./hooks";
+import {
+  getModelIntelligenceProfile,
+  MODEL_TIER_BADGE,
+  type ModelSortDirection,
+  type ModelSortField,
+  sortProviderModels,
+} from "./modelIntelligence";
 import { ProviderLogo } from "./ProviderLogo";
 import { AddApiKeyModal, OAuthWizardModal } from "./ProvidersModals";
 import {
@@ -114,7 +133,18 @@ function ProviderStudioDetail({ providerId }: { providerId: string }) {
   const [confirmDeleteConnId, setConfirmDeleteConnId] = useState<string | null>(null);
   const [confirmDeleteNode, setConfirmDeleteNode] = useState(false);
   const [modelSearch, setModelSearch] = useState("");
+  const [modelSortField, setModelSortField] = useState<ModelSortField>("name");
+  const [modelSortDirection, setModelSortDirection] = useState<ModelSortDirection>("asc");
   const [copiedModelId, setCopiedModelId] = useState<string | null>(null);
+  const [testingModelIds, setTestingModelIds] = useState<Record<string, boolean>>({});
+  const [modelTestResults, setModelTestResults] = useState<Record<string, CatalogTestResult>>({});
+  const modelTestControllersRef = useRef<Map<string, AbortController>>(new Map());
+  const [identifyingModelIds, setIdentifyingModelIds] = useState<Record<string, boolean>>({});
+  const [modelIdentityResults, setModelIdentityResults] = useState<
+    Record<string, ModelIdentityResult>
+  >({});
+  const [openIdentityModelIds, setOpenIdentityModelIds] = useState<Record<string, boolean>>({});
+  const modelIdentityControllersRef = useRef<Map<string, AbortController>>(new Map());
 
   const adapters = catalogQuery.data?.adapters ?? [];
   const customNodes = catalogQuery.data?.custom_nodes ?? [];
@@ -181,11 +211,13 @@ function ProviderStudioDetail({ providerId }: { providerId: string }) {
 
   const filteredModels = useMemo(() => {
     const q = modelSearch.trim().toLowerCase();
-    if (!q) return allModels;
-    return allModels.filter(
-      (m) => m.id.toLowerCase().includes(q) || (m.name?.toLowerCase().includes(q) ?? false),
-    );
-  }, [allModels, modelSearch]);
+    const matched = !q
+      ? allModels
+      : allModels.filter(
+          (m) => m.id.toLowerCase().includes(q) || (m.name?.toLowerCase().includes(q) ?? false),
+        );
+    return sortProviderModels(matched, modelSortField, modelSortDirection);
+  }, [allModels, modelSearch, modelSortField, modelSortDirection]);
 
   const activeConnectionForLoad = sortedConnections.find((c) => c.enabled) ?? sortedConnections[0];
 
@@ -206,6 +238,19 @@ function ProviderStudioDetail({ providerId }: { providerId: string }) {
     activeConnectionForLoad?.enabled,
     fetchModelsMutate,
   ]);
+
+  useEffect(() => {
+    return () => {
+      for (const controller of modelTestControllersRef.current.values()) {
+        controller.abort();
+      }
+      modelTestControllersRef.current.clear();
+      for (const controller of modelIdentityControllersRef.current.values()) {
+        controller.abort();
+      }
+      modelIdentityControllersRef.current.clear();
+    };
+  }, []);
 
   if (catalogQuery.isPending && connectionsQuery.isPending) {
     return (
@@ -376,6 +421,65 @@ function ProviderStudioDetail({ providerId }: { providerId: string }) {
       window.setTimeout(() => setCopiedModelId((cur) => (cur === modelId ? null : cur)), 1800);
     } catch {
       // Ignore clipboard failures
+    }
+  };
+
+  const handleTestModel = async (modelId: string) => {
+    if (enabledCount === 0 || testingModelIds[modelId]) {
+      return;
+    }
+    const previous = modelTestControllersRef.current.get(modelId);
+    if (previous) {
+      previous.abort();
+    }
+    const controller = new AbortController();
+    modelTestControllersRef.current.set(modelId, controller);
+    setTestingModelIds((prev) => ({ ...prev, [modelId]: true }));
+    try {
+      const result = await runSingleModelTest(entry.id, modelId, controller.signal);
+      if (controller.signal.aborted) {
+        return;
+      }
+      setModelTestResults((prev) => ({ ...prev, [modelId]: result }));
+    } finally {
+      if (modelTestControllersRef.current.get(modelId) === controller) {
+        modelTestControllersRef.current.delete(modelId);
+      }
+      if (!controller.signal.aborted) {
+        setTestingModelIds((prev) => ({ ...prev, [modelId]: false }));
+      }
+    }
+  };
+
+  const handleIdentifyModel = async (modelId: string) => {
+    if (enabledCount === 0 || identifyingModelIds[modelId]) {
+      return;
+    }
+    const previous = modelIdentityControllersRef.current.get(modelId);
+    if (previous) {
+      previous.abort();
+    }
+    const controller = new AbortController();
+    modelIdentityControllersRef.current.set(modelId, controller);
+    setIdentifyingModelIds((prev) => ({ ...prev, [modelId]: true }));
+    try {
+      const result = await runModelIdentityProbe(entry.id, modelId, controller.signal);
+      if (controller.signal.aborted) {
+        return;
+      }
+      setModelIdentityResults((prev) => ({ ...prev, [modelId]: result }));
+      window.requestAnimationFrame(() => {
+        if (!controller.signal.aborted) {
+          setOpenIdentityModelIds((prev) => ({ ...prev, [modelId]: true }));
+        }
+      });
+    } finally {
+      if (modelIdentityControllersRef.current.get(modelId) === controller) {
+        modelIdentityControllersRef.current.delete(modelId);
+      }
+      if (!controller.signal.aborted) {
+        setIdentifyingModelIds((prev) => ({ ...prev, [modelId]: false }));
+      }
     }
   };
 
@@ -1003,6 +1107,111 @@ function ProviderStudioDetail({ providerId }: { providerId: string }) {
                 />
               </div>
             ) : null}
+            {allModels.length > 1 ? (
+              <div className="flex w-full items-center gap-1.5 sm:w-auto">
+                <Button
+                  type="button"
+                  size="xs"
+                  variant={modelSortField === "intelligence" ? "default" : "secondary"}
+                  className="flex-1 shrink-0 sm:flex-none"
+                  onClick={() => {
+                    if (modelSortField === "intelligence") {
+                      setModelSortField("name");
+                      setModelSortDirection("asc");
+                    } else {
+                      setModelSortField("intelligence");
+                      setModelSortDirection("desc");
+                    }
+                  }}
+                  title={
+                    modelSortField === "intelligence"
+                      ? isId
+                        ? "Diurutkan berdasarkan kecerdasan (klik untuk urutkan nama)"
+                        : "Sorted by intelligence (click to sort by name)"
+                      : isId
+                        ? "Urutkan berdasarkan tingkat kecerdasan"
+                        : "Sort by intelligence level"
+                  }
+                >
+                  <Brain className="h-3.5 w-3.5" aria-hidden="true" />
+                  <span>
+                    {modelSortField === "intelligence"
+                      ? isId
+                        ? "Kecerdasan"
+                        : "Intelligence"
+                      : isId
+                        ? "Nama"
+                        : "Name"}
+                  </span>
+                </Button>
+                <Button
+                  type="button"
+                  size="xs"
+                  variant="secondary"
+                  className="flex-1 shrink-0 sm:flex-none"
+                  onClick={() => setModelSortDirection((prev) => (prev === "asc" ? "desc" : "asc"))}
+                  aria-label={
+                    modelSortField === "intelligence"
+                      ? modelSortDirection === "desc"
+                        ? isId
+                          ? "Urutkan kecerdasan dari terendah"
+                          : "Sort intelligence lowest first"
+                        : isId
+                          ? "Urutkan kecerdasan dari tertinggi"
+                          : "Sort intelligence highest first"
+                      : modelSortDirection === "asc"
+                        ? isId
+                          ? "Urutkan model Z ke A"
+                          : "Sort models Z to A"
+                        : isId
+                          ? "Urutkan model A ke Z"
+                          : "Sort models A to Z"
+                  }
+                  title={
+                    modelSortField === "intelligence"
+                      ? modelSortDirection === "desc"
+                        ? isId
+                          ? "Kecerdasan tertinggi dulu (klik untuk terendah)"
+                          : "Highest intelligence first (click for lowest)"
+                        : isId
+                          ? "Kecerdasan terendah dulu (klik untuk tertinggi)"
+                          : "Lowest intelligence first (click for highest)"
+                      : modelSortDirection === "asc"
+                        ? isId
+                          ? "Urutan A–Z (klik untuk Z–A)"
+                          : "Sorted A–Z (click for Z–A)"
+                        : isId
+                          ? "Urutan Z–A (klik untuk A–Z)"
+                          : "Sorted Z–A (click for A–Z)"
+                  }
+                >
+                  {modelSortField === "intelligence" ? (
+                    modelSortDirection === "desc" ? (
+                      <ArrowDownWideNarrow className="h-3.5 w-3.5" aria-hidden="true" />
+                    ) : (
+                      <ArrowUpNarrowWide className="h-3.5 w-3.5" aria-hidden="true" />
+                    )
+                  ) : modelSortDirection === "asc" ? (
+                    <ArrowDownAZ className="h-3.5 w-3.5" aria-hidden="true" />
+                  ) : (
+                    <ArrowUpZA className="h-3.5 w-3.5" aria-hidden="true" />
+                  )}
+                  <span>
+                    {modelSortField === "intelligence"
+                      ? modelSortDirection === "desc"
+                        ? isId
+                          ? "Tertinggi"
+                          : "Highest"
+                        : isId
+                          ? "Terendah"
+                          : "Lowest"
+                      : modelSortDirection === "asc"
+                        ? "A–Z"
+                        : "Z–A"}
+                  </span>
+                </Button>
+              </div>
+            ) : null}
             <Button
               type="button"
               size="xs"
@@ -1091,55 +1300,307 @@ function ProviderStudioDetail({ providerId }: { providerId: string }) {
                 : "No built-in models listed for this provider."}
             </p>
           ) : (
-            <div className="flex flex-wrap gap-2.5">
+            <div className="grid grid-cols-1 items-start gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
               {filteredModels.map((model) => {
                 const fullModel = model.id.includes("/") ? model.id : `${modelPrefix}/${model.id}`;
                 const isCopied = copiedModelId === model.id;
+                const isTestingModel = Boolean(testingModelIds[model.id]);
+                const modelTestResult = modelTestResults[model.id];
+                const isIdentifyingModel = Boolean(identifyingModelIds[model.id]);
+                const identityResult = modelIdentityResults[model.id];
+                const isIdentityOpen = Boolean(identityResult && openIdentityModelIds[model.id]);
+                const hasSubtitle = Boolean(model.name && model.name.trim() !== model.id);
+                const intelligence = getModelIntelligenceProfile(model.id, model.name);
+                const tierBadge = MODEL_TIER_BADGE[intelligence.tier];
+
                 return (
                   <div
                     key={model.id}
-                    className="group max-w-full min-w-0 rounded-[5px] border border-[var(--color-border)] px-2 py-1 text-[11px] transition-colors hover:bg-[var(--color-surface-2)]/60"
+                    className="group flex min-h-[96px] min-w-0 flex-col justify-between gap-2.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2.5 transition-colors hover:border-[var(--border-strong)] hover:bg-[var(--color-surface-2)]/50"
                   >
-                    <div className="flex min-w-0 items-center gap-1.5">
-                      <Bot
-                        className="h-3.5 w-3.5 shrink-0 text-[var(--color-text-muted)]"
-                        aria-hidden="true"
-                      />
-                      <div className="flex min-w-0 flex-1 flex-col gap-0">
-                        <div className="flex min-w-0 items-center gap-1.5">
-                          <code className="max-w-[68vw] truncate rounded bg-[var(--color-surface-2)] px-1 py-0.5 font-mono text-[10.5px] text-[var(--color-text-muted)] sm:max-w-[300px]">
-                            {fullModel}
-                          </code>
-                          {model.isLive ? (
-                            <span className="shrink-0 rounded bg-[var(--color-primary)]/15 px-1.5 py-0.5 text-[9px] font-bold leading-none text-[var(--color-primary)]">
-                              LIVE
-                            </span>
-                          ) : null}
-                          {model.isFree ? (
-                            <span className="shrink-0 rounded bg-[var(--status-ok-bg)] px-1.5 py-0.5 text-[9px] font-bold leading-none text-[var(--status-ok)]">
-                              FREE
-                            </span>
-                          ) : null}
-                        </div>
-                        {model.name ? (
-                          <span className="truncate pl-0.5 text-[9px] italic text-[var(--color-text-subtle)]">
-                            {model.name}
+                    <div className="min-w-0 space-y-1">
+                      <div className="flex min-w-0 items-center gap-1.5">
+                        <Bot
+                          className="h-3.5 w-3.5 shrink-0 text-[var(--color-text-muted)]"
+                          aria-hidden="true"
+                        />
+                        <code
+                          className="min-w-0 flex-1 truncate rounded bg-[var(--color-surface-2)] px-1.5 py-0.5 font-mono text-[11px] text-[var(--color-text-main)]"
+                          title={fullModel}
+                        >
+                          {fullModel}
+                        </code>
+                        <span
+                          className={cn(
+                            "shrink-0 rounded px-1.5 py-0.5 text-[9px] font-bold leading-none",
+                            tierBadge.className,
+                          )}
+                          title={
+                            isId
+                              ? `Tier ${tierBadge.label} · estimasi skor ~${intelligence.score} (${intelligence.source === "curated" ? "kurasi" : "heuristik"})`
+                              : `${tierBadge.label} tier · est. score ~${intelligence.score} (${intelligence.source})`
+                          }
+                        >
+                          {tierBadge.label}
+                        </span>
+                        {model.isLive ? (
+                          <span className="shrink-0 rounded bg-[var(--color-primary)]/15 px-1.5 py-0.5 text-[9px] font-bold leading-none text-[var(--color-primary)]">
+                            LIVE
+                          </span>
+                        ) : null}
+                        {model.isFree ? (
+                          <span className="shrink-0 rounded bg-[var(--status-ok-bg)] px-1.5 py-0.5 text-[9px] font-bold leading-none text-[var(--status-ok)]">
+                            FREE
                           </span>
                         ) : null}
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => void handleCopyModel(model.id)}
-                        title={isCopied ? "Copied!" : `Copy ${fullModel}`}
-                        aria-label={`Copy ${fullModel}`}
-                        className="shrink-0 cursor-pointer rounded p-1 text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface-2)] hover:text-[var(--color-primary)]"
-                      >
-                        {isCopied ? (
-                          <Check className="h-3 w-3 text-[var(--status-ok)]" aria-hidden="true" />
-                        ) : (
-                          <Copy className="h-3 w-3" aria-hidden="true" />
+                      {hasSubtitle ? (
+                        <p
+                          className="truncate pl-5 text-[11px] text-[var(--color-text-muted)]"
+                          title={model.name}
+                        >
+                          {model.name}
+                        </p>
+                      ) : null}
+                    </div>
+
+                    <div className="border-t border-[var(--color-border-subtle)] pt-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          {isTestingModel ? (
+                            <span className="inline-flex items-center gap-1 font-mono text-[11px] text-[var(--color-text-muted)]">
+                              <RefreshCw className="h-3 w-3 animate-spin" aria-hidden="true" />
+                              <span>{isId ? "Menguji..." : "Testing..."}</span>
+                            </span>
+                          ) : modelTestResult ? (
+                            <Badge
+                              variant={
+                                modelTestResult.status === "ok"
+                                  ? "success"
+                                  : modelTestResult.status === "slow"
+                                    ? "warning"
+                                    : "destructive"
+                              }
+                              className="tabular-nums"
+                            >
+                              {modelTestResult.status === "ok"
+                                ? `OK · ${modelTestResult.latencyMs ?? 0}ms`
+                                : modelTestResult.status === "slow"
+                                  ? `SLOW · ${modelTestResult.latencyMs ?? 0}ms`
+                                  : `FAIL${modelTestResult.statusCode ? ` ${modelTestResult.statusCode}` : ""}`}
+                            </Badge>
+                          ) : (
+                            <span className="font-mono text-[10.5px] text-[var(--color-text-subtle)]">
+                              {enabledCount > 0
+                                ? isId
+                                  ? "Siap diuji"
+                                  : "Ready"
+                                : isId
+                                  ? "Butuh koneksi aktif"
+                                  : "Needs active connection"}
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="flex shrink-0 items-center gap-1">
+                          <Button
+                            type="button"
+                            size="xs"
+                            variant="secondary"
+                            disabled={enabledCount === 0 || isTestingModel}
+                            onClick={() => void handleTestModel(model.id)}
+                            aria-label={`Test ${fullModel}`}
+                            title={
+                              enabledCount > 0
+                                ? isId
+                                  ? `Tes model ${fullModel}`
+                                  : `Test model ${fullModel}`
+                                : isId
+                                  ? "Tambahkan atau aktifkan koneksi terlebih dahulu untuk mengetes model"
+                                  : "Add or enable a connection first to test this model"
+                            }
+                            className="h-7 px-2 text-[11px]"
+                          >
+                            {isTestingModel ? (
+                              <RefreshCw className="h-3 w-3 animate-spin" aria-hidden="true" />
+                            ) : (
+                              <Activity className="h-3 w-3" aria-hidden="true" />
+                            )}
+                            <span>{isId ? "Tes" : "Test"}</span>
+                          </Button>
+                          <Button
+                            type="button"
+                            size="xs"
+                            variant="secondary"
+                            disabled={enabledCount === 0 || isIdentifyingModel}
+                            onClick={() => void handleIdentifyModel(model.id)}
+                            aria-label={`Unmask ${fullModel}`}
+                            title={
+                              enabledCount > 0
+                                ? isId
+                                  ? `Cek identitas asli model ${fullModel} (deteksi masking)`
+                                  : `Probe true identity of ${fullModel} (detect masking)`
+                                : isId
+                                  ? "Tambahkan atau aktifkan koneksi terlebih dahulu untuk cek identitas model"
+                                  : "Add or enable a connection first to inspect model identity"
+                            }
+                            className="h-7 px-2 text-[11px]"
+                          >
+                            {isIdentifyingModel ? (
+                              <RefreshCw className="h-3 w-3 animate-spin" aria-hidden="true" />
+                            ) : (
+                              <ScanEye className="h-3 w-3" aria-hidden="true" />
+                            )}
+                            <span>{isId ? "Cek Asli" : "Unmask"}</span>
+                          </Button>
+                          <button
+                            type="button"
+                            onClick={() => void handleCopyModel(model.id)}
+                            title={isCopied ? "Copied!" : `Copy ${fullModel}`}
+                            aria-label={`Copy ${fullModel}`}
+                            className="inline-flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded border border-[var(--color-border)] text-[var(--color-text-muted)] transition-colors hover:border-[var(--border-strong)] hover:bg-[var(--color-surface-2)] hover:text-[var(--color-primary)]"
+                          >
+                            {isCopied ? (
+                              <Check
+                                className="h-3.5 w-3.5 text-[var(--status-ok)]"
+                                aria-hidden="true"
+                              />
+                            ) : (
+                              <Copy className="h-3.5 w-3.5" aria-hidden="true" />
+                            )}
+                          </button>
+                        </div>
+                      </div>
+
+                      <div
+                        className={cn(
+                          "grid transition-[grid-template-rows,opacity] duration-200 ease-out motion-reduce:transition-none",
+                          modelTestResult?.status === "error" && modelTestResult.error
+                            ? "grid-rows-[1fr] opacity-100"
+                            : "grid-rows-[0fr] opacity-0",
                         )}
-                      </button>
+                      >
+                        <div className="overflow-hidden">
+                          {modelTestResult?.status === "error" && modelTestResult.error ? (
+                            <p
+                              className="pt-1.5 truncate font-mono text-[10.5px] text-[var(--status-error)]"
+                              title={modelTestResult.error}
+                            >
+                              {modelTestResult.error}
+                            </p>
+                          ) : null}
+                        </div>
+                      </div>
+
+                      <div
+                        className={cn(
+                          "grid transition-[grid-template-rows,opacity] duration-200 ease-out motion-reduce:transition-none",
+                          isIdentityOpen
+                            ? "grid-rows-[1fr] opacity-100"
+                            : "grid-rows-[0fr] opacity-0",
+                        )}
+                        aria-hidden={!isIdentityOpen}
+                      >
+                        <div className="overflow-hidden">
+                          {identityResult ? (
+                            <div className="mt-1.5 space-y-1.5 rounded-md border border-[var(--color-border-subtle)] bg-[var(--color-surface-2)]/60 p-2 text-[10.5px]">
+                              <div className="flex items-center justify-between gap-1.5">
+                                <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+                                  <Badge
+                                    variant={
+                                      identityResult.verdict === "verified"
+                                        ? "success"
+                                        : identityResult.verdict === "suspected_masked"
+                                          ? "destructive"
+                                          : identityResult.verdict === "error"
+                                            ? "destructive"
+                                            : "warning"
+                                    }
+                                  >
+                                    {identityResult.verdict === "verified"
+                                      ? isId
+                                        ? `Asli · ${identityResult.confidence}`
+                                        : `Verified · ${identityResult.confidence}`
+                                      : identityResult.verdict === "suspected_masked"
+                                        ? `Masked → ${identityResult.detectedModel || identityResult.detectedFamily || "?"} · ${identityResult.confidence}`
+                                        : identityResult.verdict === "error"
+                                          ? isId
+                                            ? "Cek Gagal"
+                                            : "Probe Failed"
+                                          : isId
+                                            ? "Tidak Pasti"
+                                            : "Inconclusive"}
+                                  </Badge>
+                                  {identityResult.reportedModel ? (
+                                    <span
+                                      className="truncate font-mono text-[10px] text-[var(--color-text-muted)]"
+                                      title={`response.model: ${identityResult.reportedModel}`}
+                                    >
+                                      model: {identityResult.reportedModel}
+                                    </span>
+                                  ) : null}
+                                </div>
+                                <button
+                                  type="button"
+                                  tabIndex={isIdentityOpen ? 0 : -1}
+                                  onClick={() =>
+                                    setOpenIdentityModelIds((prev) => ({
+                                      ...prev,
+                                      [model.id]: false,
+                                    }))
+                                  }
+                                  aria-label={
+                                    isId ? "Tutup hasil cek asli" : "Dismiss identity result"
+                                  }
+                                  className="shrink-0 cursor-pointer rounded p-0.5 text-[var(--color-text-muted)] hover:bg-[var(--color-surface-2)] hover:text-[var(--color-text-main)]"
+                                >
+                                  <X className="h-3 w-3" aria-hidden="true" />
+                                </button>
+                              </div>
+
+                              {identityResult.error ? (
+                                <p
+                                  className="truncate font-mono text-[10px] text-[var(--status-error)]"
+                                  title={identityResult.error}
+                                >
+                                  {identityResult.error}
+                                </p>
+                              ) : null}
+
+                              {identityResult.signals.length > 0 ? (
+                                <ul className="space-y-0.5 text-[10px] text-[var(--color-text-secondary)]">
+                                  {identityResult.signals.slice(0, 3).map((sig) => (
+                                    <li key={sig} className="truncate" title={sig}>
+                                      • {sig}
+                                    </li>
+                                  ))}
+                                </ul>
+                              ) : null}
+
+                              {identityResult.selfReport ? (
+                                <p
+                                  className="line-clamp-2 font-mono text-[10px] text-[var(--color-text-muted)]"
+                                  title={identityResult.selfReport}
+                                >
+                                  &ldquo;{identityResult.selfReport}&rdquo;
+                                </p>
+                              ) : null}
+
+                              <div
+                                className="flex items-start gap-1 border-t border-[var(--color-border-subtle)] pt-1 text-[9.5px] leading-snug text-[var(--color-text-muted)]"
+                                title={identityResult.limitationNote}
+                              >
+                                <Info className="mt-0.5 h-3 w-3 shrink-0" aria-hidden="true" />
+                                <span>
+                                  {isId
+                                    ? "Batasan: Proxy yang menulis ulang seluruh metadata/header sekaligus menyuntikkan system prompt penyamaran tetap dapat menyamarkan model asli; gunakan bukti di atas sebagai indikasi."
+                                    : identityResult.limitationNote}
+                                </span>
+                              </div>
+                            </div>
+                          ) : null}
+                        </div>
+                      </div>
                     </div>
                   </div>
                 );
@@ -1183,7 +1644,7 @@ export function ProviderDetailView() {
   const connectionId = (searchParams.get("id") ?? "").trim();
 
   if (providerId && !connectionId) {
-    return <ProviderStudioDetail providerId={providerId} />;
+    return <ProviderStudioDetail key={providerId} providerId={providerId} />;
   }
 
   return <ConnectionDetailEditor connectionId={connectionId} />;

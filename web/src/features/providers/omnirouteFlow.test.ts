@@ -28,10 +28,13 @@ describe("OmniRoute provider detail page (?provider=<id>) flow & styling", () =>
     expect(detailSource).toContain("buildProviderEntries");
   });
 
-  test("ProviderDetailView renders OmniRoute Connections card with priority controls and Available Models chips", () => {
+  test("ProviderDetailView renders OmniRoute Connections card with priority controls and proportional Available Models grid", () => {
     expect(detailSource).toContain("Connections");
     expect(detailSource).toContain("Available Models");
-    expect(detailSource).toContain("rounded-[5px] border border-[var(--color-border)] px-2 py-1");
+    expect(detailSource).toContain(
+      "grid grid-cols-1 items-start gap-2.5 sm:grid-cols-2 lg:grid-cols-3",
+    );
+    expect(detailSource).toContain("rounded-lg border border-[var(--color-border)]");
     expect(detailSource).toContain("AddApiKeyModal");
     expect(detailSource).toContain("OAuthWizardModal");
   });
