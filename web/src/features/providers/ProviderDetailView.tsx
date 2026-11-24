@@ -50,7 +50,9 @@ import {
   runSingleModelTest,
 } from "../models/hooks";
 import type { CatalogTestResult } from "../models/types";
+import { AddCustomModelModal } from "./AddCustomModelModal";
 import { buildProviderEntries, type ProviderEntry } from "./catalogUtils";
+import { removeModelFromList } from "./customModelUtils";
 import {
   type FetchConnectionModelsResponse,
   useDeleteProviderConnectionMutation,
@@ -70,7 +72,7 @@ import {
   sortProviderModels,
 } from "./modelIntelligence";
 import { ProviderLogo } from "./ProviderLogo";
-import { AddApiKeyModal, OAuthWizardModal } from "./ProvidersModals";
+import { AddApiKeyModal, EditConnectionModal, OAuthWizardModal } from "./ProvidersModals";
 import {
   connectionToEditFormValues,
   DEFAULT_UPDATE_CONNECTION_VALUES,
@@ -118,6 +120,11 @@ function ProviderStudioDetail({ providerId }: { providerId: string }) {
 
   const [showAddApiKeyModal, setShowAddApiKeyModal] = useState(false);
   const [showOAuthModal, setShowOAuthModal] = useState(false);
+  const [showAddModelModal, setShowAddModelModal] = useState(false);
+  const [removingModelId, setRemovingModelId] = useState<string | null>(null);
+  const [editingConnection, setEditingConnection] = useState<ProviderConnectionSummary | null>(
+    null,
+  );
   const [feedbackBanner, setFeedbackBanner] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [busyConnectionId, setBusyConnectionId] = useState<string | null>(null);
@@ -127,7 +134,6 @@ function ProviderStudioDetail({ providerId }: { providerId: string }) {
   >({});
   const [loadedModelsResult, setLoadedModelsResult] =
     useState<FetchConnectionModelsResponse | null>(null);
-  const [savingLoadedModels, setSavingLoadedModels] = useState(false);
   const autoLoadedConnRef = useRef<string | null>(null);
   const fetchModelsMutate = fetchModelsMutation.mutate;
   const [confirmDeleteConnId, setConfirmDeleteConnId] = useState<string | null>(null);
@@ -165,11 +171,39 @@ function ProviderStudioDetail({ providerId }: { providerId: string }) {
     return [...entry.connections].sort((a, b) => a.priority - b.priority);
   }, [entry]);
 
+  const activeConnectionForLoad = sortedConnections.find((c) => c.enabled) ?? sortedConnections[0];
+
   const allModels = useMemo(() => {
     if (!entry) return [];
     const seen = new Set<string>();
-    const catalogIds = new Set(entry.models.map((m) => m.id.trim()));
-    const list: Array<{ id: string; name?: string; isFree?: boolean; isLive?: boolean }> = [];
+    const catalogIds = new Set([
+      ...entry.models.map((m) => m.id.trim()),
+      ...entry.defaultModels.map((m) => m.trim()),
+    ]);
+    const liveIds = new Set(
+      loadedModelsResult && loadedModelsResult.source === "upstream"
+        ? loadedModelsResult.models.map((m) => m.id.trim())
+        : [],
+    );
+    const savedConnIds = new Set<string>();
+    for (const conn of entry.connections) {
+      for (const m of conn.models) {
+        const trimmed = m.trim();
+        if (trimmed) {
+          savedConnIds.add(trimmed);
+        }
+      }
+    }
+
+    const list: Array<{
+      id: string;
+      name?: string;
+      isFree?: boolean;
+      isLive?: boolean;
+      isCustom?: boolean;
+      isSaved?: boolean;
+    }> = [];
+
     if (loadedModelsResult && loadedModelsResult.source === "upstream") {
       for (const m of loadedModelsResult.models) {
         const trimmed = m.id.trim();
@@ -179,6 +213,7 @@ function ProviderStudioDetail({ providerId }: { providerId: string }) {
             id: trimmed,
             name: m.name,
             isLive: !catalogIds.has(trimmed),
+            isSaved: savedConnIds.has(trimmed),
           });
         }
       }
@@ -187,14 +222,19 @@ function ProviderStudioDetail({ providerId }: { providerId: string }) {
       const trimmed = m.id.trim();
       if (trimmed && !seen.has(trimmed)) {
         seen.add(trimmed);
-        list.push({ id: trimmed, name: m.name, isFree: m.isFree });
+        list.push({
+          id: trimmed,
+          name: m.name,
+          isFree: m.isFree,
+          isSaved: savedConnIds.has(trimmed),
+        });
       }
     }
     for (const m of entry.defaultModels) {
       const trimmed = m.trim();
       if (trimmed && !seen.has(trimmed)) {
         seen.add(trimmed);
-        list.push({ id: trimmed });
+        list.push({ id: trimmed, isSaved: savedConnIds.has(trimmed) });
       }
     }
     for (const conn of entry.connections) {
@@ -202,12 +242,19 @@ function ProviderStudioDetail({ providerId }: { providerId: string }) {
         const trimmed = m.trim();
         if (trimmed && !seen.has(trimmed)) {
           seen.add(trimmed);
-          list.push({ id: trimmed });
+          const canClassifyCustom =
+            !fetchModelsMutation.isPending &&
+            (loadedModelsResult !== null || !activeConnectionForLoad?.enabled);
+          list.push({
+            id: trimmed,
+            isCustom: canClassifyCustom && !catalogIds.has(trimmed) && !liveIds.has(trimmed),
+            isSaved: true,
+          });
         }
       }
     }
     return list;
-  }, [entry, loadedModelsResult]);
+  }, [entry, loadedModelsResult, fetchModelsMutation.isPending, activeConnectionForLoad?.enabled]);
 
   const filteredModels = useMemo(() => {
     const q = modelSearch.trim().toLowerCase();
@@ -218,8 +265,6 @@ function ProviderStudioDetail({ providerId }: { providerId: string }) {
         );
     return sortProviderModels(matched, modelSortField, modelSortDirection);
   }, [allModels, modelSearch, modelSortField, modelSortDirection]);
-
-  const activeConnectionForLoad = sortedConnections.find((c) => c.enabled) ?? sortedConnections[0];
 
   // Auto-detect & load live models from upstream whenever any provider with an active connection is opened.
   useEffect(() => {
@@ -496,38 +541,32 @@ function ProviderStudioDetail({ providerId }: { providerId: string }) {
     });
   };
 
-  const handleSaveLoadedModels = async () => {
-    if (
-      loadedModelsResult?.source !== "upstream" ||
-      loadedModelsResult.models.length === 0 ||
-      savingLoadedModels
-    ) {
-      return;
-    }
-    const targetConn =
-      sortedConnections.find((c) => c.id === loadedModelsResult.connection_id) ??
-      activeConnectionForLoad;
-    if (!targetConn) return;
+  const handleRemoveCustomModel = async (modelId: string) => {
+    if (removingModelId) return;
+    const targets = sortedConnections.filter((conn) =>
+      conn.models.some((m) => m.trim() === modelId),
+    );
+    if (targets.length === 0) return;
 
-    setSavingLoadedModels(true);
     setActionError(null);
+    setRemovingModelId(modelId);
     try {
-      const merged = Array.from(
-        new Set([...loadedModelsResult.models.map((m) => m.id), ...targetConn.models]),
-      );
-      await updateConnMutation.mutateAsync({
-        id: targetConn.id,
-        body: { models: merged },
-      });
+      for (const conn of targets) {
+        const nextModels = removeModelFromList(conn.models, modelId);
+        await updateConnMutation.mutateAsync({
+          id: conn.id,
+          body: { models: nextModels },
+        });
+      }
       setFeedbackBanner(
         isId
-          ? `${merged.length} model disimpan ke koneksi "${targetConn.name}".`
-          : `Saved ${merged.length} models to connection "${targetConn.name}".`,
+          ? `Model manual "${modelId}" dihapus dari koneksi ${entry.name}.`
+          : `Removed custom model "${modelId}" from ${entry.name}.`,
       );
     } catch (err) {
-      setActionError(err instanceof Error ? err.message : "Failed to save models");
+      setActionError(err instanceof Error ? err.message : "Failed to remove custom model.");
     } finally {
-      setSavingLoadedModels(false);
+      setRemovingModelId(null);
     }
   };
 
@@ -969,13 +1008,16 @@ function ProviderStudioDetail({ providerId }: { providerId: string }) {
                             <span>{isId ? "Tes" : "Test"}</span>
                           </Button>
 
-                          <Link
-                            to={`/dashboard/providers/detail/?id=${encodeURIComponent(conn.id)}`}
-                            className="inline-flex h-8 flex-1 items-center justify-center gap-1 rounded border border-[var(--border-subtle)] bg-[var(--bg-surface-raised)] px-2.5 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:border-[var(--border-strong)] hover:text-[var(--text-primary)] sm:flex-none"
+                          <Button
+                            type="button"
+                            size="xs"
+                            variant="secondary"
+                            className="flex-1 sm:flex-none"
+                            onClick={() => setEditingConnection(conn)}
                           >
                             <Settings2 className="h-3.5 w-3.5" aria-hidden="true" />
                             <span>{isId ? "Edit" : "Edit"}</span>
-                          </Link>
+                          </Button>
                         </div>
 
                         <div className="flex items-center gap-2">
@@ -1212,38 +1254,60 @@ function ProviderStudioDetail({ providerId }: { providerId: string }) {
                 </Button>
               </div>
             ) : null}
-            <Button
-              type="button"
-              size="xs"
-              variant="secondary"
-              className="w-full shrink-0 sm:w-auto"
-              disabled={!activeConnectionForLoad || fetchModelsMutation.isPending}
-              title={
-                activeConnectionForLoad
-                  ? isId
-                    ? `Muat daftar model terbaru dari ${activeConnectionForLoad.name}`
-                    : `Fetch live models from ${activeConnectionForLoad.name}`
-                  : isId
-                    ? "Tambahkan koneksi aktif terlebih dahulu untuk memuat model"
-                    : "Add an active connection first to load live models"
-              }
-              onClick={handleLoadModels}
-            >
-              {fetchModelsMutation.isPending ? (
-                <RefreshCw className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
-              ) : (
-                <Download className="h-3.5 w-3.5" aria-hidden="true" />
-              )}
-              <span>
-                {fetchModelsMutation.isPending
-                  ? isId
-                    ? "Memuat Model..."
-                    : "Loading Models..."
-                  : isId
-                    ? "Muat Model"
-                    : "Load Models"}
-              </span>
-            </Button>
+            <div className="flex w-full items-center gap-1.5 sm:w-auto">
+              <Button
+                type="button"
+                size="xs"
+                variant="secondary"
+                className="flex-1 shrink-0 sm:flex-none"
+                disabled={sortedConnections.length === 0}
+                title={
+                  sortedConnections.length > 0
+                    ? isId
+                      ? "Tambahkan model secara manual ke koneksi provider ini"
+                      : "Manually add a custom model ID to this provider"
+                    : isId
+                      ? "Tambahkan koneksi terlebih dahulu untuk menambah model manual"
+                      : "Add a connection first to add custom models"
+                }
+                onClick={() => setShowAddModelModal(true)}
+              >
+                <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+                <span>{isId ? "Tambah Model" : "Add Model"}</span>
+              </Button>
+              <Button
+                type="button"
+                size="xs"
+                variant="secondary"
+                className="flex-1 shrink-0 sm:flex-none"
+                disabled={!activeConnectionForLoad || fetchModelsMutation.isPending}
+                title={
+                  activeConnectionForLoad
+                    ? isId
+                      ? `Muat daftar model terbaru dari ${activeConnectionForLoad.name}`
+                      : `Fetch live models from ${activeConnectionForLoad.name}`
+                    : isId
+                      ? "Tambahkan koneksi aktif terlebih dahulu untuk memuat model"
+                      : "Add an active connection first to load live models"
+                }
+                onClick={handleLoadModels}
+              >
+                {fetchModelsMutation.isPending ? (
+                  <RefreshCw className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+                ) : (
+                  <Download className="h-3.5 w-3.5" aria-hidden="true" />
+                )}
+                <span>
+                  {fetchModelsMutation.isPending
+                    ? isId
+                      ? "Memuat Model..."
+                      : "Loading Models..."
+                    : isId
+                      ? "Muat Model"
+                      : "Load Models"}
+                </span>
+              </Button>
+            </div>
           </div>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -1260,8 +1324,8 @@ function ProviderStudioDetail({ providerId }: { providerId: string }) {
                 {loadedModelsResult.source === "upstream" ? (
                   <p className="font-medium">
                     {isId
-                      ? `${loadedModelsResult.models.length} model berhasil dimuat langsung dari upstream (${loadedModelsResult.latency_ms}ms).`
-                      : `Loaded ${loadedModelsResult.models.length} live models from upstream (${loadedModelsResult.latency_ms}ms).`}
+                      ? `${loadedModelsResult.models.length} model berhasil dimuat dari upstream (${loadedModelsResult.latency_ms}ms) & otomatis siap digunakan.`
+                      : `Loaded ${loadedModelsResult.models.length} live models from upstream (${loadedModelsResult.latency_ms}ms) & auto-synced for routing.`}
                   </p>
                 ) : (
                   <p className="break-words">
@@ -1270,26 +1334,6 @@ function ProviderStudioDetail({ providerId }: { providerId: string }) {
                   </p>
                 )}
               </div>
-              {loadedModelsResult.source === "upstream" && loadedModelsResult.models.length > 0 ? (
-                <Button
-                  type="button"
-                  size="xs"
-                  className="w-full shrink-0 sm:w-auto"
-                  disabled={savingLoadedModels}
-                  onClick={() => void handleSaveLoadedModels()}
-                >
-                  <Save className="h-3 w-3" aria-hidden="true" />
-                  <span>
-                    {savingLoadedModels
-                      ? isId
-                        ? "Menyimpan..."
-                        : "Saving..."
-                      : isId
-                        ? "Simpan ke Koneksi"
-                        : "Save to Connection"}
-                  </span>
-                </Button>
-              ) : null}
             </div>
           ) : null}
 
@@ -1346,6 +1390,11 @@ function ProviderStudioDetail({ providerId }: { providerId: string }) {
                         {model.isLive ? (
                           <span className="shrink-0 rounded bg-[var(--color-primary)]/15 px-1.5 py-0.5 text-[9px] font-bold leading-none text-[var(--color-primary)]">
                             LIVE
+                          </span>
+                        ) : null}
+                        {model.isCustom ? (
+                          <span className="shrink-0 rounded bg-[var(--status-warn-bg)] px-1.5 py-0.5 text-[9px] font-bold leading-none text-[var(--status-warn)]">
+                            MANUAL
                           </span>
                         ) : null}
                         {model.isFree ? (
@@ -1469,6 +1518,26 @@ function ProviderStudioDetail({ providerId }: { providerId: string }) {
                               <Copy className="h-3.5 w-3.5" aria-hidden="true" />
                             )}
                           </button>
+                          {model.isCustom && model.isSaved ? (
+                            <button
+                              type="button"
+                              disabled={removingModelId !== null}
+                              onClick={() => void handleRemoveCustomModel(model.id)}
+                              title={
+                                isId
+                                  ? `Hapus model manual ${model.id}`
+                                  : `Remove custom model ${model.id}`
+                              }
+                              aria-label={`Remove ${fullModel}`}
+                              className="inline-flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded border border-[var(--color-border)] text-[var(--color-text-muted)] transition-colors hover:border-[var(--status-error)]/40 hover:bg-[var(--status-error-bg)] hover:text-[var(--status-error)] disabled:opacity-40"
+                            >
+                              {removingModelId === model.id ? (
+                                <RefreshCw className="h-3 w-3 animate-spin" aria-hidden="true" />
+                              ) : (
+                                <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                              )}
+                            </button>
+                          ) : null}
                         </div>
                       </div>
 
@@ -1633,6 +1702,25 @@ function ProviderStudioDetail({ providerId }: { providerId: string }) {
           setShowOAuthModal(false);
           setShowAddApiKeyModal(true);
         }}
+      />
+
+      <EditConnectionModal
+        open={editingConnection !== null}
+        connection={editingConnection}
+        isId={isId}
+        onClose={() => setEditingConnection(null)}
+        onUpdated={(msg) => setFeedbackBanner(msg)}
+      />
+
+      <AddCustomModelModal
+        open={showAddModelModal}
+        onClose={() => setShowAddModelModal(false)}
+        providerId={entry.id}
+        providerName={entry.name}
+        providerAlias={entry.alias}
+        connections={sortedConnections}
+        isId={isId}
+        onAdded={(msg) => setFeedbackBanner(msg)}
       />
     </div>
   );

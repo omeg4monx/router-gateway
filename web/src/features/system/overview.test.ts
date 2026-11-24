@@ -1,7 +1,11 @@
 import { describe, expect, test } from "bun:test";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import {
   filterModules,
+  formatActivityOriginLabel,
   formatClockUptime,
+  formatUsageBucketLabel,
   generateEndpointSnippet,
   getModuleMetadata,
   getOverviewCopy,
@@ -64,5 +68,38 @@ describe("features/system/overview", () => {
     });
     expect(claudePy).toContain("Anthropic(");
     expect(claudePy).toContain("claude-sonnet-4-5");
+  });
+
+  test("formats 24h hourly buckets with time and multi-day buckets with date", () => {
+    const hourly = formatUsageBucketLabel("2026-11-24T17:00:00Z", "24h");
+    expect(hourly).toMatch(/\d{1,2}[:.]\d{2}/);
+
+    const daily = formatUsageBucketLabel("2026-11-24", "7d");
+    expect(daily).not.toMatch(/^\d{1,2}[:.]\d{2}$/);
+    expect(daily.length).toBeGreaterThan(2);
+  });
+
+  test("labels internal admin/probe usage origins and falls back to API key names", () => {
+    const keyMap = new Map([["key_abc", "Production CLI"]]);
+    expect(formatActivityOriginLabel("key_abc", keyMap, false)).toBe("Production CLI");
+    expect(formatActivityOriginLabel("admin-internal", keyMap, false)).toBe("Admin Studio");
+    expect(formatActivityOriginLabel("admin-internal", keyMap, true)).toBe("Studio Admin");
+    expect(formatActivityOriginLabel("admin-probe", keyMap, false)).toBe("Model Probe");
+    expect(formatActivityOriginLabel("admin-probe", keyMap, true)).toBe("Uji Model");
+  });
+
+  test("SystemOverview wires live SSE usage stream, /dashboard/combos/ link, and full query error aggregation", () => {
+    const overviewSource = readFileSync(resolve(import.meta.dirname, "SystemOverview.tsx"), "utf8");
+    const realtimeSource = readFileSync(
+      resolve(import.meta.dirname, "OverviewRealtimeTraffic.tsx"),
+      "utf8",
+    );
+    expect(overviewSource).toContain("useUsageStream(true)");
+    expect(overviewSource).toContain('to="/dashboard/combos/"');
+    expect(overviewSource).toContain("usageQuery.isError");
+    expect(overviewSource).toContain("providersQuery.isError");
+    expect(overviewSource).toContain("OverviewRealtimeTraffic");
+    expect(overviewSource).toContain("groupTopologyProviders");
+    expect(realtimeSource).toContain("./ProviderTopology");
   });
 });

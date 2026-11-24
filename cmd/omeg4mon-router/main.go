@@ -275,16 +275,21 @@ func buildApp(ctx context.Context, cfg config.Config, build system.BuildInfo) (*
 		HTTPClient: httpClient,
 		Bus:        bus,
 	})
+	usageMod := usage.New(usage.Options{
+		DB:     database,
+		Bus:    bus,
+		Logger: logger,
+	})
+	var combosUsageRecorder contracts.UsageRecorder
+	if !cfg.DisabledModules[usageMod.Name()] {
+		combosUsageRecorder = usageMod
+	}
 	combosMod := combos.New(combos.Options{
 		DB:         database,
 		Providers:  providersMod,
 		HTTPClient: httpClient,
 		Bus:        bus,
-	})
-	usageMod := usage.New(usage.Options{
-		DB:     database,
-		Bus:    bus,
-		Logger: logger,
+		Usage:      combosUsageRecorder,
 	})
 	promptGuardMod := promptinjection.New(promptinjection.Options{
 		DB:     database,
@@ -327,7 +332,10 @@ func buildApp(ctx context.Context, cfg config.Config, build system.BuildInfo) (*
 		KeyProvisioner: keysMod,
 		TeamAssigner:   teamAssigner,
 	})
-	interceptors := make([]contracts.GatewayInterceptor, 0, 6)
+	interceptors := make([]contracts.GatewayInterceptor, 0, 7)
+	if !cfg.DisabledModules[keysMod.Name()] {
+		interceptors = append(interceptors, keysMod)
+	}
 	if !cfg.DisabledModules[teamsMod.Name()] {
 		interceptors = append(interceptors, teamsMod)
 	}

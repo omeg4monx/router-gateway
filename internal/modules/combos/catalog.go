@@ -481,18 +481,46 @@ func (m *Module) probeConnectionModel(ctx context.Context, connectionID, modelID
 	}
 
 	if probeErr != nil {
+		errMsg := sanitizeProbeError(probeErr.Error(), creds)
 		isTimeout := errors.Is(probeErr, context.DeadlineExceeded) || strings.Contains(strings.ToLower(probeErr.Error()), "timeout")
+		m.emitUsage(ctx, contracts.UsageRecord{
+			KeyID:        probeUsageKeyID,
+			Model:        modelID,
+			ProviderID:   creds.ProviderID,
+			ConnectionID: connectionID,
+			Protocol:     creds.Protocol,
+			Latency:      time.Duration(latency) * time.Millisecond,
+			TTFT:         time.Duration(latency) * time.Millisecond,
+			StatusCode:   0,
+			ErrorSummary: errMsg,
+			Stream:       false,
+		})
 		return ModelTestResult{
 			OK:        false,
 			Status:    "error",
 			LatencyMS: latency,
-			Error:     sanitizeProbeError(probeErr.Error(), creds),
+			Error:     errMsg,
 			IsTimeout: isTimeout,
 		}
 	}
 
 	if statusCode >= http.StatusOK && statusCode < http.StatusMultipleChoices {
 		m.cooldown.RecordSuccess(connectionID)
+		inTok, outTok, cachedTok := extractProbeTokenUsage(creds.Protocol, body)
+		m.emitUsage(ctx, contracts.UsageRecord{
+			KeyID:        probeUsageKeyID,
+			Model:        modelID,
+			ProviderID:   creds.ProviderID,
+			ConnectionID: connectionID,
+			Protocol:     creds.Protocol,
+			InputTokens:  inTok,
+			OutputTokens: outTok,
+			CachedTokens: cachedTok,
+			Latency:      time.Duration(latency) * time.Millisecond,
+			TTFT:         time.Duration(latency) * time.Millisecond,
+			StatusCode:   statusCode,
+			Stream:       false,
+		})
 		status := "ok"
 		if latency >= slowModelThresholdMS {
 			status = "slow"
@@ -506,6 +534,18 @@ func (m *Module) probeConnectionModel(ctx context.Context, connectionID, modelID
 	}
 
 	errMsg := extractUpstreamProbeError(statusCode, body, creds)
+	m.emitUsage(ctx, contracts.UsageRecord{
+		KeyID:        probeUsageKeyID,
+		Model:        modelID,
+		ProviderID:   creds.ProviderID,
+		ConnectionID: connectionID,
+		Protocol:     creds.Protocol,
+		Latency:      time.Duration(latency) * time.Millisecond,
+		TTFT:         time.Duration(latency) * time.Millisecond,
+		StatusCode:   statusCode,
+		ErrorSummary: errMsg,
+		Stream:       false,
+	})
 	lowerErr := strings.ToLower(errMsg)
 	rateLimited := statusCode == http.StatusTooManyRequests || strings.Contains(lowerErr, "rate limit") || strings.Contains(lowerErr, "rate_limit")
 	isQuota := strings.Contains(lowerErr, "quota") || strings.Contains(lowerErr, "insufficient") || strings.Contains(lowerErr, "billing") || strings.Contains(lowerErr, "credit")
@@ -521,6 +561,65 @@ func (m *Module) probeConnectionModel(ctx context.Context, connectionID, modelID
 		IsQuota:     isQuota,
 		IsTimeout:   isTimeout,
 	}
+}
+
+func extractProbeTokenUsage(protocol string, body []byte) (inputTokens, outputTokens, cachedTokens int64) {
+	trimmed := bytes.TrimSpace(body)
+	if len(trimmed) == 0 || trimmed[0] != '{' {
+		return 0, 0, 0
+	}
+
+	var parsed struct {
+		Usage *struct {
+			PromptTokens         int64 `json:"prompt_tokens"`
+			CompletionTokens     int64 `json:"completion_tokens"`
+			InputTokens          int64 `json:"input_tokens"`
+			OutputTokens         int64 `json:"output_tokens"`
+			CacheReadInputTokens int64 `json:"cache_read_input_tokens"`
+			PromptTokensDetails  *struct {
+				CachedTokens int64 `json:"cached_tokens"`
+			} `json:"prompt_tokens_details"`
+			InputTokensDetails *struct {
+				CachedTokens int64 `json:"cached_tokens"`
+			} `json:"input_tokens_details"`
+		} `json:"usage"`
+		UsageMetadata *struct {
+			PromptTokenCount        int64 `json:"promptTokenCount"`
+			CandidatesTokenCount    int64 `json:"candidatesTokenCount"`
+			CachedContentTokenCount int64 `json:"cachedContentTokenCount"`
+		} `json:"usageMetadata"`
+	}
+	if err := json.Unmarshal(trimmed, &parsed); err != nil {
+		return 0, 0, 0
+	}
+
+	if parsed.UsageMetadata != nil && (strings.EqualFold(strings.TrimSpace(protocol), "gemini") || parsed.Usage == nil) {
+		return max(parsed.UsageMetadata.PromptTokenCount, 0),
+			max(parsed.UsageMetadata.CandidatesTokenCount, 0),
+			max(parsed.UsageMetadata.CachedContentTokenCount, 0)
+	}
+
+	if parsed.Usage == nil {
+		return 0, 0, 0
+	}
+
+	inputTokens = parsed.Usage.PromptTokens
+	if inputTokens <= 0 {
+		inputTokens = parsed.Usage.InputTokens
+	}
+	outputTokens = parsed.Usage.CompletionTokens
+	if outputTokens <= 0 {
+		outputTokens = parsed.Usage.OutputTokens
+	}
+	switch {
+	case parsed.Usage.PromptTokensDetails != nil && parsed.Usage.PromptTokensDetails.CachedTokens > 0:
+		cachedTokens = parsed.Usage.PromptTokensDetails.CachedTokens
+	case parsed.Usage.InputTokensDetails != nil && parsed.Usage.InputTokensDetails.CachedTokens > 0:
+		cachedTokens = parsed.Usage.InputTokensDetails.CachedTokens
+	case parsed.Usage.CacheReadInputTokens > 0:
+		cachedTokens = parsed.Usage.CacheReadInputTokens
+	}
+	return max(inputTokens, 0), max(outputTokens, 0), max(cachedTokens, 0)
 }
 
 func buildModelProbeRequest(ctx context.Context, creds contracts.UpstreamCredentials, modelID string) (*http.Request, error) {

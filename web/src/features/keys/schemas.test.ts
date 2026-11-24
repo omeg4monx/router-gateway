@@ -1,6 +1,21 @@
 import { describe, expect, test } from "bun:test";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { createKeySchema, parseCommaSeparatedList, toCreateApiKeyRequest } from "./schemas";
+import {
+  buildGatewayUrls,
+  countKeyStatusBuckets,
+  filterKeysByStatusAndSearch,
+  generateKeySnippet,
+  getKeyExpiryState,
+  normalizeOrigin,
+} from "./endpointUtils";
+import {
+  type ApiKeySummary,
+  createKeySchema,
+  parseCommaSeparatedList,
+  toCreateApiKeyRequest,
+} from "./schemas";
 
 describe("parseCommaSeparatedList", () => {
   test("splits, trims, drops empty entries, and deduplicates preserving order", () => {
@@ -179,5 +194,140 @@ describe("createKeySchema", () => {
       expires_at: "not-a-timestamp",
     });
     expect(invalid.success).toBe(false);
+  });
+});
+
+describe("endpointUtils (main Endpoint & Keys parity)", () => {
+  test("normalizes origins and builds synchronized OpenAI & Claude base URLs", () => {
+    expect(normalizeOrigin("http://127.0.0.1:20128///")).toBe("http://127.0.0.1:20128");
+    expect(normalizeOrigin("  https://gw.example.com/ ")).toBe("https://gw.example.com");
+    expect(buildGatewayUrls("https://gw.example.com/")).toEqual({
+      origin: "https://gw.example.com",
+      openaiBaseUrl: "https://gw.example.com/v1",
+      claudeBaseUrl: "https://gw.example.com",
+    });
+  });
+
+  test("generates OpenAI and Anthropic snippets across curl, python, node, and go", () => {
+    const oaiCurl = generateKeySnippet({
+      format: "openai",
+      lang: "curl",
+      baseUrl: "http://127.0.0.1:20128/",
+      apiKey: "sk-omg-secret",
+      model: "gpt-4o",
+    });
+    expect(oaiCurl).toContain("http://127.0.0.1:20128/v1/chat/completions");
+    expect(oaiCurl).toContain("Authorization: Bearer sk-omg-secret");
+
+    const claudeGo = generateKeySnippet({
+      format: "anthropic",
+      lang: "go",
+      baseUrl: "https://gw.example.com",
+      apiKey: "sk-omg-secret",
+      model: "claude-sonnet-4-5",
+    });
+    expect(claudeGo).toContain("https://gw.example.com/v1/messages");
+    expect(claudeGo).toContain('req.Header.Set("x-api-key", "sk-omg-secret")');
+  });
+
+  test("filters and counts active, disabled, and expired keys accurately", () => {
+    const now = Date.parse("2026-11-25T00:00:00Z");
+    const sample: ApiKeySummary[] = [
+      {
+        id: "k1",
+        name: "Production CLI",
+        key_prefix: "sk-omg_aaa",
+        allowed_models: [],
+        scopes: ["gateway"],
+        tags: [],
+        rate_limit_rpm: 60,
+        quota_usd: 10,
+        disabled: false,
+        expires_at: null,
+        last_used_at: null,
+        created_at: "2026-11-20T00:00:00Z",
+        updated_at: "2026-11-20T00:00:00Z",
+      },
+      {
+        id: "k2",
+        name: "Paused Dev",
+        key_prefix: "sk-omg_bbb",
+        allowed_models: ["gpt-4o"],
+        scopes: ["gateway"],
+        tags: [],
+        rate_limit_rpm: 0,
+        quota_usd: 0,
+        disabled: true,
+        expires_at: null,
+        last_used_at: null,
+        created_at: "2026-11-20T00:00:00Z",
+        updated_at: "2026-11-20T00:00:00Z",
+      },
+      {
+        id: "k3",
+        name: "Expired Trial",
+        key_prefix: "sk-omg_ccc",
+        allowed_models: [],
+        scopes: ["gateway"],
+        tags: [],
+        rate_limit_rpm: 0,
+        quota_usd: 0,
+        disabled: false,
+        expires_at: "2026-11-24T00:00:00Z",
+        last_used_at: null,
+        created_at: "2026-11-20T00:00:00Z",
+        updated_at: "2026-11-20T00:00:00Z",
+      },
+    ];
+
+    expect(countKeyStatusBuckets(sample, now)).toEqual({
+      all: 3,
+      active: 1,
+      disabled: 1,
+      expired: 1,
+    });
+    expect(filterKeysByStatusAndSearch(sample, "active", "", now).map((k) => k.id)).toEqual(["k1"]);
+    expect(filterKeysByStatusAndSearch(sample, "disabled", "", now).map((k) => k.id)).toEqual([
+      "k2",
+    ]);
+    expect(filterKeysByStatusAndSearch(sample, "expired", "", now).map((k) => k.id)).toEqual([
+      "k3",
+    ]);
+    expect(filterKeysByStatusAndSearch(sample, "all", "sk-omg_bbb", now).map((k) => k.id)).toEqual([
+      "k2",
+    ]);
+    expect(getKeyExpiryState("2026-11-24T00:00:00Z", now).status).toBe("expired");
+    expect(getKeyExpiryState("2026-11-27T00:00:00Z", now).status).toBe("soon");
+    expect(getKeyExpiryState(null, now).status).toBe("none");
+  });
+});
+
+describe("KeysConsole main Endpoint & Keys parity contract", () => {
+  test("keeps main Endpoint & Keys zones while excluding raw developer chrome", () => {
+    const consoleSource = readFileSync(resolve(import.meta.dirname, "KeysConsole.tsx"), "utf8");
+    const modalsSource = readFileSync(resolve(import.meta.dirname, "KeyModals.tsx"), "utf8");
+    const gatewaySource = readFileSync(
+      resolve(import.meta.dirname, "GatewayEndpointBar.tsx"),
+      "utf8",
+    );
+
+    for (const src of [consoleSource, modalsSource, gatewaySource]) {
+      expect(src).not.toContain("POST /api/keys");
+      expect(src).not.toContain("GET /api/keys");
+      expect(src).not.toContain("Gateway Credentials");
+      expect(src).not.toContain("SHA-256");
+      expect(src).not.toContain("key-tags");
+    }
+
+    // Main parity: Endpoint & Keys header, live health probe, route/URL console, search/filter, edit/snippet modals
+    expect(consoleSource).toContain("GatewayEndpointBar");
+    expect(consoleSource).toContain("KeyFormModal");
+    expect(consoleSource).toContain("KeySnippetModal");
+    expect(consoleSource).toContain("useUIStore");
+    expect(consoleSource).toContain('role="switch"');
+    expect(gatewaySource).toContain("openaiBaseUrl");
+    expect(gatewaySource).toContain("claudeBaseUrl");
+    expect(modalsSource).toContain('role="dialog"');
+    expect(modalsSource).toContain("clearTimeout");
   });
 });

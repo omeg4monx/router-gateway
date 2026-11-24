@@ -252,6 +252,38 @@ export function formatClockUptime(totalSeconds: number): string {
   return `${pad(hours)}h ${pad(minutes)}m ${pad(seconds)}s`;
 }
 
+export function formatUsageBucketLabel(
+  bucket: string,
+  range: "24h" | "7d" | "30d" | "all",
+): string {
+  const parsed = new Date(bucket);
+  if (Number.isNaN(parsed.getTime())) {
+    return bucket.slice(0, 10);
+  }
+  if (range === "24h" || bucket.includes("T")) {
+    return parsed.toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    });
+  }
+  return parsed.toLocaleDateString([], { month: "short", day: "numeric" });
+}
+
+export function formatActivityOriginLabel(
+  keyId: string,
+  keyNameMap: ReadonlyMap<string, string>,
+  isId: boolean,
+): string {
+  if (keyId === "admin-internal") {
+    return isId ? "Studio Admin" : "Admin Studio";
+  }
+  if (keyId === "admin-probe") {
+    return isId ? "Uji Model" : "Model Probe";
+  }
+  return keyNameMap.get(keyId) ?? keyId;
+}
+
 export type SnippetFormat = "openai" | "anthropic";
 export type SnippetLang = "curl" | "python" | "node";
 

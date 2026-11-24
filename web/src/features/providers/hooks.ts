@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { type QueryClient, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient, extractErrorMessage } from "@/shared/api/client";
 import type {
   CreateProviderConnectionRequest,
@@ -25,6 +25,54 @@ export const providersQueryKeys = {
   connections: ["providers", "connections"] as const,
   connection: (id: string) => ["providers", "connections", id] as const,
 };
+
+const MODEL_CATALOG_QUERY_KEY = ["models", "catalog"] as const;
+const ARENA_MODELS_QUERY_KEY = ["arena", "models"] as const;
+
+async function invalidateModelRoutingQueries(queryClient: QueryClient, connectionId?: string) {
+  const tasks: Promise<void>[] = [
+    queryClient.invalidateQueries({ queryKey: providersQueryKeys.connections }),
+    queryClient.invalidateQueries({ queryKey: MODEL_CATALOG_QUERY_KEY }),
+    queryClient.invalidateQueries({ queryKey: ARENA_MODELS_QUERY_KEY }),
+  ];
+  if (connectionId) {
+    tasks.push(
+      queryClient.invalidateQueries({ queryKey: providersQueryKeys.connection(connectionId) }),
+    );
+  }
+  await Promise.all(tasks);
+}
+
+export async function fetchConnectionModels(
+  connectionId: string,
+): Promise<FetchConnectionModelsResponse> {
+  const response = await fetch(
+    `/api/providers/connections/${encodeURIComponent(connectionId)}/models`,
+    {
+      method: "GET",
+      credentials: "include",
+      headers: { Accept: "application/json" },
+    },
+  );
+  const data = await response.json().catch(() => null);
+  if (response.ok && data) {
+    return data as FetchConnectionModelsResponse;
+  }
+  throw new Error(extractErrorMessage(data) || `Failed to load models (HTTP ${response.status})`);
+}
+
+function syncConnectionModelsInBackground(queryClient: QueryClient, connectionId: string) {
+  void fetchConnectionModels(connectionId)
+    .then((res) => {
+      if (res.source === "upstream" && res.models.length > 0) {
+        return invalidateModelRoutingQueries(queryClient, connectionId);
+      }
+      return undefined;
+    })
+    .catch(() => {
+      // Best-effort background sync; manual "Load Models" remains available.
+    });
+}
 
 export function useProvidersCatalog() {
   return useQuery<ProvidersCatalogResponse, Error>({
@@ -142,8 +190,11 @@ export function useCreateProviderConnectionMutation() {
       }
       throw new Error(extractErrorMessage(error));
     },
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: providersQueryKeys.connections });
+    onSuccess: async (created) => {
+      await invalidateModelRoutingQueries(queryClient, created.id);
+      if (created.enabled) {
+        syncConnectionModelsInBackground(queryClient, created.id);
+      }
     },
   });
 }
@@ -168,10 +219,7 @@ export function useUpdateProviderConnectionMutation() {
       throw new Error(extractErrorMessage(error));
     },
     onSuccess: async (updated) => {
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: providersQueryKeys.connections }),
-        queryClient.invalidateQueries({ queryKey: providersQueryKeys.connection(updated.id) }),
-      ]);
+      await invalidateModelRoutingQueries(queryClient, updated.id);
     },
   });
 }
@@ -192,10 +240,7 @@ export function useDeleteProviderConnectionMutation() {
       }
     },
     onSuccess: async (_data, id) => {
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: providersQueryKeys.connections }),
-        queryClient.invalidateQueries({ queryKey: providersQueryKeys.connection(id) }),
-      ]);
+      await invalidateModelRoutingQueries(queryClient, id);
     },
   });
 }
@@ -229,23 +274,14 @@ export interface FetchConnectionModelsResponse {
 }
 
 export function useFetchConnectionModelsMutation() {
+  const queryClient = useQueryClient();
+
   return useMutation<FetchConnectionModelsResponse, Error, string>({
-    mutationFn: async (connectionId) => {
-      const response = await fetch(
-        `/api/providers/connections/${encodeURIComponent(connectionId)}/models`,
-        {
-          method: "GET",
-          credentials: "include",
-          headers: { Accept: "application/json" },
-        },
-      );
-      const data = await response.json().catch(() => null);
-      if (response.ok && data) {
-        return data as FetchConnectionModelsResponse;
+    mutationFn: fetchConnectionModels,
+    onSuccess: async (res) => {
+      if (res.source === "upstream" && res.models.length > 0) {
+        await invalidateModelRoutingQueries(queryClient, res.connection_id);
       }
-      throw new Error(
-        extractErrorMessage(data) || `Failed to load models (HTTP ${response.status})`,
-      );
     },
   });
 }
@@ -312,10 +348,10 @@ export function useExchangeProviderOAuthMutation() {
       throw new Error(extractErrorMessage(error));
     },
     onSuccess: async (conn) => {
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: providersQueryKeys.connections }),
-        queryClient.invalidateQueries({ queryKey: providersQueryKeys.connection(conn.id) }),
-      ]);
+      await invalidateModelRoutingQueries(queryClient, conn.id);
+      if (conn.enabled) {
+        syncConnectionModelsInBackground(queryClient, conn.id);
+      }
     },
   });
 }

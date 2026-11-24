@@ -20,11 +20,11 @@ import (
 )
 
 const (
-	maxProvidersBodyBytes   = 64 << 10 // 64 KiB
+	maxProvidersBodyBytes   = 256 << 10 // 256 KiB
 	maxTestErrorBodyBytes   = 4096
 	maxNameRunes            = 128
 	maxIDRunes              = 64
-	maxSliceItems           = 256
+	maxSliceItems           = 2048
 	maxSliceItemRunes       = 128
 	maxHeadersCount         = 64
 	maxHeaderKeyRunes       = 128

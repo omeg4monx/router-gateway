@@ -59,13 +59,13 @@ export const OAUTH_PROVIDER_IDS = [
 
 export const MAX_NAME_RUNES = 128;
 export const MAX_ID_RUNES = 64;
-export const MAX_SLICE_ITEMS = 256;
+export const MAX_SLICE_ITEMS = 2048;
 export const MAX_SLICE_ITEM_RUNES = 128;
 export const MAX_HEADERS_COUNT = 64;
 export const MAX_HEADER_KEY_RUNES = 128;
 export const MAX_HEADER_VALUE_RUNES = 1024;
 export const MAX_PRIORITY = 100_000;
-export const DEFAULT_PRIORITY = 100;
+export const DEFAULT_PRIORITY = 1;
 
 export function parseCommaSeparatedList(input: string): string[] {
   const seen = new Set<string>();

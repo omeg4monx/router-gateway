@@ -14,11 +14,12 @@ describe("OmniRoute Load Models feature contracts", () => {
     expect(hooksSource).toContain("/models");
   });
 
-  test("ProviderDetailView renders Load Models button and Save to Connection action in Available Models card", () => {
+  test("ProviderDetailView renders Load Models button without Save to Connection button", () => {
     expect(detailSource).toContain("useFetchConnectionModelsMutation");
     expect(detailSource).toContain('"Load Models"');
     expect(detailSource).toContain('"Muat Model"');
-    expect(detailSource).toContain("Save to Connection");
+    expect(detailSource).not.toContain("Save to Connection");
+    expect(detailSource).not.toContain("Simpan ke Koneksi");
   });
 
   test("ProviderDetailView auto-loads live models for any provider with an active connection", () => {
@@ -90,5 +91,16 @@ describe("OmniRoute Load Models feature contracts", () => {
     expect(detailSource).toContain("grid-rows-[1fr]");
     expect(detailSource).toContain("grid-rows-[0fr]");
     expect(detailSource).toContain("motion-reduce:transition-none");
+  });
+
+  test("hooks.ts invalidates models catalog and arena models and auto-loads newly created connections", () => {
+    expect(hooksSource).toContain('["models", "catalog"]');
+    expect(hooksSource).toContain('["arena", "models"]');
+    expect(hooksSource).toContain("fetchConnectionModels");
+  });
+
+  test("ProviderDetailView integrates AddCustomModelModal for manual model addition", () => {
+    expect(detailSource).toContain("AddCustomModelModal");
+    expect(detailSource).toContain("showAddModelModal");
   });
 });

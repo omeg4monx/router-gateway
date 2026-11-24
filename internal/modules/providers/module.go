@@ -36,7 +36,7 @@ const (
 	defaultAdminSubject  = "admin"
 	defaultHTTPTimeout   = 30 * time.Second
 	idRandomBytes        = 12
-	defaultPriorityValue = 100
+	defaultPriorityValue = 1
 )
 
 //go:embed migrations/*.sql

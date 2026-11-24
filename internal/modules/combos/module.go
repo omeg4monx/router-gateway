@@ -20,6 +20,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 
 	"github.com/omeg4monx/router-gateway/internal/contracts"
 	"github.com/omeg4monx/router-gateway/internal/platform/db"
@@ -38,7 +39,9 @@ const (
 	strategyOrdered = "ordered"
 
 	defaultAdminSubject = "admin"
+	probeUsageKeyID     = "admin-probe"
 	defaultComboPrefix  = "combo_"
+	defaultProbePrefix  = "probe_"
 	idRandomBytes       = 12
 	maxCombosBodyBytes  = 64 << 10 // 64 KiB
 	maxNameRunes        = 128
@@ -65,6 +68,7 @@ type Options struct {
 	Providers  contracts.ProviderStore
 	HTTPClient *http.Client
 	Bus        *eventbus.Bus
+	Usage      contracts.UsageRecorder
 	Now        func() time.Time
 }
 
@@ -75,6 +79,7 @@ type Module struct {
 	providers  contracts.ProviderStore
 	httpClient *http.Client
 	bus        *eventbus.Bus
+	usage      contracts.UsageRecorder
 	now        func() time.Time
 	repo       *repository
 	cooldown   *cooldownTracker
@@ -100,11 +105,34 @@ func New(opts Options) *Module {
 		providers:  opts.Providers,
 		httpClient: opts.HTTPClient,
 		bus:        opts.Bus,
+		usage:      opts.Usage,
 		now:        clock,
 		repo:       newRepository(opts.DB, clock),
 		cooldown:   newCooldownTracker(clock),
 		stratState: newStrategyState(),
 	}
+}
+
+func (m *Module) emitUsage(ctx context.Context, rec contracts.UsageRecord) {
+	if m.usage == nil {
+		return
+	}
+	if strings.TrimSpace(rec.RequestID) == "" {
+		if ctx != nil {
+			rec.RequestID = strings.TrimSpace(middleware.GetReqID(ctx))
+		}
+		if rec.RequestID == "" {
+			if id, err := generateID(defaultProbePrefix); err == nil {
+				rec.RequestID = id
+			} else {
+				rec.RequestID = fmt.Sprintf("%s%d", defaultProbePrefix, m.now().UTC().UnixNano())
+			}
+		}
+	}
+	if rec.Timestamp.IsZero() {
+		rec.Timestamp = m.now().UTC()
+	}
+	m.usage.Record(ctx, rec)
 }
 
 // Name returns the canonical module name.

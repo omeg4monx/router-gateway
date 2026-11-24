@@ -12,6 +12,7 @@ import (
 	"sort"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/go-chi/chi/v5"
 
@@ -116,6 +117,7 @@ func (m *Module) handleFetchConnectionModels(w http.ResponseWriter, r *http.Requ
 
 		discovered := parseDiscoveredModels(body)
 		if len(discovered) > 0 {
+			m.persistDiscoveredModels(r.Context(), id, discovered)
 			httpserver.WriteJSON(w, http.StatusOK, fetchConnectionModelsResponse{
 				ConnectionID: id,
 				ProviderID:   creds.ProviderID,
@@ -136,6 +138,75 @@ func (m *Module) handleFetchConnectionModels(w http.ResponseWriter, r *http.Requ
 		LatencyMS:    time.Since(start).Milliseconds(),
 		Warning:      lastWarning,
 	})
+}
+
+var errConnectionModelsUnchanged = errors.New("providers: connection models unchanged")
+
+func mergeConnectionModels(existing []string, discovered []discoveredModel) ([]string, bool) {
+	seen := make(map[string]struct{}, len(existing)+len(discovered))
+	merged := make([]string, 0, len(existing)+len(discovered))
+
+	appendIfValid := func(raw string) {
+		if len(merged) >= maxSliceItems {
+			return
+		}
+		trimmed := strings.TrimSpace(raw)
+		if trimmed == "" || utf8.RuneCountInString(trimmed) > maxSliceItemRunes {
+			return
+		}
+		if _, dup := seen[trimmed]; dup {
+			return
+		}
+		seen[trimmed] = struct{}{}
+		merged = append(merged, trimmed)
+	}
+
+	for _, id := range existing {
+		appendIfValid(id)
+	}
+	for _, item := range discovered {
+		appendIfValid(item.ID)
+	}
+
+	if len(merged) == len(existing) {
+		same := true
+		for i := range merged {
+			if merged[i] != existing[i] {
+				same = false
+				break
+			}
+		}
+		if same {
+			return merged, false
+		}
+	}
+	return merged, true
+}
+
+func (m *Module) persistDiscoveredModels(ctx context.Context, connectionID string, discovered []discoveredModel) {
+	if m == nil || m.repo == nil || len(discovered) == 0 {
+		return
+	}
+	summary, err := m.repo.UpdateConnection(ctx, connectionID, func(cur connectionRecord) (updateConnectionValues, error) {
+		merged, changed := mergeConnectionModels(cur.Summary.Models, discovered)
+		if !changed {
+			return updateConnectionValues{}, errConnectionModelsUnchanged
+		}
+		return updateConnectionValues{
+			Name:           cur.Summary.Name,
+			BaseURL:        cur.Summary.BaseURL,
+			CredentialsEnc: cur.CredentialsEnc,
+			Priority:       cur.Summary.Priority,
+			Enabled:        cur.Summary.Enabled,
+			Models:         merged,
+			Headers:        cur.Summary.Headers,
+			TokenExpiresAt: cur.Summary.TokenExpiresAt,
+		}, nil
+	})
+	if err != nil {
+		return
+	}
+	m.publishChanged("updated", "connection", summary.ID, summary.ProviderID, actorFromContext(ctx), summary.UpdatedAt)
 }
 
 func (m *Module) buildModelsDiscoveryRequests(ctx context.Context, creds contracts.UpstreamCredentials) ([]*http.Request, error) {

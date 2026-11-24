@@ -145,15 +145,23 @@ func (m *Module) Migrations() fs.FS {
 	return sub
 }
 
-// RegisterRoutes mounts the administrative usage endpoints onto AdminAPI.
+// RegisterRoutes mounts the administrative usage endpoints onto AdminAPI and
+// mounts the long-lived SSE stream onto AdminStreamAPI so APITimeout does not
+// prematurely terminate live subscriptions.
 func (m *Module) RegisterRoutes(mounts lifecycle.RouteMounts) {
 	if mounts.AdminAPI != nil {
 		mounts.AdminAPI.Get("/usage/summary", m.handleGetSummary)
 		mounts.AdminAPI.Get("/usage/logs", m.handleListLogs)
-		mounts.AdminAPI.Get("/usage/stream", m.handleStreamUsage)
 		mounts.AdminAPI.Get("/usage/pricing", m.handleListPricing)
 		mounts.AdminAPI.Put("/usage/pricing/{model}", m.handleUpsertPricing)
 		mounts.AdminAPI.Delete("/usage/pricing/{model}", m.handleDeletePricing)
+	}
+	streamMount := mounts.AdminStreamAPI
+	if streamMount == nil {
+		streamMount = mounts.AdminAPI
+	}
+	if streamMount != nil {
+		streamMount.Get("/usage/stream", m.handleStreamUsage)
 	}
 }
 
@@ -301,11 +309,27 @@ func (m *Module) handleStreamUsage(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("X-Accel-Buffering", "no")
 	w.WriteHeader(http.StatusOK)
 
-	var events <-chan eventbus.Event
+	var (
+		events     <-chan eventbus.Event
+		provEvents <-chan eventbus.Event
+		keyEvents  <-chan eventbus.Event
+		cmbEvents  <-chan eventbus.Event
+		poolEvents <-chan eventbus.Event
+	)
 	if m.bus != nil {
-		var unsub func()
-		events, unsub = m.bus.Subscribe(TopicUsageRecorded, sseSubscriberBufSize)
-		defer unsub()
+		var unsubUsage, unsubProv, unsubKey, unsubCmb, unsubPool func()
+		events, unsubUsage = m.bus.Subscribe(TopicUsageRecorded, sseSubscriberBufSize)
+		provEvents, unsubProv = m.bus.Subscribe("providers.changed", 16)
+		keyEvents, unsubKey = m.bus.Subscribe("keys.changed", 16)
+		cmbEvents, unsubCmb = m.bus.Subscribe("combos.changed", 16)
+		poolEvents, unsubPool = m.bus.Subscribe("proxypools.changed", 16)
+		defer func() {
+			unsubUsage()
+			unsubProv()
+			unsubKey()
+			unsubCmb()
+			unsubPool()
+		}()
 	}
 
 	rc := http.NewResponseController(w)
@@ -320,6 +344,13 @@ func (m *Module) handleStreamUsage(w http.ResponseWriter, r *http.Request) {
 	defer keepalive.Stop()
 
 	stopNotify := m.currentStopNotify()
+
+	writeInvalidation := func(topic string) bool {
+		if _, err := fmt.Fprintf(w, "event: invalidation\ndata: {\"topic\":%q}\n\n", topic); err != nil {
+			return false
+		}
+		return rc.Flush() == nil
+	}
 
 	for {
 		select {
@@ -339,6 +370,38 @@ func (m *Module) handleStreamUsage(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			if err := rc.Flush(); err != nil {
+				return
+			}
+		case _, ok := <-provEvents:
+			if !ok {
+				provEvents = nil
+				continue
+			}
+			if !writeInvalidation("providers.changed") {
+				return
+			}
+		case _, ok := <-keyEvents:
+			if !ok {
+				keyEvents = nil
+				continue
+			}
+			if !writeInvalidation("keys.changed") {
+				return
+			}
+		case _, ok := <-cmbEvents:
+			if !ok {
+				cmbEvents = nil
+				continue
+			}
+			if !writeInvalidation("combos.changed") {
+				return
+			}
+		case _, ok := <-poolEvents:
+			if !ok {
+				poolEvents = nil
+				continue
+			}
+			if !writeInvalidation("proxypools.changed") {
 				return
 			}
 		case <-keepalive.C:

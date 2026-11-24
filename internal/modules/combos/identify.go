@@ -138,11 +138,53 @@ func (m *Module) identifyProviderModel(ctx context.Context, providerID, modelID 
 	}
 
 	if probeErr != nil {
-		return baseError(sanitizeProbeError(probeErr.Error(), creds), 0, latency)
+		errMsg := sanitizeProbeError(probeErr.Error(), creds)
+		m.emitUsage(ctx, contracts.UsageRecord{
+			KeyID:        probeUsageKeyID,
+			Model:        modelID,
+			ProviderID:   creds.ProviderID,
+			ConnectionID: matchedConn.ID,
+			Protocol:     creds.Protocol,
+			Latency:      time.Duration(latency) * time.Millisecond,
+			TTFT:         time.Duration(latency) * time.Millisecond,
+			StatusCode:   0,
+			ErrorSummary: errMsg,
+			Stream:       false,
+		})
+		return baseError(errMsg, 0, latency)
 	}
 	if statusCode < http.StatusOK || statusCode >= http.StatusMultipleChoices {
-		return baseError(extractUpstreamProbeError(statusCode, body, creds), statusCode, latency)
+		errMsg := extractUpstreamProbeError(statusCode, body, creds)
+		m.emitUsage(ctx, contracts.UsageRecord{
+			KeyID:        probeUsageKeyID,
+			Model:        modelID,
+			ProviderID:   creds.ProviderID,
+			ConnectionID: matchedConn.ID,
+			Protocol:     creds.Protocol,
+			Latency:      time.Duration(latency) * time.Millisecond,
+			TTFT:         time.Duration(latency) * time.Millisecond,
+			StatusCode:   statusCode,
+			ErrorSummary: errMsg,
+			Stream:       false,
+		})
+		return baseError(errMsg, statusCode, latency)
 	}
+
+	inTok, outTok, cachedTok := extractProbeTokenUsage(creds.Protocol, body)
+	m.emitUsage(ctx, contracts.UsageRecord{
+		KeyID:        probeUsageKeyID,
+		Model:        modelID,
+		ProviderID:   creds.ProviderID,
+		ConnectionID: matchedConn.ID,
+		Protocol:     creds.Protocol,
+		InputTokens:  inTok,
+		OutputTokens: outTok,
+		CachedTokens: cachedTok,
+		Latency:      time.Duration(latency) * time.Millisecond,
+		TTFT:         time.Duration(latency) * time.Millisecond,
+		StatusCode:   statusCode,
+		Stream:       false,
+	})
 
 	return analyzeIdentityProbeResponse(modelID, statusCode, latency, headers, body)
 }

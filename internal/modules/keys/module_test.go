@@ -714,3 +714,171 @@ func TestKeysExpirationAndValidationErrors(t *testing.T) {
 		})
 	}
 }
+
+type httpStatusError interface {
+	StatusCode() int
+}
+
+func TestValidateKeyUpdatesLastUsedAt(t *testing.T) {
+	h := newTestHarness(t, nil)
+	ctx := context.Background()
+
+	rec := h.doJSON(t, http.MethodPost, "/api/keys", `{"name":"last-used-check"}`)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("POST /api/keys status = %d: %s", rec.Code, rec.Body.String())
+	}
+	var created keySecretResp
+	if err := json.Unmarshal(rec.Body.Bytes(), &created); err != nil {
+		t.Fatalf("unmarshal create: %v", err)
+	}
+	if created.Key.LastUsedAt != nil {
+		t.Fatalf("initial last_used_at = %v, want nil", created.Key.LastUsedAt)
+	}
+
+	if _, err := h.mod.ValidateKey(ctx, created.Secret); err != nil {
+		t.Fatalf("ValidateKey: %v", err)
+	}
+
+	getRec := h.doJSON(t, http.MethodGet, "/api/keys/"+created.Key.ID, "")
+	if getRec.Code != http.StatusOK {
+		t.Fatalf("GET /api/keys/{id} status = %d: %s", getRec.Code, getRec.Body.String())
+	}
+	var loaded keys.APIKeySummary
+	if err := json.Unmarshal(getRec.Body.Bytes(), &loaded); err != nil {
+		t.Fatalf("unmarshal get: %v", err)
+	}
+	if loaded.LastUsedAt == nil || strings.TrimSpace(*loaded.LastUsedAt) == "" {
+		t.Fatalf("expected last_used_at to be populated after ValidateKey, got nil")
+	}
+	if _, err := time.Parse(time.RFC3339Nano, *loaded.LastUsedAt); err != nil {
+		t.Fatalf("invalid RFC3339 last_used_at %q: %v", *loaded.LastUsedAt, err)
+	}
+}
+
+func TestKeyInterceptorEnforcesRPMAndQuota(t *testing.T) {
+	var _ contracts.GatewayInterceptor = (*keys.Module)(nil)
+
+	h := newTestHarness(t, nil)
+	ctx := context.Background()
+
+	rec := h.doJSON(t, http.MethodPost, "/api/keys", `{
+		"name": "limited-client",
+		"rate_limit_rpm": 2,
+		"quota_usd": 0.50
+	}`)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("POST /api/keys status = %d: %s", rec.Code, rec.Body.String())
+	}
+	var created keySecretResp
+	if err := json.Unmarshal(rec.Body.Bytes(), &created); err != nil {
+		t.Fatalf("unmarshal create: %v", err)
+	}
+
+	// Internal studio/probe keys must never be blocked by user key limits.
+	for _, internalID := range []string{"", "admin-internal", "admin-probe"} {
+		if err := h.mod.OnRequest(ctx, &contracts.CanonicalRequest{KeyID: internalID}); err != nil {
+			t.Fatalf("OnRequest(%q) unexpected error: %v", internalID, err)
+		}
+	}
+
+	// 1) RPM enforcement: 2 allowed, 3rd rejected with HTTP 429.
+	for i := range 2 {
+		if err := h.mod.OnRequest(ctx, &contracts.CanonicalRequest{KeyID: created.Key.ID}); err != nil {
+			t.Fatalf("OnRequest attempt %d unexpected error: %v", i+1, err)
+		}
+	}
+	rpmErr := h.mod.OnRequest(ctx, &contracts.CanonicalRequest{KeyID: created.Key.ID})
+	if rpmErr == nil {
+		t.Fatalf("3rd OnRequest within 1 minute succeeded, want 429 rate limit error")
+	}
+	var statusErr httpStatusError
+	if !errors.As(rpmErr, &statusErr) || statusErr.StatusCode() != http.StatusTooManyRequests {
+		t.Fatalf("RPM error = %v, want HTTP 429 statusError", rpmErr)
+	}
+	if !strings.Contains(strings.ToLower(rpmErr.Error()), "rate limit") {
+		t.Errorf("RPM error message %q should mention rate limit", rpmErr.Error())
+	}
+
+	// 2) Lift RPM cap via PATCH -> request passes immediately.
+	patchRec := h.doJSON(t, http.MethodPatch, "/api/keys/"+created.Key.ID, `{"rate_limit_rpm": 0}`)
+	if patchRec.Code != http.StatusOK {
+		t.Fatalf("PATCH rpm=0 status = %d: %s", patchRec.Code, patchRec.Body.String())
+	}
+	if err := h.mod.OnRequest(ctx, &contracts.CanonicalRequest{KeyID: created.Key.ID}); err != nil {
+		t.Fatalf("OnRequest after lifting RPM failed: %v", err)
+	}
+
+	// 3) Live usage.recorded event exceeds $0.50 quota -> next request blocked with HTTP 429.
+	h.bus.Publish("usage.recorded", map[string]any{
+		"key_id":   created.Key.ID,
+		"cost_usd": 0.55,
+	})
+	deadline := time.Now().Add(2 * time.Second)
+	var quotaErr error
+	for time.Now().Before(deadline) {
+		quotaErr = h.mod.OnRequest(ctx, &contracts.CanonicalRequest{KeyID: created.Key.ID})
+		if quotaErr != nil {
+			break
+		}
+		time.Sleep(15 * time.Millisecond)
+	}
+	if quotaErr == nil {
+		t.Fatalf("expected quota exhaustion error after usage.recorded exceeded $0.50")
+	}
+	if !errors.As(quotaErr, &statusErr) || statusErr.StatusCode() != http.StatusTooManyRequests {
+		t.Fatalf("quota error = %v, want HTTP 429 statusError", quotaErr)
+	}
+	if !strings.Contains(strings.ToLower(quotaErr.Error()), "quota") {
+		t.Errorf("quota error message %q should mention quota", quotaErr.Error())
+	}
+
+	// 4) Raise quota via PATCH -> requests pass again.
+	raiseRec := h.doJSON(t, http.MethodPatch, "/api/keys/"+created.Key.ID, `{"quota_usd": 1.00}`)
+	if raiseRec.Code != http.StatusOK {
+		t.Fatalf("PATCH quota_usd=1.00 status = %d: %s", raiseRec.Code, raiseRec.Body.String())
+	}
+	if err := h.mod.OnRequest(ctx, &contracts.CanonicalRequest{KeyID: created.Key.ID}); err != nil {
+		t.Fatalf("OnRequest after raising quota failed: %v", err)
+	}
+}
+
+func TestKeyInterceptorSeedsQuotaFromUsageLogsOnRestart(t *testing.T) {
+	h := newTestHarness(t, nil)
+	ctx := context.Background()
+
+	// Create usage_logs table as persisted from a previous run.
+	if _, err := h.db.Writer().ExecContext(ctx, `
+		CREATE TABLE IF NOT EXISTS usage_logs (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			key_id TEXT NOT NULL DEFAULT '',
+			cost_usd REAL NOT NULL DEFAULT 0
+		)
+	`); err != nil {
+		t.Fatalf("create usage_logs: %v", err)
+	}
+
+	rec := h.doJSON(t, http.MethodPost, "/api/keys", `{
+		"name": "pre-spent-key",
+		"quota_usd": 0.50
+	}`)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("POST /api/keys status = %d: %s", rec.Code, rec.Body.String())
+	}
+	var created keySecretResp
+	if err := json.Unmarshal(rec.Body.Bytes(), &created); err != nil {
+		t.Fatalf("unmarshal create: %v", err)
+	}
+
+	if _, err := h.db.Writer().ExecContext(ctx, `INSERT INTO usage_logs (key_id, cost_usd) VALUES (?, ?)`, created.Key.ID, 0.75); err != nil {
+		t.Fatalf("insert prior spend: %v", err)
+	}
+
+	err := h.mod.OnRequest(ctx, &contracts.CanonicalRequest{KeyID: created.Key.ID})
+	if err == nil {
+		t.Fatalf("expected 429 quota error seeded from historical usage_logs spend ($0.75 >= $0.50)")
+	}
+	var statusErr httpStatusError
+	if !errors.As(err, &statusErr) || statusErr.StatusCode() != http.StatusTooManyRequests {
+		t.Fatalf("seeded quota err = %v, want HTTP 429", err)
+	}
+}

@@ -14,6 +14,7 @@ import (
 	"math"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 	"unicode/utf8"
 
@@ -68,27 +69,36 @@ type Options struct {
 	Bus *eventbus.Bus
 }
 
-// Module implements lifecycle.Module and contracts.KeyValidator for gateway API keys.
+// Module implements lifecycle.Module, contracts.KeyValidator,
+// contracts.KeyProvisioner, and contracts.GatewayInterceptor for gateway API keys.
 type Module struct {
-	db    *db.DB
-	bus   *eventbus.Bus
-	repo  *repository
-	cache *keyCache
+	db      *db.DB
+	bus     *eventbus.Bus
+	repo    *repository
+	cache   *keyCache
+	limiter *keyLimiter
+
+	lifeMu  sync.Mutex
+	started bool
+	cancel  context.CancelFunc
+	wg      sync.WaitGroup
 }
 
 var (
-	_ lifecycle.Module         = (*Module)(nil)
-	_ contracts.KeyValidator   = (*Module)(nil)
-	_ contracts.KeyProvisioner = (*Module)(nil)
+	_ lifecycle.Module             = (*Module)(nil)
+	_ contracts.KeyValidator       = (*Module)(nil)
+	_ contracts.KeyProvisioner     = (*Module)(nil)
+	_ contracts.GatewayInterceptor = (*Module)(nil)
 )
 
 // New constructs a keys Module with the provided database and event bus.
 func New(opts Options) *Module {
 	return &Module{
-		db:    opts.DB,
-		bus:   opts.Bus,
-		repo:  newRepository(opts.DB),
-		cache: newKeyCache(),
+		db:      opts.DB,
+		bus:     opts.Bus,
+		repo:    newRepository(opts.DB),
+		cache:   newKeyCache(),
+		limiter: newKeyLimiter(),
 	}
 }
 
@@ -123,17 +133,62 @@ func (m *Module) RegisterRoutes(mounts lifecycle.RouteMounts) {
 	}
 }
 
-// Start validates that required dependencies are wired.
-func (m *Module) Start(context.Context) error {
+// Start validates that required dependencies are wired and subscribes to
+// usage.recorded events to enforce real-time per-key USD quotas.
+func (m *Module) Start(ctx context.Context) error {
 	if m.db == nil {
 		return errors.New("keys: database is required")
 	}
+	if m.bus == nil {
+		return nil
+	}
+
+	m.lifeMu.Lock()
+	if m.started {
+		m.lifeMu.Unlock()
+		return nil
+	}
+	runCtx, cancel := context.WithCancel(context.WithoutCancel(ctx))
+	m.cancel = cancel
+	m.started = true
+	ch, unsub := m.bus.Subscribe("usage.recorded", usageSubBufSize)
+	m.wg.Add(1)
+	go m.consumeUsage(runCtx, ch, unsub)
+	m.lifeMu.Unlock()
 	return nil
 }
 
-// Stop clears the in-memory validation cache during graceful shutdown.
-func (m *Module) Stop(context.Context) error {
+// Stop stops the usage.recorded subscriber and clears in-memory caches during graceful shutdown.
+func (m *Module) Stop(ctx context.Context) error {
+	m.lifeMu.Lock()
+	wasStarted := m.started
+	cancel := m.cancel
+	m.started = false
+	m.cancel = nil
+	m.lifeMu.Unlock()
+
+	if wasStarted && cancel != nil {
+		cancel()
+		done := make(chan struct{})
+		go func() {
+			m.wg.Wait()
+			close(done)
+		}()
+		if ctx == nil {
+			<-done
+		} else {
+			select {
+			case <-done:
+			case <-ctx.Done():
+				m.cache.Clear()
+				m.limiter.clear()
+				return ctx.Err()
+			}
+		}
+	}
+
 	m.cache.Clear()
+	m.limiter.clear()
 	return nil
 }
 
@@ -223,6 +278,7 @@ func (m *Module) RevokeKey(ctx context.Context, keyID string) error {
 		return err
 	}
 	m.cache.Delete(res.OldHash)
+	m.limiter.purgeKey(id)
 	m.publishChanged("deleted", id, "system", res.DeletedAt)
 	return nil
 }
@@ -252,6 +308,13 @@ func (m *Module) ValidateKey(ctx context.Context, rawKey string) (contracts.KeyI
 	if entry.expiresAt != nil && !time.Now().UTC().Before(*entry.expiresAt) {
 		return contracts.KeyInfo{}, ErrKeyExpired
 	}
+
+	m.limiter.setLimits(entry.info.ID, keyLimitSnapshot{
+		name:         entry.info.Name,
+		rateLimitRPM: entry.info.RateLimitRPM,
+		quotaUSD:     entry.info.QuotaUSD,
+	})
+	m.recordLastUsed(ctx, entry.info.ID)
 
 	return cloneKeyInfo(entry.info), nil
 }
@@ -515,6 +578,7 @@ func (m *Module) handlePatchKey(w http.ResponseWriter, r *http.Request) {
 
 	// Immediately invalidate cache before emitting event bus notifications.
 	m.cache.Delete(res.KeyHash)
+	m.limiter.invalidateLimits(res.Summary.ID)
 	m.publishChanged("updated", res.Summary.ID, actorFromContext(r.Context()), res.Summary.UpdatedAt)
 
 	httpserver.WriteJSON(w, http.StatusOK, res.Summary)
@@ -572,6 +636,7 @@ func (m *Module) handleDeleteKey(w http.ResponseWriter, r *http.Request) {
 
 	// Immediately invalidate deleted hash before publishing event.
 	m.cache.Delete(res.OldHash)
+	m.limiter.purgeKey(id)
 	m.publishChanged("deleted", id, actorFromContext(r.Context()), res.DeletedAt)
 
 	w.WriteHeader(http.StatusNoContent)

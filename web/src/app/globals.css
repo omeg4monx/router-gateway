@@ -358,6 +358,95 @@ input:focus-visible {
   font-variant-numeric: tabular-nums;
 }
 
+/* ============================================================================
+ * React Flow Provider Topology smooth animations & themed controls
+ * ========================================================================== */
+@keyframes topology-router-breathe {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 1px color-mix(in srgb, var(--color-highlight) 35%, transparent),
+      0 6px 22px color-mix(in srgb, var(--color-highlight) 20%, transparent);
+  }
+  50% {
+    box-shadow:
+      0 0 0 2px color-mix(in srgb, var(--color-highlight) 50%, transparent),
+      0 8px 30px color-mix(in srgb, var(--color-highlight) 34%, transparent);
+  }
+}
+
+@keyframes topology-edge-flow {
+  from {
+    stroke-dashoffset: 32;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes topology-edge-bloom {
+  0%,
+  100% {
+    opacity: 0.16;
+  }
+  50% {
+    opacity: 0.34;
+  }
+}
+
+.topology-router-core {
+  animation: topology-router-breathe 2.4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+.topology-router-badge {
+  box-shadow: 0 0 12px color-mix(in srgb, var(--color-highlight) 48%, transparent);
+}
+
+.topology-edge-flow {
+  stroke-dasharray: 6 10;
+  animation: topology-edge-flow 1.05s linear infinite;
+}
+
+.topology-edge-last {
+  stroke-dasharray: 4 12;
+  animation: topology-edge-flow 3.2s linear infinite;
+}
+
+.topology-edge-bloom {
+  animation: topology-edge-bloom 2.2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+.topology-flow-controls.react-flow__controls {
+  border: 1px solid var(--color-border);
+  border-radius: 0.625rem;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  background: var(--color-surface);
+}
+
+.topology-flow-controls .react-flow__controls-button {
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+  border-bottom: 1px solid var(--color-border-subtle);
+  transition:
+    background-color 180ms ease,
+    color 180ms ease;
+}
+
+.topology-flow-controls .react-flow__controls-button:hover {
+  background: var(--color-surface-2);
+  color: var(--color-text-main);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .topology-router-core,
+  .topology-edge-flow,
+  .topology-edge-last,
+  .topology-edge-bloom {
+    animation: none;
+  }
+}
+
 :root {
   --font-ui-sans: "Plus Jakarta Sans Variable", "Plus Jakarta Sans";
   --font-ui-mono: "JetBrains Mono Variable", "JetBrains Mono";

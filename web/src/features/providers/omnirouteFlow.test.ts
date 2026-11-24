@@ -37,14 +37,35 @@ describe("OmniRoute provider detail page (?provider=<id>) flow & styling", () =>
     expect(detailSource).toContain("rounded-lg border border-[var(--color-border)]");
     expect(detailSource).toContain("AddApiKeyModal");
     expect(detailSource).toContain("OAuthWizardModal");
+    expect(detailSource).toContain("EditConnectionModal");
+  });
+
+  test("ProviderDetailView edits a selected connection in a modal without navigating away", () => {
+    expect(modalsSource).toContain("export function EditConnectionModal(");
+    expect(detailSource).toContain("setEditingConnection(conn)");
+    expect(detailSource).not.toContain("/dashboard/providers/detail/?id=");
+  });
+
+  test("EditConnectionModal provides dimmed placeholders and prevents browser autofill highlight on secret rotation fields", () => {
+    expect(modalsSource).toContain("placeholder:text-[var(--color-text-muted)]/50");
+    expect(modalsSource).toContain("[&:-webkit-autofill]:shadow-");
+    expect(modalsSource).toContain('autoComplete="off"');
+    expect(modalsSource).toContain("secretFieldsUnlocked");
+    expect(modalsSource).toContain('placeholder="https://api.openai.com/v1"');
   });
 });
 
 describe("OmniRoute AddApiKeyModal & OAuthWizardModal flow & styling", () => {
-  test("AddApiKeyModal supports locked provider mode and inline Check validation button", () => {
+  test("AddApiKeyModal supports locked provider mode, inline Check validation button, and opens Advanced Settings by default", () => {
     expect(modalsSource).toContain("lockProvider?: boolean");
     expect(modalsSource).toContain('"Checking..."');
     expect(modalsSource).toContain('"Check"');
+    const addApiKeySection = modalsSource.slice(
+      modalsSource.indexOf("export function AddApiKeyModal("),
+      modalsSource.indexOf("export function OAuthWizardModal("),
+    );
+    expect(addApiKeySection).toContain("const [showAdvanced, setShowAdvanced] = useState(true);");
+    expect(addApiKeySection).toContain("setShowAdvanced(true);");
   });
 
   test("OAuthWizardModal implements OmniRoute combined waiting + manual paste divider and success/error screens", () => {

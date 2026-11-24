@@ -4,6 +4,8 @@ import {
   connectionToEditFormValues,
   createConnectionSchema,
   createNodeSchema,
+  DEFAULT_CREATE_CONNECTION_VALUES,
+  DEFAULT_PRIORITY,
   oauthExchangeSchema,
   oauthStartSchema,
   parseCommaSeparatedList,
@@ -16,6 +18,11 @@ import {
 } from "./schemas";
 
 describe("parseCommaSeparatedList", () => {
+  test("defaults routing priority to 1 for new provider connections", () => {
+    expect(DEFAULT_PRIORITY).toBe(1);
+    expect(DEFAULT_CREATE_CONNECTION_VALUES.priority).toBe("1");
+  });
+
   test("splits, trims, drops empty entries, and deduplicates preserving order", () => {
     expect(parseCommaSeparatedList(" gpt-4o, claude-sonnet-4 , , gpt-4o, gemini-2.5-pro ")).toEqual(
       ["gpt-4o", "claude-sonnet-4", "gemini-2.5-pro"],
@@ -262,7 +269,7 @@ describe("oauthExchangeSchema", () => {
       expect(toOAuthExchangeRequest(parsed.data)).toEqual({
         code: "auth_code_abc",
         state: "oauth_state_xyz",
-        priority: 100,
+        priority: 1,
         enabled: true,
         headers: {},
       });
