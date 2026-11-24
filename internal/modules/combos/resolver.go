@@ -45,7 +45,7 @@ func (m *Module) Resolve(ctx context.Context, model string, allowed []string) ([
 	}
 
 	visited := make(map[string]bool)
-	rawCandidates := resolveIdentifier(requested, requested, snap, visited, 0)
+	rawCandidates := m.resolveIdentifier(requested, requested, snap, visited, 0)
 	if len(rawCandidates) == 0 {
 		return nil, contracts.ErrModelNotFound
 	}
@@ -237,7 +237,7 @@ func (m *Module) loadSnapshot(ctx context.Context) (*resolveSnapshot, error) {
 	}, nil
 }
 
-func resolveIdentifier(
+func (m *Module) resolveIdentifier(
 	ident string,
 	logicalModel string,
 	snap *resolveSnapshot,
@@ -251,19 +251,35 @@ func resolveIdentifier(
 	visited[clean] = true
 	defer delete(visited, clean)
 
-	// Tier 1: Active Combo.
+	// Tier 1: Active Combo (with full OmniRoute strategy ordering and structured steps).
 	if combo, ok := snap.activeCombos[clean]; ok {
-		var out []contracts.ResolvedTarget
-		for _, target := range combo.Targets {
-			resolved := resolveIdentifier(target, logicalModel, snap, visited, depth+1)
-			out = append(out, resolved...)
+		steps := combo.Steps
+		if len(steps) == 0 {
+			steps = stepsFromTargets(combo.Targets)
 		}
-		return out
+		weighted := make([]weightedCandidate, 0, len(steps))
+		for _, step := range steps {
+			targetID := step.targetIdentifier()
+			if targetID == "" {
+				continue
+			}
+			resolved := m.resolveIdentifier(targetID, logicalModel, snap, visited, depth+1)
+			for _, cand := range resolved {
+				if step.ConnectionID != "" && cand.ConnectionID != step.ConnectionID {
+					continue
+				}
+				weighted = append(weighted, weightedCandidate{
+					target: cand,
+					weight: step.Weight,
+				})
+			}
+		}
+		return applyComboStrategy(combo, weighted, m.stratState)
 	}
 
 	// Tier 2: Model Alias.
 	if aliasTarget, ok := snap.aliases[clean]; ok {
-		return resolveIdentifier(aliasTarget, logicalModel, snap, visited, depth+1)
+		return m.resolveIdentifier(aliasTarget, logicalModel, snap, visited, depth+1)
 	}
 
 	// Tier 3: Explicit <provider>/<model>.

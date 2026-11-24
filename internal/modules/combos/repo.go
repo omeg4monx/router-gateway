@@ -25,16 +25,18 @@ var (
 	ErrDisabledModelNotFound = errors.New("combos: disabled model not found")
 )
 
-// Combo represents an ordered multi-model fallback routing chain.
+// Combo represents a multi-model routing combo following OmniRoute's schema.
 type Combo struct {
-	ID          string   `json:"id"`
-	Name        string   `json:"name"`
-	Description string   `json:"description"`
-	Targets     []string `json:"targets"`
-	Strategy    string   `json:"strategy"`
-	Enabled     bool     `json:"enabled"`
-	CreatedAt   string   `json:"created_at"`
-	UpdatedAt   string   `json:"updated_at"`
+	ID          string         `json:"id"`
+	Name        string         `json:"name"`
+	Description string         `json:"description"`
+	Targets     []string       `json:"targets"`
+	Steps       []ComboStep    `json:"steps"`
+	Strategy    string         `json:"strategy"`
+	Config      map[string]any `json:"config"`
+	Enabled     bool           `json:"enabled"`
+	CreatedAt   string         `json:"created_at"`
+	UpdatedAt   string         `json:"updated_at"`
 }
 
 // ModelAlias maps a logical model alias to a target model, combo, or another alias.
@@ -57,7 +59,9 @@ type createComboParams struct {
 	Name        string
 	Description string
 	Targets     []string
+	Steps       []ComboStep
 	Strategy    string
+	Config      map[string]any
 	Enabled     bool
 }
 
@@ -65,7 +69,9 @@ type updateComboValues struct {
 	Name        string
 	Description string
 	Targets     []string
+	Steps       []ComboStep
 	Strategy    string
+	Config      map[string]any
 	Enabled     bool
 }
 
@@ -88,12 +94,14 @@ type rowScanner interface {
 	Scan(dest ...any) error
 }
 
-const selectComboColumns = `id, name, description, targets_json, strategy, enabled, created_at, updated_at`
+const selectComboColumns = `id, name, description, targets_json, steps_json, strategy, config_json, enabled, created_at, updated_at`
 
 func scanCombo(sc rowScanner) (Combo, error) {
 	var (
 		c           Combo
 		targetsJSON string
+		stepsJSON   string
+		configJSON  string
 		enabledInt  int
 	)
 	if err := sc.Scan(
@@ -101,7 +109,9 @@ func scanCombo(sc rowScanner) (Combo, error) {
 		&c.Name,
 		&c.Description,
 		&targetsJSON,
+		&stepsJSON,
 		&c.Strategy,
+		&configJSON,
 		&enabledInt,
 		&c.CreatedAt,
 		&c.UpdatedAt,
@@ -113,6 +123,11 @@ func scanCombo(sc rowScanner) (Combo, error) {
 		return Combo{}, fmt.Errorf("combos: decode targets for %q: %w", c.ID, err)
 	}
 	c.Targets = targets
+	c.Steps = decodeStepsJSON(stepsJSON, targets)
+	c.Config = decodeConfigJSON(configJSON)
+	if c.Strategy == "ordered" || c.Strategy == "" {
+		c.Strategy = defaultComboStrategy
+	}
 	c.Enabled = enabledInt != 0
 	return c, nil
 }
@@ -178,6 +193,18 @@ func (r *repository) CreateCombo(ctx context.Context, p createComboParams) (Comb
 	if err != nil {
 		return Combo{}, fmt.Errorf("combos: encode targets: %w", err)
 	}
+	steps := p.Steps
+	if len(steps) == 0 {
+		steps = stepsFromTargets(p.Targets)
+	}
+	stepsJSON, err := encodeStepsJSON(steps)
+	if err != nil {
+		return Combo{}, fmt.Errorf("combos: encode steps: %w", err)
+	}
+	configJSON, err := encodeConfigJSON(p.Config)
+	if err != nil {
+		return Combo{}, fmt.Errorf("combos: encode config: %w", err)
+	}
 	enabledInt := 0
 	if p.Enabled {
 		enabledInt = 1
@@ -186,13 +213,15 @@ func (r *repository) CreateCombo(ctx context.Context, p createComboParams) (Comb
 	now := r.nowUTCString()
 	if _, err := r.db.Writer().ExecContext(
 		ctx,
-		`INSERT INTO combos (id, name, description, targets_json, strategy, enabled, created_at, updated_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+		`INSERT INTO combos (id, name, description, targets_json, steps_json, strategy, config_json, enabled, created_at, updated_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		p.ID,
 		p.Name,
 		p.Description,
 		targetsJSON,
+		stepsJSON,
 		p.Strategy,
+		configJSON,
 		enabledInt,
 		now,
 		now,
@@ -208,7 +237,9 @@ func (r *repository) CreateCombo(ctx context.Context, p createComboParams) (Comb
 		Name:        p.Name,
 		Description: p.Description,
 		Targets:     cloneStringSlice(p.Targets),
+		Steps:       cloneSteps(steps),
 		Strategy:    p.Strategy,
+		Config:      cloneConfig(p.Config),
 		Enabled:     p.Enabled,
 		CreatedAt:   now,
 		UpdatedAt:   now,
@@ -249,6 +280,18 @@ func (r *repository) UpdateCombo(ctx context.Context, id string, fn func(cur Com
 	if err != nil {
 		return Combo{}, fmt.Errorf("combos: encode updated targets: %w", err)
 	}
+	steps := next.Steps
+	if len(steps) == 0 {
+		steps = stepsFromTargets(next.Targets)
+	}
+	stepsJSON, err := encodeStepsJSON(steps)
+	if err != nil {
+		return Combo{}, fmt.Errorf("combos: encode updated steps: %w", err)
+	}
+	configJSON, err := encodeConfigJSON(next.Config)
+	if err != nil {
+		return Combo{}, fmt.Errorf("combos: encode updated config: %w", err)
+	}
 	enabledInt := 0
 	if next.Enabled {
 		enabledInt = 1
@@ -261,14 +304,18 @@ func (r *repository) UpdateCombo(ctx context.Context, id string, fn func(cur Com
 		 SET name = ?,
 		     description = ?,
 		     targets_json = ?,
+		     steps_json = ?,
 		     strategy = ?,
+		     config_json = ?,
 		     enabled = ?,
 		     updated_at = ?
 		 WHERE id = ?`,
 		next.Name,
 		next.Description,
 		targetsJSON,
+		stepsJSON,
 		next.Strategy,
+		configJSON,
 		enabledInt,
 		now,
 		id,
@@ -286,7 +333,9 @@ func (r *repository) UpdateCombo(ctx context.Context, id string, fn func(cur Com
 	cur.Name = next.Name
 	cur.Description = next.Description
 	cur.Targets = cloneStringSlice(next.Targets)
+	cur.Steps = cloneSteps(steps)
 	cur.Strategy = next.Strategy
+	cur.Config = cloneConfig(next.Config)
 	cur.Enabled = next.Enabled
 	cur.UpdatedAt = now
 	return cur, nil

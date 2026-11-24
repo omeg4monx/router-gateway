@@ -276,9 +276,10 @@ func buildApp(ctx context.Context, cfg config.Config, build system.BuildInfo) (*
 		Bus:        bus,
 	})
 	combosMod := combos.New(combos.Options{
-		DB:        database,
-		Providers: providersMod,
-		Bus:       bus,
+		DB:         database,
+		Providers:  providersMod,
+		HTTPClient: httpClient,
+		Bus:        bus,
 	})
 	usageMod := usage.New(usage.Options{
 		DB:     database,

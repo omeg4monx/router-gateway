@@ -557,6 +557,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/combos/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Probe a fallback combo chain against live upstream connections */
+        post: operations["testCombo"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/combos/{id}": {
         parameters: {
             query?: never;
@@ -577,6 +594,57 @@ export interface paths {
         head?: never;
         /** Update a fallback combo name, description, ordered targets, strategy, or enabled state */
         patch: operations["updateCombo"];
+        trace?: never;
+    };
+    "/api/models/catalog": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Retrieve OmniRoute-compatible model catalog grouped by provider */
+        get: operations["getModelCatalog"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/models/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Probe a single model on a configured provider connection */
+        post: operations["testCatalogModel"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/models/test-all": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Probe multiple models for a provider sequentially with rate-limit awareness */
+        post: operations["testAllCatalogModels"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/models/aliases": {
@@ -668,6 +736,23 @@ export interface paths {
         post?: never;
         /** Manually clear an upstream connection cooldown window and reset its backoff counter */
         delete: operations["clearModelCooldown"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/providers/health-matrix": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Aggregate live connection and cooldown health states per provider */
+        get: operations["getProviderHealthMatrix"];
+        put?: never;
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -2978,13 +3063,17 @@ export interface components {
             stopped: boolean;
         };
         /** @enum {string} */
-        ComboStrategy: "ordered";
+        ComboStrategy: "priority" | "weighted" | "round-robin" | "context-relay" | "fill-first" | "p2c" | "random" | "least-used" | "cost-optimized" | "reset-aware" | "reset-window" | "expiry-first" | "headroom" | "quota-weighted" | "strict-random" | "auto" | "lkgp" | "context-optimized" | "cache-optimized" | "fusion" | "pipeline" | "jev";
         Combo: {
             id: string;
             name: string;
             description: string;
             targets: string[];
+            steps: components["schemas"]["ComboStep"][];
             strategy: components["schemas"]["ComboStrategy"];
+            config: {
+                [key: string]: unknown;
+            };
             enabled: boolean;
             /** Format: date-time */
             created_at: string;
@@ -2997,8 +3086,12 @@ export interface components {
         CreateComboRequest: {
             name: string;
             description?: string;
-            targets: string[];
+            targets?: string[];
+            steps?: components["schemas"]["ComboStep"][];
             strategy?: components["schemas"]["ComboStrategy"];
+            config?: {
+                [key: string]: unknown;
+            };
             /** @default true */
             enabled: boolean;
         };
@@ -3006,7 +3099,11 @@ export interface components {
             name?: string;
             description?: string;
             targets?: string[];
+            steps?: components["schemas"]["ComboStep"][];
             strategy?: components["schemas"]["ComboStrategy"];
+            config?: {
+                [key: string]: unknown;
+            };
             enabled?: boolean;
         };
         ModelAlias: {
@@ -4514,6 +4611,95 @@ export interface components {
         };
         ClearImporterHistoryResponse: {
             deleted: number;
+        };
+        ComboStep: {
+            /** @enum {string} */
+            kind: "model" | "combo-ref";
+            model?: string;
+            comboName?: string;
+            weight?: number;
+            label?: string;
+            connectionId?: string;
+            prompt?: string;
+            fallbackOnlyOnQuotaExhaustion?: boolean;
+        };
+        TestComboRequest: {
+            comboName: string;
+        };
+        ComboTargetTestResult: {
+            target: string;
+            /** @enum {string} */
+            status: "ok" | "error";
+            latencyMs?: number;
+            statusCode?: number;
+            error?: string;
+        };
+        TestComboResponse: {
+            resolvedBy?: string;
+            results: components["schemas"]["ComboTargetTestResult"][];
+            error?: string;
+        };
+        CatalogModel: {
+            id: string;
+            name: string;
+            type: string;
+            subtype?: string;
+            custom?: boolean;
+            free?: boolean;
+            capabilities?: {
+                [key: string]: boolean;
+            };
+            context_length?: number;
+            max_output_tokens?: number;
+            input_modalities?: string[];
+            output_modalities?: string[];
+            supported_endpoints?: string[];
+            hidden?: boolean;
+        };
+        CatalogProviderGroup: {
+            provider: string;
+            models: components["schemas"]["CatalogModel"][];
+        };
+        ModelCatalogResponse: {
+            catalog: {
+                [key: string]: components["schemas"]["CatalogProviderGroup"];
+            };
+        };
+        TestModelRequest: {
+            providerId: string;
+            modelId: string;
+        };
+        ModelTestResult: {
+            ok: boolean;
+            /** @enum {string} */
+            status: "ok" | "slow" | "error";
+            latencyMs: number;
+            statusCode?: number;
+            error?: string;
+            rateLimited?: boolean;
+            isQuota?: boolean;
+            isTimeout?: boolean;
+        };
+        TestAllModelsRequest: {
+            providerId: string;
+            modelIds: string[];
+            respectRateLimit?: boolean;
+        };
+        TestAllModelsResponse: {
+            results: {
+                [key: string]: components["schemas"]["ModelTestResult"];
+            };
+        };
+        ProviderHealthMatrixEntry: {
+            provider: string;
+            /** @enum {string} */
+            state: "healthy" | "degraded" | "down" | "untested";
+            totalConnections: number;
+            healthyConnections: number;
+            coolingDownConnections: number;
+        };
+        ProviderHealthMatrixResponse: {
+            providers: components["schemas"]["ProviderHealthMatrixEntry"][];
         };
     };
     responses: never;
@@ -6464,6 +6650,57 @@ export interface operations {
             };
         };
     };
+    testCombo: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TestComboRequest"];
+            };
+        };
+        responses: {
+            /** @description Combo probe results. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TestComboResponse"];
+                };
+            };
+            /** @description Missing comboName. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Administrative authentication is required. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Combo not found. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
     getCombo: {
         parameters: {
             query?: never;
@@ -6634,6 +6871,122 @@ export interface operations {
             };
             /** @description Failed to update combo. */
             500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    getModelCatalog: {
+        parameters: {
+            query?: {
+                /** @description Set to 1 or true to include hidden/disabled models. */
+                includeHidden?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Provider-grouped model catalog. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModelCatalogResponse"];
+                };
+            };
+            /** @description Administrative authentication is required. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    testCatalogModel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TestModelRequest"];
+            };
+        };
+        responses: {
+            /** @description Model probe result. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModelTestResult"];
+                };
+            };
+            /** @description Missing providerId or modelId. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Administrative authentication is required. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    testAllCatalogModels: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TestAllModelsRequest"];
+            };
+        };
+        responses: {
+            /** @description Per-model probe results. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TestAllModelsResponse"];
+                };
+            };
+            /** @description Missing providerId or modelIds. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Administrative authentication is required. */
+            401: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -7015,6 +7368,35 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Administrative authentication is required. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    getProviderHealthMatrix: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Provider health matrix. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProviderHealthMatrixResponse"];
                 };
             };
             /** @description Administrative authentication is required. */

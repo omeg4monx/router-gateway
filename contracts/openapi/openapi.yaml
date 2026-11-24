@@ -120,8 +120,16 @@ paths:
     $ref: './modules/providers.yaml#/paths/~1api~1providers~1oauth~1callback'
   /api/combos:
     $ref: './modules/combos.yaml#/paths/~1api~1combos'
+  /api/combos/test:
+    $ref: './modules/combos.yaml#/paths/~1api~1combos~1test'
   /api/combos/{id}:
     $ref: './modules/combos.yaml#/paths/~1api~1combos~1{id}'
+  /api/models/catalog:
+    $ref: './modules/combos.yaml#/paths/~1api~1models~1catalog'
+  /api/models/test:
+    $ref: './modules/combos.yaml#/paths/~1api~1models~1test'
+  /api/models/test-all:
+    $ref: './modules/combos.yaml#/paths/~1api~1models~1test-all'
   /api/models/aliases:
     $ref: './modules/combos.yaml#/paths/~1api~1models~1aliases'
   /api/models/aliases/{alias}:
@@ -132,6 +140,8 @@ paths:
     $ref: './modules/combos.yaml#/paths/~1api~1models~1cooldowns'
   /api/models/cooldowns/{connectionId}:
     $ref: './modules/combos.yaml#/paths/~1api~1models~1cooldowns~1{connectionId}'
+  /api/providers/health-matrix:
+    $ref: './modules/combos.yaml#/paths/~1api~1providers~1health-matrix'
   /api/usage/summary:
     $ref: './modules/usage.yaml#/paths/~1api~1usage~1summary'
   /api/usage/logs:

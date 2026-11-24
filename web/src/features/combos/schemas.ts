@@ -2,6 +2,7 @@ import { z } from "zod";
 import type { components } from "@/shared/api/schema";
 
 export type ComboStrategy = components["schemas"]["ComboStrategy"];
+export type ComboStep = components["schemas"]["ComboStep"];
 export type Combo = components["schemas"]["Combo"];
 export type ListCombosResponse = components["schemas"]["ListCombosResponse"];
 export type CreateComboRequest = components["schemas"]["CreateComboRequest"];
@@ -16,7 +17,31 @@ export type EnableModelRequest = components["schemas"]["EnableModelRequest"];
 export type CooldownEntry = components["schemas"]["CooldownEntry"];
 export type ListCooldownsResponse = components["schemas"]["ListCooldownsResponse"];
 
-export const COMBO_STRATEGIES = ["ordered"] as const;
+export const COMBO_STRATEGIES = [
+  "priority",
+  "weighted",
+  "round-robin",
+  "context-relay",
+  "fill-first",
+  "p2c",
+  "random",
+  "least-used",
+  "cost-optimized",
+  "reset-aware",
+  "reset-window",
+  "expiry-first",
+  "headroom",
+  "quota-weighted",
+  "strict-random",
+  "auto",
+  "lkgp",
+  "context-optimized",
+  "cache-optimized",
+  "fusion",
+  "pipeline",
+  "jev",
+] as const satisfies readonly ComboStrategy[];
+
 export const MAX_MODEL_IDENTIFIER_RUNES = 128;
 export const MAX_DESCRIPTION_RUNES = 512;
 export const MAX_TARGETS_COUNT = 64;
@@ -77,7 +102,7 @@ export type CreateComboFormOutput = z.output<typeof createComboSchema>;
 export const DEFAULT_CREATE_COMBO_VALUES: CreateComboFormInput = {
   name: "",
   description: "",
-  strategy: "ordered",
+  strategy: "priority",
   enabled: true,
   targets: [],
 };

@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
+  COMBO_STRATEGIES,
   createComboSchema,
   disableModelSchema,
   extractTargetsFieldErrors,
@@ -12,11 +13,25 @@ import {
 } from "./schemas";
 
 describe("createComboSchema", () => {
-  test("parses valid ordered combo and trims name, description, and targets", async () => {
+  test("supports all 22 OmniRoute combo strategies", () => {
+    expect(COMBO_STRATEGIES).toHaveLength(22);
+    for (const strategy of COMBO_STRATEGIES) {
+      const parsed = createComboSchema.safeParse({
+        name: `combo-${strategy}`,
+        description: "",
+        strategy,
+        enabled: true,
+        targets: ["openai/gpt-4o"],
+      });
+      expect(parsed.success).toBe(true);
+    }
+  });
+
+  test("parses valid priority combo and trims name, description, and targets", async () => {
     const input = {
       name: "  coding-fallback  ",
       description: "  Primary GPT-4o with Claude Sonnet fallback  ",
-      strategy: "ordered" as const,
+      strategy: "priority" as const,
       enabled: true,
       targets: ["  openai/gpt-4o ", "anthropic/claude-sonnet-4-20250514"],
     };
@@ -27,7 +42,7 @@ describe("createComboSchema", () => {
       expect(toCreateComboRequest(parsed.data)).toEqual({
         name: "coding-fallback",
         description: "Primary GPT-4o with Claude Sonnet fallback",
-        strategy: "ordered",
+        strategy: "priority",
         enabled: true,
         targets: ["openai/gpt-4o", "anthropic/claude-sonnet-4-20250514"],
       });
@@ -45,7 +60,7 @@ describe("createComboSchema", () => {
     const emptyName = createComboSchema.safeParse({
       name: "   ",
       description: "",
-      strategy: "ordered",
+      strategy: "priority",
       enabled: true,
       targets: ["openai/gpt-4o"],
     });
@@ -54,7 +69,7 @@ describe("createComboSchema", () => {
     const wildcardName = createComboSchema.safeParse({
       name: "*",
       description: "",
-      strategy: "ordered",
+      strategy: "priority",
       enabled: true,
       targets: ["openai/gpt-4o"],
     });
@@ -65,7 +80,7 @@ describe("createComboSchema", () => {
     const noTargets = createComboSchema.safeParse({
       name: "empty-chain",
       description: "",
-      strategy: "ordered",
+      strategy: "priority",
       enabled: true,
       targets: [],
     });
@@ -74,7 +89,7 @@ describe("createComboSchema", () => {
     const blankTarget = createComboSchema.safeParse({
       name: "blank-target",
       description: "",
-      strategy: "ordered",
+      strategy: "priority",
       enabled: true,
       targets: ["   "],
     });
@@ -83,7 +98,7 @@ describe("createComboSchema", () => {
     const duplicateTargets = createComboSchema.safeParse({
       name: "dup-chain",
       description: "",
-      strategy: "ordered",
+      strategy: "priority",
       enabled: true,
       targets: ["openai/gpt-4o", " openai/gpt-4o "],
     });
@@ -92,7 +107,7 @@ describe("createComboSchema", () => {
     const selfReferential = createComboSchema.safeParse({
       name: "self-combo",
       description: "",
-      strategy: "ordered",
+      strategy: "priority",
       enabled: true,
       targets: ["openai/gpt-4o", " self-combo "],
     });
@@ -106,7 +121,7 @@ describe("createComboSchema", () => {
       {
         name: "self-combo",
         description: "",
-        strategy: "ordered",
+        strategy: "priority",
         enabled: true,
         targets: ["openai/gpt-4o", "self-combo"],
       },
@@ -122,7 +137,7 @@ describe("createComboSchema", () => {
       {
         name: "long-target-combo",
         description: "",
-        strategy: "ordered",
+        strategy: "priority",
         enabled: true,
         targets: [tooLongTarget],
       },
@@ -137,7 +152,7 @@ describe("createComboSchema", () => {
       {
         name: "empty-combo",
         description: "",
-        strategy: "ordered",
+        strategy: "priority",
         enabled: true,
         targets: [],
       },

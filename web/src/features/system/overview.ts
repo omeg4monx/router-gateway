@@ -47,7 +47,7 @@ const MODULE_REGISTRY: Record<string, RawModuleEntry> = {
     },
   },
   combos: {
-    href: "/dashboard/models/",
+    href: "/dashboard/combos/",
     descriptions: {
       en: "Ordered fallback chains, model aliases & cooldown routing",
       id: "Rantai failover berurutan, alias model & routing cooldown",

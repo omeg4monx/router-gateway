@@ -72,11 +72,18 @@ export const ROUTING_ITEMS: readonly NavItem[] = [
     keywords: ["openai", "anthropic", "gemini", "upstream", "oauth", "koneksi"],
   },
   {
-    href: "/dashboard/models/",
+    href: "/dashboard/combos/",
     moduleId: "combos",
     icon: Layers,
-    labels: { en: "Combos & Models", id: "Combo & Model" },
-    keywords: ["combos", "models", "routing", "aliases", "fallback", "failover", "rute"],
+    labels: { en: "Combos", id: "Combo" },
+    keywords: ["combos", "routing", "aliases", "fallback", "failover", "cooldown", "rute"],
+  },
+  {
+    href: "/dashboard/models/",
+    moduleId: "combos",
+    icon: Cpu,
+    labels: { en: "Models", id: "Model" },
+    keywords: ["models", "catalog", "katalog", "health", "test", "visibility", "keys"],
   },
 ];
 

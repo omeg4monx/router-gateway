@@ -194,6 +194,150 @@ paths:
             application/json:
               schema:
                 $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+  /api/combos/test:
+    post:
+      operationId: testCombo
+      summary: Probe a fallback combo chain against live upstream connections
+      tags:
+        - combos
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TestComboRequest'
+      responses:
+        '200':
+          description: Combo probe results.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TestComboResponse'
+        '400':
+          description: Missing comboName.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Administrative authentication is required.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Combo not found.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+  /api/models/catalog:
+    get:
+      operationId: getModelCatalog
+      summary: Retrieve OmniRoute-compatible model catalog grouped by provider
+      tags:
+        - combos
+      parameters:
+        - name: includeHidden
+          in: query
+          required: false
+          description: Set to 1 or true to include hidden/disabled models.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Provider-grouped model catalog.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModelCatalogResponse'
+        '401':
+          description: Administrative authentication is required.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+  /api/models/test:
+    post:
+      operationId: testCatalogModel
+      summary: Probe a single model on a configured provider connection
+      tags:
+        - combos
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TestModelRequest'
+      responses:
+        '200':
+          description: Model probe result.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModelTestResult'
+        '400':
+          description: Missing providerId or modelId.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Administrative authentication is required.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+  /api/models/test-all:
+    post:
+      operationId: testAllCatalogModels
+      summary: Probe multiple models for a provider sequentially with rate-limit awareness
+      tags:
+        - combos
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TestAllModelsRequest'
+      responses:
+        '200':
+          description: Per-model probe results.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TestAllModelsResponse'
+        '400':
+          description: Missing providerId or modelIds.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Administrative authentication is required.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+  /api/providers/health-matrix:
+    get:
+      operationId: getProviderHealthMatrix
+      summary: Aggregate live connection and cooldown health states per provider
+      tags:
+        - combos
+      responses:
+        '200':
+          description: Provider health matrix.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProviderHealthMatrixResponse'
+        '401':
+          description: Administrative authentication is required.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
   /api/models/aliases:
     get:
       operationId: listModelAliases
@@ -465,7 +609,55 @@ components:
     ComboStrategy:
       type: string
       enum:
-        - ordered
+        - priority
+        - weighted
+        - round-robin
+        - context-relay
+        - fill-first
+        - p2c
+        - random
+        - least-used
+        - cost-optimized
+        - reset-aware
+        - reset-window
+        - expiry-first
+        - headroom
+        - quota-weighted
+        - strict-random
+        - auto
+        - lkgp
+        - context-optimized
+        - cache-optimized
+        - fusion
+        - pipeline
+        - jev
+    ComboStep:
+      type: object
+      additionalProperties: false
+      required:
+        - kind
+      properties:
+        kind:
+          type: string
+          enum:
+            - model
+            - combo-ref
+        model:
+          type: string
+        comboName:
+          type: string
+        weight:
+          type: number
+          minimum: 0
+          maximum: 100
+        label:
+          type: string
+        connectionId:
+          type: string
+        prompt:
+          type: string
+        fallbackOnlyOnQuotaExhaustion:
+          type: boolean
     Combo:
       type: object
       additionalProperties: false
@@ -474,7 +666,9 @@ components:
         - name
         - description
         - targets
+        - steps
         - strategy
+        - config
         - enabled
         - created_at
         - updated_at
@@ -490,8 +684,15 @@ components:
           minItems: 1
           items:
             type: string
+        steps:
+          type: array
+          items:
+            $ref: '#/components/schemas/ComboStep'
         strategy:
           $ref: '#/components/schemas/ComboStrategy'
+        config:
+          type: object
+          additionalProperties: true
         enabled:
           type: boolean
         created_at:
@@ -515,7 +716,6 @@ components:
       additionalProperties: false
       required:
         - name
-        - targets
       properties:
         name:
           type: string
@@ -530,8 +730,17 @@ components:
           maxItems: 64
           items:
             type: string
+        steps:
+          type: array
+          minItems: 1
+          maxItems: 64
+          items:
+            $ref: '#/components/schemas/ComboStep'
         strategy:
           $ref: '#/components/schemas/ComboStrategy'
+        config:
+          type: object
+          additionalProperties: true
         enabled:
           type: boolean
           default: true
@@ -552,8 +761,17 @@ components:
           maxItems: 64
           items:
             type: string
+        steps:
+          type: array
+          minItems: 1
+          maxItems: 64
+          items:
+            $ref: '#/components/schemas/ComboStep'
         strategy:
           $ref: '#/components/schemas/ComboStrategy'
+        config:
+          type: object
+          additionalProperties: true
         enabled:
           type: boolean
     ModelAlias:
@@ -676,3 +894,209 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/CooldownEntry'
+    CatalogModel:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - name
+        - type
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        type:
+          type: string
+        subtype:
+          type: string
+        custom:
+          type: boolean
+        free:
+          type: boolean
+        capabilities:
+          type: object
+          additionalProperties:
+            type: boolean
+        context_length:
+          type: integer
+        max_output_tokens:
+          type: integer
+        input_modalities:
+          type: array
+          items:
+            type: string
+        output_modalities:
+          type: array
+          items:
+            type: string
+        supported_endpoints:
+          type: array
+          items:
+            type: string
+        hidden:
+          type: boolean
+    CatalogProviderGroup:
+      type: object
+      additionalProperties: false
+      required:
+        - provider
+        - models
+      properties:
+        provider:
+          type: string
+        models:
+          type: array
+          items:
+            $ref: '#/components/schemas/CatalogModel'
+    ModelCatalogResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - catalog
+      properties:
+        catalog:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/CatalogProviderGroup'
+    TestModelRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - providerId
+        - modelId
+      properties:
+        providerId:
+          type: string
+        modelId:
+          type: string
+    ModelTestResult:
+      type: object
+      additionalProperties: false
+      required:
+        - ok
+        - status
+        - latencyMs
+      properties:
+        ok:
+          type: boolean
+        status:
+          type: string
+          enum:
+            - ok
+            - slow
+            - error
+        latencyMs:
+          type: integer
+        statusCode:
+          type: integer
+        error:
+          type: string
+        rateLimited:
+          type: boolean
+        isQuota:
+          type: boolean
+        isTimeout:
+          type: boolean
+    TestAllModelsRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - providerId
+        - modelIds
+      properties:
+        providerId:
+          type: string
+        modelIds:
+          type: array
+          items:
+            type: string
+        respectRateLimit:
+          type: boolean
+    TestAllModelsResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - results
+      properties:
+        results:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/ModelTestResult'
+    TestComboRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - comboName
+      properties:
+        comboName:
+          type: string
+    ComboTargetTestResult:
+      type: object
+      additionalProperties: false
+      required:
+        - target
+        - status
+      properties:
+        target:
+          type: string
+        status:
+          type: string
+          enum:
+            - ok
+            - error
+        latencyMs:
+          type: integer
+        statusCode:
+          type: integer
+        error:
+          type: string
+    TestComboResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - results
+      properties:
+        resolvedBy:
+          type: string
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/ComboTargetTestResult'
+        error:
+          type: string
+    ProviderHealthMatrixEntry:
+      type: object
+      additionalProperties: false
+      required:
+        - provider
+        - state
+        - totalConnections
+        - healthyConnections
+        - coolingDownConnections
+      properties:
+        provider:
+          type: string
+        state:
+          type: string
+          enum:
+            - healthy
+            - degraded
+            - down
+            - untested
+        totalConnections:
+          type: integer
+        healthyConnections:
+          type: integer
+        coolingDownConnections:
+          type: integer
+    ProviderHealthMatrixResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - providers
+      properties:
+        providers:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProviderHealthMatrixEntry'

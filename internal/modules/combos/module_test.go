@@ -307,7 +307,7 @@ func TestCombosAliasesDisabledCRUDAndAuth(t *testing.T) {
 		`{"name":"bad-empty","targets":[]}`,
 		`{"name":"bad-dup","targets":["openai/gpt-4o","openai/gpt-4o"]}`,
 		`{"name":"self-ref","targets":["self-ref"]}`,
-		`{"name":"bad-strategy","targets":["openai/gpt-4o"],"strategy":"random"}`,
+		`{"name":"bad-strategy","targets":["openai/gpt-4o"],"strategy":"not-a-valid-strategy"}`,
 		`{"name":"unknown-field","targets":["openai/gpt-4o"],"extra":true}`,
 	}
 	for _, body := range badPayloads {
@@ -333,7 +333,7 @@ func TestCombosAliasesDisabledCRUDAndAuth(t *testing.T) {
 		t.Fatalf("POST /api/combos = %d: %s", rec.Code, rec.Body.String())
 	}
 	created := decodeJSON[combos.Combo](t, rec)
-	if created.ID == "" || created.Name != "prod-fallback" || created.Strategy != "ordered" || !created.Enabled {
+	if created.ID == "" || created.Name != "prod-fallback" || created.Strategy != "priority" || !created.Enabled {
 		t.Fatalf("unexpected created combo: %+v", created)
 	}
 	if len(created.Targets) != 2 || created.Targets[0] != "openai/gpt-4o" || created.Targets[1] != "anthropic/claude-sonnet-4" {

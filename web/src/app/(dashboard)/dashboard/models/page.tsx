@@ -1,5 +1,5 @@
-import { ModelsRoutingConsole } from "@/features/combos/ModelsRoutingConsole";
+import { ModelCatalogConsole } from "@/features/models/ModelCatalogConsole";
 
 export default function DashboardModelsPage() {
-  return <ModelsRoutingConsole />;
+  return <ModelCatalogConsole />;
 }

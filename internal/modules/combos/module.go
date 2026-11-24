@@ -61,21 +61,24 @@ type ChangedEvent struct {
 
 // Options configures a new combos Module instance.
 type Options struct {
-	DB        *db.DB
-	Providers contracts.ProviderStore
-	Bus       *eventbus.Bus
-	Now       func() time.Time
+	DB         *db.DB
+	Providers  contracts.ProviderStore
+	HTTPClient *http.Client
+	Bus        *eventbus.Bus
+	Now        func() time.Time
 }
 
 // Module implements lifecycle.Module, contracts.ProviderResolver,
 // contracts.AccountHealthTracker, and contracts.ModelLister.
 type Module struct {
-	db        *db.DB
-	providers contracts.ProviderStore
-	bus       *eventbus.Bus
-	now       func() time.Time
-	repo      *repository
-	cooldown  *cooldownTracker
+	db         *db.DB
+	providers  contracts.ProviderStore
+	httpClient *http.Client
+	bus        *eventbus.Bus
+	now        func() time.Time
+	repo       *repository
+	cooldown   *cooldownTracker
+	stratState *strategyState
 }
 
 var (
@@ -93,12 +96,14 @@ func New(opts Options) *Module {
 		clock = func() time.Time { return time.Now().UTC() }
 	}
 	return &Module{
-		db:        opts.DB,
-		providers: opts.Providers,
-		bus:       opts.Bus,
-		now:       clock,
-		repo:      newRepository(opts.DB, clock),
-		cooldown:  newCooldownTracker(clock),
+		db:         opts.DB,
+		providers:  opts.Providers,
+		httpClient: opts.HTTPClient,
+		bus:        opts.Bus,
+		now:        clock,
+		repo:       newRepository(opts.DB, clock),
+		cooldown:   newCooldownTracker(clock),
+		stratState: newStrategyState(),
 	}
 }
 
@@ -130,9 +135,14 @@ func (m *Module) RegisterRoutes(mounts lifecycle.RouteMounts) {
 
 	mounts.AdminAPI.Get("/combos", m.handleListCombos)
 	mounts.AdminAPI.Post("/combos", m.handleCreateCombo)
+	mounts.AdminAPI.Post("/combos/test", m.handleTestCombo)
 	mounts.AdminAPI.Get("/combos/{id}", m.handleGetCombo)
 	mounts.AdminAPI.Patch("/combos/{id}", m.handlePatchCombo)
 	mounts.AdminAPI.Delete("/combos/{id}", m.handleDeleteCombo)
+
+	mounts.AdminAPI.Get("/models/catalog", m.handleModelCatalog)
+	mounts.AdminAPI.Post("/models/test", m.handleTestModel)
+	mounts.AdminAPI.Post("/models/test-all", m.handleTestAllModels)
 
 	mounts.AdminAPI.Get("/models/aliases", m.handleListAliases)
 	mounts.AdminAPI.Put("/models/aliases/{alias}", m.handleUpsertAlias)
@@ -144,6 +154,8 @@ func (m *Module) RegisterRoutes(mounts lifecycle.RouteMounts) {
 
 	mounts.AdminAPI.Get("/models/cooldowns", m.handleListCooldowns)
 	mounts.AdminAPI.Delete("/models/cooldowns/{connectionId}", m.handleDeleteCooldown)
+
+	mounts.AdminAPI.Get("/providers/health-matrix", m.handleProviderHealthMatrix)
 }
 
 // Start validates that required dependencies are wired.
@@ -193,19 +205,23 @@ type listCombosResponse struct {
 }
 
 type createComboRequest struct {
-	Name        string   `json:"name"`
-	Description string   `json:"description"`
-	Targets     []string `json:"targets"`
-	Strategy    string   `json:"strategy"`
-	Enabled     *bool    `json:"enabled"`
+	Name        string         `json:"name"`
+	Description string         `json:"description"`
+	Targets     []string       `json:"targets"`
+	Steps       []ComboStep    `json:"steps"`
+	Strategy    string         `json:"strategy"`
+	Config      map[string]any `json:"config"`
+	Enabled     *bool          `json:"enabled"`
 }
 
 type patchComboRequest struct {
-	Name        *string   `json:"name"`
-	Description *string   `json:"description"`
-	Targets     *[]string `json:"targets"`
-	Strategy    *string   `json:"strategy"`
-	Enabled     *bool     `json:"enabled"`
+	Name        *string         `json:"name"`
+	Description *string         `json:"description"`
+	Targets     *[]string       `json:"targets"`
+	Steps       *[]ComboStep    `json:"steps"`
+	Strategy    *string         `json:"strategy"`
+	Config      *map[string]any `json:"config"`
+	Enabled     *bool           `json:"enabled"`
 }
 
 type listAliasesResponse struct {
@@ -258,7 +274,7 @@ func (m *Module) handleCreateCombo(w http.ResponseWriter, r *http.Request) {
 		httpserver.WriteError(w, r, http.StatusBadRequest, "invalid_request", err.Error())
 		return
 	}
-	targets, err := validateComboTargets(name, req.Targets)
+	targets, steps, err := normalizeAndValidateSteps(name, req.Targets, req.Steps)
 	if err != nil {
 		httpserver.WriteError(w, r, http.StatusBadRequest, "invalid_request", err.Error())
 		return
@@ -284,7 +300,9 @@ func (m *Module) handleCreateCombo(w http.ResponseWriter, r *http.Request) {
 		Name:        name,
 		Description: desc,
 		Targets:     targets,
+		Steps:       steps,
 		Strategy:    strategy,
+		Config:      req.Config,
 		Enabled:     enabled,
 	})
 	if err != nil {
@@ -333,7 +351,9 @@ func (m *Module) handlePatchCombo(w http.ResponseWriter, r *http.Request) {
 	if req.Name == nil &&
 		req.Description == nil &&
 		req.Targets == nil &&
+		req.Steps == nil &&
 		req.Strategy == nil &&
+		req.Config == nil &&
 		req.Enabled == nil {
 		httpserver.WriteError(w, r, http.StatusBadRequest, "invalid_request", "at least one field must be provided")
 		return
@@ -373,7 +393,9 @@ func (m *Module) handlePatchCombo(w http.ResponseWriter, r *http.Request) {
 			Name:        cur.Name,
 			Description: cur.Description,
 			Targets:     cur.Targets,
+			Steps:       cur.Steps,
 			Strategy:    cur.Strategy,
+			Config:      cur.Config,
 			Enabled:     cur.Enabled,
 		}
 		if req.Name != nil {
@@ -385,19 +407,32 @@ func (m *Module) handlePatchCombo(w http.ResponseWriter, r *http.Request) {
 		if req.Strategy != nil {
 			vals.Strategy = cleanStrategy
 		}
+		if req.Config != nil {
+			vals.Config = *req.Config
+		}
 		if req.Enabled != nil {
 			vals.Enabled = *req.Enabled
 		}
-		rawTargets := vals.Targets
-		if req.Targets != nil {
+		var (
+			rawTargets []string
+			rawSteps   []ComboStep
+		)
+		if req.Steps != nil {
+			rawSteps = *req.Steps
+		} else if req.Targets != nil {
 			rawTargets = *req.Targets
+		} else if len(cur.Steps) > 0 {
+			rawSteps = cur.Steps
+		} else {
+			rawTargets = cur.Targets
 		}
-		cleanTargets, tErr := validateComboTargets(vals.Name, rawTargets)
+		cleanTargets, cleanSteps, tErr := normalizeAndValidateSteps(vals.Name, rawTargets, rawSteps)
 		if tErr != nil {
 			validationErr = tErr
 			return updateComboValues{}, tErr
 		}
 		vals.Targets = cleanTargets
+		vals.Steps = cleanSteps
 		return vals, nil
 	})
 	if err != nil {
@@ -649,17 +684,6 @@ func validateDescription(field, raw string) (string, error) {
 	trimmed := strings.TrimSpace(raw)
 	if utf8.RuneCountInString(trimmed) > maxDescriptionRunes {
 		return "", fmt.Errorf("%s must not exceed %d characters", field, maxDescriptionRunes)
-	}
-	return trimmed, nil
-}
-
-func validateStrategy(raw string) (string, error) {
-	trimmed := strings.TrimSpace(raw)
-	if trimmed == "" {
-		return strategyOrdered, nil
-	}
-	if trimmed != strategyOrdered {
-		return "", errors.New("strategy must be 'ordered'")
 	}
 	return trimmed, nil
 }
