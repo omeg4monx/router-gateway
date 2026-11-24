@@ -1,5 +1,3 @@
-"use client";
-
 import { Cloud, Download, RefreshCw, Save, Trash2, Upload } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button } from "@/shared/ui/button";

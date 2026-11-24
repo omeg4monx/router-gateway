@@ -1,5 +1,3 @@
-"use client";
-
 import { BookOpen, Download, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/shared/ui/button";

@@ -1,5 +1,3 @@
-"use client";
-
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { apiClient, extractErrorMessage } from "@/shared/api/client";

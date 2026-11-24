@@ -16,6 +16,24 @@ export default defineConfig({
     outDir: "out",
     emptyOutDir: true,
     sourcemap: false,
+    rolldownOptions: {
+      output: {
+        codeSplitting: {
+          groups: [
+            {
+              name: "vendor-react",
+              test: /node_modules[\\/](react|react-dom|react-router|scheduler)[\\/]/,
+              priority: 20,
+            },
+            {
+              name: "vendor-query",
+              test: /node_modules[\\/](@tanstack[\\/]react-query|openapi-fetch|zustand)[\\/]/,
+              priority: 15,
+            },
+          ],
+        },
+      },
+    },
   },
   server: {
     host: "127.0.0.1",

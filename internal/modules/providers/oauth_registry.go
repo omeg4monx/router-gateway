@@ -95,7 +95,7 @@ func defaultOAuthStrategies() map[string]*oauthProviderStrategy {
 			ID:               providerIDGitHubCopilot,
 			FlowType:         oauthFlowDeviceCode,
 			ClientIDOptional: true,
-			StartDevice:      func(ctx context.Context, m *Module, state string, cfg OAuthConfig, connName, baseURL string, models []string) (*deviceOAuthSession, error) {
+			StartDevice: func(ctx context.Context, m *Module, state string, cfg OAuthConfig, connName, baseURL string, models []string) (*deviceOAuthSession, error) {
 				return m.startGitHubCopilotDevice(ctx, state, cfg, connName, baseURL, models)
 			},
 			PollDevice: func(ctx context.Context, m *Module, sess deviceOAuthSession) (*deviceOAuthResult, bool, int, string) {

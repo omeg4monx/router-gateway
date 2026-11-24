@@ -1,9 +1,10 @@
 import { lazy, Suspense } from "react";
-import { BrowserRouter, Navigate, Outlet, Route, Routes } from "react-router";
+import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation } from "react-router";
 import { AuthGuard } from "@/features/auth/AuthGuard";
 import { QueryProvider } from "@/shared/api/QueryProvider";
 import { AppShell } from "@/shared/ui/AppShell";
 import { Card, CardContent } from "@/shared/ui/card";
+import { ErrorBoundary } from "@/shared/ui/ErrorBoundary";
 
 const HomePage = lazy(() => import("@/pages/HomePage").then((m) => ({ default: m.HomePage })));
 const InitPage = lazy(() => import("@/pages/InitPage").then((m) => ({ default: m.InitPage })));
@@ -130,12 +131,15 @@ function PageFallback() {
 }
 
 function DashboardLayout() {
+  const { pathname } = useLocation();
   return (
     <AuthGuard>
       <AppShell>
-        <Suspense fallback={<RouteFallback />}>
-          <Outlet />
-        </Suspense>
+        <ErrorBoundary resetKey={pathname} compact>
+          <Suspense fallback={<RouteFallback />}>
+            <Outlet />
+          </Suspense>
+        </ErrorBoundary>
       </AppShell>
     </AuthGuard>
   );
@@ -174,50 +178,52 @@ export const DASHBOARD_ROUTE_PATHS = [
 
 export function App() {
   return (
-    <QueryProvider>
-      <BrowserRouter>
-        <Suspense fallback={<PageFallback />}>
-          <Routes>
-            <Route path="/" element={<HomePage />} />
-            <Route path="/init" element={<InitPage />} />
-            <Route path="/login" element={<LoginPage />} />
+    <ErrorBoundary>
+      <QueryProvider>
+        <BrowserRouter>
+          <Suspense fallback={<PageFallback />}>
+            <Routes>
+              <Route path="/" element={<HomePage />} />
+              <Route path="/init" element={<InitPage />} />
+              <Route path="/login" element={<LoginPage />} />
 
-            <Route path="/dashboard" element={<DashboardLayout />}>
-              <Route index element={<SystemOverview />} />
-              <Route path="arena" element={<ArenaConsole />} />
-              <Route path="chat" element={<ChatConsole />} />
-              <Route path="cli-tools" element={<CliToolsConsole />} />
-              <Route path="cloud-sync" element={<CloudSyncStudio />} />
-              <Route path="combos" element={<CombosConsole />} />
-              <Route path="importer" element={<ImporterStudio />} />
-              <Route path="keys" element={<KeysConsole />} />
-              <Route path="media" element={<MediaConsole />} />
-              <Route path="mitm" element={<MitmConsole />} />
-              <Route path="model-editor" element={<ModelEditorConsole />} />
-              <Route path="models" element={<ModelCatalogConsole />} />
-              <Route path="notifications" element={<NotificationsConsole />} />
-              <Route path="plugins" element={<PluginsStudio />} />
-              <Route path="prompt-guard" element={<PromptGuardConsole />} />
-              <Route path="providers" element={<ProvidersConsole />} />
-              <Route path="providers/detail" element={<ProviderDetailView />} />
-              <Route path="proxy-pools" element={<ProxyPoolsConsole />} />
-              <Route path="pxpipe" element={<PxpipeConsole />} />
-              <Route path="security" element={<SecurityConsole />} />
-              <Route path="settings" element={<SettingsConsole />} />
-              <Route path="skills" element={<SkillsStudio />} />
-              <Route path="teams" element={<TeamsConsole />} />
-              <Route path="telegram" element={<TelegramConsole />} />
-              <Route path="token-saver" element={<TokenSaverConsole />} />
-              <Route path="translator" element={<TranslatorConsole />} />
-              <Route path="tunnel" element={<TunnelConsole />} />
-              <Route path="usage" element={<UsageConsole />} />
-              <Route path="vouchers" element={<VouchersConsole />} />
-            </Route>
+              <Route path="/dashboard" element={<DashboardLayout />}>
+                <Route index element={<SystemOverview />} />
+                <Route path="arena" element={<ArenaConsole />} />
+                <Route path="chat" element={<ChatConsole />} />
+                <Route path="cli-tools" element={<CliToolsConsole />} />
+                <Route path="cloud-sync" element={<CloudSyncStudio />} />
+                <Route path="combos" element={<CombosConsole />} />
+                <Route path="importer" element={<ImporterStudio />} />
+                <Route path="keys" element={<KeysConsole />} />
+                <Route path="media" element={<MediaConsole />} />
+                <Route path="mitm" element={<MitmConsole />} />
+                <Route path="model-editor" element={<ModelEditorConsole />} />
+                <Route path="models" element={<ModelCatalogConsole />} />
+                <Route path="notifications" element={<NotificationsConsole />} />
+                <Route path="plugins" element={<PluginsStudio />} />
+                <Route path="prompt-guard" element={<PromptGuardConsole />} />
+                <Route path="providers" element={<ProvidersConsole />} />
+                <Route path="providers/detail" element={<ProviderDetailView />} />
+                <Route path="proxy-pools" element={<ProxyPoolsConsole />} />
+                <Route path="pxpipe" element={<PxpipeConsole />} />
+                <Route path="security" element={<SecurityConsole />} />
+                <Route path="settings" element={<SettingsConsole />} />
+                <Route path="skills" element={<SkillsStudio />} />
+                <Route path="teams" element={<TeamsConsole />} />
+                <Route path="telegram" element={<TelegramConsole />} />
+                <Route path="token-saver" element={<TokenSaverConsole />} />
+                <Route path="translator" element={<TranslatorConsole />} />
+                <Route path="tunnel" element={<TunnelConsole />} />
+                <Route path="usage" element={<UsageConsole />} />
+                <Route path="vouchers" element={<VouchersConsole />} />
+              </Route>
 
-            <Route path="*" element={<Navigate to="/dashboard/" replace />} />
-          </Routes>
-        </Suspense>
-      </BrowserRouter>
-    </QueryProvider>
+              <Route path="*" element={<Navigate to="/dashboard/" replace />} />
+            </Routes>
+          </Suspense>
+        </BrowserRouter>
+      </QueryProvider>
+    </ErrorBoundary>
   );
 }

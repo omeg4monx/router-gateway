@@ -276,10 +276,10 @@ func (m *Module) registerAwsQuickOIDCClient(ctx context.Context, discovery awsQu
 	}
 
 	var parsed struct {
-		ClientID        string `json:"clientId"`
-		ClientIDSnake   string `json:"client_id"`
-		ClientSecret    string `json:"clientSecret"`
-		ClientSecSnake  string `json:"client_secret"`
+		ClientID       string `json:"clientId"`
+		ClientIDSnake  string `json:"client_id"`
+		ClientSecret   string `json:"clientSecret"`
+		ClientSecSnake string `json:"client_secret"`
 	}
 	if err := json.Unmarshal(body, &parsed); err != nil {
 		return "", "", "", fmt.Errorf("providers: decode aws-quick client register response: %w", err)

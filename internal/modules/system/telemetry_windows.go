@@ -32,11 +32,11 @@ func (ft winFileTime) uint64() uint64 {
 }
 
 var (
-	winKernel32               = syscall.NewLazyDLL("kernel32.dll")
-	procGlobalMemoryStatusEx  = winKernel32.NewProc("GlobalMemoryStatusEx")
-	procGetTickCount64        = winKernel32.NewProc("GetTickCount64")
-	procGetDiskFreeSpaceExW   = winKernel32.NewProc("GetDiskFreeSpaceExW")
-	procGetSystemTimes        = winKernel32.NewProc("GetSystemTimes")
+	winKernel32              = syscall.NewLazyDLL("kernel32.dll")
+	procGlobalMemoryStatusEx = winKernel32.NewProc("GlobalMemoryStatusEx")
+	procGetTickCount64       = winKernel32.NewProc("GetTickCount64")
+	procGetDiskFreeSpaceExW  = winKernel32.NewProc("GetDiskFreeSpaceExW")
+	procGetSystemTimes       = winKernel32.NewProc("GetSystemTimes")
 )
 
 func collectStaticHostInfo() (osPrettyName string, cpuModel string) {

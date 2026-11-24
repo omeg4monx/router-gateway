@@ -1,5 +1,3 @@
-"use client";
-
 import { CheckCircle2, KeyRound, Search, ShieldAlert, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Badge } from "@/shared/ui/badge";

@@ -248,5 +248,3 @@ func TestOAuthCallbackEmitsAutoCompletionBridge(t *testing.T) {
 		t.Fatalf("expected CSP to allow inline bridge script, got: %q", csp)
 	}
 }
-
-

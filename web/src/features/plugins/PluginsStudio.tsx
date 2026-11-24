@@ -1,5 +1,3 @@
-"use client";
-
 import { Play, Puzzle, Save } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button } from "@/shared/ui/button";

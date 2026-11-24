@@ -15,8 +15,8 @@ import (
 )
 
 const (
-	telemetryCacheTTL  = 1500 * time.Millisecond
-	maxProcFileBytes   = 128 << 10 // 128 KiB hard cap against runaway reads
+	telemetryCacheTTL = 1500 * time.Millisecond
+	maxProcFileBytes  = 128 << 10 // 128 KiB hard cap against runaway reads
 )
 
 type systemTelemetryResponse struct {

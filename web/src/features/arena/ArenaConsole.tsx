@@ -1,5 +1,3 @@
-"use client";
-
 import { Award, CheckCircle2, Flame, Play, Trash2, Trophy } from "lucide-react";
 import { useState } from "react";
 import { Alert, AlertDescription, AlertTitle } from "@/shared/ui/alert";
