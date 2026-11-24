@@ -166,7 +166,7 @@ func TestArenaBattlePartialFailureVoteAndLeaderboard(t *testing.T) {
 	}
 
 	// 2. Reject < 2 models.
-	resp, _ = doJSON(t, http.MethodPost, env.srv.URL+"/api/arena/battles/run", map[string]any{
+	resp, _ = doJSON(t, http.MethodPost, env.srv.URL+"/api/arena/battles", map[string]any{
 		"prompt": "hi",
 		"models": []string{"gpt-4o"},
 	})
@@ -175,7 +175,7 @@ func TestArenaBattlePartialFailureVoteAndLeaderboard(t *testing.T) {
 	}
 
 	// 3. Run battle with partial failure (gpt-4o ok, broken-model fails).
-	resp, raw = doJSON(t, http.MethodPost, env.srv.URL+"/api/arena/battles/run", map[string]any{
+	resp, raw = doJSON(t, http.MethodPost, env.srv.URL+"/api/arena/battles", map[string]any{
 		"prompt":        "Compare Go and Rust",
 		"system_prompt": "Be concise",
 		"models":        []string{"gpt-4o", "broken-model"},

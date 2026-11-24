@@ -103,7 +103,7 @@ export function useModelAliases() {
   return useQuery<ModelAlias[], Error>({
     queryKey: combosQueryKeys.aliases,
     queryFn: async () => {
-      const { data, error } = await apiClient.GET("/api/aliases");
+      const { data, error } = await apiClient.GET("/api/models/aliases");
       if (data) {
         return data.aliases;
       }
@@ -122,7 +122,7 @@ export function useUpsertModelAliasMutation() {
 
   return useMutation<ModelAlias, Error, UpsertModelAliasVariables>({
     mutationFn: async ({ alias, body }) => {
-      const { data, error } = await apiClient.PUT("/api/aliases/{alias}", {
+      const { data, error } = await apiClient.PUT("/api/models/aliases/{alias}", {
         params: { path: { alias } },
         body,
       });
@@ -142,7 +142,7 @@ export function useDeleteModelAliasMutation() {
 
   return useMutation<void, Error, string>({
     mutationFn: async (alias) => {
-      const { error, response } = await apiClient.DELETE("/api/aliases/{alias}", {
+      const { error, response } = await apiClient.DELETE("/api/models/aliases/{alias}", {
         params: { path: { alias } },
       });
       if (error) {

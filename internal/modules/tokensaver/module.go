@@ -52,13 +52,13 @@ type HeadroomStats struct {
 	WarmPrefixes  []WarmPrefixSummary `json:"warm_prefixes"`
 }
 
-// StatsResponse is returned by GET /api/tokensaver/stats.
+// StatsResponse is returned by GET /api/token-saver/stats.
 type StatsResponse struct {
 	Compression CompressionStats `json:"compression"`
 	Headroom    HeadroomStats    `json:"headroom"`
 }
 
-// PreviewResponse is returned by POST /api/tokensaver/preview.
+// PreviewResponse is returned by POST /api/token-saver/preview.
 type PreviewResponse struct {
 	OriginalBytes      int            `json:"original_bytes"`
 	CompressedBytes    int            `json:"compressed_bytes"`
@@ -241,12 +241,12 @@ func (m *Module) RegisterRoutes(mounts lifecycle.RouteMounts) {
 	if mounts.AdminAPI == nil {
 		return
 	}
-	mounts.AdminAPI.Route("/tokensaver", func(r chi.Router) {
+	mounts.AdminAPI.Route("/token-saver", func(r chi.Router) {
 		r.Get("/config", m.handleGetConfig)
 		r.Patch("/config", m.handlePatchConfig)
 		r.Get("/stats", m.handleGetStats)
-		r.Post("/stats/reset", m.handleResetStats)
-		r.Post("/cache/clear", m.handleClearCache)
+		r.Delete("/stats", m.handleResetStats)
+		r.Delete("/cache", m.handleClearCache)
 		r.Post("/preview", m.handlePreview)
 	})
 }

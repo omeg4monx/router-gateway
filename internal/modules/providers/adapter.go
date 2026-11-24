@@ -36,7 +36,7 @@ const (
 	authTypeAPIKey = "api_key"
 	authTypeOAuth  = "oauth"
 
-	defaultOAuthRedirectURI = "http://localhost:20128/api/oauth/callback"
+	defaultOAuthRedirectURI = "http://localhost:20128/api/providers/oauth/callback"
 	defaultAnthropicVersion = "2023-06-01"
 )
 
@@ -106,7 +106,12 @@ func defaultBuiltInAdapters() []ProviderAdapter {
 			protocol:       protocolOpenAIChat,
 			authType:       authTypeAPIKey,
 			defaultBaseURL: "https://api.openai.com/v1",
-			defaultModels:  []string{"gpt-4o", "gpt-4o-mini", "o3-mini"},
+			defaultModels: []string{
+				"gpt-5.5", "gpt-5.4", "gpt-5.4-mini", "gpt-5.4-nano", "gpt-5.2", "gpt-5.1",
+				"gpt-5", "gpt-5-mini", "gpt-5-nano", "gpt-4o", "gpt-4o-mini", "gpt-4-turbo",
+				"gpt-4.1", "gpt-4.1-mini", "gpt-4.1-nano", "o3", "o3-mini", "o3-pro",
+				"o4-mini", "o1", "o1-mini",
+			},
 		},
 		&builtinAdapter{
 			id:             "anthropic",
@@ -115,7 +120,7 @@ func defaultBuiltInAdapters() []ProviderAdapter {
 			protocol:       protocolAnthropic,
 			authType:       authTypeAPIKey,
 			defaultBaseURL: "https://api.anthropic.com",
-			defaultModels:  []string{"claude-sonnet-4-20250514", "claude-3-7-sonnet-20250219", "claude-3-5-haiku-20241022"},
+			defaultModels:  []string{"claude-sonnet-4-20250514", "claude-opus-4-20250514", "claude-3-5-sonnet-20241022"},
 		},
 		&builtinAdapter{
 			id:             "openai-responses",
@@ -124,7 +129,12 @@ func defaultBuiltInAdapters() []ProviderAdapter {
 			protocol:       protocolOpenAIResponses,
 			authType:       authTypeAPIKey,
 			defaultBaseURL: "https://api.openai.com/v1",
-			defaultModels:  []string{"gpt-4.1", "gpt-4o", "o3-mini"},
+			defaultModels: []string{
+				"gpt-5.5", "gpt-5.4", "gpt-5.4-mini", "gpt-5.4-nano", "gpt-5.2", "gpt-5.1",
+				"gpt-5", "gpt-5-mini", "gpt-5-nano", "gpt-4o", "gpt-4o-mini", "gpt-4-turbo",
+				"gpt-4.1", "gpt-4.1-mini", "gpt-4.1-nano", "o3", "o3-mini", "o3-pro",
+				"o4-mini", "o1", "o1-mini",
+			},
 		},
 		&builtinAdapter{
 			id:             "gemini",
@@ -133,7 +143,12 @@ func defaultBuiltInAdapters() []ProviderAdapter {
 			protocol:       protocolGemini,
 			authType:       authTypeAPIKey,
 			defaultBaseURL: "https://generativelanguage.googleapis.com",
-			defaultModels:  []string{"gemini-2.5-pro", "gemini-2.5-flash"},
+			defaultModels: []string{
+				"gemini-4-argon", "gemini-3.8-flash", "gemini-3.7-flash", "gemini-3.6-flash",
+				"gemini-3.5-flash-lite", "gemini-3.1-pro-preview", "gemini-3.1-flash-lite-preview",
+				"gemini-3-flash-preview", "gemini-2.5-pro", "gemini-2.5-flash",
+				"gemini-2.5-flash-lite", "gemma-4-31b-it",
+			},
 		},
 		&builtinAdapter{
 			id:             "openrouter",
@@ -169,7 +184,10 @@ func defaultBuiltInAdapters() []ProviderAdapter {
 			protocol:       protocolAnthropic,
 			authType:       authTypeOAuth,
 			defaultBaseURL: "https://api.anthropic.com",
-			defaultModels:  []string{"claude-sonnet-4-20250514", "claude-3-7-sonnet-20250219", "claude-3-5-haiku-20241022"},
+			defaultModels: []string{
+				"claude-opus-5-5", "claude-opus-5", "claude-fable-5-2", "claude-fable-5-1",
+				"claude-fable-5", "claude-sonnet-5-5", "claude-sonnet-5", "claude-haiku-4-5-20251001",
+			},
 			//nolint:gosec // G101: public OAuth2 PKCE client_id and endpoints (no secret)
 			oauthConfig: &OAuthConfig{
 				AuthorizeURL:       "https://claude.ai/oauth/authorize",
@@ -189,7 +207,14 @@ func defaultBuiltInAdapters() []ProviderAdapter {
 			protocol:       protocolOpenAIResponses,
 			authType:       authTypeOAuth,
 			defaultBaseURL: "https://chatgpt.com/backend-api/codex",
-			defaultModels:  []string{"gpt-5-codex", "o4-mini", "codex-mini-latest"},
+			defaultModels: []string{
+				"gpt-6.1-sol", "gpt-6.1-sol[1m]", "gpt-6.1-terra", "gpt-6.1-terra[1m]",
+				"gpt-6-astra", "gpt-6-astra[1m]", "gpt-6-sol", "gpt-6-sol[1m]",
+				"gpt-6-luna", "gpt-6-luna[1m]", "gpt-5.6-sol", "gpt-5.6-sol[1m]",
+				"gpt-5.6-sol-review", "gpt-5.6-terra", "gpt-5.6-terra[1m]", "gpt-5.6-terra-review",
+				"gpt-5.6-luna", "gpt-5.6-luna[1m]", "gpt-5.6-luna-review",
+				"gpt-daybreak-blue-latest", "gpt-reserve", "codex-auto-review",
+			},
 			//nolint:gosec // G101: public OAuth2 PKCE client_id and endpoints (no secret)
 			oauthConfig: &OAuthConfig{
 				AuthorizeURL:       "https://auth.openai.com/oauth/authorize",
@@ -211,7 +236,11 @@ func defaultBuiltInAdapters() []ProviderAdapter {
 			protocol:       protocolGemini,
 			authType:       authTypeOAuth,
 			defaultBaseURL: "https://generativelanguage.googleapis.com",
-			defaultModels:  []string{"gemini-2.5-pro", "gemini-2.5-flash"},
+			defaultModels: []string{
+				"gemini-3.1-pro-preview", "gemini-3-pro-preview", "gemini-3-flash-preview",
+				"gemini-3.1-flash-lite-preview", "gemini-2.5-pro", "gemini-2.5-flash",
+				"gemini-2.5-flash-lite",
+			},
 			//nolint:gosec // G101: public Gemini CLI desktop OAuth2 client (RFC 8252 installed app)
 			oauthConfig: &OAuthConfig{
 				AuthorizeURL:       "https://accounts.google.com/o/oauth2/v2/auth",
@@ -250,7 +279,15 @@ func defaultBuiltInAdapters() []ProviderAdapter {
 			protocol:       protocolOpenAIChat,
 			authType:       authTypeOAuth,
 			defaultBaseURL: "https://api.githubcopilot.com",
-			defaultModels:  []string{"gpt-4o", "claude-sonnet-4", "o3-mini"},
+			defaultModels: []string{
+				"gpt-5-mini", "gpt-5.3-codex", "gpt-5.4", "gpt-5.4-mini", "gpt-5.5",
+				"gpt-5.6-luna", "gpt-5.6-sol", "gpt-5.6-terra", "gpt-6-astra", "gpt-6-luna",
+				"gpt-6-sol", "gpt-6.1-sol", "claude-fable-5", "claude-fable-5.1",
+				"claude-haiku-4.5", "claude-haiku-5.5", "claude-opus-4.8", "claude-opus-4.8-fast",
+				"claude-opus-5", "claude-opus-5.5", "claude-sonnet-4.6", "claude-sonnet-5",
+				"claude-sonnet-5.5", "gemini-3.7-flash", "gemini-3.8-flash", "gemini-4-argon",
+				"kimi-k3", "mai-code-1.1-flash",
+			},
 			//nolint:gosec // G101: public GitHub Copilot device-code OAuth client_id
 			oauthConfig: &OAuthConfig{
 				AuthorizeURL:       "https://github.com/login/device",
@@ -267,7 +304,24 @@ func defaultBuiltInAdapters() []ProviderAdapter {
 			protocol:       protocolAnthropic,
 			authType:       authTypeOAuth,
 			defaultBaseURL: "https://codewhisperer.us-east-1.amazonaws.com",
-			defaultModels:  []string{"claude-sonnet-4-20250514", "claude-3-7-sonnet-20250219"},
+			defaultModels: []string{
+				"claude-opus-5.5", "claude-opus-5.5-thinking", "claude-opus-5.5-agentic",
+				"claude-opus-5.5-thinking-agentic", "claude-opus-5", "claude-opus-5-thinking",
+				"claude-opus-5-agentic", "claude-opus-5-thinking-agentic", "claude-opus-4.8",
+				"claude-opus-4.8-thinking", "claude-opus-4.8-agentic", "claude-opus-4.8-thinking-agentic",
+				"claude-opus-4.7", "claude-opus-4.7-thinking", "claude-opus-4.7-agentic",
+				"claude-opus-4.7-thinking-agentic", "claude-opus-4.5", "claude-opus-4.5-thinking",
+				"claude-opus-4.5-agentic", "claude-opus-4.5-thinking-agentic", "claude-sonnet-5",
+				"claude-sonnet-4.5", "claude-haiku-4.5", "deepseek-3.2", "qwen3-coder-next",
+				"glm-5", "MiniMax-M2.5", "gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna",
+				"claude-sonnet-5-thinking", "claude-sonnet-4.5-thinking", "claude-haiku-4.5-thinking",
+				"gpt-5.6-sol-thinking", "gpt-5.6-terra-thinking", "gpt-5.6-luna-thinking",
+				"claude-sonnet-5-agentic", "claude-sonnet-4.5-agentic", "claude-haiku-4.5-agentic",
+				"gpt-5.6-sol-agentic", "gpt-5.6-terra-agentic", "gpt-5.6-luna-agentic",
+				"claude-sonnet-5-thinking-agentic", "claude-sonnet-4.5-thinking-agentic",
+				"claude-haiku-4.5-thinking-agentic", "gpt-5.6-sol-thinking-agentic",
+				"gpt-5.6-terra-thinking-agentic", "gpt-5.6-luna-thinking-agentic",
+			},
 			//nolint:gosec // G101: public AWS SSO OIDC device-code endpoints (dynamic client registration)
 			oauthConfig: &OAuthConfig{
 				AuthorizeURL:       "https://view.awsapps.com/start",
@@ -283,7 +337,13 @@ func defaultBuiltInAdapters() []ProviderAdapter {
 			protocol:       protocolOpenAIChat,
 			authType:       authTypeAPIKey,
 			defaultBaseURL: "https://api2.cursor.sh/v1",
-			defaultModels:  []string{"claude-sonnet-4", "gpt-4.1", "gemini-2.5-pro"},
+			defaultModels: []string{
+				"default", "claude-4.5-opus-high-thinking", "claude-4.5-opus-high",
+				"claude-4.5-sonnet-thinking", "claude-4.5-sonnet", "claude-4.5-haiku",
+				"claude-4.5-opus", "gpt-5.2-codex", "claude-4.6-opus-max",
+				"claude-4.6-sonnet-medium-thinking", "kimi-k2.5", "gemini-3-flash-preview",
+				"gpt-5.2", "gpt-5.3-codex",
+			},
 		},
 		&builtinAdapter{
 			id:             "antigravity",
@@ -292,7 +352,21 @@ func defaultBuiltInAdapters() []ProviderAdapter {
 			protocol:       protocolGemini,
 			authType:       authTypeOAuth,
 			defaultBaseURL: "https://cloudcode-pa.googleapis.com",
-			defaultModels:  []string{"gemini-2.5-pro", "gemini-2.5-flash", "claude-sonnet-4"},
+			defaultModels: []string{
+				"gemini-4-carbon-high", "gemini-4-carbon-medium", "gemini-4-carbon-low",
+				"gemini-4-carbon", "gemini-4-argon-high", "gemini-4-argon-medium",
+				"gemini-4-argon-low", "gemini-4-argon", "gemini-4-hydrogen-xhigh",
+				"gemini-4-hydrogen-high", "gemini-4-hydrogen-medium", "gemini-4-hydrogen-low",
+				"gemini-4-hydrogen", "gemini-pro-orchestrator", "gemini-pro-orchestrator-argon",
+				"gemini-3.8-flash-high", "gemini-3.8-flash-medium", "gemini-3.8-flash-low",
+				"gemini-3.8-flash", "gemini-3.7-flash-high", "gemini-3.7-flash-medium",
+				"gemini-3.7-flash-low", "gemini-3.6-flash-high", "gemini-3.6-flash-medium",
+				"gemini-3.6-flash-low", "gemini-3.1-pro-high", "gemini-pro-agent",
+				"gemini-3.1-pro-low", "claude-sonnet-5-5-high", "claude-sonnet-5-5-medium",
+				"claude-sonnet-5-5-low", "claude-sonnet-5-5", "claude-opus-5-5-high",
+				"claude-opus-5-5-medium", "claude-opus-5-5-low", "claude-opus-5-5",
+				"claude-sonnet-4-6", "claude-opus-4-6-thinking", "gpt-oss-120b-medium",
+			},
 			//nolint:gosec // G101: public Antigravity IDE desktop OAuth2 client (RFC 8252 installed app)
 			oauthConfig: &OAuthConfig{
 				AuthorizeURL:       "https://accounts.google.com/o/oauth2/v2/auth",
@@ -331,12 +405,15 @@ func defaultBuiltInAdapters() []ProviderAdapter {
 			authType:       authTypeAPIKey,
 			defaultBaseURL: "https://outerface.venice.ai/api/inference/chat",
 			defaultModels: []string{
-				"deepseek-v4-1-flash-uncensored",
-				"olafangensan-glm-4.7-flash-heretic",
 				"venice-uncensored-1-2",
+				"zai-org-glm-5",
+				"qwen3-235b-a22b-instruct-2507",
 				"qwen3-coder-480b-a35b-instruct-turbo",
-				"nvidia-nemotron-3-nano-30b-a3b",
-				"nvidia-nemotron-3-ultra-550b-a55b",
+				"qwen3-vl-235b-a22b",
+				"deepseek-v4-pro",
+				"llama-3.3-70b",
+				"hermes-3-llama-3.1-405b",
+				"mistral-small-3-2-24b-instruct",
 			},
 		},
 		&builtinAdapter{
@@ -347,15 +424,14 @@ func defaultBuiltInAdapters() []ProviderAdapter {
 			authType:       authTypeOAuth,
 			defaultBaseURL: "https://api.freepi.ai/v1",
 			defaultModels: []string{
-				"particle",
-				"deepseek-v4.1-flash",
-				"glm-5.3-flash",
-				"deepseek-v4-pro",
-				"gemini-4-carbon",
-				"gemini-4-neon",
-				"gpt-6.2-astra",
-				"kimi-k3.1-pro",
-				"qwen3.7-flash",
+				"particle", "deepseek-v4.1-flash", "glm-5.3-flash", "deepseek-v4-flash",
+				"deepseek-v4-pro", "deepseek-v4.1-flash-1017-ultrafast", "gemini-4-carbon",
+				"gemini-4-hydrogen", "gemini-4-neon", "gpt-6.2-astra", "gpt-oss-20b",
+				"hy4-flash", "kimi-k3.1-pro", "ling-3.0-flash", "ling-3.1-flash",
+				"mimo-v2.6-flash", "qwen3.5-35b-darkbloom", "qwen3.6-plus-uncensored",
+				"qwen3.7-flash", "solar-mini-4", "solar-pro-4", "abliterated-large-flash",
+				"abliterated-large-v2", "gemma-4-uncensored", "glm-4.7-flash-heretic",
+				"uncensored-1.2",
 			},
 			//nolint:gosec // G101: public OAuth2 authorization/token endpoint URLs, not credentials
 			oauthConfig: &OAuthConfig{
@@ -366,6 +442,11 @@ func defaultBuiltInAdapters() []ProviderAdapter {
 			},
 		},
 	}
+}
+
+func allBuiltInAdapters() []ProviderAdapter {
+	base := defaultBuiltInAdapters()
+	return append(base, xrouterBuiltInOAuthAdapters()...)
 }
 
 func buildProtocolTestRequest(ctx context.Context, creds contracts.UpstreamCredentials) (*http.Request, error) {

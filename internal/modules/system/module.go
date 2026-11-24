@@ -114,7 +114,7 @@ func (m *Module) RegisterRoutes(mounts lifecycle.RouteMounts) {
 	}
 	if mounts.AdminAPI != nil {
 		mounts.AdminAPI.Get("/system/telemetry", m.handleTelemetry)
-		mounts.AdminAPI.Post("/shutdown", m.handleShutdown)
+		mounts.AdminAPI.Post("/system/shutdown", m.handleShutdown)
 	}
 }
 

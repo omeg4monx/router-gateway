@@ -1,5 +1,5 @@
 paths:
-  /api/cloudsync/config:
+  /api/cloud-sync/config:
     get:
       operationId: getCloudSyncConfig
       tags: [cloudsync]
@@ -34,7 +34,7 @@ paths:
             application/json:
               schema:
                 $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
-  /api/cloudsync/push:
+  /api/cloud-sync/push:
     post:
       operationId: pushCloudSync
       tags: [cloudsync]
@@ -58,7 +58,7 @@ paths:
             application/json:
               schema:
                 $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
-  /api/cloudsync/pull:
+  /api/cloud-sync/pull:
     post:
       operationId: pullCloudSync
       tags: [cloudsync]
@@ -82,7 +82,7 @@ paths:
             application/json:
               schema:
                 $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
-  /api/cloudsync/snapshot:
+  /api/cloud-sync/snapshot:
     get:
       operationId: exportCloudSyncSnapshot
       tags: [cloudsync]
@@ -94,7 +94,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/CloudSyncSnapshotBundle'
-  /api/cloudsync/restore:
+  /api/cloud-sync/restore:
     post:
       operationId: restoreCloudSyncSnapshot
       tags: [cloudsync]
@@ -118,7 +118,7 @@ paths:
             application/json:
               schema:
                 $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
-  /api/cloudsync/history:
+  /api/cloud-sync/history:
     get:
       operationId: listCloudSyncHistory
       tags: [cloudsync]

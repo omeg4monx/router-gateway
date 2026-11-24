@@ -66,6 +66,7 @@ type deviceOAuthSession struct {
 	ClientID        string
 	ClientSecret    string
 	TokenURL        string
+	CodeVerifier    string
 	ConnectionName  string
 	BaseURL         string
 	Models          []string
@@ -189,18 +190,12 @@ func (m *Module) handleDeviceOAuthStart(w http.ResponseWriter, r *http.Request, 
 
 	cfg, _ := m.resolveOAuthConfig(providerID, req.ClientID, req.ClientSecret)
 
-	var sess *deviceOAuthSession
-	switch providerID {
-	case providerIDGitHubCopilot:
-		sess, err = m.startGitHubCopilotDevice(r.Context(), state, cfg, connName, baseURL, models)
-	case providerIDKiro:
-		sess, err = m.startKiroDevice(r.Context(), state, cfg, connName, baseURL, models)
-	case providerIDFreePI:
-		sess, err = m.startFreePIDevice(r.Context(), state, cfg, connName, baseURL, models)
-	default:
+	strat := m.getOAuthStrategy(providerID)
+	if strat.StartDevice == nil {
 		httpserver.WriteError(w, r, http.StatusBadRequest, "oauth_not_supported", "provider does not support device code OAuth")
 		return
 	}
+	sess, err := strat.StartDevice(r.Context(), m, state, cfg, connName, baseURL, models)
 	if err != nil {
 		httpserver.WriteError(w, r, http.StatusBadGateway, "oauth_start_failed", truncateError(err.Error()))
 		return
@@ -475,13 +470,8 @@ func (m *Module) handleDeviceOAuthStatus(w http.ResponseWriter, r *http.Request,
 		nextInt   int
 		pollError string
 	)
-	switch providerID {
-	case providerIDGitHubCopilot:
-		res, pending, nextInt, pollError = m.pollGitHubCopilotDevice(r.Context(), snapshot)
-	case providerIDKiro:
-		res, pending, nextInt, pollError = m.pollKiroDevice(r.Context(), snapshot)
-	case providerIDFreePI:
-		res, pending, nextInt, pollError = m.pollFreePIDevice(r.Context(), snapshot)
+	if strat := m.getOAuthStrategy(providerID); strat.PollDevice != nil {
+		res, pending, nextInt, pollError = strat.PollDevice(r.Context(), m, snapshot)
 	}
 
 	if pending {
@@ -715,6 +705,22 @@ func (m *Module) handleDeviceOAuthExchange(w http.ResponseWriter, r *http.Reques
 	delete(m.deviceOAuth.sessions, state)
 	m.deviceOAuth.mu.Unlock()
 
+	var postRes oauthPostExchangeResult
+	if strat := m.getOAuthStrategy(providerID); strat.PostExchange != nil {
+		postRes = strat.PostExchange(r.Context(), m, res.TokenURL, oauthTokenResponse{
+			AccessToken:  res.AccessToken,
+			RefreshToken: res.RefreshToken,
+			TokenType:    res.TokenType,
+			Scope:        res.Scope,
+			ExpiresIn:    res.ExpiresIn,
+		})
+	}
+	for k, v := range postRes.ExtraHeaders {
+		if _, exists := headers[k]; !exists && strings.TrimSpace(v) != "" {
+			headers[k] = v
+		}
+	}
+
 	stored := storedCredentials{
 		AccessToken:  res.AccessToken,
 		RefreshToken: res.RefreshToken,
@@ -723,6 +729,7 @@ func (m *Module) handleDeviceOAuthExchange(w http.ResponseWriter, r *http.Reques
 		ClientID:     res.ClientID,
 		ClientSecret: res.ClientSecret,
 		TokenURL:     res.TokenURL,
+		Metadata:     postRes.Metadata,
 	}
 	sealed, err := m.sealCredentials(stored)
 	if err != nil {
@@ -742,6 +749,9 @@ func (m *Module) handleDeviceOAuthExchange(w http.ResponseWriter, r *http.Reques
 	}
 	if connName == "" {
 		connName = res.DisplayLabel
+	}
+	if connName == "" {
+		connName = postRes.DisplayLabel
 	}
 	if connName == "" {
 		connName = adapter.DisplayName()

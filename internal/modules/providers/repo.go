@@ -59,14 +59,16 @@ type ConnectionSummary struct {
 }
 
 type storedCredentials struct {
-	APIKey       string `json:"api_key,omitempty"`
-	AccessToken  string `json:"access_token,omitempty"`
-	RefreshToken string `json:"refresh_token,omitempty"`
-	TokenType    string `json:"token_type,omitempty"`
-	Scope        string `json:"scope,omitempty"`
-	ClientID     string `json:"client_id,omitempty"`
-	ClientSecret string `json:"client_secret,omitempty"`
-	TokenURL     string `json:"token_url,omitempty"`
+	APIKey       string         `json:"api_key,omitempty"`
+	AccessToken  string         `json:"access_token,omitempty"`
+	RefreshToken string         `json:"refresh_token,omitempty"`
+	IDToken      string         `json:"id_token,omitempty"`
+	TokenType    string         `json:"token_type,omitempty"`
+	Scope        string         `json:"scope,omitempty"`
+	ClientID     string         `json:"client_id,omitempty"`
+	ClientSecret string         `json:"client_secret,omitempty"`
+	TokenURL     string         `json:"token_url,omitempty"`
+	Metadata     map[string]any `json:"metadata,omitempty"`
 }
 
 type connectionRecord struct {

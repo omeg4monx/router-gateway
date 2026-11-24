@@ -194,7 +194,7 @@ paths:
             application/json:
               schema:
                 $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
-  /api/aliases:
+  /api/models/aliases:
     get:
       operationId: listModelAliases
       summary: List configured model aliases
@@ -219,7 +219,7 @@ paths:
             application/json:
               schema:
                 $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
-  /api/aliases/{alias}:
+  /api/models/aliases/{alias}:
     parameters:
       - name: alias
         in: path

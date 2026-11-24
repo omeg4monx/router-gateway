@@ -305,7 +305,7 @@ export function CliToolsConsole() {
             </h3>
           </div>
           <span className="font-mono text-xs text-[var(--text-muted)]">
-            {tools.length > 0 ? `${tools.length} integrations` : "GET /api/clitools"}
+            {tools.length > 0 ? `${tools.length} integrations` : "GET /api/cli-tools"}
           </span>
         </div>
 

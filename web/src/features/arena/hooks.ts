@@ -69,7 +69,7 @@ export function useRunArenaBattleMutation() {
   const queryClient = useQueryClient();
   return useMutation<ArenaBattle, Error, RunArenaBattleRequest>({
     mutationFn: async (body) => {
-      const { data, error } = await apiClient.POST("/api/arena/battles/run", { body });
+      const { data, error } = await apiClient.POST("/api/arena/battles", { body });
       if (data) {
         return data;
       }

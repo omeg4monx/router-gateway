@@ -84,7 +84,7 @@ func TestTokenSaverCompressionPreservesCodeBlocksAndRespectsBypass(t *testing.T)
 	}
 
 	// Enable aggressive strategy with small tool output limit.
-	rec := doJSON(t, env.router, http.MethodPatch, "/api/tokensaver/config", map[string]any{
+	rec := doJSON(t, env.router, http.MethodPatch, "/api/token-saver/config", map[string]any{
 		"enabled":               true,
 		"strategy":              "aggressive",
 		"max_history_messages":  4,
@@ -149,7 +149,7 @@ func TestTokenSaverCompressionPreservesCodeBlocksAndRespectsBypass(t *testing.T)
 func TestHeadroomPrefixCacheHitMissAffinityAndAnthropicCacheControl(t *testing.T) {
 	env := setupTokenSaverTest(t)
 
-	rec := doJSON(t, env.router, http.MethodPatch, "/api/tokensaver/config", map[string]any{
+	rec := doJSON(t, env.router, http.MethodPatch, "/api/token-saver/config", map[string]any{
 		"enabled":              true,
 		"strategy":             "whitespace",
 		"headroom_enabled":     true,
@@ -220,7 +220,7 @@ func TestHeadroomPrefixCacheHitMissAffinityAndAnthropicCacheControl(t *testing.T
 func TestHeadroomLRUBoundedCapacityAndConcurrency(t *testing.T) {
 	env := setupTokenSaverTest(t)
 
-	rec := doJSON(t, env.router, http.MethodPatch, "/api/tokensaver/config", map[string]any{
+	rec := doJSON(t, env.router, http.MethodPatch, "/api/token-saver/config", map[string]any{
 		"enabled":           true,
 		"headroom_enabled":  true,
 		"max_cache_entries": 16,
@@ -253,7 +253,7 @@ func TestHeadroomLRUBoundedCapacityAndConcurrency(t *testing.T) {
 	}
 	wg.Wait()
 
-	statsRec := doJSON(t, env.router, http.MethodGet, "/api/tokensaver/stats", nil)
+	statsRec := doJSON(t, env.router, http.MethodGet, "/api/token-saver/stats", nil)
 	if statsRec.Code != http.StatusOK {
 		t.Fatalf("get stats: status %d", statsRec.Code)
 	}
@@ -266,14 +266,14 @@ func TestHeadroomLRUBoundedCapacityAndConcurrency(t *testing.T) {
 	}
 
 	// Clear cache and reset stats.
-	if r := doJSON(t, env.router, http.MethodPost, "/api/tokensaver/cache/clear", nil); r.Code != http.StatusNoContent {
+	if r := doJSON(t, env.router, http.MethodDelete, "/api/token-saver/cache", nil); r.Code != http.StatusNoContent {
 		t.Fatalf("cache clear: status %d", r.Code)
 	}
-	if r := doJSON(t, env.router, http.MethodPost, "/api/tokensaver/stats/reset", nil); r.Code != http.StatusNoContent {
+	if r := doJSON(t, env.router, http.MethodDelete, "/api/token-saver/stats", nil); r.Code != http.StatusNoContent {
 		t.Fatalf("stats reset: status %d", r.Code)
 	}
 	// Dry-run preview endpoint.
-	prevRec := doJSON(t, env.router, http.MethodPost, "/api/tokensaver/preview", map[string]any{
+	prevRec := doJSON(t, env.router, http.MethodPost, "/api/token-saver/preview", map[string]any{
 		"protocol": "openai-chat",
 		"model":    "gpt-4o",
 		"body": map[string]any{
@@ -289,7 +289,7 @@ func TestHeadroomLRUBoundedCapacityAndConcurrency(t *testing.T) {
 func TestTokenSaverFinalReviewFindings(t *testing.T) {
 	env := setupTokenSaverTest(t)
 
-	rec := doJSON(t, env.router, http.MethodPatch, "/api/tokensaver/config", map[string]any{
+	rec := doJSON(t, env.router, http.MethodPatch, "/api/token-saver/config", map[string]any{
 		"enabled":               true,
 		"strategy":              "aggressive",
 		"max_history_messages":  4,

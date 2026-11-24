@@ -115,7 +115,7 @@ paths:
             application/json:
               schema:
                 $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
-  /api/shutdown:
+  /api/system/shutdown:
     post:
       operationId: shutdownSystem
       summary: Trigger graceful server shutdown

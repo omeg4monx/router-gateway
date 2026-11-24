@@ -70,9 +70,10 @@ type Module struct {
 	bus        *eventbus.Bus
 	repo       *repository
 
-	mu             sync.RWMutex
-	adapters       map[string]ProviderAdapter
-	oauthOverrides map[string]OAuthConfig
+	mu              sync.RWMutex
+	adapters        map[string]ProviderAdapter
+	oauthOverrides  map[string]OAuthConfig
+	oauthStrategies map[string]*oauthProviderStrategy
 
 	refreshMu        sync.Mutex
 	refreshCalls     map[string]*refreshCall
@@ -80,6 +81,7 @@ type Module struct {
 
 	awsQuick    *awsQuickRuntime
 	deviceOAuth *deviceOAuthRuntime
+	oauthProxy  *oauthLoopbackProxy
 }
 
 var (
@@ -107,15 +109,17 @@ func New(opts Options) *Module {
 		httpClient:     client,
 		bus:            opts.Bus,
 		repo:           newRepository(opts.DB),
-		adapters:       make(map[string]ProviderAdapter),
+		adapters:         make(map[string]ProviderAdapter),
 		oauthOverrides:   overrides,
+		oauthStrategies:  defaultOAuthStrategies(),
 		refreshCalls:     make(map[string]*refreshCall),
 		refreshCooldowns: make(map[string]refreshCooldownEntry),
 		awsQuick:         newAwsQuickRuntime(),
 		deviceOAuth:      newDeviceOAuthRuntime(),
+		oauthProxy:       newOAuthLoopbackProxy(),
 	}
 
-	for _, adapter := range defaultBuiltInAdapters() {
+	for _, adapter := range allBuiltInAdapters() {
 		m.RegisterAdapter(adapter)
 	}
 	return m
@@ -148,7 +152,7 @@ func (m *Module) RegisterRoutes(mounts lifecycle.RouteMounts) {
 
 		mounts.AdminAPI.Get("/providers/nodes", m.handleListNodes)
 		mounts.AdminAPI.Post("/providers/nodes", m.handleCreateNode)
-		mounts.AdminAPI.Post("/providers/nodes/test", m.handleTestNodeDraft)
+		mounts.AdminAPI.Post("/providers/node-drafts/test", m.handleTestNodeDraft)
 		mounts.AdminAPI.Delete("/providers/nodes/{id}", m.handleDeleteNode)
 
 		mounts.AdminAPI.Get("/providers/connections", m.handleListConnections)
@@ -157,6 +161,7 @@ func (m *Module) RegisterRoutes(mounts lifecycle.RouteMounts) {
 		mounts.AdminAPI.Patch("/providers/connections/{id}", m.handlePatchConnection)
 		mounts.AdminAPI.Delete("/providers/connections/{id}", m.handleDeleteConnection)
 		mounts.AdminAPI.Post("/providers/connections/{id}/test", m.handleTestConnection)
+		mounts.AdminAPI.Get("/providers/connections/{id}/models", m.handleFetchConnectionModels)
 
 		mounts.AdminAPI.Post("/providers/oauth/{provider}/start", m.handleOAuthStart)
 		mounts.AdminAPI.Post("/providers/oauth/{provider}/exchange", m.handleOAuthExchange)
@@ -166,7 +171,7 @@ func (m *Module) RegisterRoutes(mounts lifecycle.RouteMounts) {
 	}
 
 	if mounts.PublicAPI != nil {
-		mounts.PublicAPI.Get("/oauth/callback", m.handleOAuthCallback)
+		mounts.PublicAPI.Get("/providers/oauth/callback", m.handleOAuthCallback)
 	}
 }
 
@@ -184,6 +189,7 @@ func (m *Module) Start(context.Context) error {
 // Stop performs graceful module teardown.
 func (m *Module) Stop(context.Context) error {
 	m.shutdownAwsQuickProxy()
+	m.oauthProxy.stopAll()
 	return nil
 }
 

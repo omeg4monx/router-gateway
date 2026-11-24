@@ -56,7 +56,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/TelegramConfig'
-  /api/telegram/webhook/register:
+  /api/telegram/webhook/registration:
     post:
       tags: [telegram]
       operationId: registerTelegramWebhook
@@ -80,8 +80,7 @@ paths:
             application/json:
               schema:
                 $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
-  /api/telegram/webhook/delete:
-    post:
+    delete:
       tags: [telegram]
       operationId: deleteTelegramWebhook
       summary: Remove the active webhook from Telegram Bot API

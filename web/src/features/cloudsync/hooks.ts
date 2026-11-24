@@ -22,7 +22,7 @@ export function useCloudSyncConfig() {
   return useQuery<CloudSyncConfig, Error>({
     queryKey: cloudSyncQueryKeys.config,
     queryFn: async () => {
-      const { data, error } = await apiClient.GET("/api/cloudsync/config");
+      const { data, error } = await apiClient.GET("/api/cloud-sync/config");
       if (data) return data;
       throw new Error(extractErrorMessage(error));
     },
@@ -33,7 +33,7 @@ export function useCloudSyncHistory() {
   return useQuery<CloudSyncHistoryListResponse, Error>({
     queryKey: cloudSyncQueryKeys.history,
     queryFn: async () => {
-      const { data, error } = await apiClient.GET("/api/cloudsync/history");
+      const { data, error } = await apiClient.GET("/api/cloud-sync/history");
       if (data) return data;
       throw new Error(extractErrorMessage(error));
     },
@@ -44,7 +44,7 @@ export function useUpdateCloudSyncConfigMutation() {
   const qc = useQueryClient();
   return useMutation<CloudSyncConfig, Error, UpdateCloudSyncConfigRequest>({
     mutationFn: async (body) => {
-      const { data, error } = await apiClient.PATCH("/api/cloudsync/config", { body });
+      const { data, error } = await apiClient.PATCH("/api/cloud-sync/config", { body });
       if (data) return data;
       throw new Error(extractErrorMessage(error));
     },
@@ -58,7 +58,7 @@ export function usePushCloudSyncMutation() {
   const qc = useQueryClient();
   return useMutation<CloudSyncActionResponse, Error, void>({
     mutationFn: async () => {
-      const { data, error } = await apiClient.POST("/api/cloudsync/push");
+      const { data, error } = await apiClient.POST("/api/cloud-sync/push");
       if (data) return data;
       throw new Error(extractErrorMessage(error));
     },
@@ -72,7 +72,7 @@ export function usePullCloudSyncMutation() {
   const qc = useQueryClient();
   return useMutation<CloudSyncActionResponse, Error, void>({
     mutationFn: async () => {
-      const { data, error } = await apiClient.POST("/api/cloudsync/pull");
+      const { data, error } = await apiClient.POST("/api/cloud-sync/pull");
       if (data) return data;
       throw new Error(extractErrorMessage(error));
     },
@@ -86,7 +86,7 @@ export function useExportSnapshotMutation() {
   const qc = useQueryClient();
   return useMutation<CloudSyncSnapshotBundle, Error, void>({
     mutationFn: async () => {
-      const { data, error } = await apiClient.GET("/api/cloudsync/snapshot");
+      const { data, error } = await apiClient.GET("/api/cloud-sync/snapshot");
       if (data) return data;
       throw new Error(extractErrorMessage(error));
     },
@@ -100,7 +100,7 @@ export function useRestoreSnapshotMutation() {
   const qc = useQueryClient();
   return useMutation<CloudSyncActionResponse, Error, RestoreCloudSyncSnapshotRequest>({
     mutationFn: async (body) => {
-      const { data, error } = await apiClient.POST("/api/cloudsync/restore", { body });
+      const { data, error } = await apiClient.POST("/api/cloud-sync/restore", { body });
       if (data) return data;
       throw new Error(extractErrorMessage(error));
     },
@@ -114,7 +114,7 @@ export function useClearCloudSyncHistoryMutation() {
   const qc = useQueryClient();
   return useMutation<{ deleted: number }, Error, void>({
     mutationFn: async () => {
-      const { data, error } = await apiClient.DELETE("/api/cloudsync/history");
+      const { data, error } = await apiClient.DELETE("/api/cloud-sync/history");
       if (data) return data;
       throw new Error(extractErrorMessage(error));
     },

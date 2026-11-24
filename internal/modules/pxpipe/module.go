@@ -264,7 +264,7 @@ func (m *Module) RegisterRoutes(mounts lifecycle.RouteMounts) {
 		r.Post("/restart", m.handleRestart)
 		r.Get("/health", m.handleHealth)
 		r.Get("/stats", m.handleGetStats)
-		r.Post("/stats/reset", m.handleResetStats)
+		r.Delete("/stats", m.handleResetStats)
 		r.Get("/logs", m.handleGetLogs)
 		r.Delete("/logs", m.handleClearLogs)
 		r.Post("/preview", m.handlePreview)

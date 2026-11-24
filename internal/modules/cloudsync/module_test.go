@@ -174,7 +174,7 @@ func TestCloudSyncSSRFGuardAndVaultedTokenIsolation(t *testing.T) {
 	} {
 		body := `{"endpoint_url":"` + badURL + `"}`
 		rec := httptest.NewRecorder()
-		handler.ServeHTTP(rec, httptest.NewRequest(http.MethodPatch, "/api/cloudsync/config", strings.NewReader(body)))
+		handler.ServeHTTP(rec, httptest.NewRequest(http.MethodPatch, "/api/cloud-sync/config", strings.NewReader(body)))
 		if rec.Code != http.StatusBadRequest {
 			t.Fatalf("expected 400 for SSRF URL %q, got %d (%s)", badURL, rec.Code, rec.Body.String())
 		}
@@ -184,7 +184,7 @@ func TestCloudSyncSSRFGuardAndVaultedTokenIsolation(t *testing.T) {
 	rawSecret := "sync_super_secret_token_98765"
 	patch := `{"enabled":true,"endpoint_url":"https://sync.example.com/v1/state","auth_token":"` + rawSecret + `","conflict_policy":"merge"}`
 	rec := httptest.NewRecorder()
-	handler.ServeHTTP(rec, httptest.NewRequest(http.MethodPatch, "/api/cloudsync/config", strings.NewReader(patch)))
+	handler.ServeHTTP(rec, httptest.NewRequest(http.MethodPatch, "/api/cloud-sync/config", strings.NewReader(patch)))
 	if rec.Code != http.StatusOK {
 		t.Fatalf("PATCH config status = %d, body = %s", rec.Code, rec.Body.String())
 	}
@@ -193,7 +193,7 @@ func TestCloudSyncSSRFGuardAndVaultedTokenIsolation(t *testing.T) {
 	}
 
 	rec = httptest.NewRecorder()
-	handler.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/cloudsync/config", nil))
+	handler.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/cloud-sync/config", nil))
 	if rec.Code != http.StatusOK {
 		t.Fatalf("GET config status = %d", rec.Code)
 	}
@@ -233,14 +233,14 @@ func TestCloudSyncPushPullAndSnapshotConflictPolicies(t *testing.T) {
 	// Configure remote pointing to test server.
 	patch := `{"enabled":true,"endpoint_url":"` + remote.URL + `","auth_token":"tok_abc12345","conflict_policy":"remote_wins"}`
 	rec := httptest.NewRecorder()
-	handler.ServeHTTP(rec, httptest.NewRequest(http.MethodPatch, "/api/cloudsync/config", strings.NewReader(patch)))
+	handler.ServeHTTP(rec, httptest.NewRequest(http.MethodPatch, "/api/cloud-sync/config", strings.NewReader(patch)))
 	if rec.Code != http.StatusOK {
 		t.Fatalf("PATCH config status = %d, body = %s", rec.Code, rec.Body.String())
 	}
 
 	// Push local snapshot.
 	rec = httptest.NewRecorder()
-	handler.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/api/cloudsync/push", nil))
+	handler.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/api/cloud-sync/push", nil))
 	if rec.Code != http.StatusOK {
 		t.Fatalf("POST push status = %d, body = %s", rec.Code, rec.Body.String())
 	}
@@ -265,12 +265,12 @@ func TestCloudSyncPushPullAndSnapshotConflictPolicies(t *testing.T) {
 
 	// Pull with local_wins -> keeps ui.theme=light, restores missing combo "primary".
 	rec = httptest.NewRecorder()
-	handler.ServeHTTP(rec, httptest.NewRequest(http.MethodPatch, "/api/cloudsync/config", strings.NewReader(`{"conflict_policy":"local_wins"}`)))
+	handler.ServeHTTP(rec, httptest.NewRequest(http.MethodPatch, "/api/cloud-sync/config", strings.NewReader(`{"conflict_policy":"local_wins"}`)))
 	if rec.Code != http.StatusOK {
 		t.Fatalf("PATCH local_wins status = %d", rec.Code)
 	}
 	rec = httptest.NewRecorder()
-	handler.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/api/cloudsync/pull", nil))
+	handler.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/api/cloud-sync/pull", nil))
 	if rec.Code != http.StatusOK {
 		t.Fatalf("POST pull (local_wins) status = %d, body = %s", rec.Code, rec.Body.String())
 	}
@@ -283,12 +283,12 @@ func TestCloudSyncPushPullAndSnapshotConflictPolicies(t *testing.T) {
 
 	// Pull with remote_wins -> overwrites ui.theme back to dark.
 	rec = httptest.NewRecorder()
-	handler.ServeHTTP(rec, httptest.NewRequest(http.MethodPatch, "/api/cloudsync/config", strings.NewReader(`{"conflict_policy":"remote_wins"}`)))
+	handler.ServeHTTP(rec, httptest.NewRequest(http.MethodPatch, "/api/cloud-sync/config", strings.NewReader(`{"conflict_policy":"remote_wins"}`)))
 	if rec.Code != http.StatusOK {
 		t.Fatalf("PATCH remote_wins status = %d", rec.Code)
 	}
 	rec = httptest.NewRecorder()
-	handler.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/api/cloudsync/pull", nil))
+	handler.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/api/cloud-sync/pull", nil))
 	if rec.Code != http.StatusOK {
 		t.Fatalf("POST pull (remote_wins) status = %d, body = %s", rec.Code, rec.Body.String())
 	}
@@ -298,7 +298,7 @@ func TestCloudSyncPushPullAndSnapshotConflictPolicies(t *testing.T) {
 
 	// History should have recorded push + 2 pulls.
 	rec = httptest.NewRecorder()
-	handler.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/cloudsync/history", nil))
+	handler.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/cloud-sync/history", nil))
 	if rec.Code != http.StatusOK {
 		t.Fatalf("GET history status = %d", rec.Code)
 	}

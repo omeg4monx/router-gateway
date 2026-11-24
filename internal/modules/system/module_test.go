@@ -523,12 +523,12 @@ func TestSystemShutdownRemoteBindGuard(t *testing.T) {
 			}
 		}, nil)
 
-		req := httptest.NewRequest(http.MethodPost, "/api/shutdown", nil)
+		req := httptest.NewRequest(http.MethodPost, "/api/system/shutdown", nil)
 		rec := httptest.NewRecorder()
 		h.server.Handler().ServeHTTP(rec, req)
 
 		if rec.Code != http.StatusAccepted {
-			t.Fatalf("POST /api/shutdown status = %d, want 202 (body=%s)", rec.Code, rec.Body.String())
+			t.Fatalf("POST /api/system/shutdown status = %d, want 202 (body=%s)", rec.Code, rec.Body.String())
 		}
 		var resp struct {
 			Status string `json:"status"`
@@ -547,11 +547,11 @@ func TestSystemShutdownRemoteBindGuard(t *testing.T) {
 		}
 
 		// Calling shutdown a second time must not invoke callback again.
-		req2 := httptest.NewRequest(http.MethodPost, "/api/shutdown", nil)
+		req2 := httptest.NewRequest(http.MethodPost, "/api/system/shutdown", nil)
 		rec2 := httptest.NewRecorder()
 		h.server.Handler().ServeHTTP(rec2, req2)
 		if rec2.Code != http.StatusAccepted {
-			t.Fatalf("second POST /api/shutdown status = %d, want 202", rec2.Code)
+			t.Fatalf("second POST /api/system/shutdown status = %d, want 202", rec2.Code)
 		}
 		time.Sleep(50 * time.Millisecond)
 		if calls.Load() != 1 {
@@ -569,13 +569,13 @@ func TestSystemShutdownRemoteBindGuard(t *testing.T) {
 			called.Store(true)
 		}, auth)
 
-		req := httptest.NewRequest(http.MethodPost, "/api/shutdown", nil)
+		req := httptest.NewRequest(http.MethodPost, "/api/system/shutdown", nil)
 		req.Header.Set("Authorization", "Bearer admin-token")
 		rec := httptest.NewRecorder()
 		h.server.Handler().ServeHTTP(rec, req)
 
 		if rec.Code != http.StatusForbidden {
-			t.Fatalf("POST /api/shutdown on 0.0.0.0 status = %d, want 403 (body=%s)", rec.Code, rec.Body.String())
+			t.Fatalf("POST /api/system/shutdown on 0.0.0.0 status = %d, want 403 (body=%s)", rec.Code, rec.Body.String())
 		}
 		var env httpserver.ErrorEnvelope
 		if err := json.Unmarshal(rec.Body.Bytes(), &env); err != nil {
@@ -599,12 +599,12 @@ func TestSystemShutdownRemoteBindGuard(t *testing.T) {
 			close(done)
 		}, nil)
 
-		req := httptest.NewRequest(http.MethodPost, "/api/shutdown", nil)
+		req := httptest.NewRequest(http.MethodPost, "/api/system/shutdown", nil)
 		rec := httptest.NewRecorder()
 		h.server.Handler().ServeHTTP(rec, req)
 
 		if rec.Code != http.StatusAccepted {
-			t.Fatalf("POST /api/shutdown with AllowInsecureRemote status = %d, want 202 (body=%s)", rec.Code, rec.Body.String())
+			t.Fatalf("POST /api/system/shutdown with AllowInsecureRemote status = %d, want 202 (body=%s)", rec.Code, rec.Body.String())
 		}
 		select {
 		case <-done:

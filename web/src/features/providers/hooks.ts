@@ -205,13 +205,49 @@ export function useDeleteProviderConnectionMutation() {
 export function useTestProviderNodeDraftMutation() {
   return useMutation<TestProviderConnectionResponse, Error, TestProviderNodeRequest>({
     mutationFn: async (payload) => {
-      const { data, error } = await apiClient.POST("/api/providers/nodes/test", {
+      const { data, error } = await apiClient.POST("/api/providers/node-drafts/test", {
         body: payload,
       });
       if (data) {
         return data;
       }
       throw new Error(extractErrorMessage(error));
+    },
+  });
+}
+
+export interface DiscoveredModel {
+  id: string;
+  name?: string;
+}
+
+export interface FetchConnectionModelsResponse {
+  connection_id: string;
+  provider_id: string;
+  models: DiscoveredModel[];
+  source: "upstream" | "fallback";
+  latency_ms: number;
+  warning?: string;
+}
+
+export function useFetchConnectionModelsMutation() {
+  return useMutation<FetchConnectionModelsResponse, Error, string>({
+    mutationFn: async (connectionId) => {
+      const response = await fetch(
+        `/api/providers/connections/${encodeURIComponent(connectionId)}/models`,
+        {
+          method: "GET",
+          credentials: "include",
+          headers: { Accept: "application/json" },
+        },
+      );
+      const data = await response.json().catch(() => null);
+      if (response.ok && data) {
+        return data as FetchConnectionModelsResponse;
+      }
+      throw new Error(
+        extractErrorMessage(data) || `Failed to load models (HTTP ${response.status})`,
+      );
     },
   });
 }

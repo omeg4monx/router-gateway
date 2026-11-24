@@ -1,8 +1,15 @@
 // Built-in provider registry metadata (endpoints, default models, auth modes, and portal links).
+// Synchronized with OmniRoute (main) open-sse/providers/registry LLM model catalog.
 import type { ProviderProtocol } from "./schemas";
 
 export type ProviderSourceCategory = "oauth" | "free" | "freeTier" | "apikey" | "webCookie";
 export type ProviderAuthMode = "oauth" | "api_key" | "cookie" | "none";
+
+export interface ProviderModelSpec {
+  id: string;
+  name?: string;
+  isFree?: boolean;
+}
 
 export interface ProviderRegistrySpec {
   id: string;
@@ -15,6 +22,7 @@ export interface ProviderRegistrySpec {
   authType: ProviderAuthMode;
   baseUrl: string;
   defaultModels: string[];
+  models?: readonly ProviderModelSpec[];
   website?: string;
   apiKeyUrl?: string;
   signupUrl?: string;
@@ -44,28 +52,24 @@ export const PROVIDER_REGISTRY: readonly ProviderRegistrySpec[] = [
     noticeText:
       "OpenAI-compatible gateway from Agnes AI, offering free API credits on sign-up. Accepts a bearer token or an x-api-key header.",
     priority: 120,
-  },
-  {
-    id: "alicode-intl",
-    name: "Alibaba Coding",
-    alias: "alicode-intl",
-    category: "apikey",
-    sourceCategory: "apikey",
-    protocol: "openai-chat",
-    authType: "api_key",
-    baseUrl: "https://coding-intl.dashscope.aliyuncs.com/v1",
-    defaultModels: [
-      "qwen3.5-plus",
-      "kimi-k2.5",
-      "glm-5",
-      "MiniMax-M2.5",
-      "qwen3-coder-next",
-      "qwen3-coder-plus",
-      "glm-4.7",
+    models: [
+      {
+        id: "agnes-2.5-flash",
+        name: "Agnes 2.5 Flash",
+      },
+      {
+        id: "agnes-2.5-pro",
+        name: "Agnes 2.5 Pro",
+      },
+      {
+        id: "agnes-2.5-pro-beta",
+        name: "Agnes 2.5 Pro Beta",
+      },
+      {
+        id: "agnes-3.0-flash",
+        name: "Agnes 3.0 Flash",
+      },
     ],
-    website: "https://www.alibabacloud.com/product/coding",
-    apiKeyUrl: "https://www.alibabacloud.com/product/coding",
-    priority: 10,
   },
   {
     id: "alicode",
@@ -89,6 +93,92 @@ export const PROVIDER_REGISTRY: readonly ProviderRegistrySpec[] = [
     website: "https://bailian.console.aliyun.com",
     apiKeyUrl: "https://bailian.console.aliyun.com/?apiKey=1",
     priority: 20,
+    models: [
+      {
+        id: "qwen3.5-plus",
+        name: "Qwen3.5 Plus",
+      },
+      {
+        id: "kimi-k2.5",
+        name: "Kimi K2.5",
+      },
+      {
+        id: "glm-5",
+        name: "GLM 5",
+      },
+      {
+        id: "MiniMax-M2.5",
+        name: "MiniMax M2.5",
+      },
+      {
+        id: "qwen3-max-2026-01-23",
+        name: "Qwen3 Max",
+      },
+      {
+        id: "qwen3-coder-next",
+        name: "Qwen3 Coder Next",
+      },
+      {
+        id: "qwen3-coder-plus",
+        name: "Qwen3 Coder Plus",
+      },
+      {
+        id: "glm-4.7",
+        name: "GLM 4.7",
+      },
+    ],
+  },
+  {
+    id: "alicode-intl",
+    name: "Alibaba Coding",
+    alias: "alicode-intl",
+    category: "apikey",
+    sourceCategory: "apikey",
+    protocol: "openai-chat",
+    authType: "api_key",
+    baseUrl: "https://coding-intl.dashscope.aliyuncs.com/v1",
+    defaultModels: [
+      "qwen3.5-plus",
+      "kimi-k2.5",
+      "glm-5",
+      "MiniMax-M2.5",
+      "qwen3-coder-next",
+      "qwen3-coder-plus",
+      "glm-4.7",
+    ],
+    website: "https://www.alibabacloud.com/product/coding",
+    apiKeyUrl: "https://www.alibabacloud.com/product/coding",
+    priority: 10,
+    models: [
+      {
+        id: "qwen3.5-plus",
+        name: "Qwen3.5 Plus",
+      },
+      {
+        id: "kimi-k2.5",
+        name: "Kimi K2.5",
+      },
+      {
+        id: "glm-5",
+        name: "GLM 5",
+      },
+      {
+        id: "MiniMax-M2.5",
+        name: "MiniMax M2.5",
+      },
+      {
+        id: "qwen3-coder-next",
+        name: "Qwen3 Coder Next",
+      },
+      {
+        id: "qwen3-coder-plus",
+        name: "Qwen3 Coder Plus",
+      },
+      {
+        id: "glm-4.7",
+        name: "GLM 4.7",
+      },
+    ],
   },
   {
     id: "alims-intl",
@@ -111,6 +201,36 @@ export const PROVIDER_REGISTRY: readonly ProviderRegistrySpec[] = [
     website: "https://modelstudio.console.alibabacloud.com",
     apiKeyUrl: "https://modelstudio.console.alibabacloud.com/?apiKey=1",
     priority: 11,
+    models: [
+      {
+        id: "qwen3.5-plus",
+        name: "Qwen3.5 Plus",
+      },
+      {
+        id: "kimi-k2.5",
+        name: "Kimi K2.5",
+      },
+      {
+        id: "glm-5",
+        name: "GLM 5",
+      },
+      {
+        id: "MiniMax-M2.5",
+        name: "MiniMax M2.5",
+      },
+      {
+        id: "qwen3-coder-next",
+        name: "Qwen3 Coder Next",
+      },
+      {
+        id: "qwen3-coder-plus",
+        name: "Qwen3 Coder Plus",
+      },
+      {
+        id: "glm-4.7",
+        name: "GLM 4.7",
+      },
+    ],
   },
   {
     id: "alitp-intl",
@@ -132,6 +252,32 @@ export const PROVIDER_REGISTRY: readonly ProviderRegistrySpec[] = [
     website: "https://www.alibabacloud.com/campaign/ai-landing-page-token",
     apiKeyUrl: "https://modelstudio.console.alibabacloud.com/?apiKey=1",
     priority: 11,
+    models: [
+      {
+        id: "qwen3.8-max-preview",
+        name: "Qwen3.8 Max Preview",
+      },
+      {
+        id: "qwen3.7-max",
+        name: "Qwen3.7 Max",
+      },
+      {
+        id: "qwen3.7-plus",
+        name: "Qwen3.7 Plus",
+      },
+      {
+        id: "qwen3.6-flash",
+        name: "Qwen3.6 Flash",
+      },
+      {
+        id: "glm-5.2",
+        name: "GLM 5.2",
+      },
+      {
+        id: "deepseek-v4-pro",
+        name: "DeepSeek V4 Pro",
+      },
+    ],
   },
   {
     id: "anthropic",
@@ -151,6 +297,20 @@ export const PROVIDER_REGISTRY: readonly ProviderRegistrySpec[] = [
     apiKeyUrl: "https://console.anthropic.com/settings/keys",
     serviceKinds: ["llm", "imageToText"],
     priority: 30,
+    models: [
+      {
+        id: "claude-sonnet-4-20250514",
+        name: "Claude Sonnet 4",
+      },
+      {
+        id: "claude-opus-4-20250514",
+        name: "Claude Opus 4",
+      },
+      {
+        id: "claude-3-5-sonnet-20241022",
+        name: "Claude 3.5 Sonnet",
+      },
+    ],
   },
   {
     id: "antigravity",
@@ -174,12 +334,197 @@ export const PROVIDER_REGISTRY: readonly ProviderRegistrySpec[] = [
       "gemini-4-hydrogen-high",
       "gemini-4-hydrogen-medium",
       "gemini-4-hydrogen-low",
+      "gemini-4-hydrogen",
+      "gemini-pro-orchestrator",
+      "gemini-pro-orchestrator-argon",
+      "gemini-3.8-flash-high",
+      "gemini-3.8-flash-medium",
+      "gemini-3.8-flash-low",
+      "gemini-3.8-flash",
+      "gemini-3.7-flash-high",
+      "gemini-3.7-flash-medium",
+      "gemini-3.7-flash-low",
+      "gemini-3.6-flash-high",
+      "gemini-3.6-flash-medium",
+      "gemini-3.6-flash-low",
+      "gemini-3.1-pro-high",
+      "gemini-pro-agent",
+      "gemini-3.1-pro-low",
+      "claude-sonnet-5-5-high",
+      "claude-sonnet-5-5-medium",
+      "claude-sonnet-5-5-low",
+      "claude-sonnet-5-5",
+      "claude-opus-5-5-high",
+      "claude-opus-5-5-medium",
+      "claude-opus-5-5-low",
+      "claude-opus-5-5",
+      "claude-sonnet-4-6",
+      "claude-opus-4-6-thinking",
+      "gpt-oss-120b-medium",
     ],
     website: "https://antigravity.google",
     signupUrl: "https://antigravity.google",
     deprecated: true,
     serviceKinds: ["llm", "image", "webSearch"],
     priority: 20,
+    models: [
+      {
+        id: "gemini-4-carbon-high",
+        name: "Gemini 4 Carbon (High)",
+      },
+      {
+        id: "gemini-4-carbon-medium",
+        name: "Gemini 4 Carbon (Medium)",
+      },
+      {
+        id: "gemini-4-carbon-low",
+        name: "Gemini 4 Carbon (Low)",
+      },
+      {
+        id: "gemini-4-carbon",
+        name: "Gemini 4 Carbon",
+      },
+      {
+        id: "gemini-4-argon-high",
+        name: "Gemini 4 Argon (High)",
+      },
+      {
+        id: "gemini-4-argon-medium",
+        name: "Gemini 4 Argon (Medium)",
+      },
+      {
+        id: "gemini-4-argon-low",
+        name: "Gemini 4 Argon (Low)",
+      },
+      {
+        id: "gemini-4-argon",
+        name: "Gemini 4 Argon",
+      },
+      {
+        id: "gemini-4-hydrogen-xhigh",
+        name: "Gemini 4 Hydrogen (XHigh)",
+      },
+      {
+        id: "gemini-4-hydrogen-high",
+        name: "Gemini 4 Hydrogen (High)",
+      },
+      {
+        id: "gemini-4-hydrogen-medium",
+        name: "Gemini 4 Hydrogen (Medium)",
+      },
+      {
+        id: "gemini-4-hydrogen-low",
+        name: "Gemini 4 Hydrogen (Low)",
+      },
+      {
+        id: "gemini-4-hydrogen",
+        name: "Gemini 4 Hydrogen",
+      },
+      {
+        id: "gemini-pro-orchestrator",
+        name: "Orchestrator (Carbon)",
+      },
+      {
+        id: "gemini-pro-orchestrator-argon",
+        name: "Orchestrator (Argon)",
+      },
+      {
+        id: "gemini-3.8-flash-high",
+        name: "Gemini 3.8 Flash (High)",
+      },
+      {
+        id: "gemini-3.8-flash-medium",
+        name: "Gemini 3.8 Flash (Medium)",
+      },
+      {
+        id: "gemini-3.8-flash-low",
+        name: "Gemini 3.8 Flash (Low)",
+      },
+      {
+        id: "gemini-3.8-flash",
+        name: "Gemini 3.8 Flash",
+      },
+      {
+        id: "gemini-3.7-flash-high",
+        name: "Gemini 3.7 Flash (High)",
+      },
+      {
+        id: "gemini-3.7-flash-medium",
+        name: "Gemini 3.7 Flash (Medium)",
+      },
+      {
+        id: "gemini-3.7-flash-low",
+        name: "Gemini 3.7 Flash (Low)",
+      },
+      {
+        id: "gemini-3.6-flash-high",
+        name: "Gemini 3.6 Flash (High)",
+      },
+      {
+        id: "gemini-3.6-flash-medium",
+        name: "Gemini 3.6 Flash (Medium)",
+      },
+      {
+        id: "gemini-3.6-flash-low",
+        name: "Gemini 3.6 Flash (Low)",
+      },
+      {
+        id: "gemini-3.1-pro-high",
+        name: "Gemini 3.1 Pro (High)",
+      },
+      {
+        id: "gemini-pro-agent",
+        name: "Gemini 3.1 Pro (High)",
+      },
+      {
+        id: "gemini-3.1-pro-low",
+        name: "Gemini 3.1 Pro (Low)",
+      },
+      {
+        id: "claude-sonnet-5-5-high",
+        name: "Claude Sonnet 5.5 (High)",
+      },
+      {
+        id: "claude-sonnet-5-5-medium",
+        name: "Claude Sonnet 5.5 (Medium)",
+      },
+      {
+        id: "claude-sonnet-5-5-low",
+        name: "Claude Sonnet 5.5 (Low)",
+      },
+      {
+        id: "claude-sonnet-5-5",
+        name: "Claude Sonnet 5.5 (Thinking)",
+      },
+      {
+        id: "claude-opus-5-5-high",
+        name: "Claude Opus 5.5 (High)",
+      },
+      {
+        id: "claude-opus-5-5-medium",
+        name: "Claude Opus 5.5 (Medium)",
+      },
+      {
+        id: "claude-opus-5-5-low",
+        name: "Claude Opus 5.5 (Low)",
+      },
+      {
+        id: "claude-opus-5-5",
+        name: "Claude Opus 5.5 (Thinking)",
+      },
+      {
+        id: "claude-sonnet-4-6",
+        name: "Claude Sonnet 4.6 (Thinking)",
+      },
+      {
+        id: "claude-opus-4-6-thinking",
+        name: "Claude Opus 4.6 (Thinking)",
+      },
+      {
+        id: "gpt-oss-120b-medium",
+        name: "GPT-OSS 120B (Medium)",
+      },
+    ],
   },
   {
     id: "api-airforce",
@@ -194,6 +539,20 @@ export const PROVIDER_REGISTRY: readonly ProviderRegistrySpec[] = [
     defaultModels: ["gpt-oss-120b", "gpt-oss-20b", "kimi-k2.7-code"],
     website: "https://api.airforce",
     apiKeyUrl: "https://api.airforce",
+    models: [
+      {
+        id: "gpt-oss-120b",
+        name: "GPT-OSS 120B (Free)",
+      },
+      {
+        id: "gpt-oss-20b",
+        name: "GPT-OSS 20B (Free)",
+      },
+      {
+        id: "kimi-k2.7-code",
+        name: "Kimi K2.7 Code (Free)",
+      },
+    ],
   },
   {
     id: "arena-ai",
@@ -218,11 +577,71 @@ export const PROVIDER_REGISTRY: readonly ProviderRegistrySpec[] = [
       "kimi-k2-thinking-turbo",
       "o3-2025-04-16",
       "claude-haiku-4-5-20251001",
+      "deepseek-v3",
+      "deepseek-r1",
     ],
     website: "https://arena.ai",
     apiKeyUrl: "https://arena.ai",
     authHint: "Paste your user token or session token (evaluation_session) from arena.ai",
     priority: 145,
+    models: [
+      {
+        id: "gpt-5.5-instant",
+        name: "GPT-5.5 Instant (OpenAI)",
+      },
+      {
+        id: "gemini-3.1-pro-preview",
+        name: "Gemini 3.1 Pro Preview (Google)",
+      },
+      {
+        id: "gemini-3.6-flash",
+        name: "Gemini 3.6 Flash (Google)",
+      },
+      {
+        id: "gemini-3-flash",
+        name: "Gemini 3 Flash (Google)",
+      },
+      {
+        id: "grok-4.20-beta-0309-reasoning",
+        name: "Grok 4.20 Reasoning (xAI)",
+      },
+      {
+        id: "glm-5",
+        name: "GLM-5 (Zhipu AI)",
+      },
+      {
+        id: "qwen3.7-plus",
+        name: "Qwen 3.7 Plus (Alibaba)",
+      },
+      {
+        id: "gpt-5.1-high",
+        name: "GPT-5.1 High Reasoning (OpenAI)",
+      },
+      {
+        id: "minimax-m3",
+        name: "MiniMax M3",
+      },
+      {
+        id: "kimi-k2-thinking-turbo",
+        name: "Kimi K2 Thinking Turbo (Moonshot)",
+      },
+      {
+        id: "o3-2025-04-16",
+        name: "OpenAI o3",
+      },
+      {
+        id: "claude-haiku-4-5-20251001",
+        name: "Claude 4.5 Haiku (Anthropic)",
+      },
+      {
+        id: "deepseek-v3",
+        name: "DeepSeek V3",
+      },
+      {
+        id: "deepseek-r1",
+        name: "DeepSeek R1",
+      },
+    ],
   },
   {
     id: "assemblyai",
@@ -234,7 +653,7 @@ export const PROVIDER_REGISTRY: readonly ProviderRegistrySpec[] = [
     protocol: "openai-chat",
     authType: "api_key",
     baseUrl: "https://api.assemblyai.com/v1/audio/transcriptions",
-    defaultModels: ["universal-3-pro", "universal-2", "best", "nano"],
+    defaultModels: [],
     website: "https://assemblyai.com",
     apiKeyUrl: "https://www.assemblyai.com/app/api-keys",
     serviceKinds: ["stt"],
@@ -256,6 +675,12 @@ export const PROVIDER_REGISTRY: readonly ProviderRegistrySpec[] = [
     noticeText:
       "OpenAI-compatible endpoint from Atria Dawn (AtomInnoLab). Currently a research preview offering a single text model, Atria-Dawn-Preview.",
     priority: 120,
+    models: [
+      {
+        id: "Atria-Dawn-Preview",
+        name: "Atria Dawn Preview",
+      },
+    ],
   },
   {
     id: "aws-polly",
@@ -272,6 +697,27 @@ export const PROVIDER_REGISTRY: readonly ProviderRegistrySpec[] = [
     noticeText:
       "Use AWS Secret Access Key as API key; set providerSpecificData.accessKeyId and optional region.",
     serviceKinds: ["tts"],
+  },
+  {
+    id: "aws-quick",
+    name: "Amazon Quick",
+    alias: "aq",
+    category: "oauth",
+    sourceCategory: "oauth",
+    protocol: "openai-chat",
+    authType: "oauth",
+    baseUrl: "",
+    defaultModels: ["fast", "balanced", "smart", "advanced"],
+    models: [
+      { id: "fast", name: "Quick Fast" },
+      { id: "balanced", name: "Quick Balanced" },
+      { id: "smart", name: "Quick Smart" },
+      { id: "advanced", name: "Quick Advanced" },
+    ],
+    website: "https://quick.aws.com",
+    signupUrl: "https://quick.aws.com",
+    hasOAuth: true,
+    priority: 10,
   },
   {
     id: "azure",
@@ -326,6 +772,36 @@ export const PROVIDER_REGISTRY: readonly ProviderRegistrySpec[] = [
     ],
     website: "https://cloud.baidu.com/product/qianfan.html",
     apiKeyUrl: "https://console.bce.baidu.com/qianfan/ais/console/applicationConsole/application",
+    models: [
+      {
+        id: "deepseek-v4-pro",
+        name: "DeepSeek V4 Pro",
+      },
+      {
+        id: "deepseek-v4-flash",
+        name: "DeepSeek V4 Flash",
+      },
+      {
+        id: "glm-5.2",
+        name: "GLM 5.2",
+      },
+      {
+        id: "glm-5.1",
+        name: "GLM 5.1",
+      },
+      {
+        id: "kimi-k2.6",
+        name: "Kimi K2.6",
+      },
+      {
+        id: "qwen3.5-397b-a17b",
+        name: "Qwen 3.5 397B A17B",
+      },
+      {
+        id: "qwen3.5-27b",
+        name: "Qwen 3.5 27B",
+      },
+    ],
   },
   {
     id: "bazaarlink",
@@ -350,9 +826,119 @@ export const PROVIDER_REGISTRY: readonly ProviderRegistrySpec[] = [
       "grok-4.20",
       "gemini-3.1-pro-preview",
       "gemini-3-flash-preview",
+      "gemini-3.1-flash-lite-preview",
+      "kimi-k2.6",
+      "kimi-k2.5",
+      "glm-5.1",
+      "glm-5",
+      "mimo-v2.5-pro",
+      "mimo-v2.5",
+      "minimax-m3",
+      "minimax-m2.7",
+      "minimax-m2.5",
+      "qwen3.6-plus",
+      "nemotron-3-super-120b-a12b",
     ],
     website: "https://bazaarlink.ai",
     apiKeyUrl: "https://bazaarlink.ai",
+    models: [
+      {
+        id: "auto:free",
+        name: "Auto Free (Zero Cost)",
+      },
+      {
+        id: "claude-opus-4.7",
+        name: "Claude Opus 4.7",
+      },
+      {
+        id: "claude-sonnet-4.6",
+        name: "Claude Sonnet 4.6",
+      },
+      {
+        id: "claude-haiku-4.5",
+        name: "Claude Haiku 4.5",
+      },
+      {
+        id: "gpt-5.5",
+        name: "GPT-5.5",
+      },
+      {
+        id: "gpt-5.4",
+        name: "GPT-5.4",
+      },
+      {
+        id: "gpt-5.4-mini",
+        name: "GPT-5.4 Mini",
+      },
+      {
+        id: "gpt-5.4-nano",
+        name: "GPT-5.4 Nano",
+      },
+      {
+        id: "grok-4.3",
+        name: "Grok 4.3",
+      },
+      {
+        id: "grok-4.20",
+        name: "Grok 4.20",
+      },
+      {
+        id: "gemini-3.1-pro-preview",
+        name: "Gemini 3.1 Pro",
+      },
+      {
+        id: "gemini-3-flash-preview",
+        name: "Gemini 3 Flash",
+      },
+      {
+        id: "gemini-3.1-flash-lite-preview",
+        name: "Gemini 3.1 Flash Lite",
+      },
+      {
+        id: "kimi-k2.6",
+        name: "Kimi K2.6",
+      },
+      {
+        id: "kimi-k2.5",
+        name: "Kimi K2.5",
+      },
+      {
+        id: "glm-5.1",
+        name: "GLM 5.1",
+      },
+      {
+        id: "glm-5",
+        name: "GLM 5",
+      },
+      {
+        id: "mimo-v2.5-pro",
+        name: "MiMo-V2.5-Pro",
+      },
+      {
+        id: "mimo-v2.5",
+        name: "MiMo-V2.5",
+      },
+      {
+        id: "minimax-m3",
+        name: "MiniMax M3",
+      },
+      {
+        id: "minimax-m2.7",
+        name: "MiniMax M2.7",
+      },
+      {
+        id: "minimax-m2.5",
+        name: "MiniMax M2.5",
+      },
+      {
+        id: "qwen3.6-plus",
+        name: "Qwen 3.6 Plus",
+      },
+      {
+        id: "nemotron-3-super-120b-a12b",
+        name: "Nemotron 3 Super",
+      },
+    ],
   },
   {
     id: "black-forest-labs",
@@ -364,14 +950,7 @@ export const PROVIDER_REGISTRY: readonly ProviderRegistrySpec[] = [
     protocol: "openai-chat",
     authType: "api_key",
     baseUrl: "",
-    defaultModels: [
-      "flux-pro-1.1",
-      "flux-pro-1.1-ultra",
-      "flux-pro",
-      "flux-dev",
-      "flux-kontext-pro",
-      "flux-kontext-max",
-    ],
+    defaultModels: [],
     website: "https://blackforestlabs.ai",
     apiKeyUrl: "https://api.bfl.ai",
     serviceKinds: ["image"],
@@ -403,6 +982,134 @@ export const PROVIDER_REGISTRY: readonly ProviderRegistrySpec[] = [
     apiKeyUrl: "https://www.blackbox.ai/api-management",
     serviceKinds: ["llm"],
     priority: 50,
+    models: [
+      {
+        id: "claude-fable-5",
+        name: "Claude Fable 5",
+      },
+      {
+        id: "claude-opus-4.8",
+        name: "Claude Opus 4.8",
+      },
+      {
+        id: "claude-sonnet-4.6",
+        name: "Claude Sonnet 4.6",
+      },
+      {
+        id: "gpt-5.5",
+        name: "GPT-5.5",
+      },
+      {
+        id: "gpt-5.4-pro",
+        name: "GPT-5.4 Pro",
+      },
+      {
+        id: "gpt-5.4",
+        name: "GPT-5.4",
+      },
+      {
+        id: "gpt-5.3-codex",
+        name: "GPT-5.3 Codex",
+      },
+      {
+        id: "gpt-5.4-nano",
+        name: "GPT-5.4 Nano",
+      },
+      {
+        id: "deepseek-v4-flash",
+        name: "DeepSeek V4 Flash",
+      },
+      {
+        id: "grok-4.3",
+        name: "Grok 4.3",
+      },
+    ],
+  },
+  {
+    id: "bluesminds",
+    name: "BluesMinds",
+    alias: "bm",
+    category: "apikey",
+    sourceCategory: "apikey",
+    protocol: "openai-chat",
+    authType: "api_key",
+    baseUrl: "https://api.bluesminds.com/v1/chat/completions",
+    defaultModels: [
+      "gpt-4.1",
+      "gpt-4.1-mini",
+      "gpt-4.1-nano",
+      "claude-sonnet-4-5",
+      "claude-haiku-4-5",
+      "gemini-2.0-flash",
+      "gemini-2.0-flash-exp",
+      "qwen-turbo",
+      "kimi-k2",
+      "kimi-k2-thinking",
+      "glm-4.7",
+      "minimax-m2.5",
+      "claude-opus-4-5",
+      "gemini-2.5-pro",
+    ],
+    models: [
+      {
+        id: "gpt-4.1",
+        name: "GPT-4.1",
+      },
+      {
+        id: "gpt-4.1-mini",
+        name: "GPT-4.1 Mini",
+      },
+      {
+        id: "gpt-4.1-nano",
+        name: "GPT-4.1 Nano",
+      },
+      {
+        id: "claude-sonnet-4-5",
+        name: "Claude Sonnet 4.5",
+      },
+      {
+        id: "claude-haiku-4-5",
+        name: "Claude Haiku 4.5",
+      },
+      {
+        id: "gemini-2.0-flash",
+        name: "Gemini 2.0 Flash",
+      },
+      {
+        id: "gemini-2.0-flash-exp",
+        name: "Gemini 2.0 Flash (Exp)",
+      },
+      {
+        id: "qwen-turbo",
+        name: "Qwen Turbo",
+      },
+      {
+        id: "kimi-k2",
+        name: "Kimi K2",
+      },
+      {
+        id: "kimi-k2-thinking",
+        name: "Kimi K2 Thinking",
+      },
+      {
+        id: "glm-4.7",
+        name: "GLM 4.7",
+      },
+      {
+        id: "minimax-m2.5",
+        name: "MiniMax M2.5",
+      },
+      {
+        id: "claude-opus-4-5",
+        name: "Claude Opus 4.5 (VIP)",
+      },
+      {
+        id: "gemini-2.5-pro",
+        name: "Gemini 2.5 Pro (VIP)",
+      },
+    ],
+    website: "https://bluesminds.com",
+    apiKeyUrl: "https://bluesminds.com",
   },
   {
     id: "brave-search",
@@ -443,6 +1150,36 @@ export const PROVIDER_REGISTRY: readonly ProviderRegistrySpec[] = [
       "Free credits for new accounts. Access to Seed 2.0, Kimi K2 Thinking, GLM 4.7, GPT-OSS-120B models.",
     serviceKinds: ["llm"],
     priority: 70,
+    models: [
+      {
+        id: "seed-2-0-pro-260328",
+        name: "Seed 2.0 Pro",
+      },
+      {
+        id: "seed-2-0-code-preview-260328",
+        name: "Seed 2.0 Code Preview",
+      },
+      {
+        id: "seed-2-0-mini-260215",
+        name: "Seed 2.0 Mini",
+      },
+      {
+        id: "seed-2-0-lite-260228",
+        name: "Seed 2.0 Lite",
+      },
+      {
+        id: "kimi-k2-thinking-251104",
+        name: "Kimi K2 Thinking",
+      },
+      {
+        id: "glm-4-7-251222",
+        name: "GLM 4.7",
+      },
+      {
+        id: "gpt-oss-120b-250805",
+        name: "GPT-OSS-120B",
+      },
+    ],
   },
   {
     id: "cerebras",
@@ -464,6 +1201,32 @@ export const PROVIDER_REGISTRY: readonly ProviderRegistrySpec[] = [
     website: "https://www.cerebras.ai",
     apiKeyUrl: "https://cloud.cerebras.ai/platform",
     priority: 60,
+    models: [
+      {
+        id: "gpt-oss-120b",
+        name: "GPT OSS 120B",
+      },
+      {
+        id: "zai-glm-4.7",
+        name: "ZAI GLM 4.7",
+      },
+      {
+        id: "llama-3.3-70b",
+        name: "Llama 3.3 70B",
+      },
+      {
+        id: "llama-4-scout-17b-16e-instruct",
+        name: "Llama 4 Scout",
+      },
+      {
+        id: "qwen-3-235b-a22b-instruct-2507",
+        name: "Qwen3 235B A22B",
+      },
+      {
+        id: "qwen-3-32b",
+        name: "Qwen3 32B",
+      },
+    ],
   },
   {
     id: "chatgpt-web",
@@ -491,6 +1254,44 @@ export const PROVIDER_REGISTRY: readonly ProviderRegistrySpec[] = [
     authHint:
       "Paste __Secure-next-auth.session-token dari chatgpt.com (Buka chatgpt.com -> F12 -> Application -> Storage -> Cookies -> chatgpt.com -> cari __Secure-next-auth.session-token, atau jalankan di Console: document.cookie.split('; ').find(r => r.startsWith('__Secure-next-auth.session-token=')))",
     priority: 143,
+    models: [
+      {
+        id: "gpt-6",
+        name: "GPT-6 Sol (web)",
+      },
+      {
+        id: "gpt-6-thinking",
+        name: "GPT-6 Sol Thinking (web)",
+      },
+      {
+        id: "gpt-6-pro",
+        name: "GPT-6 Astra Pro (web)",
+      },
+      {
+        id: "gpt-5-6",
+        name: "GPT-5.6 Sol (web)",
+      },
+      {
+        id: "gpt-5-6-thinking",
+        name: "GPT-5.6 Thinking (web)",
+      },
+      {
+        id: "gpt-5-5-instant",
+        name: "GPT-5.5 Instant (web)",
+      },
+      {
+        id: "gpt-5-5-thinking",
+        name: "GPT-5.5 Thinking (web)",
+      },
+      {
+        id: "gpt-4o",
+        name: "GPT-4o (web)",
+      },
+      {
+        id: "gpt-4o-mini",
+        name: "GPT-4o Mini (web)",
+      },
+    ],
   },
   {
     id: "chutes",
@@ -506,30 +1307,6 @@ export const PROVIDER_REGISTRY: readonly ProviderRegistrySpec[] = [
     website: "https://chutes.ai",
     apiKeyUrl: "https://chutes.ai/app/api",
     priority: 70,
-  },
-  {
-    id: "claude-web",
-    name: "Claude Web",
-    alias: "cw",
-    aliases: ["cw", "claude-cookie"],
-    category: "free",
-    sourceCategory: "webCookie",
-    protocol: "openai-chat",
-    authType: "cookie",
-    baseUrl: "https://claude.ai/api",
-    defaultModels: [
-      "claude-sonnet-4-6",
-      "claude-sonnet-5",
-      "claude-opus-5",
-      "claude-fable-5-1",
-      "claude-3-5-sonnet",
-      "claude-3-5-haiku",
-    ],
-    website: "https://claude.ai",
-    apiKeyUrl: "https://claude.ai",
-    authHint:
-      "Paste sessionKey dari claude.ai (Buka claude.ai -> F12 -> Application -> Storage -> Cookies -> claude.ai -> cari sessionKey, format: sessionKey=«redacted:sk-…»)",
-    priority: 144,
   },
   {
     id: "claude",
@@ -554,6 +1331,90 @@ export const PROVIDER_REGISTRY: readonly ProviderRegistrySpec[] = [
     signupUrl: "https://claude.ai",
     deprecated: true,
     priority: 10,
+    models: [
+      {
+        id: "claude-opus-5-5",
+        name: "Claude Opus 5.5",
+      },
+      {
+        id: "claude-opus-5",
+        name: "Claude Opus 5",
+      },
+      {
+        id: "claude-fable-5-2",
+        name: "Claude Fable 5.2",
+      },
+      {
+        id: "claude-fable-5-1",
+        name: "Claude Fable 5.1",
+      },
+      {
+        id: "claude-fable-5",
+        name: "Claude Fable 5",
+      },
+      {
+        id: "claude-sonnet-5-5",
+        name: "Claude Sonnet 5.5",
+      },
+      {
+        id: "claude-sonnet-5",
+        name: "Claude Sonnet 5",
+      },
+      {
+        id: "claude-haiku-4-5-20251001",
+        name: "Claude 4.5 Haiku",
+      },
+    ],
+  },
+  {
+    id: "claude-web",
+    name: "Claude Web",
+    alias: "cw",
+    aliases: ["cw", "claude-cookie"],
+    category: "free",
+    sourceCategory: "webCookie",
+    protocol: "openai-chat",
+    authType: "cookie",
+    baseUrl: "https://claude.ai/api",
+    defaultModels: [
+      "claude-sonnet-4-6",
+      "claude-sonnet-5",
+      "claude-opus-5",
+      "claude-fable-5-1",
+      "claude-3-5-sonnet",
+      "claude-3-5-haiku",
+    ],
+    website: "https://claude.ai",
+    apiKeyUrl: "https://claude.ai",
+    authHint:
+      "Paste sessionKey dari claude.ai (Buka claude.ai -> F12 -> Application -> Storage -> Cookies -> claude.ai -> cari sessionKey, format: sessionKey=«redacted:sk-…»)",
+    priority: 144,
+    models: [
+      {
+        id: "claude-sonnet-4-6",
+        name: "Claude Sonnet 4.6 (web)",
+      },
+      {
+        id: "claude-sonnet-5",
+        name: "Claude Sonnet 5 (web)",
+      },
+      {
+        id: "claude-opus-5",
+        name: "Claude Opus 5 (web)",
+      },
+      {
+        id: "claude-fable-5-1",
+        name: "Claude Fable 5.1 (web)",
+      },
+      {
+        id: "claude-3-5-sonnet",
+        name: "Claude 3.5 Sonnet (web)",
+      },
+      {
+        id: "claude-3-5-haiku",
+        name: "Claude 3.5 Haiku (web)",
+      },
+    ],
   },
   {
     id: "cline",
@@ -578,6 +1439,40 @@ export const PROVIDER_REGISTRY: readonly ProviderRegistrySpec[] = [
     signupUrl: "https://cline.bot",
     hasOAuth: true,
     priority: 80,
+    models: [
+      {
+        id: "anthropic/claude-opus-4.7",
+        name: "Claude Opus 4.7",
+      },
+      {
+        id: "anthropic/claude-sonnet-4.6",
+        name: "Claude Sonnet 4.6",
+      },
+      {
+        id: "anthropic/claude-opus-4.6",
+        name: "Claude Opus 4.6",
+      },
+      {
+        id: "openai/gpt-5.3-codex",
+        name: "GPT-5.3 Codex",
+      },
+      {
+        id: "openai/gpt-5.4",
+        name: "GPT-5.4",
+      },
+      {
+        id: "google/gemini-3.1-pro-preview",
+        name: "Gemini 3.1 Pro Preview",
+      },
+      {
+        id: "google/gemini-3.1-flash-lite-preview",
+        name: "Gemini 3.1 Flash Lite Preview",
+      },
+      {
+        id: "kwaipilot/kat-coder-pro",
+        name: "KAT Coder Pro",
+      },
+    ],
   },
   {
     id: "clinepass",
@@ -604,6 +1499,48 @@ export const PROVIDER_REGISTRY: readonly ProviderRegistrySpec[] = [
     signupUrl: "https://app.cline.bot",
     hasOAuth: true,
     priority: 85,
+    models: [
+      {
+        id: "cline-pass/glm-5.2",
+        name: "GLM-5.2 (ClinePass)",
+      },
+      {
+        id: "cline-pass/kimi-k2.7-code",
+        name: "Kimi K2.7 Code (ClinePass)",
+      },
+      {
+        id: "cline-pass/kimi-k2.6",
+        name: "Kimi K2.6 (ClinePass)",
+      },
+      {
+        id: "cline-pass/deepseek-v4-pro",
+        name: "DeepSeek V4 Pro (ClinePass)",
+      },
+      {
+        id: "cline-pass/deepseek-v4-flash",
+        name: "DeepSeek V4 Flash (ClinePass)",
+      },
+      {
+        id: "cline-pass/mimo-v2.5",
+        name: "MiMo-V2.5 (ClinePass)",
+      },
+      {
+        id: "cline-pass/mimo-v2.5-pro",
+        name: "MiMo-V2.5-Pro (ClinePass)",
+      },
+      {
+        id: "cline-pass/minimax-m3",
+        name: "MiniMax M3 (ClinePass)",
+      },
+      {
+        id: "cline-pass/qwen3.7-max",
+        name: "Qwen3.7 Max (ClinePass)",
+      },
+      {
+        id: "cline-pass/qwen3.7-plus",
+        name: "Qwen3.7 Plus (ClinePass)",
+      },
+    ],
   },
   {
     id: "cloudflare-ai",
@@ -628,12 +1565,67 @@ export const PROVIDER_REGISTRY: readonly ProviderRegistrySpec[] = [
       "@cf/moonshotai/kimi-k2.6",
       "@cf/zai-org/glm-4.7-flash",
       "@cf/qwen/qwq-32b",
+      "@cf/qwen/qwen2.5-coder-32b-instruct",
     ],
     website: "https://developers.cloudflare.com/workers-ai/",
     apiKeyUrl: "https://dash.cloudflare.com/profile/api-tokens",
     noticeText: "Workers AI free tier. Requires a Cloudflare API token and Account ID.",
     serviceKinds: ["llm", "image"],
     priority: 60,
+    models: [
+      {
+        id: "@cf/meta/llama-3.2-1b-instruct",
+        name: "Llama 3.2 1B Instruct",
+      },
+      {
+        id: "@cf/meta/llama-3.2-3b-instruct",
+        name: "Llama 3.2 3B Instruct",
+      },
+      {
+        id: "@cf/meta/llama-3.1-8b-instruct-fp8-fast",
+        name: "Llama 3.1 8B Instruct FP8 Fast",
+      },
+      {
+        id: "@cf/meta/llama-3.1-8b-instruct-awq",
+        name: "Llama 3.1 8B Instruct AWQ",
+      },
+      {
+        id: "@cf/mistralai/mistral-small-3.1-24b-instruct",
+        name: "Mistral Small 3.1 24B Instruct",
+      },
+      {
+        id: "@cf/meta/llama-3.1-70b-instruct-fp8-fast",
+        name: "Llama 3.1 70B Instruct FP8 Fast",
+      },
+      {
+        id: "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+        name: "Llama 3.3 70B Instruct FP8 Fast",
+      },
+      {
+        id: "@cf/deepseek-ai/deepseek-r1-distill-qwen-32b",
+        name: "DeepSeek R1 Distill Qwen 32B",
+      },
+      {
+        id: "@cf/moonshotai/kimi-k2.5",
+        name: "Kimi K2.5",
+      },
+      {
+        id: "@cf/moonshotai/kimi-k2.6",
+        name: "Kimi K2.6",
+      },
+      {
+        id: "@cf/zai-org/glm-4.7-flash",
+        name: "GLM 4.7 Flash",
+      },
+      {
+        id: "@cf/qwen/qwq-32b",
+        name: "QwQ 32B",
+      },
+      {
+        id: "@cf/qwen/qwen2.5-coder-32b-instruct",
+        name: "Qwen 2.5 Coder 32B Instruct",
+      },
+    ],
   },
   {
     id: "codebuddy-cn",
@@ -658,11 +1650,71 @@ export const PROVIDER_REGISTRY: readonly ProviderRegistrySpec[] = [
       "glm-5.3",
       "glm-5.3-flash",
       "kimi-k3-1",
+      "deepseek-v4-pro",
+      "deepseek-v4.1-flash",
     ],
     website: "https://copilot.tencent.com",
     signupUrl: "https://copilot.tencent.com",
     hasOAuth: true,
     priority: 90,
+    models: [
+      {
+        id: "glm-5.2",
+        name: "GLM-5.2",
+      },
+      {
+        id: "glm-5.1",
+        name: "GLM-5.1",
+      },
+      {
+        id: "glm-5v-turbo",
+        name: "GLM-5v-Turbo",
+      },
+      {
+        id: "minimax-m3",
+        name: "MiniMax-M3",
+      },
+      {
+        id: "kimi-k2.7",
+        name: "Kimi-K2.7-Code",
+      },
+      {
+        id: "kimi-k2.6",
+        name: "Kimi-K2.6",
+      },
+      {
+        id: "hy3",
+        name: "Hy3",
+      },
+      {
+        id: "hy4-preview",
+        name: "Hy4-Preview",
+      },
+      {
+        id: "hy4",
+        name: "Hy4",
+      },
+      {
+        id: "glm-5.3",
+        name: "GLM-5.3",
+      },
+      {
+        id: "glm-5.3-flash",
+        name: "GLM-5.3-Flash",
+      },
+      {
+        id: "kimi-k3-1",
+        name: "Kimi-K3",
+      },
+      {
+        id: "deepseek-v4-pro",
+        name: "DeepSeek-V4-Pro",
+      },
+      {
+        id: "deepseek-v4.1-flash",
+        name: "DeepSeek-V4.1-Flash",
+      },
+    ],
   },
   {
     id: "codebuddy-intl",
@@ -687,11 +1739,91 @@ export const PROVIDER_REGISTRY: readonly ProviderRegistrySpec[] = [
       "kimi-k2.6",
       "kimi-k2.5",
       "hy3",
+      "hy3-preview",
+      "hy4-preview",
+      "hy4",
+      "deepseek-v4-pro",
+      "deepseek-v4.1-flash",
+      "deepseek-v3-2-volc",
     ],
     website: "https://www.codebuddy.ai",
     signupUrl: "https://www.codebuddy.ai",
     hasOAuth: true,
     priority: 89,
+    models: [
+      {
+        id: "glm-5.2",
+        name: "GLM-5.2",
+      },
+      {
+        id: "glm-5.1",
+        name: "GLM-5.1",
+      },
+      {
+        id: "glm-5.0",
+        name: "GLM-5.0",
+      },
+      {
+        id: "glm-5.0-turbo",
+        name: "GLM-5.0-Turbo",
+      },
+      {
+        id: "glm-5v-turbo",
+        name: "GLM-5v-Turbo",
+      },
+      {
+        id: "glm-4.7",
+        name: "GLM-4.7",
+      },
+      {
+        id: "minimax-m3",
+        name: "MiniMax-M3",
+      },
+      {
+        id: "minimax-m2.7",
+        name: "MiniMax-M2.7",
+      },
+      {
+        id: "kimi-k2.7",
+        name: "Kimi-K2.7-Code",
+      },
+      {
+        id: "kimi-k2.6",
+        name: "Kimi-K2.6",
+      },
+      {
+        id: "kimi-k2.5",
+        name: "Kimi-K2.5",
+      },
+      {
+        id: "hy3",
+        name: "Hy3",
+      },
+      {
+        id: "hy3-preview",
+        name: "Hy3 Preview",
+      },
+      {
+        id: "hy4-preview",
+        name: "Hy4-Preview",
+      },
+      {
+        id: "hy4",
+        name: "Hy4",
+      },
+      {
+        id: "deepseek-v4-pro",
+        name: "DeepSeek-V4-Pro",
+      },
+      {
+        id: "deepseek-v4.1-flash",
+        name: "DeepSeek-V4.1-Flash",
+      },
+      {
+        id: "deepseek-v3-2-volc",
+        name: "DeepSeek-V3.2",
+      },
+    ],
   },
   {
     id: "codex",
@@ -715,12 +1847,112 @@ export const PROVIDER_REGISTRY: readonly ProviderRegistrySpec[] = [
       "gpt-6-luna[1m]",
       "gpt-5.6-sol",
       "gpt-5.6-sol[1m]",
+      "gpt-5.6-sol-review",
+      "gpt-5.6-terra",
+      "gpt-5.6-terra[1m]",
+      "gpt-5.6-terra-review",
+      "gpt-5.6-luna",
+      "gpt-5.6-luna[1m]",
+      "gpt-5.6-luna-review",
+      "gpt-daybreak-blue-latest",
+      "gpt-reserve",
+      "codex-auto-review",
     ],
     website: "https://chatgpt.com/codex",
     signupUrl: "https://chatgpt.com/codex",
     deprecated: true,
     serviceKinds: ["llm", "image"],
     priority: 30,
+    models: [
+      {
+        id: "gpt-6.1-sol",
+        name: "GPT 6.1 Sol",
+      },
+      {
+        id: "gpt-6.1-sol[1m]",
+        name: "GPT 6.1 Sol (extended context)",
+      },
+      {
+        id: "gpt-6.1-terra",
+        name: "GPT 6.1 Terra",
+      },
+      {
+        id: "gpt-6.1-terra[1m]",
+        name: "GPT 6.1 Terra (extended context)",
+      },
+      {
+        id: "gpt-6-astra",
+        name: "GPT 6.0 Astra",
+      },
+      {
+        id: "gpt-6-astra[1m]",
+        name: "GPT 6.0 Astra (extended context)",
+      },
+      {
+        id: "gpt-6-sol",
+        name: "GPT 6.0 Sol",
+      },
+      {
+        id: "gpt-6-sol[1m]",
+        name: "GPT 6.0 Sol (extended context)",
+      },
+      {
+        id: "gpt-6-luna",
+        name: "GPT 6.0 Luna",
+      },
+      {
+        id: "gpt-6-luna[1m]",
+        name: "GPT 6.0 Luna (extended context)",
+      },
+      {
+        id: "gpt-5.6-sol",
+        name: "GPT 5.6 Sol",
+      },
+      {
+        id: "gpt-5.6-sol[1m]",
+        name: "GPT 5.6 Sol (extended context)",
+      },
+      {
+        id: "gpt-5.6-sol-review",
+        name: "GPT 5.6 Sol Review",
+      },
+      {
+        id: "gpt-5.6-terra",
+        name: "GPT 5.6 Terra",
+      },
+      {
+        id: "gpt-5.6-terra[1m]",
+        name: "GPT 5.6 Terra (extended context)",
+      },
+      {
+        id: "gpt-5.6-terra-review",
+        name: "GPT 5.6 Terra Review",
+      },
+      {
+        id: "gpt-5.6-luna",
+        name: "GPT 5.6 Luna",
+      },
+      {
+        id: "gpt-5.6-luna[1m]",
+        name: "GPT 5.6 Luna (extended context)",
+      },
+      {
+        id: "gpt-5.6-luna-review",
+        name: "GPT 5.6 Luna Review",
+      },
+      {
+        id: "gpt-daybreak-blue-latest",
+        name: "GPT Daybreak Blue",
+      },
+      {
+        id: "gpt-reserve",
+        name: "GPT Reserve",
+      },
+      {
+        id: "codex-auto-review",
+        name: "Codex Auto Review",
+      },
+    ],
   },
   {
     id: "cohere",
@@ -735,6 +1967,20 @@ export const PROVIDER_REGISTRY: readonly ProviderRegistrySpec[] = [
     website: "https://cohere.com",
     apiKeyUrl: "https://dashboard.cohere.com/api-keys",
     priority: 90,
+    models: [
+      {
+        id: "command-r-plus-08-2024",
+        name: "Command R+ (Aug 2024)",
+      },
+      {
+        id: "command-r-08-2024",
+        name: "Command R (Aug 2024)",
+      },
+      {
+        id: "command-a-03-2025",
+        name: "Command A (Mar 2025)",
+      },
+    ],
   },
   {
     id: "comfyui",
@@ -745,7 +1991,7 @@ export const PROVIDER_REGISTRY: readonly ProviderRegistrySpec[] = [
     protocol: "openai-chat",
     authType: "api_key",
     baseUrl: "",
-    defaultModels: ["flux-dev", "sdxl"],
+    defaultModels: [],
     website: "https://github.com/comfyanonymous/ComfyUI",
     serviceKinds: ["image"],
     priority: 120,
@@ -773,12 +2019,117 @@ export const PROVIDER_REGISTRY: readonly ProviderRegistrySpec[] = [
       "zai-org/GLM-5.1",
       "zai-org/GLM-5",
       "MiniMaxAI/MiniMax-M3",
+      "MiniMaxAI/MiniMax-M2.7",
+      "MiniMaxAI/MiniMax-M2.5",
+      "xiaomi/mimo-v2.5-pro",
+      "xiaomi/mimo-v2.5",
+      "Qwen/Qwen3.6-Max-Preview",
+      "Qwen/Qwen3.6-Plus",
+      "Qwen/Qwen3.7-Max",
+      "Qwen/Qwen3.7-Plus",
+      "stepfun/Step-3.7-Flash",
+      "stepfun/Step-3.5-Flash",
+      "nvidia/nemotron-3-ultra-550b-a55b",
     ],
     website: "https://commandcode.ai",
     apiKeyUrl: "https://commandcode.ai/studio",
     noticeText:
       "Use your CommandCode CLI API key (starts with user_...) from ~/.commandcode/auth.json or commandcode.ai/studio.",
     priority: 100,
+    models: [
+      {
+        id: "deepseek/deepseek-v4-pro",
+        name: "DeepSeek V4 Pro",
+      },
+      {
+        id: "deepseek/deepseek-v4-flash",
+        name: "DeepSeek V4 Flash",
+      },
+      {
+        id: "moonshotai/Kimi-K3.1-Pro",
+        name: "Kimi K3.1 Pro",
+      },
+      {
+        id: "moonshotai/Kimi-K2.7-Code",
+        name: "Kimi K2.7 Code",
+      },
+      {
+        id: "moonshotai/Kimi-K2.7-Code-Highspeed",
+        name: "Kimi K2.7 Code HighSpeed",
+      },
+      {
+        id: "moonshotai/Kimi-K2.6",
+        name: "Kimi K2.6",
+      },
+      {
+        id: "moonshotai/Kimi-K2.5",
+        name: "Kimi K2.5",
+      },
+      {
+        id: "zai-org/GLM-5.2",
+        name: "GLM 5.2",
+      },
+      {
+        id: "zai-org/GLM-5.2-Fast",
+        name: "GLM 5.2 Fast",
+      },
+      {
+        id: "zai-org/GLM-5.1",
+        name: "GLM 5.1",
+      },
+      {
+        id: "zai-org/GLM-5",
+        name: "GLM 5",
+      },
+      {
+        id: "MiniMaxAI/MiniMax-M3",
+        name: "MiniMax M3",
+      },
+      {
+        id: "MiniMaxAI/MiniMax-M2.7",
+        name: "MiniMax M2.7",
+      },
+      {
+        id: "MiniMaxAI/MiniMax-M2.5",
+        name: "MiniMax M2.5",
+      },
+      {
+        id: "xiaomi/mimo-v2.5-pro",
+        name: "MiMo V2.5 Pro",
+      },
+      {
+        id: "xiaomi/mimo-v2.5",
+        name: "MiMo V2.5",
+      },
+      {
+        id: "Qwen/Qwen3.6-Max-Preview",
+        name: "Qwen 3.6 Max Preview",
+      },
+      {
+        id: "Qwen/Qwen3.6-Plus",
+        name: "Qwen 3.6 Plus",
+      },
+      {
+        id: "Qwen/Qwen3.7-Max",
+        name: "Qwen 3.7 Max",
+      },
+      {
+        id: "Qwen/Qwen3.7-Plus",
+        name: "Qwen 3.7 Plus",
+      },
+      {
+        id: "stepfun/Step-3.7-Flash",
+        name: "Step 3.7 Flash",
+      },
+      {
+        id: "stepfun/Step-3.5-Flash",
+        name: "Step 3.5 Flash",
+      },
+      {
+        id: "nvidia/nemotron-3-ultra-550b-a55b",
+        name: "Nemotron 3 Ultra",
+      },
+    ],
   },
   {
     id: "copilot-web",
@@ -796,6 +2147,20 @@ export const PROVIDER_REGISTRY: readonly ProviderRegistrySpec[] = [
     authHint:
       "Paste cookie _U dari copilot.microsoft.com (Buka copilot.microsoft.com -> F12 -> Application -> Storage -> Cookies -> cari '_U' -> copy nilainya)",
     priority: 146,
+    models: [
+      {
+        id: "copilot-pro",
+        name: "Copilot Pro (web)",
+      },
+      {
+        id: "gpt-4o",
+        name: "GPT-4o (via Copilot)",
+      },
+      {
+        id: "gpt-4-turbo",
+        name: "GPT-4 Turbo (via Copilot)",
+      },
+    ],
   },
   {
     id: "cursor",
@@ -819,10 +2184,70 @@ export const PROVIDER_REGISTRY: readonly ProviderRegistrySpec[] = [
       "claude-4.6-sonnet-medium-thinking",
       "kimi-k2.5",
       "gemini-3-flash-preview",
+      "gpt-5.2",
+      "gpt-5.3-codex",
     ],
     website: "https://cursor.com",
     signupUrl: "https://cursor.com",
     priority: 50,
+    models: [
+      {
+        id: "default",
+        name: "Auto (Server Picks)",
+      },
+      {
+        id: "claude-4.5-opus-high-thinking",
+        name: "Claude 4.5 Opus High Thinking",
+      },
+      {
+        id: "claude-4.5-opus-high",
+        name: "Claude 4.5 Opus High",
+      },
+      {
+        id: "claude-4.5-sonnet-thinking",
+        name: "Claude 4.5 Sonnet Thinking",
+      },
+      {
+        id: "claude-4.5-sonnet",
+        name: "Claude 4.5 Sonnet",
+      },
+      {
+        id: "claude-4.5-haiku",
+        name: "Claude 4.5 Haiku",
+      },
+      {
+        id: "claude-4.5-opus",
+        name: "Claude 4.5 Opus",
+      },
+      {
+        id: "gpt-5.2-codex",
+        name: "GPT 5.2 Codex",
+      },
+      {
+        id: "claude-4.6-opus-max",
+        name: "Claude 4.6 Opus Max",
+      },
+      {
+        id: "claude-4.6-sonnet-medium-thinking",
+        name: "Claude 4.6 Sonnet Medium Thinking",
+      },
+      {
+        id: "kimi-k2.5",
+        name: "Kimi K2.5",
+      },
+      {
+        id: "gemini-3-flash-preview",
+        name: "Gemini 3 Flash Preview",
+      },
+      {
+        id: "gpt-5.2",
+        name: "GPT 5.2",
+      },
+      {
+        id: "gpt-5.3-codex",
+        name: "GPT 5.3 Codex",
+      },
+    ],
   },
   {
     id: "dahl",
@@ -844,6 +2269,20 @@ export const PROVIDER_REGISTRY: readonly ProviderRegistrySpec[] = [
     noticeText:
       "OpenAI-compatible Gonka inference node. Small, fixed catalogue (GLM-5.3-Flash, DeepSeek-V4-Flash, MiniMax-M2.7) at a flat per-token rate.",
     priority: 120,
+    models: [
+      {
+        id: "zai-org/GLM-5.3-Flash",
+        name: "GLM-5.3 Flash",
+      },
+      {
+        id: "deepseek-ai/DeepSeek-V4-Flash-0731",
+        name: "DeepSeek V4 Flash 0731",
+      },
+      {
+        id: "MiniMaxAI/MiniMax-M2.7",
+        name: "MiniMax M2.7",
+      },
+    ],
   },
   {
     id: "deepgram",
@@ -855,13 +2294,81 @@ export const PROVIDER_REGISTRY: readonly ProviderRegistrySpec[] = [
     protocol: "openai-chat",
     authType: "api_key",
     baseUrl: "https://api.deepgram.com/v1/listen",
-    defaultModels: ["nova-3", "nova-2", "whisper-large", "nova"],
+    defaultModels: [],
     website: "https://deepgram.com",
     apiKeyUrl: "https://console.deepgram.com/api-keys",
     noticeText:
       "$200 free credit on signup (no card required). Aura-1: $0.015/1k chars, Aura-2: $0.030/1k chars (Pay-As-You-Go).",
     serviceKinds: ["stt"],
     priority: 20,
+  },
+  {
+    id: "deepseek",
+    name: "DeepSeek",
+    alias: "ds",
+    aliases: ["ds"],
+    category: "apikey",
+    sourceCategory: "apikey",
+    protocol: "openai-chat",
+    authType: "api_key",
+    baseUrl: "https://api.deepseek.com",
+    defaultModels: [
+      "deepseek-v5-pro",
+      "deepseek-v5-flash",
+      "deepseek-v4-pro",
+      "deepseek-v4-pro-max",
+      "deepseek-v4-pro-none",
+      "deepseek-v4.1-flash",
+      "deepseek-v4-flash",
+      "deepseek-v4-flash-vision-exp",
+      "deepseek-chat",
+      "deepseek-reasoner",
+    ],
+    website: "https://deepseek.com",
+    apiKeyUrl: "https://platform.deepseek.com/api_keys",
+    priority: 110,
+    models: [
+      {
+        id: "deepseek-v5-pro",
+        name: "DeepSeek V5 Pro",
+      },
+      {
+        id: "deepseek-v5-flash",
+        name: "DeepSeek V5 Flash",
+      },
+      {
+        id: "deepseek-v4-pro",
+        name: "DeepSeek V4 Pro",
+      },
+      {
+        id: "deepseek-v4-pro-max",
+        name: "DeepSeek V4 Pro Max",
+      },
+      {
+        id: "deepseek-v4-pro-none",
+        name: "DeepSeek V4 Pro No Thinking",
+      },
+      {
+        id: "deepseek-v4.1-flash",
+        name: "DeepSeek V4.1 Flash",
+      },
+      {
+        id: "deepseek-v4-flash",
+        name: "DeepSeek V4 Flash",
+      },
+      {
+        id: "deepseek-v4-flash-vision-exp",
+        name: "DeepSeek V4 Flash Vision (Exp)",
+      },
+      {
+        id: "deepseek-chat",
+        name: "DeepSeek V3.2 Chat",
+      },
+      {
+        id: "deepseek-reasoner",
+        name: "DeepSeek V3.2 Reasoner",
+      },
+    ],
   },
   {
     id: "deepseek-web",
@@ -889,32 +2396,352 @@ export const PROVIDER_REGISTRY: readonly ProviderRegistrySpec[] = [
     authHint:
       "Paste userToken dari chat.deepseek.com (Buka chat.deepseek.com -> F12 -> Application -> Local Storage -> https://chat.deepseek.com -> cari key 'userToken' -> copy isinya)",
     priority: 140,
+    models: [
+      {
+        id: "deepseek-v5-chat",
+        name: "DeepSeek V5 Chat",
+      },
+      {
+        id: "deepseek-v5-reasoner",
+        name: "DeepSeek V5 Reasoner (Thinking)",
+      },
+      {
+        id: "deepseek-chat",
+        name: "DeepSeek V3/V4 Chat",
+      },
+      {
+        id: "deepseek-reasoner",
+        name: "DeepSeek R1/V4 Reasoner (Thinking)",
+      },
+      {
+        id: "deepseek-v4.1-flash",
+        name: "DeepSeek V4.1 Flash",
+      },
+      {
+        id: "deepseek-v4.1-pro",
+        name: "DeepSeek V4.1 Pro",
+      },
+      {
+        id: "deepseek-v4.1-reasoner",
+        name: "DeepSeek V4.1 Reasoner",
+      },
+      {
+        id: "deepseek-v3",
+        name: "DeepSeek V3",
+      },
+      {
+        id: "deepseek-r1",
+        name: "DeepSeek R1",
+      },
+    ],
   },
   {
-    id: "deepseek",
-    name: "DeepSeek",
-    alias: "ds",
-    aliases: ["ds"],
+    id: "devin-cli",
+    name: "Devin CLI",
+    alias: "dv",
+    category: "free",
+    sourceCategory: "free",
+    protocol: "openai-chat",
+    authType: "api_key",
+    baseUrl: "devin://acp/stdio",
+    defaultModels: [
+      "swe-1.6-fast",
+      "swe-1.6",
+      "swe-1.5-fast",
+      "swe-1.5",
+      "claude-opus-4.7-max",
+      "claude-opus-4.7-high",
+      "claude-opus-4.7-medium",
+      "claude-opus-4.7-low",
+      "claude-sonnet-4.6-thinking-1m",
+      "claude-sonnet-4.6-thinking",
+      "claude-sonnet-4.6",
+      "claude-opus-4.6-thinking",
+      "claude-opus-4.6",
+      "claude-sonnet-4.5",
+      "claude-haiku-4.5",
+      "gpt-5.5-xhigh",
+      "gpt-5.5-high",
+      "gpt-5.5-medium",
+      "gpt-5.5-low",
+      "gpt-5.4-high",
+      "gpt-5.4-medium",
+      "gpt-5.4-low",
+      "gpt-5.3-codex-high",
+      "gpt-5.3-codex-medium",
+      "gpt-5.3-codex-low",
+      "gpt-5.2-high",
+      "gpt-5.2-medium",
+      "gpt-5.2-low",
+      "gemini-3.1-pro-high",
+      "gemini-3.1-pro-low",
+      "gemini-3.0-flash-high",
+      "gemini-2.5-pro",
+      "deepseek-v4",
+      "kimi-k2.6",
+      "glm-5.1",
+    ],
+    models: [
+      {
+        id: "swe-1.6-fast",
+        name: "SWE-1.6 Fast",
+      },
+      {
+        id: "swe-1.6",
+        name: "SWE-1.6",
+      },
+      {
+        id: "swe-1.5-fast",
+        name: "SWE-1.5 Fast",
+      },
+      {
+        id: "swe-1.5",
+        name: "SWE-1.5",
+      },
+      {
+        id: "claude-opus-4.7-max",
+        name: "Claude Opus 4.7 Max",
+      },
+      {
+        id: "claude-opus-4.7-high",
+        name: "Claude Opus 4.7 High",
+      },
+      {
+        id: "claude-opus-4.7-medium",
+        name: "Claude Opus 4.7 Medium",
+      },
+      {
+        id: "claude-opus-4.7-low",
+        name: "Claude Opus 4.7 Low",
+      },
+      {
+        id: "claude-sonnet-4.6-thinking-1m",
+        name: "Claude Sonnet 4.6 Thinking 1M",
+      },
+      {
+        id: "claude-sonnet-4.6-thinking",
+        name: "Claude Sonnet 4.6 Thinking",
+      },
+      {
+        id: "claude-sonnet-4.6",
+        name: "Claude Sonnet 4.6",
+      },
+      {
+        id: "claude-opus-4.6-thinking",
+        name: "Claude Opus 4.6 Thinking",
+      },
+      {
+        id: "claude-opus-4.6",
+        name: "Claude Opus 4.6",
+      },
+      {
+        id: "claude-sonnet-4.5",
+        name: "Claude Sonnet 4.5",
+      },
+      {
+        id: "claude-haiku-4.5",
+        name: "Claude Haiku 4.5",
+      },
+      {
+        id: "gpt-5.5-xhigh",
+        name: "GPT-5.5 XHigh",
+      },
+      {
+        id: "gpt-5.5-high",
+        name: "GPT-5.5 High",
+      },
+      {
+        id: "gpt-5.5-medium",
+        name: "GPT-5.5 Medium",
+      },
+      {
+        id: "gpt-5.5-low",
+        name: "GPT-5.5 Low",
+      },
+      {
+        id: "gpt-5.4-high",
+        name: "GPT-5.4 High",
+      },
+      {
+        id: "gpt-5.4-medium",
+        name: "GPT-5.4 Medium",
+      },
+      {
+        id: "gpt-5.4-low",
+        name: "GPT-5.4 Low",
+      },
+      {
+        id: "gpt-5.3-codex-high",
+        name: "GPT-5.3 Codex High",
+      },
+      {
+        id: "gpt-5.3-codex-medium",
+        name: "GPT-5.3 Codex Medium",
+      },
+      {
+        id: "gpt-5.3-codex-low",
+        name: "GPT-5.3 Codex Low",
+      },
+      {
+        id: "gpt-5.2-high",
+        name: "GPT-5.2 High",
+      },
+      {
+        id: "gpt-5.2-medium",
+        name: "GPT-5.2 Medium",
+      },
+      {
+        id: "gpt-5.2-low",
+        name: "GPT-5.2 Low",
+      },
+      {
+        id: "gemini-3.1-pro-high",
+        name: "Gemini 3.1 Pro High",
+      },
+      {
+        id: "gemini-3.1-pro-low",
+        name: "Gemini 3.1 Pro Low",
+      },
+      {
+        id: "gemini-3.0-flash-high",
+        name: "Gemini 3 Flash High",
+      },
+      {
+        id: "gemini-2.5-pro",
+        name: "Gemini 2.5 Pro",
+      },
+      {
+        id: "deepseek-v4",
+        name: "DeepSeek V4",
+      },
+      {
+        id: "kimi-k2.6",
+        name: "Kimi K2.6",
+      },
+      {
+        id: "glm-5.1",
+        name: "GLM-5.1",
+      },
+    ],
+    website: "https://devin.ai",
+    signupUrl: "https://cli.devin.ai",
+    noticeText:
+      "Install: `curl -fsSL https://cli.devin.ai/install.sh | bash` (macOS: `brew install --cask devin-cli`, Windows PowerShell: `irm https://static.devin.ai/cli/setup.ps1 | iex`). Then run `devin auth login`. No API key needed.",
+  },
+  {
+    id: "dothoosh",
+    name: "DotHoosh (دات‌هوش)",
+    alias: "dothoosh",
+    aliases: ["dh"],
     category: "apikey",
     sourceCategory: "apikey",
     protocol: "openai-chat",
     authType: "api_key",
-    baseUrl: "https://api.deepseek.com",
+    baseUrl: "https://gateway.dothoosh.com/v1",
     defaultModels: [
-      "deepseek-v5-pro",
-      "deepseek-v5-flash",
+      "claude-haiku-5-5",
+      "claude-sonnet-5-5",
+      "claude-opus-5-5",
+      "claude-fable-5-1",
+      "gpt-6-luna",
+      "gpt-6.1-sol",
+      "gpt-6-astra",
+      "gemini-3.8-flash",
+      "gemini-3.5-flash-lite",
+      "gemini-4-argon",
+      "deepseek-flash",
       "deepseek-v4-pro",
-      "deepseek-v4-pro-max",
-      "deepseek-v4-pro-none",
-      "deepseek-v4.1-flash",
-      "deepseek-v4-flash",
-      "deepseek-v4-flash-vision-exp",
-      "deepseek-chat",
-      "deepseek-reasoner",
+      "kimi-k2.7-code",
+      "kimi-k2.6",
+      "kimi-k3",
+      "glm-5.3",
+      "glm-5.3-flash",
+      "glm-5.3-flashx",
+      "glm-5.2",
     ],
-    website: "https://deepseek.com",
-    apiKeyUrl: "https://platform.deepseek.com/api_keys",
-    priority: 110,
+    website: "https://gateway.dothoosh.com",
+    apiKeyUrl: "https://gateway.dothoosh.com/api-keys",
+    noticeText:
+      "دات‌هوش: درگاه ایرانی مدل‌های هوش مصنوعی، سازگار با OpenAI و Anthropic، با پرداخت تومانی و کیف پول پیش‌پرداخت، بدون اشتراک ماهانه. — DotHoosh: Iranian AI gateway, OpenAI- and Anthropic-compatible, billed in Toman (IRT) from a prepaid wallet. One API key reaches every model; ids are bare (e.g. claude-sonnet-5-5, gpt-6.1-sol, gemini-4-argon, kimi-k3) and are fetched live per key.",
+    priority: 120,
+    models: [
+      {
+        id: "claude-haiku-5-5",
+        name: "Claude Haiku 5.5",
+      },
+      {
+        id: "claude-sonnet-5-5",
+        name: "Claude Sonnet 5.5",
+      },
+      {
+        id: "claude-opus-5-5",
+        name: "Claude Opus 5.5",
+      },
+      {
+        id: "claude-fable-5-1",
+        name: "Claude Fable 5.1",
+      },
+      {
+        id: "gpt-6-luna",
+        name: "GPT-6 Luna",
+      },
+      {
+        id: "gpt-6.1-sol",
+        name: "GPT-6.1 Sol",
+      },
+      {
+        id: "gpt-6-astra",
+        name: "GPT-6 Astra",
+      },
+      {
+        id: "gemini-3.8-flash",
+        name: "Gemini 3.8 Flash",
+      },
+      {
+        id: "gemini-3.5-flash-lite",
+        name: "Gemini 3.5 Flash-Lite",
+      },
+      {
+        id: "gemini-4-argon",
+        name: "Gemini 4 Argon",
+      },
+      {
+        id: "deepseek-flash",
+        name: "DeepSeek V4.1 Flash",
+      },
+      {
+        id: "deepseek-v4-pro",
+        name: "DeepSeek V4 Pro",
+      },
+      {
+        id: "kimi-k2.7-code",
+        name: "Kimi K2.7 Code",
+      },
+      {
+        id: "kimi-k2.6",
+        name: "Kimi K2.6",
+      },
+      {
+        id: "kimi-k3",
+        name: "Kimi K3",
+      },
+      {
+        id: "glm-5.3",
+        name: "GLM-5.3",
+      },
+      {
+        id: "glm-5.3-flash",
+        name: "GLM-5.3-Flash",
+      },
+      {
+        id: "glm-5.3-flashx",
+        name: "GLM-5.3-FlashX",
+      },
+      {
+        id: "glm-5.2",
+        name: "GLM-5.2",
+      },
+    ],
   },
   {
     id: "edge-tts",
@@ -967,15 +2794,7 @@ export const PROVIDER_REGISTRY: readonly ProviderRegistrySpec[] = [
     protocol: "openai-chat",
     authType: "api_key",
     baseUrl: "",
-    defaultModels: [
-      "fal-ai/flux/schnell",
-      "fal-ai/flux/dev",
-      "fal-ai/flux-pro/v1.1",
-      "fal-ai/flux-pro/v1.1-ultra",
-      "fal-ai/recraft-v3",
-      "fal-ai/ideogram/v2",
-      "fal-ai/stable-diffusion-v35-large",
-    ],
+    defaultModels: [],
     website: "https://fal.ai",
     apiKeyUrl: "https://fal.ai/dashboard/keys",
     serviceKinds: ["image"],
@@ -1003,6 +2822,36 @@ export const PROVIDER_REGISTRY: readonly ProviderRegistrySpec[] = [
     website: "https://featherless.ai",
     apiKeyUrl: "https://featherless.ai/account/api-keys",
     priority: 65,
+    models: [
+      {
+        id: "deepseek-ai/DeepSeek-V4-Pro",
+        name: "DeepSeek V4 Pro",
+      },
+      {
+        id: "deepseek-ai/DeepSeek-V4-Flash",
+        name: "DeepSeek V4 Flash",
+      },
+      {
+        id: "zai-org/GLM-5.2",
+        name: "GLM 5.2",
+      },
+      {
+        id: "zai-org/GLM-5.1",
+        name: "GLM 5.1",
+      },
+      {
+        id: "moonshotai/Kimi-K2.7-Code",
+        name: "Kimi K2.7 Code",
+      },
+      {
+        id: "moonshotai/Kimi-K2.6",
+        name: "Kimi K2.6",
+      },
+      {
+        id: "moonshotai/Kimi-K2.5",
+        name: "Kimi K2.5",
+      },
+    ],
   },
   {
     id: "firecrawl",
@@ -1031,12 +2880,25 @@ export const PROVIDER_REGISTRY: readonly ProviderRegistrySpec[] = [
       "accounts/fireworks/models/deepseek-v3p1",
       "accounts/fireworks/models/llama-v3p3-70b-instruct",
       "accounts/fireworks/models/qwen3-235b-a22b",
-      "nomic-ai/nomic-embed-text-v1.5",
     ],
     website: "https://fireworks.ai",
     apiKeyUrl: "https://fireworks.ai/account/api-keys",
     serviceKinds: ["llm", "embedding"],
     priority: 50,
+    models: [
+      {
+        id: "accounts/fireworks/models/deepseek-v3p1",
+        name: "DeepSeek V3.1",
+      },
+      {
+        id: "accounts/fireworks/models/llama-v3p3-70b-instruct",
+        name: "Llama 3.3 70B",
+      },
+      {
+        id: "accounts/fireworks/models/qwen3-235b-a22b",
+        name: "Qwen3 235B",
+      },
+    ],
   },
   {
     id: "fish-audio",
@@ -1053,53 +2915,157 @@ export const PROVIDER_REGISTRY: readonly ProviderRegistrySpec[] = [
     serviceKinds: ["tts"],
   },
   {
-    id: "gemini-cli",
-    name: "Gemini CLI",
-    alias: "gc",
-    category: "free",
-    sourceCategory: "free",
-    protocol: "gemini",
-    authType: "api_key",
-    baseUrl: "https://cloudcode-pa.googleapis.com/v1internal",
-    defaultModels: [
-      "gemini-3.1-pro-preview",
-      "gemini-3-pro-preview",
-      "gemini-3-flash-preview",
-      "gemini-3.1-flash-lite-preview",
-      "gemini-2.5-pro",
-      "gemini-2.5-flash",
-      "gemini-2.5-flash-lite",
-    ],
-    website: "https://github.com/google-gemini/gemini-cli",
-    signupUrl: "https://github.com/google-gemini/gemini-cli",
-    deprecated: true,
-    priority: 20,
-  },
-  {
-    id: "gemini-web",
-    name: "Gemini Web",
-    alias: "gweb",
-    aliases: ["gweb", "gemini-cookie"],
-    category: "free",
-    sourceCategory: "webCookie",
+    id: "freepi",
+    name: "FreePI",
+    alias: "fp",
+    aliases: ["freepi", "free-pi"],
+    category: "oauth",
+    sourceCategory: "oauth",
     protocol: "openai-chat",
-    authType: "cookie",
-    baseUrl: "https://gemini.google.com/app",
+    authType: "oauth",
+    baseUrl: "https://api.freepi.ai/v1",
     defaultModels: [
-      "gemini-4-argon",
-      "gemini-3.1-pro",
-      "gemini-3.1-pro-preview",
-      "gemini-3.8-flash",
-      "gemini-3.5-flash-lite",
-      "gemini-2.5-pro",
-      "gemini-2.5-flash",
-      "gemini-2.5-flash-lite",
+      "particle",
+      "deepseek-v4.1-flash",
+      "glm-5.3-flash",
+      "deepseek-v4-flash",
+      "deepseek-v4-pro",
+      "deepseek-v4.1-flash-1017-ultrafast",
+      "gemini-4-carbon",
+      "gemini-4-hydrogen",
+      "gemini-4-neon",
+      "gpt-6.2-astra",
+      "gpt-oss-20b",
+      "hy4-flash",
+      "kimi-k3.1-pro",
+      "ling-3.0-flash",
+      "ling-3.1-flash",
+      "mimo-v2.6-flash",
+      "qwen3.5-35b-darkbloom",
+      "qwen3.6-plus-uncensored",
+      "qwen3.7-flash",
+      "solar-mini-4",
+      "solar-pro-4",
+      "abliterated-large-flash",
+      "abliterated-large-v2",
+      "gemma-4-uncensored",
+      "glm-4.7-flash-heretic",
+      "uncensored-1.2",
     ],
-    website: "https://gemini.google.com",
-    apiKeyUrl: "https://gemini.google.com",
-    authHint:
-      "Wajib salin __Secure-1PSID dan __Secure-1PSIDTS (format: __Secure-1PSID=...; __Secure-1PSIDTS=...). Ambil di gemini.google.com -> F12 -> Application -> Storage -> Cookies. (Tips: Gunakan Firefox agar sesi awet dan tidak terikat hardware/DBSC Chrome).",
-    priority: 141,
+    website: "https://freepi.ai",
+    signupUrl: "https://freepi.ai",
+    hasOAuth: true,
+    priority: 85,
+    models: [
+      {
+        id: "particle",
+        name: "Particle-1",
+        isFree: true,
+      },
+      {
+        id: "deepseek-v4.1-flash",
+        name: "DeepSeek V4.1 Flash",
+        isFree: true,
+      },
+      {
+        id: "glm-5.3-flash",
+        name: "GLM 5.3 Flash",
+        isFree: true,
+      },
+      {
+        id: "deepseek-v4-flash",
+        name: "DeepSeek V4 Flash",
+        isFree: true,
+      },
+      {
+        id: "deepseek-v4-pro",
+        name: "DeepSeek V4 Pro",
+      },
+      {
+        id: "deepseek-v4.1-flash-1017-ultrafast",
+        name: "DeepSeek V4.1 Flash 600tps",
+      },
+      {
+        id: "gemini-4-carbon",
+        name: "Gemini 4 Carbon",
+      },
+      {
+        id: "gemini-4-hydrogen",
+        name: "Gemini 4 Hydrogen",
+      },
+      {
+        id: "gemini-4-neon",
+        name: "Gemini 4 Neon",
+      },
+      {
+        id: "gpt-6.2-astra",
+        name: "GPT-6.2 Astra",
+      },
+      {
+        id: "gpt-oss-20b",
+        name: "GPT-OSS 20B",
+      },
+      {
+        id: "hy4-flash",
+        name: "Hy4 Flash",
+      },
+      {
+        id: "kimi-k3.1-pro",
+        name: "Kimi K3.1 Pro",
+      },
+      {
+        id: "ling-3.0-flash",
+        name: "Ling 3.0 Flash",
+      },
+      {
+        id: "ling-3.1-flash",
+        name: "Ling 3.1 Flash",
+      },
+      {
+        id: "mimo-v2.6-flash",
+        name: "MiMo V2.6 Flash",
+      },
+      {
+        id: "qwen3.5-35b-darkbloom",
+        name: "Qwen3.5 35B (Darkbloom)",
+      },
+      {
+        id: "qwen3.6-plus-uncensored",
+        name: "Qwen 3.6 Plus Uncensored",
+      },
+      {
+        id: "qwen3.7-flash",
+        name: "Qwen 3.7 Flash",
+      },
+      {
+        id: "solar-mini-4",
+        name: "Solar Mini 4",
+      },
+      {
+        id: "solar-pro-4",
+        name: "Solar Pro 4",
+      },
+      {
+        id: "abliterated-large-flash",
+        name: "Abliterated Large Flash",
+      },
+      {
+        id: "abliterated-large-v2",
+        name: "Abliterated Large V2",
+      },
+      {
+        id: "gemma-4-uncensored",
+        name: "Gemma 4 Uncensored",
+      },
+      {
+        id: "glm-4.7-flash-heretic",
+        name: "GLM 4.7 Flash Heretic",
+      },
+      {
+        id: "uncensored-1.2",
+        name: "Uncensored 1.2",
+      },
+    ],
   },
   {
     id: "gemini",
@@ -1128,6 +3094,169 @@ export const PROVIDER_REGISTRY: readonly ProviderRegistrySpec[] = [
     apiKeyUrl: "https://aistudio.google.com/app/apikey",
     serviceKinds: ["llm", "embedding", "image", "imageToText", "webSearch", "tts", "stt"],
     priority: 50,
+    models: [
+      {
+        id: "gemini-4-argon",
+        name: "Gemini 4 Argon",
+      },
+      {
+        id: "gemini-3.8-flash",
+        name: "Gemini 3.8 Flash",
+      },
+      {
+        id: "gemini-3.7-flash",
+        name: "Gemini 3.7 Flash",
+      },
+      {
+        id: "gemini-3.6-flash",
+        name: "Gemini 3.6 Flash",
+      },
+      {
+        id: "gemini-3.5-flash-lite",
+        name: "Gemini 3.5 Flash Lite",
+      },
+      {
+        id: "gemini-3.1-pro-preview",
+        name: "Gemini 3.1 Pro Preview",
+      },
+      {
+        id: "gemini-3.1-flash-lite-preview",
+        name: "Gemini 3.1 Flash Lite Preview",
+      },
+      {
+        id: "gemini-3-flash-preview",
+        name: "Gemini 3 Flash Preview",
+      },
+      {
+        id: "gemini-2.5-pro",
+        name: "Gemini 2.5 Pro",
+      },
+      {
+        id: "gemini-2.5-flash",
+        name: "Gemini 2.5 Flash",
+      },
+      {
+        id: "gemini-2.5-flash-lite",
+        name: "Gemini 2.5 Flash Lite",
+      },
+      {
+        id: "gemma-4-31b-it",
+        name: "Gemma 4 31B IT",
+      },
+    ],
+  },
+  {
+    id: "gemini-cli",
+    name: "Gemini CLI",
+    alias: "gc",
+    category: "free",
+    sourceCategory: "free",
+    protocol: "gemini",
+    authType: "api_key",
+    baseUrl: "https://cloudcode-pa.googleapis.com/v1internal",
+    defaultModels: [
+      "gemini-3.1-pro-preview",
+      "gemini-3-pro-preview",
+      "gemini-3-flash-preview",
+      "gemini-3.1-flash-lite-preview",
+      "gemini-2.5-pro",
+      "gemini-2.5-flash",
+      "gemini-2.5-flash-lite",
+    ],
+    website: "https://github.com/google-gemini/gemini-cli",
+    signupUrl: "https://github.com/google-gemini/gemini-cli",
+    deprecated: true,
+    priority: 20,
+    models: [
+      {
+        id: "gemini-3.1-pro-preview",
+        name: "Gemini 3.1 Pro Preview",
+      },
+      {
+        id: "gemini-3-pro-preview",
+        name: "Gemini 3 Pro Preview",
+      },
+      {
+        id: "gemini-3-flash-preview",
+        name: "Gemini 3 Flash Preview",
+      },
+      {
+        id: "gemini-3.1-flash-lite-preview",
+        name: "Gemini 3.1 Flash Lite Preview",
+      },
+      {
+        id: "gemini-2.5-pro",
+        name: "Gemini 2.5 Pro",
+      },
+      {
+        id: "gemini-2.5-flash",
+        name: "Gemini 2.5 Flash",
+      },
+      {
+        id: "gemini-2.5-flash-lite",
+        name: "Gemini 2.5 Flash Lite",
+      },
+    ],
+  },
+  {
+    id: "gemini-web",
+    name: "Gemini Web",
+    alias: "gweb",
+    aliases: ["gweb", "gemini-cookie"],
+    category: "free",
+    sourceCategory: "webCookie",
+    protocol: "openai-chat",
+    authType: "cookie",
+    baseUrl: "https://gemini.google.com/app",
+    defaultModels: [
+      "gemini-4-argon",
+      "gemini-3.1-pro",
+      "gemini-3.1-pro-preview",
+      "gemini-3.8-flash",
+      "gemini-3.5-flash-lite",
+      "gemini-2.5-pro",
+      "gemini-2.5-flash",
+      "gemini-2.5-flash-lite",
+    ],
+    website: "https://gemini.google.com",
+    apiKeyUrl: "https://gemini.google.com",
+    authHint:
+      "Wajib salin __Secure-1PSID dan __Secure-1PSIDTS (format: __Secure-1PSID=...; __Secure-1PSIDTS=...). Ambil di gemini.google.com -> F12 -> Application -> Storage -> Cookies. (Tips: Gunakan Firefox agar sesi awet dan tidak terikat hardware/DBSC Chrome).",
+    priority: 141,
+    models: [
+      {
+        id: "gemini-4-argon",
+        name: "Gemini 4 Argon (1M ctx)",
+      },
+      {
+        id: "gemini-3.1-pro",
+        name: "Gemini 3.1 Pro (1M ctx)",
+      },
+      {
+        id: "gemini-3.1-pro-preview",
+        name: "Gemini 3.1 Pro Preview (1M ctx)",
+      },
+      {
+        id: "gemini-3.8-flash",
+        name: "Gemini 3.8 Flash (1M ctx)",
+      },
+      {
+        id: "gemini-3.5-flash-lite",
+        name: "Gemini 3.5 Flash Lite (1M ctx)",
+      },
+      {
+        id: "gemini-2.5-pro",
+        name: "Gemini 2.5 Pro (1M ctx)",
+      },
+      {
+        id: "gemini-2.5-flash",
+        name: "Gemini 2.5 Flash (1M ctx)",
+      },
+      {
+        id: "gemini-2.5-flash-lite",
+        name: "Gemini 2.5 Flash Lite (1M ctx)",
+      },
+    ],
   },
   {
     id: "github",
@@ -1151,37 +3280,142 @@ export const PROVIDER_REGISTRY: readonly ProviderRegistrySpec[] = [
       "gpt-6-luna",
       "gpt-6-sol",
       "gpt-6.1-sol",
+      "claude-fable-5",
+      "claude-fable-5.1",
+      "claude-haiku-4.5",
+      "claude-haiku-5.5",
+      "claude-opus-4.8",
+      "claude-opus-4.8-fast",
+      "claude-opus-5",
+      "claude-opus-5.5",
+      "claude-sonnet-4.6",
+      "claude-sonnet-5",
+      "claude-sonnet-5.5",
+      "gemini-3.7-flash",
+      "gemini-3.8-flash",
+      "gemini-4-argon",
+      "kimi-k3",
+      "mai-code-1.1-flash",
     ],
     website: "https://github.com/features/copilot",
     signupUrl: "https://github.com/features/copilot",
     deprecated: true,
     serviceKinds: ["llm", "embedding"],
     priority: 40,
-  },
-  {
-    id: "glm-cn",
-    name: "GLM (China)",
-    alias: "glm-cn",
-    category: "apikey",
-    sourceCategory: "apikey",
-    protocol: "openai-chat",
-    authType: "api_key",
-    baseUrl: "https://open.bigmodel.cn/api/coding/paas/v4",
-    defaultModels: [
-      "glm-5.3",
-      "glm-5.3-flash",
-      "glm-5.2",
-      "glm-5.1",
-      "glm-5-turbo",
-      "glm-5",
-      "glm-4.7",
-      "glm-4.6v",
-      "glm-4.6",
-      "glm-4.5-air",
+    models: [
+      {
+        id: "gpt-5-mini",
+        name: "GPT-5 Mini",
+      },
+      {
+        id: "gpt-5.3-codex",
+        name: "GPT-5.3 Codex",
+      },
+      {
+        id: "gpt-5.4",
+        name: "GPT-5.4",
+      },
+      {
+        id: "gpt-5.4-mini",
+        name: "GPT-5.4 Mini",
+      },
+      {
+        id: "gpt-5.5",
+        name: "GPT-5.5",
+      },
+      {
+        id: "gpt-5.6-luna",
+        name: "GPT-5.6 Luna",
+      },
+      {
+        id: "gpt-5.6-sol",
+        name: "GPT-5.6 Sol",
+      },
+      {
+        id: "gpt-5.6-terra",
+        name: "GPT-5.6 Terra",
+      },
+      {
+        id: "gpt-6-astra",
+        name: "GPT-6 Astra",
+      },
+      {
+        id: "gpt-6-luna",
+        name: "GPT-6 Luna",
+      },
+      {
+        id: "gpt-6-sol",
+        name: "GPT-6 Sol",
+      },
+      {
+        id: "gpt-6.1-sol",
+        name: "GPT-6.1 Sol",
+      },
+      {
+        id: "claude-fable-5",
+        name: "Claude Fable 5",
+      },
+      {
+        id: "claude-fable-5.1",
+        name: "Claude Fable 5.1",
+      },
+      {
+        id: "claude-haiku-4.5",
+        name: "Claude Haiku 4.5",
+      },
+      {
+        id: "claude-haiku-5.5",
+        name: "Claude Haiku 5.5",
+      },
+      {
+        id: "claude-opus-4.8",
+        name: "Claude Opus 4.8",
+      },
+      {
+        id: "claude-opus-4.8-fast",
+        name: "Claude Opus 4.8 (Fast)",
+      },
+      {
+        id: "claude-opus-5",
+        name: "Claude Opus 5",
+      },
+      {
+        id: "claude-opus-5.5",
+        name: "Claude Opus 5.5",
+      },
+      {
+        id: "claude-sonnet-4.6",
+        name: "Claude Sonnet 4.6",
+      },
+      {
+        id: "claude-sonnet-5",
+        name: "Claude Sonnet 5",
+      },
+      {
+        id: "claude-sonnet-5.5",
+        name: "Claude Sonnet 5.5",
+      },
+      {
+        id: "gemini-3.7-flash",
+        name: "Gemini 3.7 Flash",
+      },
+      {
+        id: "gemini-3.8-flash",
+        name: "Gemini 3.8 Flash",
+      },
+      {
+        id: "gemini-4-argon",
+        name: "Gemini 4 Argon",
+      },
+      {
+        id: "kimi-k3",
+        name: "Kimi K3",
+      },
+      {
+        id: "mai-code-1.1-flash",
+        name: "MAI-Code-1.1-Flash",
+      },
     ],
-    website: "https://open.bigmodel.cn",
-    apiKeyUrl: "https://open.bigmodel.cn/usercenter/apikeys",
-    priority: 130,
   },
   {
     id: "glm",
@@ -1210,6 +3444,114 @@ export const PROVIDER_REGISTRY: readonly ProviderRegistrySpec[] = [
     hasOAuth: true,
     serviceKinds: ["llm", "webSearch"],
     priority: 140,
+    models: [
+      {
+        id: "glm-5.3",
+        name: "GLM 5.3",
+      },
+      {
+        id: "glm-5.3-flash",
+        name: "GLM 5.3 Flash (Vision)",
+      },
+      {
+        id: "GLM-5.3",
+      },
+      {
+        id: "GLM-5.3-Flash",
+        name: "GLM-5.3 Flash",
+      },
+      {
+        id: "glm-5.2",
+        name: "GLM 5.2",
+      },
+      {
+        id: "glm-5.1",
+        name: "GLM 5.1",
+      },
+      {
+        id: "glm-5-turbo",
+        name: "GLM 5 Turbo",
+      },
+      {
+        id: "glm-5",
+        name: "GLM 5",
+      },
+      {
+        id: "glm-4.7",
+        name: "GLM 4.7",
+      },
+      {
+        id: "glm-4.6v",
+        name: "GLM 4.6V (Vision)",
+      },
+    ],
+  },
+  {
+    id: "glm-cn",
+    name: "GLM (China)",
+    alias: "glm-cn",
+    category: "apikey",
+    sourceCategory: "apikey",
+    protocol: "openai-chat",
+    authType: "api_key",
+    baseUrl: "https://open.bigmodel.cn/api/coding/paas/v4",
+    defaultModels: [
+      "glm-5.3",
+      "glm-5.3-flash",
+      "glm-5.2",
+      "glm-5.1",
+      "glm-5-turbo",
+      "glm-5",
+      "glm-4.7",
+      "glm-4.6v",
+      "glm-4.6",
+      "glm-4.5-air",
+    ],
+    website: "https://open.bigmodel.cn",
+    apiKeyUrl: "https://open.bigmodel.cn/usercenter/apikeys",
+    priority: 130,
+    models: [
+      {
+        id: "glm-5.3",
+        name: "GLM 5.3",
+      },
+      {
+        id: "glm-5.3-flash",
+        name: "GLM 5.3 Flash (Vision)",
+      },
+      {
+        id: "glm-5.2",
+        name: "GLM 5.2",
+      },
+      {
+        id: "glm-5.1",
+        name: "GLM 5.1",
+      },
+      {
+        id: "glm-5-turbo",
+        name: "GLM 5 Turbo",
+      },
+      {
+        id: "glm-5",
+        name: "GLM 5",
+      },
+      {
+        id: "glm-4.7",
+        name: "GLM-4.7",
+      },
+      {
+        id: "glm-4.6v",
+        name: "GLM 4.6V (Vision)",
+      },
+      {
+        id: "glm-4.6",
+        name: "GLM-4.6",
+      },
+      {
+        id: "glm-4.5-air",
+        name: "GLM-4.5-Air",
+      },
+    ],
   },
   {
     id: "google-pse",
@@ -1262,6 +3604,32 @@ export const PROVIDER_REGISTRY: readonly ProviderRegistrySpec[] = [
       "Sign in with your xAI / Grok account via device code. Uses Grok Build subscription credits (cli-chat-proxy.grok.com).",
     hasOAuth: true,
     priority: 275,
+    models: [
+      {
+        id: "grok-build",
+        name: "Grok Build",
+      },
+      {
+        id: "grok-4.7",
+        name: "Grok 4.7",
+      },
+      {
+        id: "grok-4.5",
+        name: "Grok 4.5",
+      },
+      {
+        id: "grok-4.5-high",
+        name: "Grok 4.5 (High)",
+      },
+      {
+        id: "grok-4.5-medium",
+        name: "Grok 4.5 (Medium)",
+      },
+      {
+        id: "grok-4.5-low",
+        name: "Grok 4.5 (Low)",
+      },
+    ],
   },
   {
     id: "grok-web",
@@ -1279,6 +3647,28 @@ export const PROVIDER_REGISTRY: readonly ProviderRegistrySpec[] = [
     authHint:
       "Paste cookie sso / sso-rw dari grok.com (Buka grok.com -> F12 -> Application -> Storage -> Cookies -> cari 'sso' atau 'sso-rw')",
     priority: 145,
+    models: [
+      {
+        id: "grok-3",
+        name: "Grok 3 (web)",
+      },
+      {
+        id: "grok-3-mini",
+        name: "Grok 3 Mini (web)",
+      },
+      {
+        id: "fast",
+        name: "Grok Fast (web)",
+      },
+      {
+        id: "expert",
+        name: "Grok Expert Reasoning (web)",
+      },
+      {
+        id: "heavy",
+        name: "Grok Heavy Multi-Agent (web)",
+      },
+    ],
   },
   {
     id: "groq",
@@ -1294,14 +3684,29 @@ export const PROVIDER_REGISTRY: readonly ProviderRegistrySpec[] = [
       "meta-llama/llama-4-maverick-17b-128e-instruct",
       "qwen/qwen3-32b",
       "openai/gpt-oss-120b",
-      "whisper-large-v3",
-      "whisper-large-v3-turbo",
-      "distil-whisper-large-v3-en",
     ],
     website: "https://groq.com",
     apiKeyUrl: "https://console.groq.com/keys",
     serviceKinds: ["llm", "imageToText", "stt"],
     priority: 60,
+    models: [
+      {
+        id: "llama-3.3-70b-versatile",
+        name: "Llama 3.3 70B",
+      },
+      {
+        id: "meta-llama/llama-4-maverick-17b-128e-instruct",
+        name: "Llama 4 Maverick",
+      },
+      {
+        id: "qwen/qwen3-32b",
+        name: "Qwen3 32B",
+      },
+      {
+        id: "openai/gpt-oss-120b",
+        name: "GPT-OSS 120B",
+      },
+    ],
   },
   {
     id: "huggingface",
@@ -1313,20 +3718,7 @@ export const PROVIDER_REGISTRY: readonly ProviderRegistrySpec[] = [
     protocol: "openai-chat",
     authType: "api_key",
     baseUrl: "",
-    defaultModels: [
-      "black-forest-labs/FLUX.1-schnell",
-      "black-forest-labs/FLUX.1-dev",
-      "black-forest-labs/FLUX.1-Krea-dev",
-      "black-forest-labs/FLUX.1-Kontext-dev",
-      "black-forest-labs/FLUX.2-dev",
-      "black-forest-labs/FLUX.2-klein-9B",
-      "black-forest-labs/FLUX.2-klein-4B",
-      "black-forest-labs/FLUX.2-klein-base-9B",
-      "black-forest-labs/FLUX.2-klein-base-4B",
-      "stabilityai/stable-diffusion-xl-base-1.0",
-      "stabilityai/stable-diffusion-3.5-large",
-      "stabilityai/stable-diffusion-3.5-large-turbo",
-    ],
+    defaultModels: [],
     website: "https://huggingface.co",
     apiKeyUrl: "https://huggingface.co/settings/tokens",
     noticeText:
@@ -1357,6 +3749,133 @@ export const PROVIDER_REGISTRY: readonly ProviderRegistrySpec[] = [
     website: "https://hyperbolic.xyz",
     apiKeyUrl: "https://app.hyperbolic.xyz/settings",
     priority: 160,
+    models: [
+      {
+        id: "Qwen/QwQ-32B",
+        name: "QwQ 32B",
+      },
+      {
+        id: "deepseek-ai/DeepSeek-R1",
+        name: "DeepSeek R1",
+      },
+      {
+        id: "deepseek-ai/DeepSeek-V3",
+        name: "DeepSeek V3",
+      },
+      {
+        id: "meta-llama/Llama-3.3-70B-Instruct",
+        name: "Llama 3.3 70B",
+      },
+      {
+        id: "meta-llama/Llama-3.2-3B-Instruct",
+        name: "Llama 3.2 3B",
+      },
+      {
+        id: "Qwen/Qwen2.5-72B-Instruct",
+        name: "Qwen 2.5 72B",
+      },
+      {
+        id: "Qwen/Qwen2.5-Coder-32B-Instruct",
+        name: "Qwen 2.5 Coder 32B",
+      },
+      {
+        id: "NousResearch/Hermes-3-Llama-3.1-70B",
+        name: "Hermes 3 70B",
+      },
+    ],
+  },
+  {
+    id: "iflow",
+    name: "iFlow AI",
+    alias: "if",
+    category: "oauth",
+    sourceCategory: "oauth",
+    protocol: "openai-chat",
+    authType: "oauth",
+    baseUrl: "https://apis.iflow.cn/v1/chat/completions",
+    defaultModels: [
+      "qwen3-coder-plus",
+      "qwen3-max",
+      "qwen3-vl-plus",
+      "qwen3-max-preview",
+      "qwen3-235b",
+      "qwen3-235b-a22b-instruct",
+      "qwen3-235b-a22b-thinking-2507",
+      "qwen3-32b",
+      "kimi-k2",
+      "deepseek-v3.2",
+      "deepseek-v3.1",
+      "deepseek-v3",
+      "deepseek-r1",
+      "glm-4.7",
+      "iflow-rome-30ba3b",
+    ],
+    models: [
+      {
+        id: "qwen3-coder-plus",
+        name: "Qwen3 Coder Plus",
+      },
+      {
+        id: "qwen3-max",
+        name: "Qwen3 Max",
+      },
+      {
+        id: "qwen3-vl-plus",
+        name: "Qwen3 VL Plus",
+      },
+      {
+        id: "qwen3-max-preview",
+        name: "Qwen3 Max Preview",
+      },
+      {
+        id: "qwen3-235b",
+        name: "Qwen3 235B A22B",
+      },
+      {
+        id: "qwen3-235b-a22b-instruct",
+        name: "Qwen3 235B A22B Instruct",
+      },
+      {
+        id: "qwen3-235b-a22b-thinking-2507",
+        name: "Qwen3 235B A22B Thinking",
+      },
+      {
+        id: "qwen3-32b",
+        name: "Qwen3 32B",
+      },
+      {
+        id: "kimi-k2",
+        name: "Kimi K2",
+      },
+      {
+        id: "deepseek-v3.2",
+        name: "DeepSeek V3.2 Exp",
+      },
+      {
+        id: "deepseek-v3.1",
+        name: "DeepSeek V3.1 Terminus",
+      },
+      {
+        id: "deepseek-v3",
+        name: "DeepSeek V3 671B",
+      },
+      {
+        id: "deepseek-r1",
+        name: "DeepSeek R1",
+      },
+      {
+        id: "glm-4.7",
+        name: "GLM 4.7",
+      },
+      {
+        id: "iflow-rome-30ba3b",
+        name: "iFlow ROME",
+      },
+    ],
+    website: "https://iflow.cn",
+    signupUrl: "https://iflow.cn",
+    hasOAuth: true,
+    priority: 110,
   },
   {
     id: "inworld",
@@ -1425,6 +3944,40 @@ export const PROVIDER_REGISTRY: readonly ProviderRegistrySpec[] = [
     website: "https://kilocode.ai",
     signupUrl: "https://kilocode.ai",
     priority: 70,
+    models: [
+      {
+        id: "anthropic/claude-sonnet-4-20250514",
+        name: "Claude Sonnet 4",
+      },
+      {
+        id: "anthropic/claude-opus-4-20250514",
+        name: "Claude Opus 4",
+      },
+      {
+        id: "google/gemini-2.5-pro",
+        name: "Gemini 2.5 Pro",
+      },
+      {
+        id: "google/gemini-2.5-flash",
+        name: "Gemini 2.5 Flash",
+      },
+      {
+        id: "openai/gpt-4.1",
+        name: "GPT-4.1",
+      },
+      {
+        id: "openai/o3",
+        name: "o3",
+      },
+      {
+        id: "deepseek/deepseek-chat",
+        name: "DeepSeek Chat",
+      },
+      {
+        id: "deepseek/deepseek-reasoner",
+        name: "DeepSeek Reasoner",
+      },
+    ],
   },
   {
     id: "kimchi",
@@ -1450,23 +4003,40 @@ export const PROVIDER_REGISTRY: readonly ProviderRegistrySpec[] = [
     hasOAuth: true,
     serviceKinds: ["llm", "imageToText"],
     priority: 95,
-  },
-  {
-    id: "kimi-web",
-    name: "Kimi Web",
-    alias: "kweb",
-    aliases: ["kweb", "kimi-cookie"],
-    category: "free",
-    sourceCategory: "webCookie",
-    protocol: "openai-chat",
-    authType: "cookie",
-    baseUrl: "https://www.kimi.ai",
-    defaultModels: ["k3", "k2d6"],
-    website: "https://www.kimi.ai",
-    apiKeyUrl: "https://www.kimi.ai",
-    authHint:
-      "Paste access_token dari www.kimi.ai (Buka www.kimi.ai -> F12 -> Application -> Local Storage -> https://www.kimi.ai -> cari key 'access_token' -> copy nilainya)",
-    priority: 142,
+    models: [
+      {
+        id: "minimax-m3",
+        name: "MiniMax-M3",
+      },
+      {
+        id: "kimi-k2.7",
+        name: "Kimi-K2.7",
+      },
+      {
+        id: "kimi-k2.6",
+        name: "Kimi-K2.6",
+      },
+      {
+        id: "kimi-k2.5",
+        name: "Kimi-K2.5",
+      },
+      {
+        id: "nemotron-3-ultra-fp4",
+        name: "Nemotron 3 Ultra FP4",
+      },
+      {
+        id: "minimax-m2.7",
+        name: "MiniMax-M2.7",
+      },
+      {
+        id: "claude-opus-4-6",
+        name: "Claude Opus 4.6",
+      },
+      {
+        id: "claude-sonnet-4-6",
+        name: "Claude Sonnet 4.6",
+      },
+    ],
   },
   {
     id: "kimi",
@@ -1496,6 +4066,75 @@ export const PROVIDER_REGISTRY: readonly ProviderRegistrySpec[] = [
     hasOAuth: true,
     serviceKinds: ["llm", "webSearch"],
     priority: 170,
+    models: [
+      {
+        id: "kimi-k3",
+        name: "Kimi K3",
+      },
+      {
+        id: "k3",
+        name: "Kimi K3 (Code)",
+      },
+      {
+        id: "kimi-for-coding",
+        name: "Kimi for Coding",
+      },
+      {
+        id: "kimi-for-coding-highspeed",
+        name: "Kimi for Coding Highspeed",
+      },
+      {
+        id: "kimi-k2.7-code",
+        name: "Kimi K2.7 Code",
+      },
+      {
+        id: "kimi-k2.7-code-highspeed",
+        name: "Kimi K2.7 Code Highspeed",
+      },
+      {
+        id: "kimi-k2.6",
+        name: "Kimi K2.6",
+      },
+      {
+        id: "kimi-k2.5",
+        name: "Kimi K2.5",
+      },
+      {
+        id: "kimi-k2.5-thinking",
+        name: "Kimi K2.5 Thinking",
+      },
+      {
+        id: "kimi-latest",
+        name: "Kimi Latest",
+      },
+    ],
+  },
+  {
+    id: "kimi-web",
+    name: "Kimi Web",
+    alias: "kweb",
+    aliases: ["kweb", "kimi-cookie"],
+    category: "free",
+    sourceCategory: "webCookie",
+    protocol: "openai-chat",
+    authType: "cookie",
+    baseUrl: "https://www.kimi.ai",
+    defaultModels: ["k3", "k2d6"],
+    website: "https://www.kimi.ai",
+    apiKeyUrl: "https://www.kimi.ai",
+    authHint:
+      "Paste access_token dari www.kimi.ai (Buka www.kimi.ai -> F12 -> Application -> Local Storage -> https://www.kimi.ai -> cari key 'access_token' -> copy nilainya)",
+    priority: 142,
+    models: [
+      {
+        id: "k3",
+        name: "Kimi K3",
+      },
+      {
+        id: "k2d6",
+        name: "Kimi K2.6",
+      },
+    ],
   },
   {
     id: "kiro",
@@ -1519,11 +4158,241 @@ export const PROVIDER_REGISTRY: readonly ProviderRegistrySpec[] = [
       "claude-opus-4.8-thinking",
       "claude-opus-4.8-agentic",
       "claude-opus-4.8-thinking-agentic",
+      "claude-opus-4.7",
+      "claude-opus-4.7-thinking",
+      "claude-opus-4.7-agentic",
+      "claude-opus-4.7-thinking-agentic",
+      "claude-opus-4.5",
+      "claude-opus-4.5-thinking",
+      "claude-opus-4.5-agentic",
+      "claude-opus-4.5-thinking-agentic",
+      "claude-sonnet-5",
+      "claude-sonnet-4.5",
+      "claude-haiku-4.5",
+      "deepseek-3.2",
+      "qwen3-coder-next",
+      "glm-5",
+      "MiniMax-M2.5",
+      "gpt-5.6-sol",
+      "gpt-5.6-terra",
+      "gpt-5.6-luna",
+      "claude-sonnet-5-thinking",
+      "claude-sonnet-4.5-thinking",
+      "claude-haiku-4.5-thinking",
+      "gpt-5.6-sol-thinking",
+      "gpt-5.6-terra-thinking",
+      "gpt-5.6-luna-thinking",
+      "claude-sonnet-5-agentic",
+      "claude-sonnet-4.5-agentic",
+      "claude-haiku-4.5-agentic",
+      "gpt-5.6-sol-agentic",
+      "gpt-5.6-terra-agentic",
+      "gpt-5.6-luna-agentic",
+      "claude-sonnet-5-thinking-agentic",
+      "claude-sonnet-4.5-thinking-agentic",
+      "claude-haiku-4.5-thinking-agentic",
+      "gpt-5.6-sol-thinking-agentic",
+      "gpt-5.6-terra-thinking-agentic",
+      "gpt-5.6-luna-thinking-agentic",
     ],
     website: "https://kiro.dev",
     signupUrl: "https://kiro.dev",
     deprecated: true,
     priority: 10,
+    models: [
+      {
+        id: "claude-opus-5.5",
+        name: "Claude Opus 5.5",
+      },
+      {
+        id: "claude-opus-5.5-thinking",
+        name: "Claude Opus 5.5 (Thinking)",
+      },
+      {
+        id: "claude-opus-5.5-agentic",
+        name: "Claude Opus 5.5 (Agentic)",
+      },
+      {
+        id: "claude-opus-5.5-thinking-agentic",
+        name: "Claude Opus 5.5 (Thinking + Agentic)",
+      },
+      {
+        id: "claude-opus-5",
+        name: "Claude Opus 5",
+      },
+      {
+        id: "claude-opus-5-thinking",
+        name: "Claude Opus 5 (Thinking)",
+      },
+      {
+        id: "claude-opus-5-agentic",
+        name: "Claude Opus 5 (Agentic)",
+      },
+      {
+        id: "claude-opus-5-thinking-agentic",
+        name: "Claude Opus 5 (Thinking + Agentic)",
+      },
+      {
+        id: "claude-opus-4.8",
+        name: "Claude Opus 4.8",
+      },
+      {
+        id: "claude-opus-4.8-thinking",
+        name: "Claude Opus 4.8 (Thinking)",
+      },
+      {
+        id: "claude-opus-4.8-agentic",
+        name: "Claude Opus 4.8 (Agentic)",
+      },
+      {
+        id: "claude-opus-4.8-thinking-agentic",
+        name: "Claude Opus 4.8 (Thinking + Agentic)",
+      },
+      {
+        id: "claude-opus-4.7",
+        name: "Claude Opus 4.7",
+      },
+      {
+        id: "claude-opus-4.7-thinking",
+        name: "Claude Opus 4.7 (Thinking)",
+      },
+      {
+        id: "claude-opus-4.7-agentic",
+        name: "Claude Opus 4.7 (Agentic)",
+      },
+      {
+        id: "claude-opus-4.7-thinking-agentic",
+        name: "Claude Opus 4.7 (Thinking + Agentic)",
+      },
+      {
+        id: "claude-opus-4.5",
+        name: "Claude Opus 4.5",
+      },
+      {
+        id: "claude-opus-4.5-thinking",
+        name: "Claude Opus 4.5 (Thinking)",
+      },
+      {
+        id: "claude-opus-4.5-agentic",
+        name: "Claude Opus 4.5 (Agentic)",
+      },
+      {
+        id: "claude-opus-4.5-thinking-agentic",
+        name: "Claude Opus 4.5 (Thinking + Agentic)",
+      },
+      {
+        id: "claude-sonnet-5",
+        name: "Claude Sonnet 5",
+      },
+      {
+        id: "claude-sonnet-4.5",
+        name: "Claude Sonnet 4.5",
+      },
+      {
+        id: "claude-haiku-4.5",
+        name: "Claude Haiku 4.5",
+      },
+      {
+        id: "deepseek-3.2",
+        name: "DeepSeek 3.2",
+      },
+      {
+        id: "qwen3-coder-next",
+        name: "Qwen3 Coder Next",
+      },
+      {
+        id: "glm-5",
+        name: "GLM 5",
+      },
+      {
+        id: "MiniMax-M2.5",
+        name: "MiniMax M2.5",
+      },
+      {
+        id: "gpt-5.6-sol",
+        name: "GPT 5.6 Sol",
+      },
+      {
+        id: "gpt-5.6-terra",
+        name: "GPT 5.6 Terra",
+      },
+      {
+        id: "gpt-5.6-luna",
+        name: "GPT 5.6 Luna",
+      },
+      {
+        id: "claude-sonnet-5-thinking",
+        name: "Claude Sonnet 5 (Thinking)",
+      },
+      {
+        id: "claude-sonnet-4.5-thinking",
+        name: "Claude Sonnet 4.5 (Thinking)",
+      },
+      {
+        id: "claude-haiku-4.5-thinking",
+        name: "Claude Haiku 4.5 (Thinking)",
+      },
+      {
+        id: "gpt-5.6-sol-thinking",
+        name: "GPT 5.6 Sol (Thinking)",
+      },
+      {
+        id: "gpt-5.6-terra-thinking",
+        name: "GPT 5.6 Terra (Thinking)",
+      },
+      {
+        id: "gpt-5.6-luna-thinking",
+        name: "GPT 5.6 Luna (Thinking)",
+      },
+      {
+        id: "claude-sonnet-5-agentic",
+        name: "Claude Sonnet 5 (Agentic)",
+      },
+      {
+        id: "claude-sonnet-4.5-agentic",
+        name: "Claude Sonnet 4.5 (Agentic)",
+      },
+      {
+        id: "claude-haiku-4.5-agentic",
+        name: "Claude Haiku 4.5 (Agentic)",
+      },
+      {
+        id: "gpt-5.6-sol-agentic",
+        name: "GPT 5.6 Sol (Agentic)",
+      },
+      {
+        id: "gpt-5.6-terra-agentic",
+        name: "GPT 5.6 Terra (Agentic)",
+      },
+      {
+        id: "gpt-5.6-luna-agentic",
+        name: "GPT 5.6 Luna (Agentic)",
+      },
+      {
+        id: "claude-sonnet-5-thinking-agentic",
+        name: "Claude Sonnet 5 (Thinking + Agentic)",
+      },
+      {
+        id: "claude-sonnet-4.5-thinking-agentic",
+        name: "Claude Sonnet 4.5 (Thinking + Agentic)",
+      },
+      {
+        id: "claude-haiku-4.5-thinking-agentic",
+        name: "Claude Haiku 4.5 (Thinking + Agentic)",
+      },
+      {
+        id: "gpt-5.6-sol-thinking-agentic",
+        name: "GPT 5.6 Sol (Thinking + Agentic)",
+      },
+      {
+        id: "gpt-5.6-terra-thinking-agentic",
+        name: "GPT 5.6 Terra (Thinking + Agentic)",
+      },
+      {
+        id: "gpt-5.6-luna-thinking-agentic",
+        name: "GPT 5.6 Luna (Thinking + Agentic)",
+      },
+    ],
   },
   {
     id: "linkup",
@@ -1552,6 +4421,28 @@ export const PROVIDER_REGISTRY: readonly ProviderRegistrySpec[] = [
     defaultModels: ["gpt-5.5", "claude-opus-5", "deepseek-v4-flash", "grok-4.5", "kimi-k3"],
     website: "https://llm7.io",
     apiKeyUrl: "https://llm7.io",
+    models: [
+      {
+        id: "gpt-5.5",
+        name: "GPT-5.5 (LLM7)",
+      },
+      {
+        id: "claude-opus-5",
+        name: "Claude Opus 5 (LLM7)",
+      },
+      {
+        id: "deepseek-v4-flash",
+        name: "DeepSeek V4 Flash (LLM7)",
+      },
+      {
+        id: "grok-4.5",
+        name: "Grok 4.5 (LLM7)",
+      },
+      {
+        id: "kimi-k3",
+        name: "Kimi K3 (LLM7)",
+      },
+    ],
   },
   {
     id: "local-device",
@@ -1567,34 +4458,6 @@ export const PROVIDER_REGISTRY: readonly ProviderRegistrySpec[] = [
     serviceKinds: ["tts"],
   },
   {
-    id: "minimax-cn",
-    name: "Minimax (China)",
-    alias: "minimax-cn",
-    category: "apikey",
-    sourceCategory: "apikey",
-    protocol: "anthropic",
-    authType: "api_key",
-    baseUrl: "https://api.minimaxi.com/anthropic",
-    defaultModels: [
-      "MiniMax-M3",
-      "MiniMax-M2.7",
-      "MiniMax-M2.5",
-      "MiniMax-M2.1",
-      "speech-2.8-hd",
-      "speech-2.8-turbo",
-      "speech-2.6-hd",
-      "speech-2.6-turbo",
-      "speech-02-hd",
-      "speech-02-turbo",
-      "speech-01-hd",
-      "speech-01-turbo",
-    ],
-    website: "https://www.minimaxi.com",
-    apiKeyUrl: "https://platform.minimaxi.com/user-center/basic-information/interface-key",
-    serviceKinds: ["llm", "tts"],
-    priority: 190,
-  },
-  {
     id: "minimax",
     name: "Minimax Coding",
     alias: "minimax",
@@ -1603,24 +4466,136 @@ export const PROVIDER_REGISTRY: readonly ProviderRegistrySpec[] = [
     protocol: "anthropic",
     authType: "api_key",
     baseUrl: "https://api.minimax.io/anthropic",
-    defaultModels: [
-      "MiniMax-M3",
-      "MiniMax-M2.7",
-      "MiniMax-M2.5",
-      "MiniMax-M2.1",
-      "minimax-image-01",
-      "speech-2.8-hd",
-      "speech-2.8-turbo",
-      "speech-2.6-hd",
-      "speech-2.6-turbo",
-      "speech-02-hd",
-      "speech-02-turbo",
-      "speech-01-hd",
-    ],
+    defaultModels: ["MiniMax-M3", "MiniMax-M2.7", "MiniMax-M2.5", "MiniMax-M2.1"],
     website: "https://www.minimaxi.com",
     apiKeyUrl: "https://platform.minimaxi.com/user-center/basic-information/interface-key",
     serviceKinds: ["llm", "image", "imageToText", "webSearch", "tts"],
     priority: 90,
+    models: [
+      {
+        id: "MiniMax-M3",
+        name: "MiniMax M3",
+      },
+      {
+        id: "MiniMax-M2.7",
+        name: "MiniMax M2.7",
+      },
+      {
+        id: "MiniMax-M2.5",
+        name: "MiniMax M2.5",
+      },
+      {
+        id: "MiniMax-M2.1",
+        name: "MiniMax M2.1",
+      },
+    ],
+  },
+  {
+    id: "minimax-cn",
+    name: "Minimax (China)",
+    alias: "minimax-cn",
+    category: "apikey",
+    sourceCategory: "apikey",
+    protocol: "anthropic",
+    authType: "api_key",
+    baseUrl: "https://api.minimaxi.com/anthropic",
+    defaultModels: ["MiniMax-M3", "MiniMax-M2.7", "MiniMax-M2.5", "MiniMax-M2.1"],
+    website: "https://www.minimaxi.com",
+    apiKeyUrl: "https://platform.minimaxi.com/user-center/basic-information/interface-key",
+    serviceKinds: ["llm", "tts"],
+    priority: 190,
+    models: [
+      {
+        id: "MiniMax-M3",
+        name: "MiniMax M3",
+      },
+      {
+        id: "MiniMax-M2.7",
+        name: "MiniMax M2.7",
+      },
+      {
+        id: "MiniMax-M2.5",
+        name: "MiniMax M2.5",
+      },
+      {
+        id: "MiniMax-M2.1",
+        name: "MiniMax M2.1",
+      },
+    ],
+  },
+  {
+    id: "minimax-code",
+    name: "MiniMax Code",
+    alias: "mm",
+    category: "oauth",
+    sourceCategory: "oauth",
+    protocol: "anthropic",
+    authType: "oauth",
+    baseUrl: "https://agent.minimax.cn/mavis/api/v1/llm",
+    defaultModels: [
+      "MiniMax-M3.1-Flash-Preview",
+      "MiniMax-M3",
+      "MiniMax-M2.7",
+      "MiniMax-M2.7-highspeed",
+    ],
+    website: "https://agent.minimax.cn",
+    hasOAuth: true,
+    priority: 80,
+    models: [
+      {
+        id: "MiniMax-M3.1-Flash-Preview",
+        name: "MiniMax M3.1 Flash Preview",
+      },
+      {
+        id: "MiniMax-M3",
+        name: "MiniMax M3",
+      },
+      {
+        id: "MiniMax-M2.7",
+        name: "MiniMax M2.7",
+      },
+      {
+        id: "MiniMax-M2.7-highspeed",
+        name: "MiniMax M2.7 Highspeed",
+      },
+    ],
+  },
+  {
+    id: "minimax-code-global",
+    name: "MiniMax Code (Global)",
+    alias: "mmg",
+    category: "oauth",
+    sourceCategory: "oauth",
+    protocol: "anthropic",
+    authType: "oauth",
+    baseUrl: "https://agent.minimax.io/mavis/api/v1/llm",
+    defaultModels: [
+      "MiniMax-M3.1-Flash-Preview",
+      "MiniMax-M3",
+      "MiniMax-M2.7",
+      "MiniMax-M2.7-highspeed",
+    ],
+    website: "https://agent.minimax.io",
+    hasOAuth: true,
+    priority: 80,
+    models: [
+      {
+        id: "MiniMax-M3.1-Flash-Preview",
+        name: "MiniMax M3.1 Flash Preview",
+      },
+      {
+        id: "MiniMax-M3",
+        name: "MiniMax M3",
+      },
+      {
+        id: "MiniMax-M2.7",
+        name: "MiniMax M2.7",
+      },
+      {
+        id: "MiniMax-M2.7-highspeed",
+        name: "MiniMax M2.7 Highspeed",
+      },
+    ],
   },
   {
     id: "mistral",
@@ -1631,16 +4606,25 @@ export const PROVIDER_REGISTRY: readonly ProviderRegistrySpec[] = [
     protocol: "openai-chat",
     authType: "api_key",
     baseUrl: "https://api.mistral.ai/v1",
-    defaultModels: [
-      "mistral-large-latest",
-      "codestral-latest",
-      "mistral-medium-latest",
-      "mistral-embed",
-    ],
+    defaultModels: ["mistral-large-latest", "codestral-latest", "mistral-medium-latest"],
     website: "https://mistral.ai",
     apiKeyUrl: "https://console.mistral.ai/api-keys",
     serviceKinds: ["llm", "imageToText", "embedding"],
     priority: 80,
+    models: [
+      {
+        id: "mistral-large-latest",
+        name: "Mistral Large 3",
+      },
+      {
+        id: "codestral-latest",
+        name: "Codestral",
+      },
+      {
+        id: "mistral-medium-latest",
+        name: "Mistral Medium 3",
+      },
+    ],
   },
   {
     id: "morph",
@@ -1662,6 +4646,32 @@ export const PROVIDER_REGISTRY: readonly ProviderRegistrySpec[] = [
     ],
     website: "https://morphllm.com",
     apiKeyUrl: "https://morphllm.com",
+    models: [
+      {
+        id: "morph-v3-large",
+        name: "Morph v3 Large",
+      },
+      {
+        id: "morph-v3-fast",
+        name: "Morph v3 Fast",
+      },
+      {
+        id: "morph-qwen35-397b",
+        name: "Qwen 3.5 397B (Morph)",
+      },
+      {
+        id: "morph-minimax27-230b",
+        name: "MiniMax M2.7 (Morph)",
+      },
+      {
+        id: "morph-qwen36-27b",
+        name: "Qwen 3.6 27B (Morph)",
+      },
+      {
+        id: "morph-dsv4flash",
+        name: "DeepSeek V4 Flash (Morph)",
+      },
+    ],
   },
   {
     id: "muse",
@@ -1688,6 +4698,32 @@ export const PROVIDER_REGISTRY: readonly ProviderRegistrySpec[] = [
       "Sign in with your Meta account (Muse Code subscription) or paste a Model API key from dev.meta.ai. Subscription keys are minted per account; Meta may train on contributor-tier data.",
     hasOAuth: true,
     priority: 120,
+    models: [
+      {
+        id: "muse-wonder-1.0",
+        name: "Muse Wonder 1.0 (Flagship)",
+      },
+      {
+        id: "muse-spark-1.3",
+        name: "Muse Spark 1.3",
+      },
+      {
+        id: "muse-spark-1.2",
+        name: "Muse Spark 1.2",
+      },
+      {
+        id: "muse-spark-1.1",
+        name: "Muse Spark 1.1",
+      },
+      {
+        id: "muse-spark-1.3-contributor",
+        name: "Muse Spark 1.3 Contributor",
+      },
+      {
+        id: "muse-spark-1.2-contributor",
+        name: "Muse Spark 1.2 Contributor",
+      },
+    ],
   },
   {
     id: "nanobanana",
@@ -1699,7 +4735,7 @@ export const PROVIDER_REGISTRY: readonly ProviderRegistrySpec[] = [
     protocol: "openai-chat",
     authType: "api_key",
     baseUrl: "https://api.nanobananaapi.ai/v1",
-    defaultModels: ["nanobanana-flash", "nanobanana-pro"],
+    defaultModels: [],
     website: "https://nanobananaapi.ai",
     apiKeyUrl: "https://nanobananaapi.ai/dashboard",
     noticeText:
@@ -1716,11 +4752,17 @@ export const PROVIDER_REGISTRY: readonly ProviderRegistrySpec[] = [
     protocol: "openai-chat",
     authType: "api_key",
     baseUrl: "https://api.studio.nebius.ai/v1",
-    defaultModels: ["meta-llama/Llama-3.3-70B-Instruct", "Qwen/Qwen3-Embedding-8B"],
+    defaultModels: ["meta-llama/Llama-3.3-70B-Instruct"],
     website: "https://nebius.com",
     apiKeyUrl: "https://studio.nebius.com/settings/api-keys",
     serviceKinds: ["llm", "embedding"],
     priority: 70,
+    models: [
+      {
+        id: "meta-llama/Llama-3.3-70B-Instruct",
+        name: "Llama 3.3 70B Instruct",
+      },
+    ],
   },
   {
     id: "notion-web",
@@ -1738,6 +4780,79 @@ export const PROVIDER_REGISTRY: readonly ProviderRegistrySpec[] = [
     authHint:
       "Paste cookie token_v2 dari notion.so (Buka notion.so -> F12 -> Application -> Storage -> Cookies -> cari 'token_v2')",
     priority: 150,
+    models: [
+      {
+        id: "claude-3-5-sonnet",
+        name: "Claude 3.5 Sonnet (via Notion AI)",
+      },
+      {
+        id: "gpt-4o",
+        name: "GPT-4o (via Notion AI)",
+      },
+    ],
+  },
+  {
+    id: "nous",
+    name: "Nous Research",
+    alias: "nous",
+    aliases: ["nous-portal", "nous-research", "ns"],
+    category: "free",
+    sourceCategory: "freeTier",
+    protocol: "openai-chat",
+    authType: "oauth",
+    baseUrl: "https://inference-api.nousresearch.com/v1",
+    defaultModels: [
+      "meituan/longcat-2.0:free",
+      "meituan/longcat-2.5-preview:free",
+      "stepfun/step-5-preview:free",
+      "upstage/solar-mini4:free",
+      "stepfun/step-3.7-flash:free",
+      "poolside/laguna-s-2.1:free",
+      "poolside/laguna-xs-2.1:free",
+      "stealth/missingno",
+    ],
+    website: "https://nousresearch.com",
+    apiKeyUrl: "https://portal.nousresearch.com/api-keys",
+    signupUrl: "https://portal.nousresearch.com",
+    noticeText:
+      "Connect with OAuth Device Code (free account, no payment required) or a Nous Portal API key.",
+    hasOAuth: true,
+    serviceKinds: ["llm", "imageToText"],
+    priority: 65,
+    models: [
+      {
+        id: "meituan/longcat-2.0:free",
+        name: "Meituan: LongCat 2.0",
+      },
+      {
+        id: "meituan/longcat-2.5-preview:free",
+        name: "Meituan: LongCat 2.5 Preview",
+      },
+      {
+        id: "stepfun/step-5-preview:free",
+        name: "StepFun: Step 5 Preview",
+      },
+      {
+        id: "upstage/solar-mini4:free",
+        name: "Upstage: Solar Mini 4",
+      },
+      {
+        id: "stepfun/step-3.7-flash:free",
+        name: "StepFun: Step 3.7 Flash",
+      },
+      {
+        id: "poolside/laguna-s-2.1:free",
+        name: "Poolside: Laguna S 2.1",
+      },
+      {
+        id: "poolside/laguna-xs-2.1:free",
+        name: "Poolside: Laguna XS 2.1",
+      },
+      {
+        id: "stealth/missingno",
+        name: "MissingNo",
+      },
+    ],
   },
   {
     id: "nvidia",
@@ -1756,16 +4871,102 @@ export const PROVIDER_REGISTRY: readonly ProviderRegistrySpec[] = [
       "deepseek-ai/deepseek-v4-flash",
       "moonshotai/kimi-k2.6",
       "nvidia/nemotron-3-ultra-550b-a55b",
-      "nvidia/nv-embedqa-e5-v5",
-      "nvidia/parakeet-ctc-1.1b-asr",
-      "fastpitch",
-      "tacotron2",
     ],
     website: "https://developer.nvidia.com/nim",
     apiKeyUrl: "https://build.nvidia.com/settings/api-keys",
     noticeText: "Free access for NVIDIA Developer Program members (prototyping & testing).",
     serviceKinds: ["llm", "tts", "embedding"],
     priority: 20,
+    models: [
+      {
+        id: "minimaxai/minimax-m2.7",
+        name: "MiniMax M2.7",
+      },
+      {
+        id: "minimaxai/minimax-m3",
+        name: "MiniMax M3",
+      },
+      {
+        id: "z-ai/glm-5.2",
+        name: "GLM 5.2",
+      },
+      {
+        id: "deepseek-ai/deepseek-v4-pro",
+        name: "DeepSeek V4 Pro",
+      },
+      {
+        id: "deepseek-ai/deepseek-v4-flash",
+        name: "DeepSeek V4 Flash",
+      },
+      {
+        id: "moonshotai/kimi-k2.6",
+        name: "Kimi K2.6",
+      },
+      {
+        id: "nvidia/nemotron-3-ultra-550b-a55b",
+        name: "Nemotron 3 Ultra",
+      },
+    ],
+  },
+  {
+    id: "ollama",
+    name: "Ollama Cloud",
+    alias: "ollama",
+    category: "free",
+    sourceCategory: "freeTier",
+    protocol: "openai-chat",
+    authType: "api_key",
+    baseUrl: "https://ollama.com/api/chat",
+    defaultModels: [
+      "gpt-oss:120b",
+      "kimi-k2.5",
+      "glm-5",
+      "minimax-m2.5",
+      "glm-4.7-flash",
+      "qwen3.5",
+      "minimax-m3",
+      "deepseek-v4.1-flash:cloud",
+    ],
+    website: "https://ollama.com",
+    apiKeyUrl: "https://ollama.com/settings/keys",
+    noticeText:
+      "Free tier: light usage, 1 cloud model at a time (limits reset every 5h & 7d). Pro $20/mo · Max $100/mo.",
+    serviceKinds: ["llm", "webFetch"],
+    priority: 30,
+    models: [
+      {
+        id: "gpt-oss:120b",
+        name: "GPT OSS 120B",
+      },
+      {
+        id: "kimi-k2.5",
+        name: "Kimi K2.5",
+      },
+      {
+        id: "glm-5",
+        name: "GLM 5",
+      },
+      {
+        id: "minimax-m2.5",
+        name: "MiniMax M2.5",
+      },
+      {
+        id: "glm-4.7-flash",
+        name: "GLM 4.7 Flash",
+      },
+      {
+        id: "qwen3.5",
+        name: "Qwen3.5",
+      },
+      {
+        id: "minimax-m3",
+        name: "MiniMax M3",
+      },
+      {
+        id: "deepseek-v4.1-flash:cloud",
+        name: "DeepSeek V4.1 Flash",
+      },
+    ],
   },
   {
     id: "ollama-local",
@@ -1798,32 +4999,6 @@ export const PROVIDER_REGISTRY: readonly ProviderRegistrySpec[] = [
     serviceKinds: ["webSearch"],
   },
   {
-    id: "ollama",
-    name: "Ollama Cloud",
-    alias: "ollama",
-    category: "free",
-    sourceCategory: "freeTier",
-    protocol: "openai-chat",
-    authType: "api_key",
-    baseUrl: "https://ollama.com/api/chat",
-    defaultModels: [
-      "gpt-oss:120b",
-      "kimi-k2.5",
-      "glm-5",
-      "minimax-m2.5",
-      "glm-4.7-flash",
-      "qwen3.5",
-      "minimax-m3",
-      "deepseek-v4.1-flash:cloud",
-    ],
-    website: "https://ollama.com",
-    apiKeyUrl: "https://ollama.com/settings/keys",
-    noticeText:
-      "Free tier: light usage, 1 cloud model at a time (limits reset every 5h & 7d). Pro $20/mo · Max $100/mo.",
-    serviceKinds: ["llm", "webFetch"],
-    priority: 30,
-  },
-  {
     id: "openai",
     name: "OpenAI",
     alias: "openai",
@@ -1845,71 +5020,106 @@ export const PROVIDER_REGISTRY: readonly ProviderRegistrySpec[] = [
       "gpt-4o",
       "gpt-4o-mini",
       "gpt-4-turbo",
+      "gpt-4.1",
+      "gpt-4.1-mini",
+      "gpt-4.1-nano",
+      "o3",
+      "o3-mini",
+      "o3-pro",
+      "o4-mini",
+      "o1",
+      "o1-mini",
     ],
     website: "https://platform.openai.com",
     apiKeyUrl: "https://platform.openai.com/api-keys",
     serviceKinds: ["llm", "embedding", "tts", "stt", "image", "imageToText", "webSearch"],
     priority: 30,
-  },
-  {
-    id: "opencode-go",
-    name: "OpenCode Go",
-    alias: "ocg",
-    aliases: ["ocg"],
-    category: "apikey",
-    sourceCategory: "apikey",
-    protocol: "openai-chat",
-    authType: "api_key",
-    baseUrl: "https://opencode.ai/zen/go/v1",
-    defaultModels: [
-      "gemini-4-argon-contributor",
-      "deepseek-flash",
-      "glm-5.3-flash",
-      "glm-5.3",
-      "glm-5.2",
-      "glm-5.1",
-      "glm-5",
-      "kimi-k2.7-code",
-      "kimi-k2.6",
-      "kimi-k2.5",
-      "kimi-k3.1-pro",
-      "kimi-k3",
+    models: [
+      {
+        id: "gpt-5.5",
+        name: "GPT-5.5",
+      },
+      {
+        id: "gpt-5.4",
+        name: "GPT-5.4",
+      },
+      {
+        id: "gpt-5.4-mini",
+        name: "GPT-5.4 Mini",
+      },
+      {
+        id: "gpt-5.4-nano",
+        name: "GPT-5.4 Nano",
+      },
+      {
+        id: "gpt-5.2",
+        name: "GPT-5.2",
+      },
+      {
+        id: "gpt-5.1",
+        name: "GPT-5.1",
+      },
+      {
+        id: "gpt-5",
+        name: "GPT-5",
+      },
+      {
+        id: "gpt-5-mini",
+        name: "GPT-5 Mini",
+      },
+      {
+        id: "gpt-5-nano",
+        name: "GPT-5 Nano",
+      },
+      {
+        id: "gpt-4o",
+        name: "GPT-4o",
+      },
+      {
+        id: "gpt-4o-mini",
+        name: "GPT-4o Mini",
+      },
+      {
+        id: "gpt-4-turbo",
+        name: "GPT-4 Turbo",
+      },
+      {
+        id: "gpt-4.1",
+        name: "GPT-4.1",
+      },
+      {
+        id: "gpt-4.1-mini",
+        name: "GPT-4.1 Mini",
+      },
+      {
+        id: "gpt-4.1-nano",
+        name: "GPT-4.1 Nano",
+      },
+      {
+        id: "o3",
+        name: "O3",
+      },
+      {
+        id: "o3-mini",
+        name: "O3 Mini",
+      },
+      {
+        id: "o3-pro",
+        name: "O3 Pro",
+      },
+      {
+        id: "o4-mini",
+        name: "O4 Mini",
+      },
+      {
+        id: "o1",
+        name: "O1",
+      },
+      {
+        id: "o1-mini",
+        name: "O1 Mini",
+      },
     ],
-    website: "https://opencode.ai/auth",
-    apiKeyUrl: "https://opencode.ai/auth",
-    noticeText:
-      "OpenCode Go subscription: $5/mo (then 10/mo). Access to Kimi, GLM, Qwen, MiMo, MiniMax models.",
-    priority: 210,
-  },
-  {
-    id: "opencode-zen",
-    name: "OpenCode Zen",
-    alias: "ocz",
-    category: "apikey",
-    sourceCategory: "apikey",
-    protocol: "openai-chat",
-    authType: "api_key",
-    baseUrl: "https://opencode.ai/zen/v1",
-    defaultModels: [
-      "claude-fable-5",
-      "claude-fable-5-1",
-      "claude-opus-5",
-      "claude-opus-4-8",
-      "claude-opus-4-7",
-      "claude-opus-4-6",
-      "claude-opus-4-5",
-      "claude-sonnet-5",
-      "claude-sonnet-4-6",
-      "claude-sonnet-4-5",
-      "claude-sonnet-4",
-      "claude-haiku-4-5",
-    ],
-    website: "https://opencode.ai/auth",
-    apiKeyUrl: "https://opencode.ai/auth",
-    noticeText:
-      "OpenCode Zen PAYG: pay-as-you-go, key from https://opencode.ai/auth. Same models as Zen: paid + free tiers on the fast lane.",
-    serviceKinds: ["llm", "systemone"],
-    priority: 205,
   },
   {
     id: "opencode",
@@ -1933,11 +5143,716 @@ export const PROVIDER_REGISTRY: readonly ProviderRegistrySpec[] = [
       "deepseek-v4.1-flash-free",
       "iceman-contributor-free",
       "union-alpha",
-      "jev-1.13-free",
+      "gpt-4o-mini-free",
+      "claude-3-haiku-free",
+      "llama-3.1-8b-free",
+      "mixtral-8x7b-free",
     ],
     noAuth: true,
     serviceKinds: ["llm", "systemone"],
     priority: 40,
+    models: [
+      {
+        id: "muse-wonder-1.0",
+        name: "Muse Wonder 1.0 (Flagship)",
+      },
+      {
+        id: "mimo-v2.6-flash-free",
+        name: "MiMo v2.6 Flash Free",
+      },
+      {
+        id: "space-bunny-free",
+        name: "Space Bunny (MiniMax M3.1 Flash Free)",
+      },
+      {
+        id: "big-pickle",
+        name: "Big Pickle Free",
+      },
+      {
+        id: "cat-jam-free",
+        name: "Cat Jam Free",
+      },
+      {
+        id: "nemotron-3.5-lightning-free",
+        name: "Nemotron 3.5 Lightning Free",
+      },
+      {
+        id: "glm-5.3-flash-free",
+        name: "GLM 5.3 Flash Free",
+      },
+      {
+        id: "longcat-2.5-preview-free",
+        name: "Longcat 2.5 Preview Free",
+      },
+      {
+        id: "deepseek-v4.1-flash-free",
+        name: "DeepSeek v4.1 Flash Free",
+      },
+      {
+        id: "iceman-contributor-free",
+        name: "Iceman Contributor Free",
+      },
+      {
+        id: "union-alpha",
+        name: "Union Alpha Free",
+      },
+      {
+        id: "gpt-4o-mini-free",
+        name: "GPT-4o Mini Free",
+      },
+      {
+        id: "claude-3-haiku-free",
+        name: "Claude 3 Haiku Free",
+      },
+      {
+        id: "llama-3.1-8b-free",
+        name: "Llama 3.1 8B Instruct Free",
+      },
+      {
+        id: "mixtral-8x7b-free",
+        name: "Mixtral 8x7B Instruct Free",
+      },
+    ],
+  },
+  {
+    id: "opencode-go",
+    name: "OpenCode Go",
+    alias: "ocg",
+    aliases: ["ocg"],
+    category: "apikey",
+    sourceCategory: "apikey",
+    protocol: "openai-chat",
+    authType: "api_key",
+    baseUrl: "https://opencode.ai/zen/go/v1",
+    defaultModels: [
+      "gemini-4-argon-contributor",
+      "deepseek-flash",
+      "glm-5.3-flash",
+      "glm-5.3",
+      "glm-5.2",
+      "glm-5.1",
+      "glm-5",
+      "kimi-k2.7-code",
+      "kimi-k2.6",
+      "kimi-k2.5",
+      "kimi-k3",
+      "kimi-k3.1-pro",
+      "deepseek-v4-pro",
+      "deepseek-v4-flash",
+      "deepseek-v4-flash-vision-exp",
+      "deepseek-v4.1-flash",
+      "iceman-contributor-free",
+      "longcat-2.0",
+      "mimo-v2.6-flash",
+      "mimo-v2.6-pro",
+      "mimo-v2.5",
+      "mimo-v2.5-pro",
+      "mimo-v2-pro",
+      "mimo-v2-omni",
+      "minimax-m3",
+      "minimax-m2.7",
+      "minimax-m2.5",
+      "space-bunny-free",
+      "qwen3.8-max",
+      "qwen3.8-flash",
+      "qwen3.7-max",
+      "qwen3.7-plus",
+      "qwen3.6-plus",
+      "qwen3.5-plus",
+      "hy4-preview",
+      "hy3",
+      "hy3-preview",
+      "omen-alpha",
+      "grok-4.7",
+      "grok-4.6",
+      "grok-4.5",
+      "gpt-5.6-luna",
+      "gpt-6-luna",
+      "muse-wonder-1.0",
+      "muse-spark-1.2-contributor",
+      "muse-spark-1.3-contributor",
+      "claude-haiku-5-5",
+    ],
+    website: "https://opencode.ai/auth",
+    apiKeyUrl: "https://opencode.ai/auth",
+    noticeText:
+      "OpenCode Go subscription: $5/mo (then 10/mo). Access to Kimi, GLM, Qwen, MiMo, MiniMax models.",
+    priority: 210,
+    models: [
+      {
+        id: "gemini-4-argon-contributor",
+        name: "Gemini 4 Argon (Contributor)",
+      },
+      {
+        id: "deepseek-flash",
+        name: "DeepSeek Flash",
+      },
+      {
+        id: "glm-5.3-flash",
+        name: "GLM 5.3 Flash (Vision)",
+      },
+      {
+        id: "glm-5.3",
+        name: "GLM 5.3",
+      },
+      {
+        id: "glm-5.2",
+        name: "GLM 5.2",
+      },
+      {
+        id: "glm-5.1",
+        name: "GLM 5.1",
+      },
+      {
+        id: "glm-5",
+        name: "GLM 5",
+      },
+      {
+        id: "kimi-k2.7-code",
+        name: "Kimi K2.7 Code",
+      },
+      {
+        id: "kimi-k2.6",
+        name: "Kimi K2.6",
+      },
+      {
+        id: "kimi-k2.5",
+        name: "Kimi K2.5",
+      },
+      {
+        id: "kimi-k3",
+        name: "Kimi K3",
+      },
+      {
+        id: "kimi-k3.1-pro",
+        name: "Kimi K3.1 Pro",
+      },
+      {
+        id: "deepseek-v4-pro",
+        name: "DeepSeek V4 Pro",
+      },
+      {
+        id: "deepseek-v4-flash",
+        name: "DeepSeek V4 Flash",
+      },
+      {
+        id: "deepseek-v4-flash-vision-exp",
+        name: "DeepSeek V4 Flash Vision (Exp)",
+      },
+      {
+        id: "deepseek-v4.1-flash",
+        name: "DeepSeek V4.1 Flash",
+      },
+      {
+        id: "iceman-contributor-free",
+        name: "Iceman Contributor Free",
+      },
+      {
+        id: "longcat-2.0",
+        name: "LongCat 2.0",
+      },
+      {
+        id: "mimo-v2.6-flash",
+        name: "MiMo V2.6 Flash",
+      },
+      {
+        id: "mimo-v2.6-pro",
+        name: "MiMo V2.6 Pro",
+      },
+      {
+        id: "mimo-v2.5",
+        name: "MiMo V2.5",
+      },
+      {
+        id: "mimo-v2.5-pro",
+        name: "MiMo V2.5 Pro",
+      },
+      {
+        id: "mimo-v2-pro",
+        name: "MiMo V2 Pro",
+      },
+      {
+        id: "mimo-v2-omni",
+        name: "MiMo V2 Omni",
+      },
+      {
+        id: "minimax-m3",
+        name: "MiniMax M3",
+      },
+      {
+        id: "minimax-m2.7",
+        name: "MiniMax M2.7",
+      },
+      {
+        id: "minimax-m2.5",
+        name: "MiniMax M2.5",
+      },
+      {
+        id: "space-bunny-free",
+        name: "Space Bunny (MiniMax M3.1 Flash Free)",
+      },
+      {
+        id: "qwen3.8-max",
+        name: "Qwen 3.8 Max",
+      },
+      {
+        id: "qwen3.8-flash",
+        name: "Qwen 3.8 Flash",
+      },
+      {
+        id: "qwen3.7-max",
+        name: "Qwen 3.7 Max",
+      },
+      {
+        id: "qwen3.7-plus",
+        name: "Qwen 3.7 Plus",
+      },
+      {
+        id: "qwen3.6-plus",
+        name: "Qwen 3.6 Plus",
+      },
+      {
+        id: "qwen3.5-plus",
+        name: "Qwen 3.5 Plus",
+      },
+      {
+        id: "hy4-preview",
+        name: "Hy4 Preview",
+      },
+      {
+        id: "hy3",
+        name: "Hy3",
+      },
+      {
+        id: "hy3-preview",
+        name: "Hy3 Preview",
+      },
+      {
+        id: "omen-alpha",
+        name: "Omen Alpha",
+      },
+      {
+        id: "grok-4.7",
+        name: "Grok 4.7",
+      },
+      {
+        id: "grok-4.6",
+        name: "Grok 4.6",
+      },
+      {
+        id: "grok-4.5",
+        name: "Grok 4.5",
+      },
+      {
+        id: "gpt-5.6-luna",
+        name: "GPT 5.6 Luna",
+      },
+      {
+        id: "gpt-6-luna",
+        name: "GPT 6 Luna",
+      },
+      {
+        id: "muse-wonder-1.0",
+        name: "Muse Wonder 1.0 (Flagship)",
+      },
+      {
+        id: "muse-spark-1.2-contributor",
+        name: "Muse Spark 1.2 Contributor",
+      },
+      {
+        id: "muse-spark-1.3-contributor",
+        name: "Muse Spark 1.3 Contributor",
+      },
+      {
+        id: "claude-haiku-5-5",
+        name: "Claude Haiku 5.5",
+      },
+    ],
+  },
+  {
+    id: "opencode-zen",
+    name: "OpenCode Zen",
+    alias: "ocz",
+    category: "apikey",
+    sourceCategory: "apikey",
+    protocol: "openai-chat",
+    authType: "api_key",
+    baseUrl: "https://opencode.ai/zen/v1",
+    defaultModels: [
+      "claude-fable-5",
+      "claude-fable-5-1",
+      "claude-opus-5",
+      "claude-opus-4-8",
+      "claude-opus-4-7",
+      "claude-opus-4-6",
+      "claude-opus-4-5",
+      "claude-sonnet-5",
+      "claude-sonnet-4-6",
+      "claude-sonnet-4-5",
+      "claude-sonnet-4",
+      "claude-haiku-4-5",
+      "gemini-4-argon",
+      "gemini-3.6-flash",
+      "gemini-3.8-flash",
+      "gemini-3.7-flash",
+      "gemini-3.5-flash-lite",
+      "gemini-3.5-flash",
+      "gemini-3.1-pro",
+      "gemini-3-flash",
+      "gpt-6-astra",
+      "gpt-5.6-sol",
+      "gpt-5.6-terra",
+      "gpt-5.6-luna",
+      "gpt-5.5",
+      "gpt-5.5-pro",
+      "gpt-5.4",
+      "gpt-5.4-pro",
+      "gpt-5.4-mini",
+      "gpt-5.4-nano",
+      "gpt-5.3-codex-spark",
+      "gpt-5.3-codex",
+      "gpt-5.2",
+      "gpt-5.2-codex",
+      "gpt-5.1",
+      "gpt-5.1-codex-max",
+      "gpt-5.1-codex",
+      "gpt-5.1-codex-mini",
+      "gpt-5",
+      "gpt-5-codex",
+      "gpt-5-nano",
+      "grok-build-0.1",
+      "grok-4.6",
+      "grok-4.5",
+      "muse-wonder-1.0",
+      "muse-spark-1.3",
+      "muse-spark-1.2",
+      "qwen3.6-plus",
+      "qwen3.5-plus",
+      "deepseek-v4-pro",
+      "deepseek-v4-flash",
+      "deepseek-v4-flash-vision-exp",
+      "glm-5.3-flash",
+      "glm-5.3",
+      "glm-5.2",
+      "glm-5.1",
+      "glm-5",
+      "minimax-m3",
+      "minimax-m2.7",
+      "minimax-m2.5",
+      "kimi-k3",
+      "kimi-k2.7-code",
+      "kimi-k2.6",
+      "kimi-k2.5",
+      "union-alpha",
+      "deepseek-v4-flash-free",
+      "mimo-v2.6-flash-free",
+      "mimo-v2.5-free",
+      "ling-3.0-flash-fin-free",
+      "nemotron-3-ultra-free",
+      "nemotron-3.5-lightning-free",
+      "muse-spark-1.3-contributor-free",
+      "muse-spark-1.2-contributor-free",
+    ],
+    website: "https://opencode.ai/auth",
+    apiKeyUrl: "https://opencode.ai/auth",
+    noticeText:
+      "OpenCode Zen PAYG: pay-as-you-go, key from https://opencode.ai/auth. Same models as Zen: paid + free tiers on the fast lane.",
+    serviceKinds: ["llm", "systemone"],
+    priority: 205,
+    models: [
+      {
+        id: "claude-fable-5",
+        name: "Claude Fable 5",
+      },
+      {
+        id: "claude-fable-5-1",
+        name: "Claude Fable 5.1",
+      },
+      {
+        id: "claude-opus-5",
+        name: "Claude Opus 5",
+      },
+      {
+        id: "claude-opus-4-8",
+        name: "Claude Opus 4.8",
+      },
+      {
+        id: "claude-opus-4-7",
+        name: "Claude Opus 4.7",
+      },
+      {
+        id: "claude-opus-4-6",
+        name: "Claude Opus 4.6",
+      },
+      {
+        id: "claude-opus-4-5",
+        name: "Claude Opus 4.5",
+      },
+      {
+        id: "claude-sonnet-5",
+        name: "Claude Sonnet 5",
+      },
+      {
+        id: "claude-sonnet-4-6",
+        name: "Claude Sonnet 4.6",
+      },
+      {
+        id: "claude-sonnet-4-5",
+        name: "Claude Sonnet 4.5",
+      },
+      {
+        id: "claude-sonnet-4",
+        name: "Claude Sonnet 4",
+      },
+      {
+        id: "claude-haiku-4-5",
+        name: "Claude Haiku 4.5",
+      },
+      {
+        id: "gemini-4-argon",
+        name: "Gemini 4 Argon",
+      },
+      {
+        id: "gemini-3.6-flash",
+        name: "Gemini 3.6 Flash",
+      },
+      {
+        id: "gemini-3.8-flash",
+        name: "Gemini 3.8 Flash",
+      },
+      {
+        id: "gemini-3.7-flash",
+        name: "Gemini 3.7 Flash",
+      },
+      {
+        id: "gemini-3.5-flash-lite",
+        name: "Gemini 3.5 Flash Lite",
+      },
+      {
+        id: "gemini-3.5-flash",
+        name: "Gemini 3.5 Flash",
+      },
+      {
+        id: "gemini-3.1-pro",
+        name: "Gemini 3.1 Pro",
+      },
+      {
+        id: "gemini-3-flash",
+        name: "Gemini 3 Flash",
+      },
+      {
+        id: "gpt-6-astra",
+        name: "GPT 6 Astra",
+      },
+      {
+        id: "gpt-5.6-sol",
+        name: "GPT 5.6 Sol",
+      },
+      {
+        id: "gpt-5.6-terra",
+        name: "GPT 5.6 Terra",
+      },
+      {
+        id: "gpt-5.6-luna",
+        name: "GPT 5.6 Luna",
+      },
+      {
+        id: "gpt-5.5",
+        name: "GPT 5.5",
+      },
+      {
+        id: "gpt-5.5-pro",
+        name: "GPT 5.5 Pro",
+      },
+      {
+        id: "gpt-5.4",
+        name: "GPT 5.4",
+      },
+      {
+        id: "gpt-5.4-pro",
+        name: "GPT 5.4 Pro",
+      },
+      {
+        id: "gpt-5.4-mini",
+        name: "GPT 5.4 Mini",
+      },
+      {
+        id: "gpt-5.4-nano",
+        name: "GPT 5.4 Nano",
+      },
+      {
+        id: "gpt-5.3-codex-spark",
+        name: "GPT 5.3 Codex Spark",
+      },
+      {
+        id: "gpt-5.3-codex",
+        name: "GPT 5.3 Codex",
+      },
+      {
+        id: "gpt-5.2",
+        name: "GPT 5.2",
+      },
+      {
+        id: "gpt-5.2-codex",
+        name: "GPT 5.2 Codex",
+      },
+      {
+        id: "gpt-5.1",
+        name: "GPT 5.1",
+      },
+      {
+        id: "gpt-5.1-codex-max",
+        name: "GPT 5.1 Codex Max",
+      },
+      {
+        id: "gpt-5.1-codex",
+        name: "GPT 5.1 Codex",
+      },
+      {
+        id: "gpt-5.1-codex-mini",
+        name: "GPT 5.1 Codex Mini",
+      },
+      {
+        id: "gpt-5",
+        name: "GPT 5",
+      },
+      {
+        id: "gpt-5-codex",
+        name: "GPT 5 Codex",
+      },
+      {
+        id: "gpt-5-nano",
+        name: "GPT 5 Nano",
+      },
+      {
+        id: "grok-build-0.1",
+        name: "Grok Build 0.1",
+      },
+      {
+        id: "grok-4.6",
+        name: "Grok 4.6",
+      },
+      {
+        id: "grok-4.5",
+        name: "Grok 4.5",
+      },
+      {
+        id: "muse-wonder-1.0",
+        name: "Muse Wonder 1.0 (Flagship)",
+      },
+      {
+        id: "muse-spark-1.3",
+        name: "Muse Spark 1.3",
+      },
+      {
+        id: "muse-spark-1.2",
+        name: "Muse Spark 1.2",
+      },
+      {
+        id: "qwen3.6-plus",
+        name: "Qwen 3.6 Plus",
+      },
+      {
+        id: "qwen3.5-plus",
+        name: "Qwen 3.5 Plus",
+      },
+      {
+        id: "deepseek-v4-pro",
+        name: "DeepSeek V4 Pro",
+      },
+      {
+        id: "deepseek-v4-flash",
+        name: "DeepSeek V4 Flash",
+      },
+      {
+        id: "deepseek-v4-flash-vision-exp",
+        name: "DeepSeek V4 Flash Vision Exp",
+      },
+      {
+        id: "glm-5.3-flash",
+        name: "GLM 5.3 Flash (Vision)",
+      },
+      {
+        id: "glm-5.3",
+        name: "GLM 5.3",
+      },
+      {
+        id: "glm-5.2",
+        name: "GLM 5.2",
+      },
+      {
+        id: "glm-5.1",
+        name: "GLM 5.1",
+      },
+      {
+        id: "glm-5",
+        name: "GLM 5",
+      },
+      {
+        id: "minimax-m3",
+        name: "MiniMax M3",
+      },
+      {
+        id: "minimax-m2.7",
+        name: "MiniMax M2.7",
+      },
+      {
+        id: "minimax-m2.5",
+        name: "MiniMax M2.5",
+      },
+      {
+        id: "kimi-k3",
+        name: "Kimi K3",
+      },
+      {
+        id: "kimi-k2.7-code",
+        name: "Kimi K2.7 Code",
+      },
+      {
+        id: "kimi-k2.6",
+        name: "Kimi K2.6",
+      },
+      {
+        id: "kimi-k2.5",
+        name: "Kimi K2.5",
+      },
+      {
+        id: "union-alpha",
+        name: "Union Alpha",
+      },
+      {
+        id: "deepseek-v4-flash-free",
+        name: "DeepSeek V4 Flash Free",
+      },
+      {
+        id: "mimo-v2.6-flash-free",
+        name: "MiMo V2.6 Flash Free",
+      },
+      {
+        id: "mimo-v2.5-free",
+        name: "MiMo V2.5 Free",
+      },
+      {
+        id: "ling-3.0-flash-fin-free",
+        name: "Ling 3.0 Flash Fin Free",
+      },
+      {
+        id: "nemotron-3-ultra-free",
+        name: "Nemotron 3 Ultra Free",
+      },
+      {
+        id: "nemotron-3.5-lightning-free",
+        name: "Nemotron 3.5 Lightning Free",
+      },
+      {
+        id: "muse-spark-1.3-contributor-free",
+        name: "Muse Spark 1.3 Contributor Free",
+      },
+      {
+        id: "muse-spark-1.2-contributor-free",
+        name: "Muse Spark 1.2 Contributor Free",
+      },
+    ],
   },
   {
     id: "openrouter",
@@ -1948,26 +5863,98 @@ export const PROVIDER_REGISTRY: readonly ProviderRegistrySpec[] = [
     protocol: "openai-chat",
     authType: "api_key",
     baseUrl: "https://openrouter.ai/api/v1",
-    defaultModels: [
-      "openai/text-embedding-3-large",
-      "openai/text-embedding-3-small",
-      "openai/text-embedding-ada-002",
-      "qwen/qwen3-embedding-8b",
-      "perplexity/pplx-embed-v1-4b",
-      "perplexity/pplx-embed-v1-0.6b",
-      "nvidia/llama-nemotron-embed-vl-1b-v2:free",
-      "openai/gpt-4o-mini-tts",
-      "openai/tts-1-hd",
-      "openai/tts-1",
-      "openai/dall-e-3",
-      "openai/gpt-image-1",
-    ],
+    defaultModels: [],
     website: "https://openrouter.ai",
     apiKeyUrl: "https://openrouter.ai/settings/keys",
     noticeText:
       "Free tier: 27+ free models, no credit card needed, 200 req/day. After  0 credit: 1,000 req/day.",
     serviceKinds: ["llm", "embedding", "tts", "imageToText", "video", "systemone"],
     priority: 10,
+  },
+  {
+    id: "ovh",
+    name: "OVH Cloud (Kepler AI Keyless)",
+    alias: "ovh",
+    aliases: ["kepler", "ovh-kepler", "kepler-ai"],
+    category: "free",
+    sourceCategory: "free",
+    protocol: "openai-chat",
+    authType: "none",
+    baseUrl: "https://oai.endpoints.kepler.ai.cloud.ovh.net/v1",
+    defaultModels: [
+      "Qwen3.6-27B",
+      "Qwen3.8-27B",
+      "Qwen3.5-397B-A17B",
+      "gpt-oss-120b",
+      "gpt-oss-20b",
+      "Mistral-Small-3.2-24B-Instruct-2506",
+      "Meta-Llama-3_3-70B-Instruct",
+      "Qwen2.5-VL-72B-Instruct",
+    ],
+    website: "https://endpoints.kepler.ai.cloud.ovh.net",
+    apiKeyUrl: "https://endpoints.kepler.ai.cloud.ovh.net",
+    noAuth: true,
+    priority: 156,
+    models: [
+      {
+        id: "Qwen3.6-27B",
+        name: "Qwen3.6 27B (262K)",
+      },
+      {
+        id: "Qwen3.8-27B",
+        name: "Qwen3.8 27B (262K)",
+      },
+      {
+        id: "Qwen3.5-397B-A17B",
+        name: "Qwen3.5 397B A17B (262K)",
+      },
+      {
+        id: "gpt-oss-120b",
+        name: "GPT-OSS 120B (131K)",
+      },
+      {
+        id: "gpt-oss-20b",
+        name: "GPT-OSS 20B (131K)",
+      },
+      {
+        id: "Mistral-Small-3.2-24B-Instruct-2506",
+        name: "Mistral Small 3.2 24B (131K)",
+      },
+      {
+        id: "Meta-Llama-3_3-70B-Instruct",
+        name: "Llama 3.3 70B (131K)",
+      },
+      {
+        id: "Qwen2.5-VL-72B-Instruct",
+        name: "Qwen2.5 VL 72B (Vision)",
+      },
+    ],
+  },
+  {
+    id: "perplexity",
+    name: "Perplexity",
+    alias: "pplx",
+    aliases: ["pplx"],
+    category: "apikey",
+    sourceCategory: "apikey",
+    protocol: "openai-chat",
+    authType: "api_key",
+    baseUrl: "https://api.perplexity.ai",
+    defaultModels: ["sonar-pro", "sonar"],
+    website: "https://www.perplexity.ai",
+    apiKeyUrl: "https://www.perplexity.ai/settings/api",
+    serviceKinds: ["llm", "webSearch"],
+    priority: 180,
+    models: [
+      {
+        id: "sonar-pro",
+        name: "Sonar Pro",
+      },
+      {
+        id: "sonar",
+        name: "Sonar",
+      },
+    ],
   },
   {
     id: "perplexity-agent",
@@ -1998,22 +5985,52 @@ export const PROVIDER_REGISTRY: readonly ProviderRegistrySpec[] = [
       "Perplexity Agent API exposes GPT, Claude, Gemini, Grok, GLM, Kimi, and Sonar models through one OpenAI-compatible Responses API.",
     serviceKinds: ["llm", "webSearch"],
     priority: 181,
-  },
-  {
-    id: "perplexity",
-    name: "Perplexity",
-    alias: "pplx",
-    aliases: ["pplx"],
-    category: "apikey",
-    sourceCategory: "apikey",
-    protocol: "openai-chat",
-    authType: "api_key",
-    baseUrl: "https://api.perplexity.ai",
-    defaultModels: ["sonar-pro", "sonar"],
-    website: "https://www.perplexity.ai",
-    apiKeyUrl: "https://www.perplexity.ai/settings/api",
-    serviceKinds: ["llm", "webSearch"],
-    priority: 180,
+    models: [
+      {
+        id: "perplexity/sonar",
+        name: "Perplexity Sonar",
+      },
+      {
+        id: "openai/gpt-5.5",
+        name: "GPT-5.5",
+      },
+      {
+        id: "openai/gpt-5.4",
+        name: "GPT-5.4",
+      },
+      {
+        id: "openai/gpt-5.4-mini",
+        name: "GPT-5.4 Mini",
+      },
+      {
+        id: "anthropic/claude-sonnet-4-6",
+        name: "Claude Sonnet 4.6",
+      },
+      {
+        id: "anthropic/claude-opus-4-8",
+        name: "Claude Opus 4.8",
+      },
+      {
+        id: "google/gemini-3.1-pro-preview",
+        name: "Gemini 3.1 Pro",
+      },
+      {
+        id: "xai/grok-4.20-reasoning",
+        name: "Grok 4.20 Reasoning",
+      },
+      {
+        id: "perplexity/glm-5.2",
+        name: "GLM 5.2",
+      },
+      {
+        id: "perplexity/kimi-k2.7-code",
+        name: "Kimi K2.7 Code",
+      },
+      {
+        id: "nvidia/nemotron-3-super-120b-a12b",
+        name: "Nemotron 3 Super 120B",
+      },
+    ],
   },
   {
     id: "poolside",
@@ -2029,35 +6046,16 @@ export const PROVIDER_REGISTRY: readonly ProviderRegistrySpec[] = [
     website: "https://poolside.ai",
     apiKeyUrl: "https://platform.poolside.ai/api-keys",
     priority: 60,
-  },
-  {
-    id: "qoder-cn",
-    name: "Qoder CN",
-    alias: "qdcn",
-    category: "oauth",
-    sourceCategory: "oauth",
-    protocol: "openai-chat",
-    authType: "oauth",
-    baseUrl: "https://gateway.qoder.com.cn/algo/api/v2/service/pro/sse/agent_chat_generation",
-    defaultModels: [
-      "ultimate",
-      "auto",
-      "performance",
-      "efficient",
-      "lite",
-      "qmodel_38max",
-      "qmodel_latest",
-      "qmodel",
-      "qfmodel",
-      "kmodel_latest",
-      "kmodel",
-      "gmodel",
+    models: [
+      {
+        id: "poolside/laguna-s-2.1",
+        name: "Laguna S 2.1",
+      },
+      {
+        id: "poolside/laguna-xs-2.1",
+        name: "Laguna XS 2.1",
+      },
     ],
-    website: "https://qoder.com.cn",
-    signupUrl: "https://qoder.com.cn",
-    authHint: "Personal Access Token (pt-...) from https://qoder.com.cn/account/integrations",
-    hasOAuth: true,
-    priority: 30,
   },
   {
     id: "qoder",
@@ -2081,12 +6079,191 @@ export const PROVIDER_REGISTRY: readonly ProviderRegistrySpec[] = [
       "kmodel_latest",
       "kmodel",
       "gmodel",
+      "gfmodel",
+      "dmodel",
+      "dfmodel",
+      "mmodel",
+      "sonus",
+      "cantus",
     ],
     website: "https://qoder.com",
     signupUrl: "https://qoder.com",
     authHint: "Personal Access Token (pt-...) từ https://qoder.com/account/integrations",
     hasOAuth: true,
     priority: 30,
+    models: [
+      {
+        id: "ultimate",
+        name: "Ultimate",
+      },
+      {
+        id: "auto",
+        name: "Auto",
+      },
+      {
+        id: "performance",
+        name: "Performance",
+      },
+      {
+        id: "efficient",
+        name: "Efficient",
+      },
+      {
+        id: "lite",
+        name: "Lite",
+      },
+      {
+        id: "qmodel_38max",
+        name: "Qwen3.8-Max",
+      },
+      {
+        id: "qmodel_latest",
+        name: "Qwen3.7-Max",
+      },
+      {
+        id: "qmodel",
+        name: "Qwen3.7-Plus",
+      },
+      {
+        id: "qfmodel",
+        name: "Qwen3.8-Flash",
+      },
+      {
+        id: "kmodel_latest",
+        name: "Kimi-K3",
+      },
+      {
+        id: "kmodel",
+        name: "Kimi-K2.7-Code",
+      },
+      {
+        id: "gmodel",
+        name: "GLM-5.3",
+      },
+      {
+        id: "gfmodel",
+        name: "GLM-5.3-Flash",
+      },
+      {
+        id: "dmodel",
+        name: "DeepSeek-V4-Pro",
+      },
+      {
+        id: "dfmodel",
+        name: "DeepSeek-V4-Flash",
+      },
+      {
+        id: "mmodel",
+        name: "MiniMax-M3",
+      },
+      {
+        id: "sonus",
+        name: "Qoder Sonus",
+      },
+      {
+        id: "cantus",
+        name: "Qoder Cantus",
+      },
+    ],
+  },
+  {
+    id: "qoder-cn",
+    name: "Qoder CN",
+    alias: "qdcn",
+    category: "oauth",
+    sourceCategory: "oauth",
+    protocol: "openai-chat",
+    authType: "oauth",
+    baseUrl: "https://gateway.qoder.com.cn/algo/api/v2/service/pro/sse/agent_chat_generation",
+    defaultModels: [
+      "ultimate",
+      "auto",
+      "performance",
+      "efficient",
+      "lite",
+      "qmodel_38max",
+      "qmodel_latest",
+      "qmodel",
+      "qfmodel",
+      "kmodel_latest",
+      "kmodel",
+      "gmodel",
+      "gfmodel",
+      "dmodel",
+      "dfmodel",
+      "mmodel",
+    ],
+    website: "https://qoder.com.cn",
+    signupUrl: "https://qoder.com.cn",
+    authHint: "Personal Access Token (pt-...) from https://qoder.com.cn/account/integrations",
+    hasOAuth: true,
+    priority: 30,
+    models: [
+      {
+        id: "ultimate",
+        name: "Ultimate",
+      },
+      {
+        id: "auto",
+        name: "Auto",
+      },
+      {
+        id: "performance",
+        name: "Performance",
+      },
+      {
+        id: "efficient",
+        name: "Efficient",
+      },
+      {
+        id: "lite",
+        name: "Lite",
+      },
+      {
+        id: "qmodel_38max",
+        name: "Qwen3.8-Max",
+      },
+      {
+        id: "qmodel_latest",
+        name: "Qwen3.7-Max",
+      },
+      {
+        id: "qmodel",
+        name: "Qwen3.7-Plus",
+      },
+      {
+        id: "qfmodel",
+        name: "Qwen3.8-Flash",
+      },
+      {
+        id: "kmodel_latest",
+        name: "Kimi-K3",
+      },
+      {
+        id: "kmodel",
+        name: "Kimi-K2.7-Code",
+      },
+      {
+        id: "gmodel",
+        name: "GLM-5.3",
+      },
+      {
+        id: "gfmodel",
+        name: "GLM-5.3-Flash",
+      },
+      {
+        id: "dmodel",
+        name: "DeepSeek-V4-Pro",
+      },
+      {
+        id: "dfmodel",
+        name: "DeepSeek-V4-Flash",
+      },
+      {
+        id: "mmodel",
+        name: "MiniMax-M3",
+      },
+    ],
   },
   {
     id: "recraft",
@@ -2097,11 +6274,104 @@ export const PROVIDER_REGISTRY: readonly ProviderRegistrySpec[] = [
     protocol: "openai-chat",
     authType: "api_key",
     baseUrl: "",
-    defaultModels: ["recraftv3", "recraftv2"],
+    defaultModels: [],
     website: "https://recraft.ai",
     apiKeyUrl: "https://www.recraft.ai/profile/api",
     serviceKinds: ["image"],
     priority: 70,
+  },
+  {
+    id: "river",
+    name: "River",
+    alias: "river",
+    aliases: ["river-ai"],
+    category: "apikey",
+    sourceCategory: "apikey",
+    protocol: "openai-chat",
+    authType: "api_key",
+    baseUrl: "https://api.river.ai/v1",
+    defaultModels: [
+      "deepseek-ai/DeepSeek-V4.1-Flash",
+      "zai-org/GLM-5.3-Flash",
+      "deepseek-ai/DeepSeek-V4-Flash-0731",
+      "nvidia/GLM-5.2-NVFP4",
+      "nvidia/GLM-5.2-NVFP4-262K",
+      "nvidia/Kimi-K2.6-NVFP4",
+      "nvidia/Kimi-K2.6-NVFP4-262K",
+      "nvidia/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-NVFP4",
+      "Qwen/Qwen3.5-9B",
+      "Qwen/Qwen3.5-122B-A10B-FP8",
+      "Qwen/Qwen3.5-397B-A17B-FP8",
+      "Qwen/Qwen3.6-35B-A3B-FP8",
+      "Qwen/Qwen3.8-27B-FP8",
+      "XiaomiMiMo/MiMo-V2.6-Flash-RL",
+      "XiaomiMiMo/MiMo-V2.6-Pro-RL",
+    ],
+    website: "https://river.ai",
+    apiKeyUrl: "https://console.river.ai/keys",
+    priority: 60,
+    models: [
+      {
+        id: "deepseek-ai/DeepSeek-V4.1-Flash",
+        name: "DeepSeek V4.1 Flash",
+      },
+      {
+        id: "zai-org/GLM-5.3-Flash",
+        name: "GLM 5.3 Flash",
+      },
+      {
+        id: "deepseek-ai/DeepSeek-V4-Flash-0731",
+        name: "DeepSeek V4 Flash 0731",
+      },
+      {
+        id: "nvidia/GLM-5.2-NVFP4",
+        name: "GLM 5.2 NVFP4",
+      },
+      {
+        id: "nvidia/GLM-5.2-NVFP4-262K",
+        name: "GLM 5.2 NVFP4 262K",
+      },
+      {
+        id: "nvidia/Kimi-K2.6-NVFP4",
+        name: "Kimi K2.6 NVFP4",
+      },
+      {
+        id: "nvidia/Kimi-K2.6-NVFP4-262K",
+        name: "Kimi K2.6 NVFP4 262K",
+      },
+      {
+        id: "nvidia/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-NVFP4",
+        name: "Nemotron 3.5 Lightning 30B",
+      },
+      {
+        id: "Qwen/Qwen3.5-9B",
+        name: "Qwen 3.5 9B",
+      },
+      {
+        id: "Qwen/Qwen3.5-122B-A10B-FP8",
+        name: "Qwen 3.5 122B A10B",
+      },
+      {
+        id: "Qwen/Qwen3.5-397B-A17B-FP8",
+        name: "Qwen 3.5 397B A17B",
+      },
+      {
+        id: "Qwen/Qwen3.6-35B-A3B-FP8",
+        name: "Qwen 3.6 35B A3B",
+      },
+      {
+        id: "Qwen/Qwen3.8-27B-FP8",
+        name: "Qwen 3.8 27B",
+      },
+      {
+        id: "XiaomiMiMo/MiMo-V2.6-Flash-RL",
+        name: "MiMo V2.6 Flash RL",
+      },
+      {
+        id: "XiaomiMiMo/MiMo-V2.6-Pro-RL",
+        name: "MiMo V2.6 Pro RL",
+      },
+    ],
   },
   {
     id: "runwayml",
@@ -2113,11 +6383,30 @@ export const PROVIDER_REGISTRY: readonly ProviderRegistrySpec[] = [
     protocol: "openai-chat",
     authType: "api_key",
     baseUrl: "",
-    defaultModels: ["gen4_image", "gen4_image_turbo", "gen4_turbo", "gen3a_turbo"],
+    defaultModels: [],
     website: "https://runwayml.com",
     apiKeyUrl: "https://dev.runwayml.com",
     serviceKinds: ["image"],
     priority: 80,
+  },
+  {
+    id: "sambanova",
+    name: "SambaNova",
+    alias: "samba",
+    category: "apikey",
+    sourceCategory: "apikey",
+    protocol: "openai-chat",
+    authType: "api_key",
+    baseUrl: "https://api.sambanova.ai/v1/chat/completions",
+    defaultModels: ["MiniMax-M2.7"],
+    models: [
+      {
+        id: "MiniMax-M2.7",
+        name: "MiniMax M2.7",
+      },
+    ],
+    website: "https://sambanova.ai",
+    apiKeyUrl: "https://cloud.sambanova.ai/apis",
   },
   {
     id: "sdwebui",
@@ -2128,7 +6417,7 @@ export const PROVIDER_REGISTRY: readonly ProviderRegistrySpec[] = [
     protocol: "openai-chat",
     authType: "api_key",
     baseUrl: "",
-    defaultModels: ["stable-diffusion-v1-5", "sdxl-base-1.0"],
+    defaultModels: [],
     website: "https://github.com/AUTOMATIC1111/stable-diffusion-webui",
     serviceKinds: ["image"],
     priority: 110,
@@ -2170,7 +6459,7 @@ export const PROVIDER_REGISTRY: readonly ProviderRegistrySpec[] = [
     protocol: "openai-chat",
     authType: "api_key",
     baseUrl: "",
-    defaultModels: ["embedding"],
+    defaultModels: [],
     website: "https://github.com/ggml-org/llama.cpp",
     serviceKinds: ["embedding"],
     priority: 50,
@@ -2184,7 +6473,7 @@ export const PROVIDER_REGISTRY: readonly ProviderRegistrySpec[] = [
     protocol: "openai-chat",
     authType: "api_key",
     baseUrl: "",
-    defaultModels: ["whisper-1"],
+    defaultModels: [],
     website: "https://github.com/ggml-org/whisper.cpp",
     serviceKinds: ["stt"],
     priority: 50,
@@ -2198,7 +6487,7 @@ export const PROVIDER_REGISTRY: readonly ProviderRegistrySpec[] = [
     protocol: "openai-chat",
     authType: "api_key",
     baseUrl: "",
-    defaultModels: ["kokoro"],
+    defaultModels: [],
     website: "https://github.com/remsky/Kokoro-FastAPI",
     serviceKinds: ["tts"],
     priority: 50,
@@ -2239,10 +6528,80 @@ export const PROVIDER_REGISTRY: readonly ProviderRegistrySpec[] = [
       "zai-org/GLM-5.1",
       "zai-org/GLM-5",
       "moonshotai/Kimi-K2.6",
+      "moonshotai/Kimi-K2.5",
+      "openai/gpt-oss-120b",
+      "MiniMaxAI/MiniMax-M2.5",
+      "inclusionAI/Ling-flash-2.0",
     ],
     website: "https://cloud.siliconflow.com",
     apiKeyUrl: "https://cloud.siliconflow.com/account/ak",
     priority: 250,
+    models: [
+      {
+        id: "deepseek-ai/DeepSeek-V4-Pro",
+        name: "DeepSeek V4 Pro",
+      },
+      {
+        id: "deepseek-ai/DeepSeek-V4-Flash",
+        name: "DeepSeek V4 Flash",
+      },
+      {
+        id: "deepseek-ai/DeepSeek-V3.2",
+        name: "DeepSeek V3.2",
+      },
+      {
+        id: "deepseek-ai/DeepSeek-V3.2-Exp",
+        name: "DeepSeek V3.2 Exp",
+      },
+      {
+        id: "deepseek-ai/DeepSeek-V3.1",
+        name: "DeepSeek V3.1",
+      },
+      {
+        id: "deepseek-ai/DeepSeek-V3.1-Terminus",
+        name: "DeepSeek V3.1 Terminus",
+      },
+      {
+        id: "deepseek-ai/DeepSeek-R1",
+        name: "DeepSeek R1",
+      },
+      {
+        id: "Qwen/Qwen3.5-397B-A17B",
+        name: "Qwen 3.5 397B A17B",
+      },
+      {
+        id: "Qwen/Qwen3.5-122B-A10B",
+        name: "Qwen 3.5 122B A10B",
+      },
+      {
+        id: "zai-org/GLM-5.1",
+        name: "GLM 5.1",
+      },
+      {
+        id: "zai-org/GLM-5",
+        name: "GLM 5",
+      },
+      {
+        id: "moonshotai/Kimi-K2.6",
+        name: "Kimi K2.6",
+      },
+      {
+        id: "moonshotai/Kimi-K2.5",
+        name: "Kimi K2.5",
+      },
+      {
+        id: "openai/gpt-oss-120b",
+        name: "GPT OSS 120B",
+      },
+      {
+        id: "MiniMaxAI/MiniMax-M2.5",
+        name: "MiniMax M2.5",
+      },
+      {
+        id: "inclusionAI/Ling-flash-2.0",
+        name: "Ling Flash 2.0",
+      },
+    ],
   },
   {
     id: "stability-ai",
@@ -2254,13 +6613,7 @@ export const PROVIDER_REGISTRY: readonly ProviderRegistrySpec[] = [
     protocol: "openai-chat",
     authType: "api_key",
     baseUrl: "",
-    defaultModels: [
-      "stable-image-ultra",
-      "stable-image-core",
-      "sd3.5-large",
-      "sd3.5-large-turbo",
-      "sd3.5-medium",
-    ],
+    defaultModels: [],
     website: "https://stability.ai",
     apiKeyUrl: "https://platform.stability.ai/account/keys",
     serviceKinds: ["image"],
@@ -2293,6 +6646,16 @@ export const PROVIDER_REGISTRY: readonly ProviderRegistrySpec[] = [
     defaultModels: ["hunyuan-turbos-latest", "hunyuan-t1-latest"],
     website: "https://cloud.tencent.com/product/hunyuan",
     apiKeyUrl: "https://console.cloud.tencent.com/hunyuan/api-key",
+    models: [
+      {
+        id: "hunyuan-turbos-latest",
+        name: "Hunyuan TurboS Latest",
+      },
+      {
+        id: "hunyuan-t1-latest",
+        name: "Hunyuan T1 Latest",
+      },
+    ],
   },
   {
     id: "tinyfish",
@@ -2322,13 +6685,29 @@ export const PROVIDER_REGISTRY: readonly ProviderRegistrySpec[] = [
       "deepseek-ai/DeepSeek-R1",
       "Qwen/Qwen3-235B-A22B",
       "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8",
-      "BAAI/bge-large-en-v1.5",
-      "togethercomputer/m2-bert-80M-8k-retrieval",
     ],
     website: "https://www.together.ai",
     apiKeyUrl: "https://api.together.xyz/settings/api-keys",
     serviceKinds: ["llm", "embedding"],
     priority: 60,
+    models: [
+      {
+        id: "meta-llama/Llama-3.3-70B-Instruct-Turbo",
+        name: "Llama 3.3 70B Turbo",
+      },
+      {
+        id: "deepseek-ai/DeepSeek-R1",
+        name: "DeepSeek R1",
+      },
+      {
+        id: "Qwen/Qwen3-235B-A22B",
+        name: "Qwen3 235B",
+      },
+      {
+        id: "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8",
+        name: "Llama 4 Maverick",
+      },
+    ],
   },
   {
     id: "tokenharbor",
@@ -2353,6 +6732,32 @@ export const PROVIDER_REGISTRY: readonly ProviderRegistrySpec[] = [
     noticeText:
       "OpenAI-compatible aggregator. One API key reaches every model, billed per-token from a prepaid wallet. Model ids are bare (e.g. claude-opus-5.5, gpt-6-astra, deepseek-v4.1-flash:free) and are fetched live from the provider.",
     priority: 120,
+    models: [
+      {
+        id: "claude-opus-5.5",
+        name: "Claude Opus 5.5",
+      },
+      {
+        id: "claude-sonnet-5",
+        name: "Claude Sonnet 5",
+      },
+      {
+        id: "gpt-6-astra",
+        name: "GPT-6 Astra",
+      },
+      {
+        id: "gpt-6-sol",
+        name: "GPT-6 Sol",
+      },
+      {
+        id: "deepseek-v4.1-flash:free",
+        name: "DeepSeek V4.1 Flash (Free)",
+      },
+      {
+        id: "grok-4.7",
+        name: "Grok 4.7",
+      },
+    ],
   },
   {
     id: "tokenrouter",
@@ -2377,12 +6782,112 @@ export const PROVIDER_REGISTRY: readonly ProviderRegistrySpec[] = [
       "google/gemini-3.5-flash",
       "google/gemini-3.6-flash",
       "deepseek/deepseek-v4-flash",
+      "deepseek/deepseek-v4-pro",
+      "qwen/qwen3-coder-next",
+      "qwen/qwen3.7-max",
+      "qwen/qwen3.8-max",
+      "moonshotai/kimi-k2.7-code",
+      "moonshotai/kimi-k3-free",
+      "z-ai/glm-5.3-free",
+      "z-ai/glm-5.2",
+      "z-ai/glm-5-turbo",
+      "x-ai/grok-4.5",
     ],
     website: "https://www.tokenrouter.com",
     apiKeyUrl: "https://www.tokenrouter.com",
     noticeText:
       "OpenAI-compatible gateway. 300+ models (OpenAI, Claude, Gemini, Qwen, DeepSeek, Kimi, GLM, dsb).",
     serviceKinds: ["llm", "embedding", "image"],
+    models: [
+      {
+        id: "anthropic/claude-haiku-4.5",
+        name: "Claude Haiku 4.5",
+      },
+      {
+        id: "anthropic/claude-sonnet-4.6",
+        name: "Claude Sonnet 4.6",
+      },
+      {
+        id: "anthropic/claude-opus-4.8",
+        name: "Claude Opus 4.8",
+      },
+      {
+        id: "anthropic/claude-opus-4.8-fast",
+        name: "Claude Opus 4.8 Fast",
+      },
+      {
+        id: "openai/gpt-5.4",
+        name: "Gpt 5.4",
+      },
+      {
+        id: "openai/gpt-5.4-mini",
+        name: "Gpt 5.4 Mini",
+      },
+      {
+        id: "openai/gpt-5.4-pro",
+        name: "Gpt 5.4 Pro",
+      },
+      {
+        id: "openai/gpt-5.5",
+        name: "Gpt 5.5",
+      },
+      {
+        id: "openai/gpt-5.6-sol",
+        name: "Gpt 5.6 Sol",
+      },
+      {
+        id: "google/gemini-3.5-flash",
+        name: "Gemini 3.5 Flash",
+      },
+      {
+        id: "google/gemini-3.6-flash",
+        name: "Gemini 3.6 Flash",
+      },
+      {
+        id: "deepseek/deepseek-v4-flash",
+        name: "Deepseek V4 Flash",
+      },
+      {
+        id: "deepseek/deepseek-v4-pro",
+        name: "Deepseek V4 Pro",
+      },
+      {
+        id: "qwen/qwen3-coder-next",
+        name: "Qwen3 Coder Next",
+      },
+      {
+        id: "qwen/qwen3.7-max",
+        name: "Qwen3.7 Max",
+      },
+      {
+        id: "qwen/qwen3.8-max",
+        name: "Qwen3.8 Max",
+      },
+      {
+        id: "moonshotai/kimi-k2.7-code",
+        name: "Kimi K2.7 Code",
+      },
+      {
+        id: "moonshotai/kimi-k3-free",
+        name: "Kimi K3 Free",
+      },
+      {
+        id: "z-ai/glm-5.3-free",
+        name: "Glm 5.3 Free",
+      },
+      {
+        id: "z-ai/glm-5.2",
+        name: "Glm 5.2",
+      },
+      {
+        id: "z-ai/glm-5-turbo",
+        name: "Glm 5 Turbo",
+      },
+      {
+        id: "x-ai/grok-4.5",
+        name: "Grok 4.5",
+      },
+    ],
   },
   {
     id: "topaz",
@@ -2422,6 +6927,44 @@ export const PROVIDER_REGISTRY: readonly ProviderRegistrySpec[] = [
     website: "https://www.trae.ai",
     signupUrl: "https://www.trae.ai",
     hasOAuth: true,
+    models: [
+      {
+        id: "auto",
+        name: "Auto (Server Picks)",
+      },
+      {
+        id: "work",
+        name: "Work (Fast)",
+      },
+      {
+        id: "gemini-3.1-pro",
+        name: "Gemini 3.1 Pro",
+      },
+      {
+        id: "gemini-3-flash-solo",
+        name: "Gemini 3 Flash",
+      },
+      {
+        id: "minimax-m3",
+        name: "MiniMax M3",
+      },
+      {
+        id: "minimax-m2.7",
+        name: "MiniMax M2.7",
+      },
+      {
+        id: "kimi-k2.5",
+        name: "Kimi K2.5",
+      },
+      {
+        id: "gpt-5.4",
+        name: "GPT 5.4",
+      },
+      {
+        id: "gpt-5.2",
+        name: "GPT 5.2",
+      },
+    ],
   },
   {
     id: "v1m",
@@ -2433,7 +6976,7 @@ export const PROVIDER_REGISTRY: readonly ProviderRegistrySpec[] = [
     protocol: "openai-chat",
     authType: "api_key",
     baseUrl: "",
-    defaultModels: ["rev-latest", "v1m-decision-engine"],
+    defaultModels: [],
     website: "https://v1m.ir",
     apiKeyUrl: "https://v1m.ir",
     noticeText:
@@ -2452,6 +6995,69 @@ export const PROVIDER_REGISTRY: readonly ProviderRegistrySpec[] = [
     authType: "none",
     baseUrl: "https://outerface.venice.ai/api/inference/chat",
     defaultModels: [
+      "venice-uncensored-1-2",
+      "zai-org-glm-5",
+      "qwen3-235b-a22b-instruct-2507",
+      "qwen3-coder-480b-a35b-instruct-turbo",
+      "qwen3-vl-235b-a22b",
+      "deepseek-v4-pro",
+      "llama-3.3-70b",
+      "hermes-3-llama-3.1-405b",
+      "mistral-small-3-2-24b-instruct",
+    ],
+    website: "https://venice.ai",
+    apiKeyUrl: "https://venice.ai",
+    noAuth: true,
+    priority: 157,
+    models: [
+      {
+        id: "venice-uncensored-1-2",
+        name: "Venice Uncensored 1.2",
+      },
+      {
+        id: "zai-org-glm-5",
+        name: "GLM-5",
+      },
+      {
+        id: "qwen3-235b-a22b-instruct-2507",
+        name: "Qwen3 235B A22B Instruct",
+      },
+      {
+        id: "qwen3-coder-480b-a35b-instruct-turbo",
+        name: "Qwen3 Coder 480B A35B Turbo",
+      },
+      {
+        id: "qwen3-vl-235b-a22b",
+        name: "Qwen3 VL 235B A22B",
+      },
+      {
+        id: "deepseek-v4-pro",
+        name: "DeepSeek V4 Pro",
+      },
+      {
+        id: "llama-3.3-70b",
+        name: "Llama 3.3 70B",
+      },
+      {
+        id: "hermes-3-llama-3.1-405b",
+        name: "Hermes 3 Llama 3.1 405B",
+      },
+      {
+        id: "mistral-small-3-2-24b-instruct",
+        name: "Mistral Small 3.2 24B",
+      },
+    ],
+  },
+  {
+    id: "venice-free",
+    name: "Venice AI (Keyless Webchat)",
+    alias: "venice-free",
+    category: "free",
+    sourceCategory: "free",
+    protocol: "openai-chat",
+    authType: "api_key",
+    baseUrl: "https://outerface.venice.ai/api/inference/chat",
+    defaultModels: [
       "deepseek-v4-1-flash-uncensored",
       "olafangensan-glm-4.7-flash-heretic",
       "venice-uncensored-1-2",
@@ -2459,10 +7065,35 @@ export const PROVIDER_REGISTRY: readonly ProviderRegistrySpec[] = [
       "nvidia-nemotron-3-nano-30b-a3b",
       "nvidia-nemotron-3-ultra-550b-a55b",
     ],
+    models: [
+      {
+        id: "deepseek-v4-1-flash-uncensored",
+        name: "DeepSeek V4.1 Flash Uncensored (512K)",
+      },
+      {
+        id: "olafangensan-glm-4.7-flash-heretic",
+        name: "GLM 4.7 Flash Heretic (200K)",
+      },
+      {
+        id: "venice-uncensored-1-2",
+        name: "Venice Uncensored 1.2 (128K)",
+      },
+      {
+        id: "qwen3-coder-480b-a35b-instruct-turbo",
+        name: "Qwen 3 Coder 480B Turbo (256K)",
+      },
+      {
+        id: "nvidia-nemotron-3-nano-30b-a3b",
+        name: "NVIDIA Nemotron 3 Nano 30B (128K)",
+      },
+      {
+        id: "nvidia-nemotron-3-ultra-550b-a55b",
+        name: "NVIDIA Nemotron 3 Ultra (256K)",
+      },
+    ],
     website: "https://venice.ai",
     apiKeyUrl: "https://venice.ai",
-    noAuth: true,
-    priority: 157,
+    priority: 158,
   },
   {
     id: "vercel-ai-gateway",
@@ -2481,6 +7112,52 @@ export const PROVIDER_REGISTRY: readonly ProviderRegistrySpec[] = [
       "Unified OpenAI-compatible endpoint from Vercel. Use your AI Gateway API key, then pick models with provider/model IDs like anthropic/claude-sonnet-4.6 or openai/gpt-5.4.",
     serviceKinds: ["llm", "embedding", "image", "imageToText", "webSearch"],
     priority: 160,
+  },
+  {
+    id: "vertex",
+    name: "Vertex AI",
+    alias: "vx",
+    aliases: ["vx"],
+    category: "free",
+    sourceCategory: "freeTier",
+    protocol: "openai-chat",
+    authType: "api_key",
+    baseUrl: "https://aiplatform.googleapis.com",
+    defaultModels: [
+      "gemini-4-argon",
+      "gemini-3.1-pro-preview",
+      "gemini-3.1-flash-lite-preview",
+      "gemini-3-flash-preview",
+      "gemini-2.5-flash",
+    ],
+    website: "https://cloud.google.com/vertex-ai",
+    apiKeyUrl: "https://console.cloud.google.com/iam-admin/serviceaccounts",
+    noticeText:
+      "New Google Cloud accounts get $300 free credits. Requires GCP project + Service Account with Vertex AI API enabled.",
+    serviceKinds: ["llm", "imageToText", "video"],
+    priority: 40,
+    models: [
+      {
+        id: "gemini-4-argon",
+        name: "Gemini 4 Argon",
+      },
+      {
+        id: "gemini-3.1-pro-preview",
+        name: "Gemini 3.1 Pro Preview",
+      },
+      {
+        id: "gemini-3.1-flash-lite-preview",
+        name: "Gemini 3.1 Flash Lite Preview",
+      },
+      {
+        id: "gemini-3-flash-preview",
+        name: "Gemini 3 Flash Preview",
+      },
+      {
+        id: "gemini-2.5-flash",
+        name: "Gemini 2.5 Flash",
+      },
+    ],
   },
   {
     id: "vertex-partner",
@@ -2502,34 +7179,24 @@ export const PROVIDER_REGISTRY: readonly ProviderRegistrySpec[] = [
       "https://cloud.google.com/vertex-ai/generative-ai/docs/partner-models/use-partner-models",
     apiKeyUrl: "https://console.cloud.google.com/iam-admin/serviceaccounts",
     priority: 260,
-  },
-  {
-    id: "vertex",
-    name: "Vertex AI",
-    alias: "vx",
-    aliases: ["vx"],
-    category: "free",
-    sourceCategory: "freeTier",
-    protocol: "openai-chat",
-    authType: "api_key",
-    baseUrl: "https://aiplatform.googleapis.com",
-    defaultModels: [
-      "gemini-4-argon",
-      "gemini-3.1-pro-preview",
-      "gemini-3.1-flash-lite-preview",
-      "gemini-3-flash-preview",
-      "gemini-2.5-flash",
-      "veo-3.1-generate-preview",
-      "veo-3.1-fast-generate-preview",
-      "veo-3.0-generate-001",
-      "veo-2.0-generate-001",
+    models: [
+      {
+        id: "deepseek-ai/deepseek-v3.2-maas",
+        name: "DeepSeek V3.2 (Vertex)",
+      },
+      {
+        id: "qwen/qwen3-next-80b-a3b-thinking-maas",
+        name: "Qwen3 Next 80B Thinking (Vertex)",
+      },
+      {
+        id: "qwen/qwen3-next-80b-a3b-instruct-maas",
+        name: "Qwen3 Next 80B Instruct (Vertex)",
+      },
+      {
+        id: "zai-org/glm-5-maas",
+        name: "GLM-5 (Vertex)",
+      },
     ],
-    website: "https://cloud.google.com/vertex-ai",
-    apiKeyUrl: "https://console.cloud.google.com/iam-admin/serviceaccounts",
-    noticeText:
-      "New Google Cloud accounts get $300 free credits. Requires GCP project + Service Account with Vertex AI API enabled.",
-    serviceKinds: ["llm", "imageToText", "video"],
-    priority: 40,
   },
   {
     id: "volcengine-ark",
@@ -2555,6 +7222,35 @@ export const PROVIDER_REGISTRY: readonly ProviderRegistrySpec[] = [
     website: "https://ark.cn-beijing.volces.com",
     apiKeyUrl: "https://console.volcengine.com/ark/region:ark+cn-beijing/apiKey",
     priority: 270,
+    models: [
+      {
+        id: "Doubao-Seed-2.0-Code",
+      },
+      {
+        id: "Doubao-Seed-2.0-pro",
+      },
+      {
+        id: "Doubao-Seed-2.0-lite",
+      },
+      {
+        id: "Doubao-Seed-Code",
+      },
+      {
+        id: "DeepSeek-V4-Flash",
+      },
+      {
+        id: "DeepSeek-V4-Pro",
+      },
+      {
+        id: "GLM-5.1",
+      },
+      {
+        id: "MiniMax-M2.7",
+      },
+      {
+        id: "Kimi-K2.6",
+      },
+    ],
   },
   {
     id: "voyage-ai",
@@ -2565,15 +7261,7 @@ export const PROVIDER_REGISTRY: readonly ProviderRegistrySpec[] = [
     protocol: "openai-chat",
     authType: "api_key",
     baseUrl: "",
-    defaultModels: [
-      "voyage-3-large",
-      "voyage-3.5",
-      "voyage-3.5-lite",
-      "voyage-code-3",
-      "voyage-finance-2",
-      "voyage-law-2",
-      "voyage-multilingual-2",
-    ],
+    defaultModels: [],
     website: "https://www.voyageai.com",
     apiKeyUrl: "https://dash.voyageai.com/api-keys",
     serviceKinds: ["embedding"],
@@ -2602,10 +7290,375 @@ export const PROVIDER_REGISTRY: readonly ProviderRegistrySpec[] = [
       "claude-opus-4.7-review",
       "claude-sonnet-4.6-thinking-1m",
       "claude-sonnet-4.6-1m",
+      "claude-sonnet-4.6-thinking",
+      "claude-sonnet-4.6",
+      "claude-opus-4.6-thinking",
+      "claude-opus-4.6",
+      "claude-opus-4.5-thinking",
+      "claude-opus-4.5",
+      "claude-sonnet-4.5-thinking",
+      "claude-sonnet-4.5",
+      "claude-haiku-4.5",
+      "gpt-5.5-xhigh-fast",
+      "gpt-5.5-xhigh",
+      "gpt-5.5-high-fast",
+      "gpt-5.5-high",
+      "gpt-5.5-medium-fast",
+      "gpt-5.5-medium",
+      "gpt-5.5-low-fast",
+      "gpt-5.5-low",
+      "gpt-5.5-none-fast",
+      "gpt-5.5-none",
+      "gpt-5.4-xhigh-fast",
+      "gpt-5.4-xhigh",
+      "gpt-5.4-high-fast",
+      "gpt-5.4-high",
+      "gpt-5.4-medium-fast",
+      "gpt-5.4-medium",
+      "gpt-5.4-low-fast",
+      "gpt-5.4-low",
+      "gpt-5.4-none-fast",
+      "gpt-5.4-none",
+      "gpt-5.4-mini-xhigh",
+      "gpt-5.4-mini-high",
+      "gpt-5.4-mini-medium",
+      "gpt-5.4-mini-low",
+      "gpt-5.3-codex-xhigh-fast",
+      "gpt-5.3-codex-xhigh",
+      "gpt-5.3-codex-high-fast",
+      "gpt-5.3-codex-high",
+      "gpt-5.3-codex-medium-fast",
+      "gpt-5.3-codex-medium",
+      "gpt-5.3-codex-low-fast",
+      "gpt-5.3-codex-low",
+      "gpt-5.2-xhigh",
+      "gpt-5.2-high",
+      "gpt-5.2-medium",
+      "gpt-5.2-low",
+      "gpt-5.2-none",
+      "gpt-5",
+      "gpt-4.1",
+      "gpt-4.1-mini",
+      "gpt-4.1-nano",
+      "gpt-4o",
+      "gpt-4o-mini",
+      "gemini-3.1-pro-high",
+      "gemini-3.1-pro-low",
+      "gemini-3.0-flash-high",
+      "gemini-3.0-flash-medium",
+      "gemini-3.0-flash-low",
+      "gemini-3.0-flash-minimal",
+      "gemini-2.5-pro",
+      "deepseek-v4",
+      "kimi-k2.6",
+      "kimi-k2.5",
+      "glm-5.1",
     ],
     website: "https://windsurf.com",
     signupUrl: "https://windsurf.com",
     hasOAuth: true,
+    models: [
+      {
+        id: "swe-1.6-fast",
+        name: "SWE-1.6 Fast",
+      },
+      {
+        id: "swe-1.6",
+        name: "SWE-1.6",
+      },
+      {
+        id: "swe-1.5-fast",
+        name: "SWE-1.5 Fast",
+      },
+      {
+        id: "swe-1.5",
+        name: "SWE-1.5",
+      },
+      {
+        id: "claude-opus-4.7-max",
+        name: "Claude Opus 4.7 Max",
+      },
+      {
+        id: "claude-opus-4.7-xhigh",
+        name: "Claude Opus 4.7 XHigh",
+      },
+      {
+        id: "claude-opus-4.7-high",
+        name: "Claude Opus 4.7 High",
+      },
+      {
+        id: "claude-opus-4.7-medium",
+        name: "Claude Opus 4.7 Medium",
+      },
+      {
+        id: "claude-opus-4.7-low",
+        name: "Claude Opus 4.7 Low",
+      },
+      {
+        id: "claude-opus-4.7-review",
+        name: "Claude Opus 4.7 Review",
+      },
+      {
+        id: "claude-sonnet-4.6-thinking-1m",
+        name: "Claude Sonnet 4.6 Thinking 1M",
+      },
+      {
+        id: "claude-sonnet-4.6-1m",
+        name: "Claude Sonnet 4.6 1M",
+      },
+      {
+        id: "claude-sonnet-4.6-thinking",
+        name: "Claude Sonnet 4.6 Thinking",
+      },
+      {
+        id: "claude-sonnet-4.6",
+        name: "Claude Sonnet 4.6",
+      },
+      {
+        id: "claude-opus-4.6-thinking",
+        name: "Claude Opus 4.6 Thinking",
+      },
+      {
+        id: "claude-opus-4.6",
+        name: "Claude Opus 4.6",
+      },
+      {
+        id: "claude-opus-4.5-thinking",
+        name: "Claude Opus 4.5 Thinking",
+      },
+      {
+        id: "claude-opus-4.5",
+        name: "Claude Opus 4.5",
+      },
+      {
+        id: "claude-sonnet-4.5-thinking",
+        name: "Claude Sonnet 4.5 Thinking",
+      },
+      {
+        id: "claude-sonnet-4.5",
+        name: "Claude Sonnet 4.5",
+      },
+      {
+        id: "claude-haiku-4.5",
+        name: "Claude Haiku 4.5",
+      },
+      {
+        id: "gpt-5.5-xhigh-fast",
+        name: "GPT-5.5 XHigh Fast",
+      },
+      {
+        id: "gpt-5.5-xhigh",
+        name: "GPT-5.5 XHigh",
+      },
+      {
+        id: "gpt-5.5-high-fast",
+        name: "GPT-5.5 High Fast",
+      },
+      {
+        id: "gpt-5.5-high",
+        name: "GPT-5.5 High",
+      },
+      {
+        id: "gpt-5.5-medium-fast",
+        name: "GPT-5.5 Medium Fast",
+      },
+      {
+        id: "gpt-5.5-medium",
+        name: "GPT-5.5 Medium",
+      },
+      {
+        id: "gpt-5.5-low-fast",
+        name: "GPT-5.5 Low Fast",
+      },
+      {
+        id: "gpt-5.5-low",
+        name: "GPT-5.5 Low",
+      },
+      {
+        id: "gpt-5.5-none-fast",
+        name: "GPT-5.5 None Fast",
+      },
+      {
+        id: "gpt-5.5-none",
+        name: "GPT-5.5 None",
+      },
+      {
+        id: "gpt-5.4-xhigh-fast",
+        name: "GPT-5.4 XHigh Fast",
+      },
+      {
+        id: "gpt-5.4-xhigh",
+        name: "GPT-5.4 XHigh",
+      },
+      {
+        id: "gpt-5.4-high-fast",
+        name: "GPT-5.4 High Fast",
+      },
+      {
+        id: "gpt-5.4-high",
+        name: "GPT-5.4 High",
+      },
+      {
+        id: "gpt-5.4-medium-fast",
+        name: "GPT-5.4 Medium Fast",
+      },
+      {
+        id: "gpt-5.4-medium",
+        name: "GPT-5.4 Medium",
+      },
+      {
+        id: "gpt-5.4-low-fast",
+        name: "GPT-5.4 Low Fast",
+      },
+      {
+        id: "gpt-5.4-low",
+        name: "GPT-5.4 Low",
+      },
+      {
+        id: "gpt-5.4-none-fast",
+        name: "GPT-5.4 None Fast",
+      },
+      {
+        id: "gpt-5.4-none",
+        name: "GPT-5.4 None",
+      },
+      {
+        id: "gpt-5.4-mini-xhigh",
+        name: "GPT-5.4 Mini XHigh",
+      },
+      {
+        id: "gpt-5.4-mini-high",
+        name: "GPT-5.4 Mini High",
+      },
+      {
+        id: "gpt-5.4-mini-medium",
+        name: "GPT-5.4 Mini Medium",
+      },
+      {
+        id: "gpt-5.4-mini-low",
+        name: "GPT-5.4 Mini Low",
+      },
+      {
+        id: "gpt-5.3-codex-xhigh-fast",
+        name: "GPT-5.3 Codex XHigh Fast",
+      },
+      {
+        id: "gpt-5.3-codex-xhigh",
+        name: "GPT-5.3 Codex XHigh",
+      },
+      {
+        id: "gpt-5.3-codex-high-fast",
+        name: "GPT-5.3 Codex High Fast",
+      },
+      {
+        id: "gpt-5.3-codex-high",
+        name: "GPT-5.3 Codex High",
+      },
+      {
+        id: "gpt-5.3-codex-medium-fast",
+        name: "GPT-5.3 Codex Medium Fast",
+      },
+      {
+        id: "gpt-5.3-codex-medium",
+        name: "GPT-5.3 Codex Medium",
+      },
+      {
+        id: "gpt-5.3-codex-low-fast",
+        name: "GPT-5.3 Codex Low Fast",
+      },
+      {
+        id: "gpt-5.3-codex-low",
+        name: "GPT-5.3 Codex Low",
+      },
+      {
+        id: "gpt-5.2-xhigh",
+        name: "GPT-5.2 XHigh",
+      },
+      {
+        id: "gpt-5.2-high",
+        name: "GPT-5.2 High",
+      },
+      {
+        id: "gpt-5.2-medium",
+        name: "GPT-5.2 Medium",
+      },
+      {
+        id: "gpt-5.2-low",
+        name: "GPT-5.2 Low",
+      },
+      {
+        id: "gpt-5.2-none",
+        name: "GPT-5.2 None",
+      },
+      {
+        id: "gpt-5",
+        name: "GPT-5",
+      },
+      {
+        id: "gpt-4.1",
+        name: "GPT-4.1",
+      },
+      {
+        id: "gpt-4.1-mini",
+        name: "GPT-4.1 Mini",
+      },
+      {
+        id: "gpt-4.1-nano",
+        name: "GPT-4.1 Nano",
+      },
+      {
+        id: "gpt-4o",
+        name: "GPT-4o",
+      },
+      {
+        id: "gpt-4o-mini",
+        name: "GPT-4o Mini",
+      },
+      {
+        id: "gemini-3.1-pro-high",
+        name: "Gemini 3.1 Pro High",
+      },
+      {
+        id: "gemini-3.1-pro-low",
+        name: "Gemini 3.1 Pro Low",
+      },
+      {
+        id: "gemini-3.0-flash-high",
+        name: "Gemini 3 Flash High",
+      },
+      {
+        id: "gemini-3.0-flash-medium",
+        name: "Gemini 3 Flash Medium",
+      },
+      {
+        id: "gemini-3.0-flash-low",
+        name: "Gemini 3 Flash Low",
+      },
+      {
+        id: "gemini-3.0-flash-minimal",
+        name: "Gemini 3 Flash Minimal",
+      },
+      {
+        id: "gemini-2.5-pro",
+        name: "Gemini 2.5 Pro",
+      },
+      {
+        id: "deepseek-v4",
+        name: "DeepSeek V4",
+      },
+      {
+        id: "kimi-k2.6",
+        name: "Kimi K2.6",
+      },
+      {
+        id: "kimi-k2.5",
+        name: "Kimi K2.5",
+      },
+      {
+        id: "glm-5.1",
+        name: "GLM-5.1",
+      },
+    ],
   },
   {
     id: "xai",
@@ -2624,14 +7677,42 @@ export const PROVIDER_REGISTRY: readonly ProviderRegistrySpec[] = [
       "grok-4-fast-reasoning",
       "grok-code-fast-1",
       "grok-3",
-      "grok-2-image-1212",
-      "grok-imagine-video",
     ],
     website: "https://x.ai",
     apiKeyUrl: "https://console.x.ai",
     hasOAuth: true,
     serviceKinds: ["llm", "imageToText", "webSearch", "image", "video"],
     priority: 280,
+    models: [
+      {
+        id: "grok-4.7",
+        name: "Grok 4.7",
+      },
+      {
+        id: "grok-4.6",
+        name: "Grok 4.6",
+      },
+      {
+        id: "grok-4.5",
+        name: "Grok 4.5",
+      },
+      {
+        id: "grok-4",
+        name: "Grok 4",
+      },
+      {
+        id: "grok-4-fast-reasoning",
+        name: "Grok 4 Fast Reasoning",
+      },
+      {
+        id: "grok-code-fast-1",
+        name: "Grok Code Fast",
+      },
+      {
+        id: "grok-3",
+        name: "Grok 3",
+      },
+    ],
   },
   {
     id: "xiaomi-mimo",
@@ -2651,7 +7732,6 @@ export const PROVIDER_REGISTRY: readonly ProviderRegistrySpec[] = [
       "mimo-v2.5",
       "mimo-v2-omni",
       "mimo-v2-flash",
-      "mimo-v2.5-tts",
     ],
     website: "https://xiaomimimo.com",
     apiKeyUrl: "https://platform.xiaomimimo.com/console/api-keys",
@@ -2659,6 +7739,36 @@ export const PROVIDER_REGISTRY: readonly ProviderRegistrySpec[] = [
     hasOAuth: true,
     serviceKinds: ["llm", "tts"],
     priority: 290,
+    models: [
+      {
+        id: "mimo-v2.6-pro",
+        name: "MiMo V2.6 Pro",
+      },
+      {
+        id: "mimo-v2.6-flash",
+        name: "MiMo V2.6 Flash",
+      },
+      {
+        id: "mimo-v2.6-pro-ultraspeed",
+        name: "MiMo V2.6 Pro UltraSpeed",
+      },
+      {
+        id: "mimo-v2.5-pro",
+        name: "MiMo V2.5 Pro",
+      },
+      {
+        id: "mimo-v2.5",
+        name: "MiMo V2.5",
+      },
+      {
+        id: "mimo-v2-omni",
+        name: "MiMo V2 Omni",
+      },
+      {
+        id: "mimo-v2-flash",
+        name: "MiMo V2 Flash",
+      },
+    ],
   },
   {
     id: "xiaomi-tokenplan",
@@ -2686,6 +7796,44 @@ export const PROVIDER_REGISTRY: readonly ProviderRegistrySpec[] = [
     noticeText:
       "Xiaomi MiMo Token Plan subscription (API key starts with tp-). Token Plan keys are cluster-specific — select the region matching your subscription.",
     priority: 300,
+    models: [
+      {
+        id: "mimo-v2.5-pro",
+        name: "MiMo V2.5 Pro",
+      },
+      {
+        id: "mimo-v2.5-pro-claude",
+        name: "MiMo V2.5 Pro (Claude Native)",
+      },
+      {
+        id: "mimo-v2.5",
+        name: "MiMo V2.5",
+      },
+      {
+        id: "mimo-v2-pro",
+        name: "MiMo V2 Pro",
+      },
+      {
+        id: "mimo-v2-omni",
+        name: "MiMo V2 Omni",
+      },
+      {
+        id: "mimo-v2-tts",
+        name: "MiMo V2 TTS",
+      },
+      {
+        id: "mimo-v2.5-tts",
+        name: "MiMo V2.5 TTS",
+      },
+      {
+        id: "mimo-v2.5-tts-voiceclone",
+        name: "MiMo V2.5 TTS Voice Clone",
+      },
+      {
+        id: "mimo-v2.5-tts-voicedesign",
+        name: "MiMo V2.5 TTS Voice Design",
+      },
+    ],
   },
   {
     id: "xquik",
@@ -2731,6 +7879,24 @@ export const PROVIDER_REGISTRY: readonly ProviderRegistrySpec[] = [
     apiKeyUrl: "https://yuanbao.tencent.com",
     authHint: "Paste your session cookie header from yuanbao.tencent.com",
     priority: 148,
+    models: [
+      {
+        id: "deepseek-v3",
+        name: "DeepSeek V3 (via Yuanbao)",
+      },
+      {
+        id: "deepseek-r1",
+        name: "DeepSeek R1 (via Yuanbao)",
+      },
+      {
+        id: "hunyuan",
+        name: "Hunyuan (via Yuanbao)",
+      },
+      {
+        id: "hunyuan-t1",
+        name: "Hunyuan T1 (via Yuanbao)",
+      },
+    ],
   },
   {
     id: "zai-web",
@@ -2747,6 +7913,57 @@ export const PROVIDER_REGISTRY: readonly ProviderRegistrySpec[] = [
     apiKeyUrl: "https://chat.z.ai",
     authHint: "Paste your token from chat.z.ai (DevTools -> Application -> Local Storage -> token)",
     priority: 147,
+    models: [
+      {
+        id: "glm-5.3-flash",
+        name: "GLM-5.3 Flash (web)",
+      },
+      {
+        id: "glm-5.3",
+        name: "GLM-5.3 (web)",
+      },
+      {
+        id: "glm-5.2",
+        name: "GLM-5.2 (web)",
+      },
+      {
+        id: "glm-4-plus",
+        name: "GLM-4 Plus (web)",
+      },
+    ],
+  },
+  {
+    id: "zcode",
+    name: "ZCode (Z.ai)",
+    alias: "zc",
+    category: "oauth",
+    sourceCategory: "oauth",
+    protocol: "anthropic",
+    authType: "oauth",
+    baseUrl: "https://zcode.z.ai/api/v1/zcode-plan/anthropic",
+    defaultModels: ["GLM-5.3-Flash", "glm-5.3-flash", "GLM-5.3", "glm-5.3"],
+    website: "https://zcode.z.ai",
+    apiKeyUrl: "https://zcode.z.ai",
+    signupUrl: "https://zcode.z.ai",
+    hasOAuth: true,
+    deprecated: true,
+    models: [
+      {
+        id: "GLM-5.3-Flash",
+        name: "GLM-5.3 Flash",
+      },
+      {
+        id: "glm-5.3-flash",
+        name: "GLM-5.3 Flash",
+      },
+      {
+        id: "GLM-5.3",
+      },
+      {
+        id: "glm-5.3",
+        name: "GLM-5.3",
+      },
+    ],
   },
   {
     id: "zed",
@@ -2764,217 +7981,82 @@ export const PROVIDER_REGISTRY: readonly ProviderRegistrySpec[] = [
     priority: 999,
   },
   {
-    id: "river",
-    name: "River",
-    alias: "river",
-    aliases: ["river-ai"],
+    id: "gitlab",
+    name: "GitLab Duo",
+    alias: "gl",
+    category: "oauth",
+    sourceCategory: "oauth",
+    protocol: "openai-chat",
+    authType: "oauth",
+    baseUrl: "https://gitlab.com/api/v4",
+    defaultModels: ["duo-chat", "claude-sonnet-4"],
+    website: "https://gitlab.com",
+    signupUrl: "https://gitlab.com/users/sign_in",
+    hasOAuth: true,
+    priority: 90,
+  },
+  {
+    id: "cartesia",
+    name: "Cartesia",
+    alias: "cartesia",
     category: "apikey",
     sourceCategory: "apikey",
     protocol: "openai-chat",
     authType: "api_key",
-    baseUrl: "https://api.river.ai/v1",
-    defaultModels: [
-      "deepseek-ai/DeepSeek-V4.1-Flash",
-      "zai-org/GLM-5.3-Flash",
-      "deepseek-ai/DeepSeek-V4-Flash-0731",
-      "nvidia/GLM-5.2-NVFP4",
-      "nvidia/GLM-5.2-NVFP4-262K",
-      "nvidia/Kimi-K2.6-NVFP4",
-      "nvidia/Kimi-K2.6-NVFP4-262K",
-      "nvidia/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-NVFP4",
-      "Qwen/Qwen3.5-9B",
-      "Qwen/Qwen3.5-122B-A10B-FP8",
-      "Qwen/Qwen3.5-397B-A17B-FP8",
-      "Qwen/Qwen3.6-35B-A3B-FP8",
-    ],
-    website: "https://river.ai",
-    apiKeyUrl: "https://console.river.ai/keys",
-    priority: 60,
+    baseUrl: "https://api.cartesia.ai",
+    defaultModels: ["sonic-2", "sonic-english"],
+    website: "https://cartesia.ai",
+    apiKeyUrl: "https://play.cartesia.ai/keys",
+    serviceKinds: ["tts"],
+    priority: 200,
   },
   {
-    id: "nous",
-    name: "Nous Research",
-    alias: "nous",
-    aliases: ["nous-portal", "nous-research", "ns"],
-    category: "free",
-    sourceCategory: "freeTier",
-    protocol: "openai-chat",
-    authType: "oauth",
-    baseUrl: "https://inference-api.nousresearch.com/v1",
-    defaultModels: [
-      "meituan/longcat-2.0:free",
-      "meituan/longcat-2.5-preview:free",
-      "stepfun/step-5-preview:free",
-      "upstage/solar-mini4:free",
-      "stepfun/step-3.7-flash:free",
-      "poolside/laguna-s-2.1:free",
-      "poolside/laguna-xs-2.1:free",
-      "stealth/missingno",
-    ],
-    website: "https://nousresearch.com",
-    apiKeyUrl: "https://portal.nousresearch.com/api-keys",
-    signupUrl: "https://portal.nousresearch.com",
-    noticeText:
-      "Connect with OAuth Device Code (free account, no payment required) or a Nous Portal API key.",
-    hasOAuth: true,
-    serviceKinds: ["llm", "imageToText"],
-    priority: 65,
-  },
-  {
-    id: "minimax-code",
-    name: "MiniMax Code",
-    alias: "mm",
-    category: "oauth",
-    sourceCategory: "oauth",
-    protocol: "anthropic",
-    authType: "oauth",
-    baseUrl: "https://agent.minimax.cn/mavis/api/v1/llm",
-    defaultModels: [
-      "MiniMax-M3.1-Flash-Preview",
-      "MiniMax-M3",
-      "MiniMax-M2.7",
-      "MiniMax-M2.7-highspeed",
-    ],
-    website: "https://agent.minimax.cn",
-    hasOAuth: true,
-    priority: 80,
-  },
-  {
-    id: "minimax-code-global",
-    name: "MiniMax Code (Global)",
-    alias: "mmg",
-    category: "oauth",
-    sourceCategory: "oauth",
-    protocol: "anthropic",
-    authType: "oauth",
-    baseUrl: "https://agent.minimax.io/mavis/api/v1/llm",
-    defaultModels: [
-      "MiniMax-M3.1-Flash-Preview",
-      "MiniMax-M3",
-      "MiniMax-M2.7",
-      "MiniMax-M2.7-highspeed",
-    ],
-    website: "https://agent.minimax.io",
-    hasOAuth: true,
-    priority: 80,
-  },
-  {
-    id: "dothoosh",
-    name: "DotHoosh (دات‌هوش)",
-    alias: "dothoosh",
-    aliases: ["dh"],
+    id: "coqui",
+    name: "Coqui TTS",
+    alias: "coqui",
     category: "apikey",
     sourceCategory: "apikey",
     protocol: "openai-chat",
     authType: "api_key",
-    baseUrl: "https://gateway.dothoosh.com/v1",
-    defaultModels: [
-      "claude-haiku-5-5",
-      "claude-sonnet-5-5",
-      "claude-opus-5-5",
-      "claude-fable-5-1",
-      "gpt-6-luna",
-      "gpt-6.1-sol",
-      "gpt-6-astra",
-      "gemini-3.8-flash",
-      "gemini-3.5-flash-lite",
-      "gemini-4-argon",
-      "deepseek-flash",
-      "deepseek-v4-pro",
-    ],
-    website: "https://gateway.dothoosh.com",
-    apiKeyUrl: "https://gateway.dothoosh.com/api-keys",
-    noticeText:
-      "دات‌هوش: درگاه ایرانی مدل‌های هوش مصنوعی، سازگار با OpenAI و Anthropic، با پرداخت تومانی و کیف پول پیش‌پرداخت، بدون اشتراک ماهانه. — DotHoosh: Iranian AI gateway, OpenAI- and Anthropic-compatible, billed in Toman (IRT) from a prepaid wallet. One API key reaches every model; ids are bare (e.g. claude-sonnet-5-5, gpt-6.1-sol, gemini-4-argon, kimi-k3) and are fetched live per key.",
-    priority: 120,
-  },
-  {
-    id: "zcode",
-    name: "ZCode (Z.ai)",
-    alias: "zc",
-    category: "oauth",
-    sourceCategory: "oauth",
-    protocol: "anthropic",
-    authType: "oauth",
-    baseUrl: "https://zcode.z.ai/api/v1/zcode-plan/anthropic",
-    defaultModels: ["GLM-5.3-Flash", "glm-5.3-flash", "GLM-5.3", "glm-5.3"],
-    website: "https://zcode.z.ai",
-    apiKeyUrl: "https://zcode.z.ai",
-    signupUrl: "https://zcode.z.ai",
-    hasOAuth: true,
-    deprecated: true,
-  },
-  {
-    id: "ovh",
-    name: "OVH Cloud (Kepler AI Keyless)",
-    alias: "ovh",
-    aliases: ["kepler", "ovh-kepler", "kepler-ai"],
-    category: "free",
-    sourceCategory: "free",
-    protocol: "openai-chat",
-    authType: "none",
-    baseUrl: "https://oai.endpoints.kepler.ai.cloud.ovh.net/v1",
-    defaultModels: [
-      "Qwen3.6-27B",
-      "Qwen3.8-27B",
-      "Qwen3.5-397B-A17B",
-      "gpt-oss-120b",
-      "gpt-oss-20b",
-      "Mistral-Small-3.2-24B-Instruct-2506",
-      "Meta-Llama-3_3-70B-Instruct",
-      "Qwen2.5-VL-72B-Instruct",
-    ],
-    website: "https://endpoints.kepler.ai.cloud.ovh.net",
-    apiKeyUrl: "https://endpoints.kepler.ai.cloud.ovh.net",
+    baseUrl: "http://localhost:5002",
+    defaultModels: ["xtts-v2"],
+    website: "https://github.com/coqui-ai/TTS",
+    serviceKinds: ["tts"],
     noAuth: true,
-    priority: 156,
+    priority: 210,
   },
   {
-    id: "freepi",
-    name: "FreePI",
-    alias: "fp",
-    aliases: ["freepi", "free-pi"],
-    category: "oauth",
-    sourceCategory: "oauth",
+    id: "playht",
+    name: "PlayHT",
+    alias: "playht",
+    category: "apikey",
+    sourceCategory: "apikey",
     protocol: "openai-chat",
-    authType: "oauth",
-    baseUrl: "https://api.freepi.ai/v1",
-    defaultModels: [
-      "particle",
-      "deepseek-v4.1-flash",
-      "glm-5.3-flash",
-      "deepseek-v4-flash",
-      "deepseek-v4-pro",
-      "deepseek-v4.1-flash-1017-ultrafast",
-      "gemini-4-carbon",
-      "gemini-4-hydrogen",
-      "gemini-4-neon",
-      "gpt-6.2-astra",
-      "gpt-oss-20b",
-      "hy4-flash",
-    ],
-    website: "https://freepi.ai",
-    signupUrl: "https://freepi.ai",
-    hasOAuth: true,
-    priority: 85,
+    authType: "api_key",
+    baseUrl: "https://api.play.ht/api/v2",
+    defaultModels: ["Play3.0-mini", "PlayDialog"],
+    website: "https://play.ht",
+    apiKeyUrl: "https://play.ht/studio/api-access",
+    serviceKinds: ["tts"],
+    priority: 215,
   },
   {
-    id: "aws-quick",
-    name: "Amazon Quick",
-    alias: "aq",
-    category: "oauth",
-    sourceCategory: "oauth",
+    id: "tortoise",
+    name: "Tortoise TTS",
+    alias: "tortoise",
+    category: "apikey",
+    sourceCategory: "apikey",
     protocol: "openai-chat",
-    authType: "oauth",
-    baseUrl: "",
-    defaultModels: ["fast", "balanced", "smart", "advanced"],
-    website: "https://quick.aws.com",
-    signupUrl: "https://quick.aws.com",
-    hasOAuth: true,
-    priority: 10,
+    authType: "api_key",
+    baseUrl: "http://localhost:8000",
+    defaultModels: ["tortoise-v2"],
+    website: "https://github.com/neonbjb/tortoise-tts",
+    serviceKinds: ["tts"],
+    noAuth: true,
+    priority: 220,
   },
 ] as const;
 
 export const PROVIDER_REGISTRY_MAP: ReadonlyMap<string, ProviderRegistrySpec> = new Map(
-  PROVIDER_REGISTRY.map((item) => [item.id, item]),
+  PROVIDER_REGISTRY.map((entry) => [entry.id, entry]),
 );

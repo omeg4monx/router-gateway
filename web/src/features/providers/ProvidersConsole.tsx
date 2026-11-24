@@ -2,7 +2,10 @@
 
 import {
   AlertTriangle,
+  ArrowDownZA,
   ArrowRight,
+  ArrowUpAZ,
+  ArrowUpDown,
   CheckCircle2,
   ChevronDown,
   FilterX,
@@ -12,6 +15,7 @@ import {
   PauseCircle,
   Play,
   Plus,
+  PlusCircle,
   RefreshCw,
   Search,
   Server,
@@ -19,6 +23,7 @@ import {
   Terminal,
   X,
 } from "lucide-react";
+import Link from "next/link";
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/shared/lib/utils";
 import { useUIStore } from "@/shared/store/uiStore";
@@ -35,30 +40,19 @@ import {
   type ProviderCategory,
   type ProviderCategoryTab,
   type ProviderEntry,
+  type ProviderSortOrder,
   type ProviderStatusFilter,
   sortProviderEntries,
 } from "./catalogUtils";
 import {
-  useDeleteProviderConnectionMutation,
-  useDeleteProviderNodeMutation,
   useProviderConnections,
   useProvidersCatalog,
   useTestProviderConnectionMutation,
   useUpdateProviderConnectionMutation,
 } from "./hooks";
 import { ProviderLogo } from "./ProviderLogo";
-import {
-  AddApiKeyModal,
-  AddCustomNodeModal,
-  OAuthWizardModal,
-  ProviderConnectionsDrawer,
-} from "./ProvidersModals";
-import type {
-  ProviderConnectionSummary,
-  ProviderNode,
-  ProviderProtocol,
-  TestProviderConnectionResponse,
-} from "./schemas";
+import { AddApiKeyModal, AddCustomNodeModal, OAuthWizardModal } from "./ProvidersModals";
+import type { ProviderConnectionSummary, ProviderProtocol } from "./schemas";
 
 interface BatchTestSummary {
   label: string;
@@ -158,7 +152,6 @@ function SectionHeader({
 function ProviderCard({
   entry,
   isId,
-  onSelect,
   onQuickTest,
   onToggleProvider,
   isTesting,
@@ -167,7 +160,6 @@ function ProviderCard({
 }: {
   entry: ProviderEntry;
   isId: boolean;
-  onSelect: (entry: ProviderEntry) => void;
   onQuickTest: (entry: ProviderEntry) => void;
   onToggleProvider: (entry: ProviderEntry, nextActive: boolean) => void;
   isTesting: boolean;
@@ -179,6 +171,8 @@ function ProviderCard({
   const hasError = !stats.allDisabled && stats.error > 0;
   const isActiveHealthy = stats.isHealthy;
   const canQuickTest = hasConnections && !stats.allDisabled;
+  const isCustom = entry.category === "custom";
+  const detailHref = `/dashboard/providers/detail/?provider=${encodeURIComponent(entry.id)}`;
   const typeLabel =
     entry.category === "oauth"
       ? "OAUTH"
@@ -188,37 +182,46 @@ function ProviderCard({
           : entry.noAuth
             ? "FREE · NO AUTH"
             : "FREE TIER"
-        : entry.category === "custom"
+        : isCustom
           ? entry.protocol.toUpperCase()
           : `API KEY · ${entry.protocol.toUpperCase()}`;
 
   return (
     <div
       className={cn(
-        "group relative flex min-w-0 flex-col justify-between rounded-xl border bg-[var(--color-surface)] p-3.5 transition-all sm:p-4",
-        hasError
-          ? "border-[var(--status-error)]/40 hover:border-[var(--status-error)]/70"
-          : isActiveHealthy
-            ? "border-[var(--color-border)] hover:border-[var(--color-primary)]/45"
-            : "border-[var(--color-border)]/80 hover:border-[var(--color-primary)]/40",
-        "hover:bg-[var(--color-surface-2)]/35 hover:shadow-[0_4px_16px_-8px_rgba(11,13,18,0.16)]",
+        "provider-card-surface group relative flex h-full min-w-0 flex-col justify-between overflow-hidden rounded-xl border p-3.5 transition-all duration-150 focus-within:ring-2 focus-within:ring-[var(--color-primary)]/40 sm:p-4",
+        stats.allDisabled
+          ? "opacity-65 hover:opacity-85"
+          : hasError
+            ? "border-[var(--status-error)]/45 hover:border-[var(--status-error)]/70"
+            : "hover:border-[var(--color-primary)]/50",
+        "hover:shadow-[0_6px_18px_-8px_rgba(11,13,18,0.22)]",
       )}
     >
-      {/* Top Row: Monogram + Name + Quick Actions */}
-      <div className="flex items-start justify-between gap-2">
-        <button
-          type="button"
-          onClick={() => onSelect(entry)}
-          className="flex min-w-0 flex-1 cursor-pointer items-center gap-3 text-left focus:outline-none"
-        >
+      {/* OmniRoute top 2px hairline accent for active or errored providers */}
+      <span
+        className={cn(
+          "pointer-events-none absolute inset-x-0 top-0 h-[2px] transition-colors",
+          hasError
+            ? "bg-[var(--status-error)]"
+            : isActiveHealthy
+              ? "bg-[var(--color-primary)]"
+              : "bg-transparent group-hover:bg-[var(--color-border)]",
+        )}
+        aria-hidden="true"
+      />
+
+      {/* Top Row: Icon + Name + Protocol + Quick Controls */}
+      <div className="flex min-w-0 items-start justify-between gap-2.5">
+        <div className="flex min-w-0 flex-1 items-center gap-3">
           <div
             className={cn(
-              "flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-xl border p-1.5 transition-colors",
+              "provider-logo-tile flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-xl border p-1.5 transition-transform duration-150 group-hover:scale-[1.03]",
               hasError
-                ? "border-[var(--status-error)]/30 bg-[var(--status-error-bg)] text-[var(--status-error)]"
+                ? "border-[var(--status-error)]/45 text-[var(--status-error)]"
                 : isActiveHealthy
-                  ? "border-[var(--color-primary)]/25 bg-[var(--color-surface-2)]/70 text-[var(--color-primary)]"
-                  : "border-[var(--color-border)] bg-[var(--color-surface-2)]/80 text-[var(--color-text-muted)] group-hover:border-[var(--color-primary)]/35",
+                  ? "border-[var(--color-primary)]/40 text-[var(--color-primary)]"
+                  : "text-[var(--color-text-muted)] group-hover:border-[var(--color-primary)]/40",
             )}
           >
             <ProviderLogo
@@ -226,18 +229,23 @@ function ProviderCard({
               name={entry.name}
               protocol={entry.protocol}
               isCustom={entry.isCustom}
-              size={24}
+              size={26}
             />
           </div>
-          <div className="min-w-0">
-            <p className="truncate text-sm font-semibold text-[var(--color-text-main)] transition-colors group-hover:text-[var(--color-primary)]">
-              {entry.name}
-            </p>
+          <div className="min-w-0 flex-1">
+            <h3 className="truncate text-sm font-semibold text-[var(--color-text-main)] transition-colors group-hover:text-[var(--color-primary)]">
+              <Link
+                href={detailHref}
+                className="after:absolute after:inset-0 after:content-[''] focus:outline-none"
+              >
+                {entry.name}
+              </Link>
+            </h3>
             <span className="mt-0.5 block truncate font-mono text-[10px] uppercase tracking-wider text-[var(--color-text-muted)]">
               {typeLabel}
             </span>
           </div>
-        </button>
+        </div>
 
         {hasConnections ? (
           <div className="relative z-10 flex shrink-0 items-center gap-1.5">
@@ -246,6 +254,7 @@ function ProviderCard({
                 type="button"
                 disabled={disableQuickTest}
                 onClick={(e) => {
+                  e.preventDefault();
                   e.stopPropagation();
                   onQuickTest(entry);
                 }}
@@ -273,6 +282,7 @@ function ProviderCard({
               aria-checked={!stats.allDisabled}
               disabled={isToggling}
               onClick={(e) => {
+                e.preventDefault();
                 e.stopPropagation();
                 onToggleProvider(entry, stats.allDisabled);
               }}
@@ -304,18 +314,16 @@ function ProviderCard({
         ) : null}
       </div>
 
-      {/* Bottom Row: Status Badges + Hover Arrow */}
-      <button
-        type="button"
-        onClick={() => onSelect(entry)}
-        className="mt-3.5 flex w-full cursor-pointer items-center justify-between gap-2 border-t border-[var(--color-border-subtle)] pt-2.5 text-left text-xs focus:outline-none"
-      >
+      {/* Bottom Row: Status Badges + Arrow */}
+      <div className="mt-3.5 flex w-full items-center justify-between gap-2 border-t border-[var(--color-border-subtle)] pt-2.5 text-xs">
         <div className="flex min-w-0 flex-wrap items-center gap-1.5">
           {stats.allDisabled ? (
             <Badge variant="outline">
               <PauseCircle className="mr-1 h-3 w-3" aria-hidden="true" />
               {isId ? "Nonaktif" : "Disabled"}
             </Badge>
+          ) : entry.noAuth && !hasConnections ? (
+            <Badge variant="success">● {isId ? "Siap" : "Ready"}</Badge>
           ) : hasConnections ? (
             <>
               {stats.connected > 0 ? (
@@ -329,14 +337,15 @@ function ProviderCard({
                 </Badge>
               ) : null}
             </>
+          ) : isCustom ? (
+            <span className="inline-flex items-center gap-1 text-[11px] font-medium text-[var(--color-primary)]/90 transition-colors group-hover:text-[var(--color-primary)]">
+              <KeyRound className="h-3 w-3" aria-hidden="true" />
+              <span>{isId ? "Tambah API Key" : "Add API Key"}</span>
+            </span>
           ) : (
-            <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-[var(--color-text-muted)] transition-colors group-hover:text-[var(--color-primary)]">
-              <span>{isId ? "Lihat Detail" : "View Details"}</span>
-              {entry.defaultModels.length > 0 ? (
-                <span className="rounded bg-[var(--color-surface-2)] px-1.5 py-0.5 font-mono text-[10px] text-[var(--color-text-subtle)]">
-                  {entry.defaultModels.length} {isId ? "model" : "models"}
-                </span>
-              ) : null}
+            <span className="inline-flex items-center gap-1 text-[11px] font-medium text-[var(--color-text-muted)] transition-colors group-hover:text-[var(--color-primary)]">
+              <PlusCircle className="h-3 w-3" aria-hidden="true" />
+              <span>{isId ? "Setup" : "Setup"}</span>
             </span>
           )}
         </div>
@@ -345,7 +354,7 @@ function ProviderCard({
           className="h-3.5 w-3.5 shrink-0 text-[var(--color-text-muted)] opacity-45 transition-all group-hover:translate-x-0.5 group-hover:text-[var(--color-primary)] group-hover:opacity-100"
           aria-hidden="true"
         />
-      </button>
+      </div>
     </div>
   );
 }
@@ -358,13 +367,12 @@ export function ProvidersConsole() {
   const connectionsQuery = useProviderConnections();
 
   const updateConnMutation = useUpdateProviderConnectionMutation();
-  const deleteConnMutation = useDeleteProviderConnectionMutation();
   const testConnMutation = useTestProviderConnectionMutation();
-  const deleteNodeMutation = useDeleteProviderNodeMutation();
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<ProviderStatusFilter>("all");
   const [categoryTab, setCategoryTab] = useState<ProviderCategoryTab>("all");
+  const [sortOrder, setSortOrder] = useState<ProviderSortOrder>("default");
   const [showAllApiKey, setShowAllApiKey] = useState(false);
 
   const [addMenuOpen, setAddMenuOpen] = useState(false);
@@ -389,16 +397,11 @@ export function ProvidersConsole() {
     open: boolean;
     protocol: ProviderProtocol;
   }>({ open: false, protocol: "openai-chat" });
-  const [selectedProviderId, setSelectedProviderId] = useState<string | null>(null);
 
   const [feedbackBanner, setFeedbackBanner] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
-  const [busyConnectionId, setBusyConnectionId] = useState<string | null>(null);
   const [togglingProviderId, setTogglingProviderId] = useState<string | null>(null);
   const [testingScope, setTestingScope] = useState<string | null>(null);
-  const [liveTestResults, setLiveTestResults] = useState<
-    Record<string, TestProviderConnectionResponse>
-  >({});
   const [batchSummary, setBatchSummary] = useState<BatchTestSummary | null>(null);
 
   // Close Add dropdown on outside click or Escape
@@ -468,22 +471,25 @@ export function ProvidersConsole() {
       if (!matchesProviderSearch(entry, search)) return false;
       return true;
     });
-    return sortProviderEntries(matched);
-  }, [allEntries, categoryTab, statusFilter, search]);
-
-  const selectedEntry = useMemo(
-    () => allEntries.find((e) => e.id === selectedProviderId) ?? null,
-    [allEntries, selectedProviderId],
-  );
+    return sortProviderEntries(matched, sortOrder);
+  }, [allEntries, categoryTab, statusFilter, search, sortOrder]);
 
   const hasActiveFilters =
-    search.trim().length > 0 || statusFilter !== "all" || categoryTab !== "all";
+    search.trim().length > 0 ||
+    statusFilter !== "all" ||
+    categoryTab !== "all" ||
+    sortOrder !== "default";
   const isRefreshing = catalogQuery.isFetching || connectionsQuery.isFetching;
 
   const resetFilters = () => {
     setSearch("");
     setStatusFilter("all");
     setCategoryTab("all");
+    setSortOrder("default");
+  };
+
+  const cycleSortOrder = () => {
+    setSortOrder((prev) => (prev === "default" ? "asc" : prev === "asc" ? "desc" : "default"));
   };
 
   const handleRefresh = () => {
@@ -507,7 +513,6 @@ export function ProvidersConsole() {
     for (const conn of enabledTargets) {
       try {
         const res = await testConnMutation.mutateAsync(conn.id);
-        setLiveTestResults((prev) => ({ ...prev, [conn.id]: res }));
         results.push({
           connectionId: conn.id,
           connectionName: conn.name,
@@ -567,78 +572,6 @@ export function ProvidersConsole() {
       setActionError(err instanceof Error ? err.message : "Failed to update provider state.");
     } finally {
       setTogglingProviderId(null);
-    }
-  };
-
-  const handleTestSingleConnection = (conn: ProviderConnectionSummary) => {
-    if (busyConnectionId !== null) return;
-    setActionError(null);
-    setBusyConnectionId(conn.id);
-    testConnMutation.mutate(conn.id, {
-      onSuccess: (res) => {
-        setLiveTestResults((prev) => ({ ...prev, [conn.id]: res }));
-      },
-      onError: (err) => setActionError(err.message),
-      onSettled: () => setBusyConnectionId(null),
-    });
-  };
-
-  const handleToggleSingleConnection = (conn: ProviderConnectionSummary) => {
-    if (busyConnectionId !== null) return;
-    setActionError(null);
-    setBusyConnectionId(conn.id);
-    updateConnMutation.mutate(
-      { id: conn.id, body: { enabled: !conn.enabled } },
-      {
-        onError: (err) => setActionError(err.message),
-        onSettled: () => setBusyConnectionId(null),
-      },
-    );
-  };
-
-  const handleDeleteSingleConnection = (conn: ProviderConnectionSummary) => {
-    if (busyConnectionId !== null) return;
-    setActionError(null);
-    setBusyConnectionId(conn.id);
-    deleteConnMutation.mutate(conn.id, {
-      onSuccess: () => {
-        setFeedbackBanner(
-          isId ? `Koneksi "${conn.name}" dihapus.` : `Deleted connection "${conn.name}".`,
-        );
-      },
-      onError: (err) => setActionError(err.message),
-      onSettled: () => setBusyConnectionId(null),
-    });
-  };
-
-  const handleDeleteCustomNode = (node: ProviderNode) => {
-    setActionError(null);
-    deleteNodeMutation.mutate(node.id, {
-      onSuccess: () => {
-        setFeedbackBanner(
-          isId
-            ? `Custom endpoint "${node.name}" dihapus.`
-            : `Removed custom endpoint "${node.name}".`,
-        );
-      },
-      onError: (err) => setActionError(err.message),
-    });
-  };
-
-  const handleCardSelect = (entry: ProviderEntry) => {
-    setSelectedProviderId(entry.id);
-  };
-
-  const handleAddConnectionForEntry = (entry: ProviderEntry, mode?: "oauth" | "apikey") => {
-    setSelectedProviderId(null);
-    if (mode === "apikey") {
-      setApiKeyModal({ open: true, providerId: entry.id });
-      return;
-    }
-    if (mode === "oauth" || entry.isNativeOAuth) {
-      setOauthModal({ open: true, providerId: entry.id });
-    } else {
-      setApiKeyModal({ open: true, providerId: entry.id });
     }
   };
 
@@ -1219,16 +1152,56 @@ export function ProvidersConsole() {
             })}
           </div>
 
-          {hasActiveFilters ? (
+          <div className="flex shrink-0 items-center gap-1.5">
             <button
               type="button"
-              onClick={resetFilters}
-              className="inline-flex min-h-9 shrink-0 cursor-pointer items-center gap-1 rounded-lg px-2.5 text-xs font-medium text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface-2)] hover:text-[var(--color-text-main)] sm:h-8 sm:min-h-0"
+              onClick={cycleSortOrder}
+              aria-label={
+                isId
+                  ? `Urutkan provider: ${sortOrder === "asc" ? "A-Z (Asc)" : sortOrder === "desc" ? "Z-A (Desc)" : "Default"}`
+                  : `Sort providers: ${sortOrder === "asc" ? "A-Z (Asc)" : sortOrder === "desc" ? "Z-A (Desc)" : "Default"}`
+              }
+              title={
+                isId
+                  ? "Klik untuk ganti urutan: Default → A–Z (Asc) → Z–A (Desc)"
+                  : "Click to cycle sort: Default → A–Z (Asc) → Z–A (Desc)"
+              }
+              className={cn(
+                "inline-flex min-h-9 shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-lg border px-2.5 text-xs font-medium transition-colors sm:h-8 sm:min-h-0",
+                sortOrder !== "default"
+                  ? "border-[var(--color-primary)]/35 bg-[var(--color-primary)]/12 font-semibold text-[var(--color-primary)]"
+                  : "border-[var(--color-border)] bg-[var(--color-surface-2)]/70 text-[var(--color-text-muted)] hover:bg-[var(--color-surface-3)] hover:text-[var(--color-text-main)]",
+              )}
             >
-              <FilterX className="h-3.5 w-3.5" aria-hidden="true" />
-              <span>Reset</span>
+              {sortOrder === "asc" ? (
+                <ArrowUpAZ className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+              ) : sortOrder === "desc" ? (
+                <ArrowDownZA className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+              ) : (
+                <ArrowUpDown className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+              )}
+              <span>
+                {sortOrder === "asc"
+                  ? "A–Z (Asc)"
+                  : sortOrder === "desc"
+                    ? "Z–A (Desc)"
+                    : isId
+                      ? "Urutkan"
+                      : "Sort"}
+              </span>
             </button>
-          ) : null}
+
+            {hasActiveFilters ? (
+              <button
+                type="button"
+                onClick={resetFilters}
+                className="inline-flex min-h-9 shrink-0 cursor-pointer items-center gap-1 rounded-lg px-2.5 text-xs font-medium text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface-2)] hover:text-[var(--color-text-main)] sm:h-8 sm:min-h-0"
+              >
+                <FilterX className="h-3.5 w-3.5" aria-hidden="true" />
+                <span>Reset</span>
+              </button>
+            ) : null}
+          </div>
         </div>
       </div>
 
@@ -1313,7 +1286,6 @@ export function ProvidersConsole() {
                       key={entry.id}
                       entry={entry}
                       isId={isId}
-                      onSelect={handleCardSelect}
                       onQuickTest={(e) => runBatchTests(`provider:${e.id}`, e.name, e.connections)}
                       onToggleProvider={handleToggleProvider}
                       isTesting={testingScope === `provider:${entry.id}`}
@@ -1346,7 +1318,7 @@ export function ProvidersConsole() {
         </div>
       )}
 
-      {/* Modals & Slide-Over Drawer */}
+      {/* Modals */}
       <AddApiKeyModal
         open={apiKeyModal.open}
         onClose={() => setApiKeyModal({ open: false, providerId: null })}
@@ -1382,22 +1354,6 @@ export function ProvidersConsole() {
                 : `Registered custom endpoint "${node.name}".`,
           )
         }
-      />
-
-      <ProviderConnectionsDrawer
-        entry={selectedEntry}
-        onClose={() => setSelectedProviderId(null)}
-        isId={isId}
-        busyConnectionId={busyConnectionId}
-        isTestingAll={Boolean(selectedEntry && testingScope === `provider:${selectedEntry.id}`)}
-        liveTestResults={liveTestResults}
-        onTestAll={(entry) => runBatchTests(`provider:${entry.id}`, entry.name, entry.connections)}
-        onTestConnection={handleTestSingleConnection}
-        onToggleConnection={handleToggleSingleConnection}
-        onDeleteConnection={handleDeleteSingleConnection}
-        onAddConnection={handleAddConnectionForEntry}
-        onDeleteCustomNode={handleDeleteCustomNode}
-        isDeletingNode={deleteNodeMutation.isPending}
       />
     </div>
   );

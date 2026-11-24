@@ -306,3 +306,183 @@ func TestAwsQuickTwoStepPasteBackFlow(t *testing.T) {
 		t.Fatalf("conn.Name = %q, want Remote Quick", conn.Name)
 	}
 }
+
+func TestAwsQuickEntitlementsProbeTestAndAutoRefresh(t *testing.T) {
+	t.Parallel()
+
+	var qbsCalls int32
+	var refreshCalls int32
+	var seenAccountID string
+	var seenTraceHeader string
+
+	var srvURL string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/client/register":
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"clientId":     "quick-probe-cid",
+				"clientSecret": "quick-probe-csec",
+			})
+		case "/token":
+			var body map[string]any
+			_ = json.NewDecoder(r.Body).Decode(&body)
+			if body["grantType"] == "refresh_token" {
+				atomic.AddInt32(&refreshCalls, 1)
+				_ = json.NewEncoder(w).Encode(map[string]any{
+					"idToken":      "quick-id-token-refreshed",
+					"accessToken":  "quick-access-refreshed",
+					"refreshToken": "quick-refresh-rotated",
+					"expiresIn":    3600,
+				})
+				return
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"idToken":      "quick-id-token-expired",
+				"accessToken":  "quick-access-initial",
+				"refreshToken": "quick-refresh-initial",
+				"expiresIn":    3600,
+			})
+		case "/integration/quick-work/user-info":
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"email":        "probe@quick.aws",
+				"displayName":  "Probe User",
+				"awsAccountId": "123456789012",
+				"userArn":      "arn:aws:quicksight:us-east-1:123456789012:user/default/probe@quick.aws",
+			})
+		case "/integration/quick-work/qbs-event":
+			call := atomic.AddInt32(&qbsCalls, 1)
+			seenTraceHeader = r.Header.Get("x-amzn-qs-internal-trace-id")
+			var payload struct {
+				EventType string `json:"eventType"`
+				EventBody struct {
+					GetAvailableEntitlementUnits struct {
+						AWSAccountID string `json:"awsAccountId"`
+					} `json:"getAvailableEntitlementUnits"`
+				} `json:"eventBody"`
+			}
+			_ = json.NewDecoder(r.Body).Decode(&payload)
+			seenAccountID = payload.EventBody.GetAvailableEntitlementUnits.AWSAccountID
+			if payload.EventType != "getAvailableEntitlementUnits" {
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
+			if call == 1 {
+				// First call with expired token -> 401 triggers refresh + retry.
+				if r.Header.Get("Authorization") != "Bearer quick-id-token-expired" {
+					w.WriteHeader(http.StatusBadRequest)
+					return
+				}
+				w.WriteHeader(http.StatusUnauthorized)
+				return
+			}
+			if call == 2 {
+				// Second call after refresh -> 200 OK.
+				if r.Header.Get("Authorization") != "Bearer quick-id-token-refreshed" {
+					w.WriteHeader(http.StatusUnauthorized)
+					return
+				}
+				_ = json.NewEncoder(w).Encode(map[string]any{
+					"eventResponse": map[string]any{
+						"getAvailableEntitlementUnitsResponse": map[string]any{
+							"entitlements": []map[string]any{
+								{"unitType": "AUTOMATION_AGENT_HOUR_UNIT", "numMinsProvisioned": 600, "numMinsAvailable": 480},
+							},
+						},
+					},
+				})
+				return
+			}
+			// Third call: 429 throttling -> soft success (healthy account must not be marked broken).
+			w.WriteHeader(http.StatusTooManyRequests)
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer srv.Close()
+	srvURL = srv.URL
+
+	h := newTestHarness(t, nil, map[string]providers.OAuthConfig{
+		"aws-quick": {
+			TokenURL: srvURL + "/token",
+			ExtraTokenParams: map[string]string{
+				"user_info_url": srvURL + "/integration/quick-work/user-info",
+			},
+		},
+	})
+	defer func() { _ = h.mod.Stop(context.Background()) }()
+
+	// Complete paste-back OAuth flow to create connection with tenant_url = srvURL.
+	startRec := h.doRequest(t, http.MethodPost, "/api/providers/oauth/aws-quick/start", `{}`, false)
+	if startRec.Code != http.StatusOK {
+		t.Fatalf("start status = %d: %s", startRec.Code, startRec.Body.String())
+	}
+	var startResp struct {
+		State        string `json:"state"`
+		AuthorizeURL string `json:"authorize_url"`
+		RedirectURI  string `json:"redirect_uri"`
+	}
+	_ = json.Unmarshal(startRec.Body.Bytes(), &startResp)
+	parsedAuth, _ := url.Parse(startResp.AuthorizeURL)
+	nonce := strings.Split(parsedAuth.Query().Get("qwSurface"), ":")[1]
+
+	p1, _ := json.Marshal(map[string]string{
+		"url": startResp.RedirectURI + "/callback?" + url.Values{
+			"nonce":     {nonce},
+			"issuerUrl": {"https://identitycenter.amazonaws.com/ssoins-probe"},
+			"tenantUrl": {srvURL},
+			"idcRegion": {"us-east-1"},
+		}.Encode(),
+	})
+	if rec := h.doRequest(t, http.MethodPost, "/api/providers/oauth/aws-quick/paste", string(p1), false); rec.Code != http.StatusOK {
+		t.Fatalf("paste1 status = %d: %s", rec.Code, rec.Body.String())
+	}
+	p2, _ := json.Marshal(map[string]string{
+		"url": startResp.RedirectURI + "/?" + url.Values{"code": {"c1"}, "state": {startResp.State}}.Encode(),
+	})
+	if rec := h.doRequest(t, http.MethodPost, "/api/providers/oauth/aws-quick/paste", string(p2), false); rec.Code != http.StatusOK {
+		t.Fatalf("paste2 status = %d: %s", rec.Code, rec.Body.String())
+	}
+	exRec := h.doRequest(t, http.MethodPost, "/api/providers/oauth/aws-quick/exchange", `{"state":"`+startResp.State+`"}`, false)
+	if exRec.Code != http.StatusCreated {
+		t.Fatalf("exchange status = %d: %s", exRec.Code, exRec.Body.String())
+	}
+	var conn providers.ConnectionSummary
+	_ = json.Unmarshal(exRec.Body.Bytes(), &conn)
+
+	// 1. Test connection -> 401 -> auto refresh -> retry -> 200 OK.
+	testRec := h.doRequest(t, http.MethodPost, "/api/providers/connections/"+conn.ID+"/test", "", false)
+	if testRec.Code != http.StatusOK {
+		t.Fatalf("test status = %d: %s", testRec.Code, testRec.Body.String())
+	}
+	var testResp struct {
+		OK         bool   `json:"ok"`
+		StatusCode int    `json:"status_code"`
+		Error      string `json:"error"`
+	}
+	_ = json.Unmarshal(testRec.Body.Bytes(), &testResp)
+	if !testResp.OK || testResp.StatusCode != http.StatusOK {
+		t.Fatalf("expected ok=true status=200 after auto-refresh, got %+v", testResp)
+	}
+	if atomic.LoadInt32(&refreshCalls) != 1 {
+		t.Fatalf("expected 1 refresh call, got %d", atomic.LoadInt32(&refreshCalls))
+	}
+	if seenAccountID != "123456789012" {
+		t.Fatalf("expected awsAccountId 123456789012 in qbs-event probe, got %q", seenAccountID)
+	}
+	if seenTraceHeader == "" {
+		t.Fatalf("expected x-amzn-qs-internal-trace-id header to be set")
+	}
+
+	// 2. Test connection when Quick throttles (429) -> soft success (ok=true).
+	testRec2 := h.doRequest(t, http.MethodPost, "/api/providers/connections/"+conn.ID+"/test", "", false)
+	var testResp2 struct {
+		OK         bool   `json:"ok"`
+		StatusCode int    `json:"status_code"`
+		Error      string `json:"error"`
+	}
+	_ = json.Unmarshal(testRec2.Body.Bytes(), &testResp2)
+	if !testResp2.OK || testResp2.StatusCode != http.StatusTooManyRequests {
+		t.Fatalf("expected soft-success ok=true on 429 throttle, got %+v", testResp2)
+	}
+}

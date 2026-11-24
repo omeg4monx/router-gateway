@@ -36,7 +36,7 @@ const PREFIX_ICON_ALIASES: Array<[string, string]> = [
 ];
 
 const DARK_INVERT_PATTERN =
-  /\/(openai|oai-r|oai-cc|github|copilot|cursor|custom-openai|custom-anthropic|custom-moonshot)\.(png|svg)$/i;
+  /\/(openai|oai-r|oai-cc|github|copilot|cursor|xai|grok-cli|ollama|vercel|zed|openrouter|kimi|nous|freepi|custom-openai|custom-anthropic|custom-moonshot)\.(png|svg)$/i;
 
 const failedIconSrcs = new Set<string>();
 
@@ -114,7 +114,7 @@ export function ProviderLogo({
       height={size}
       loading="eager"
       className={cn(
-        "object-contain select-none",
+        "provider-logo-img object-contain select-none",
         shouldInvertDark && "provider-logo-invert",
         className,
       )}

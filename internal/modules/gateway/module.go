@@ -205,7 +205,6 @@ func (m *Module) RegisterRoutes(mounts lifecycle.RouteMounts) {
 	mounts.Gateway.Post("/v1/responses", m.handleOpenAIResponses)
 	mounts.Gateway.Post("/v1/responses/compact", m.handleOpenAIResponsesCompact)
 	mounts.Gateway.Get("/v1/models", m.handleListModels)
-	mounts.Gateway.Get("/v1/models/{id}", m.handleGetModel)
 	mounts.Gateway.Get("/v1/models/*", m.handleGetModel)
 
 	mounts.Gateway.Get("/v1beta/models", m.handleGeminiListModels)
@@ -215,7 +214,6 @@ func (m *Module) RegisterRoutes(mounts lifecycle.RouteMounts) {
 	mounts.Gateway.Post("/codex/responses", m.handleOpenAIResponses)
 	mounts.Gateway.Post("/responses", m.handleOpenAIResponses)
 	mounts.Gateway.Get("/models", m.handleListModels)
-	mounts.Gateway.Get("/models/{id}", m.handleGetModel)
 	mounts.Gateway.Get("/models/*", m.handleGetModel)
 }
 

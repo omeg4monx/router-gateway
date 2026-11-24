@@ -83,7 +83,7 @@ func TestModelEditorOverridesAcrossAllFourProtocols(t *testing.T) {
 
 	temp := 0.25
 	maxTokens := 2048
-	rec := doJSON(t, env.router, http.MethodPost, "/api/modeleditor/overrides", map[string]any{
+	rec := doJSON(t, env.router, http.MethodPost, "/api/model-editor/overrides", map[string]any{
 		"name":                 "Strict Coding Profile",
 		"model_pattern":        "coding-*",
 		"target_model":         "claude-sonnet-4",
@@ -202,7 +202,7 @@ func TestModelBypassRulesPriorityAndMetadataFlags(t *testing.T) {
 	env := setupModelEditorTest(t)
 
 	// Add an override for gpt-*.
-	rec := doJSON(t, env.router, http.MethodPost, "/api/modeleditor/overrides", map[string]any{
+	rec := doJSON(t, env.router, http.MethodPost, "/api/model-editor/overrides", map[string]any{
 		"name":          "GPT Temp Override",
 		"model_pattern": "gpt-*",
 		"temperature":   0.1,
@@ -212,7 +212,7 @@ func TestModelBypassRulesPriorityAndMetadataFlags(t *testing.T) {
 	}
 
 	// Add bypass rules for header X-Raw-Mode: true -> bypass_overrides & bypass_tokensaver.
-	rec = doJSON(t, env.router, http.MethodPost, "/api/modeleditor/bypass", map[string]any{
+	rec = doJSON(t, env.router, http.MethodPost, "/api/model-editor/bypass", map[string]any{
 		"name":          "Raw Mode Bypass Overrides",
 		"model_pattern": "gpt-*",
 		"header_name":   "X-Raw-Mode",
@@ -223,7 +223,7 @@ func TestModelBypassRulesPriorityAndMetadataFlags(t *testing.T) {
 	if rec.Code != http.StatusCreated {
 		t.Fatalf("create bypass 1: status %d body %s", rec.Code, rec.Body.String())
 	}
-	rec = doJSON(t, env.router, http.MethodPost, "/api/modeleditor/bypass", map[string]any{
+	rec = doJSON(t, env.router, http.MethodPost, "/api/model-editor/bypass", map[string]any{
 		"name":          "Raw Mode Bypass TokenSaver",
 		"model_pattern": "gpt-*",
 		"header_name":   "X-Raw-Mode",
@@ -268,7 +268,7 @@ func TestModelEditorCRUDValidationAndDryRunPreview(t *testing.T) {
 	env := setupModelEditorTest(t)
 
 	// Invalid bypass action returns 400.
-	rec := doJSON(t, env.router, http.MethodPost, "/api/modeleditor/bypass", map[string]any{
+	rec := doJSON(t, env.router, http.MethodPost, "/api/model-editor/bypass", map[string]any{
 		"name":          "Invalid",
 		"model_pattern": "*",
 		"action":        "unknown_action",
@@ -278,7 +278,7 @@ func TestModelEditorCRUDValidationAndDryRunPreview(t *testing.T) {
 	}
 
 	// Valid rewrite_model bypass rule.
-	rec = doJSON(t, env.router, http.MethodPost, "/api/modeleditor/bypass", map[string]any{
+	rec = doJSON(t, env.router, http.MethodPost, "/api/model-editor/bypass", map[string]any{
 		"name":          "Redirect Legacy",
 		"model_pattern": "legacy-*",
 		"action":        "rewrite_model",
@@ -290,7 +290,7 @@ func TestModelEditorCRUDValidationAndDryRunPreview(t *testing.T) {
 	}
 
 	// Preview endpoint applies rewrite_model cleanly.
-	prevRec := doJSON(t, env.router, http.MethodPost, "/api/modeleditor/preview", map[string]any{
+	prevRec := doJSON(t, env.router, http.MethodPost, "/api/model-editor/preview", map[string]any{
 		"protocol": "openai-chat",
 		"model":    "legacy-v1",
 		"body":     map[string]any{"model": "legacy-v1", "messages": []any{map[string]any{"role": "user", "content": "hi"}}},
@@ -311,7 +311,7 @@ func TestModelEditorFinalReviewFindings(t *testing.T) {
 	env := setupModelEditorTest(t)
 
 	// Finding #4: Invalid glob pattern must be rejected; valid slash-agnostic glob matches provider/model.
-	badRec := doJSON(t, env.router, http.MethodPost, "/api/modeleditor/overrides", map[string]any{
+	badRec := doJSON(t, env.router, http.MethodPost, "/api/model-editor/overrides", map[string]any{
 		"name":          "Bad Glob",
 		"model_pattern": "gpt-[4",
 	})
@@ -320,7 +320,7 @@ func TestModelEditorFinalReviewFindings(t *testing.T) {
 	}
 
 	temp := 0.3
-	okRec := doJSON(t, env.router, http.MethodPost, "/api/modeleditor/overrides", map[string]any{
+	okRec := doJSON(t, env.router, http.MethodPost, "/api/model-editor/overrides", map[string]any{
 		"name":                 "Claude Family",
 		"model_pattern":        "*claude*",
 		"system_prompt_prefix": "[P]",

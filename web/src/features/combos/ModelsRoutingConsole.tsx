@@ -1134,7 +1134,9 @@ export function ModelsRoutingConsole() {
                 Map logical client names to target models or fallback combos.
               </CardDescription>
             </div>
-            <span className="font-mono text-xs text-[var(--text-muted)]">PUT /api/aliases</span>
+            <span className="font-mono text-xs text-[var(--text-muted)]">
+              PUT /api/models/aliases
+            </span>
           </CardHeader>
           <CardContent className="space-y-5">
             <form

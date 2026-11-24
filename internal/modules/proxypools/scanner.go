@@ -37,7 +37,7 @@ type ScanCandidateResult struct {
 	AddedPoolID    string `json:"added_pool_id,omitempty"`
 }
 
-// ScanResponse holds the batch probe outcomes returned by POST /api/proxypools/scan.
+// ScanResponse holds the batch probe outcomes returned by POST /api/proxy-pools/scan.
 type ScanResponse struct {
 	Results []ScanCandidateResult `json:"results"`
 }

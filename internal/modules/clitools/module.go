@@ -74,10 +74,10 @@ func (m *Module) Migrations() fs.FS {
 // RegisterRoutes mounts CLI tool endpoints onto AdminAPI.
 func (m *Module) RegisterRoutes(mounts lifecycle.RouteMounts) {
 	if mounts.AdminAPI != nil {
-		mounts.AdminAPI.Get("/clitools", m.handleListTools)
-		mounts.AdminAPI.Post("/clitools/{tool}/generate", m.handleGenerate)
-		mounts.AdminAPI.Post("/clitools/{tool}/apply", m.handleApply)
-		mounts.AdminAPI.Post("/clitools/{tool}/rollback", m.handleRollback)
+		mounts.AdminAPI.Get("/cli-tools", m.handleListTools)
+		mounts.AdminAPI.Post("/cli-tools/{tool}/generate", m.handleGenerate)
+		mounts.AdminAPI.Post("/cli-tools/{tool}/apply", m.handleApply)
+		mounts.AdminAPI.Post("/cli-tools/{tool}/rollback", m.handleRollback)
 	}
 }
 

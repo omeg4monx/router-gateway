@@ -124,14 +124,14 @@ func (m *Module) RegisterRoutes(mounts lifecycle.RouteMounts) {
 	if mounts.AdminAPI == nil {
 		return
 	}
-	mounts.AdminAPI.Get("/cloudsync/config", m.handleGetConfig)
-	mounts.AdminAPI.Patch("/cloudsync/config", m.handlePatchConfig)
-	mounts.AdminAPI.Post("/cloudsync/push", m.handlePush)
-	mounts.AdminAPI.Post("/cloudsync/pull", m.handlePull)
-	mounts.AdminAPI.Get("/cloudsync/snapshot", m.handleExportSnapshot)
-	mounts.AdminAPI.Post("/cloudsync/restore", m.handleRestoreSnapshot)
-	mounts.AdminAPI.Get("/cloudsync/history", m.handleListHistory)
-	mounts.AdminAPI.Delete("/cloudsync/history", m.handleClearHistory)
+	mounts.AdminAPI.Get("/cloud-sync/config", m.handleGetConfig)
+	mounts.AdminAPI.Patch("/cloud-sync/config", m.handlePatchConfig)
+	mounts.AdminAPI.Post("/cloud-sync/push", m.handlePush)
+	mounts.AdminAPI.Post("/cloud-sync/pull", m.handlePull)
+	mounts.AdminAPI.Get("/cloud-sync/snapshot", m.handleExportSnapshot)
+	mounts.AdminAPI.Post("/cloud-sync/restore", m.handleRestoreSnapshot)
+	mounts.AdminAPI.Get("/cloud-sync/history", m.handleListHistory)
+	mounts.AdminAPI.Delete("/cloud-sync/history", m.handleClearHistory)
 }
 
 // Start validates required dependencies.

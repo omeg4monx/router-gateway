@@ -101,7 +101,7 @@ paths:
             application/json:
               schema:
                 $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
-  /api/providers/nodes/test:
+  /api/providers/node-drafts/test:
     post:
       operationId: testProviderNodeDraft
       summary: Statelessly probe a draft custom endpoint or provider credential before saving
@@ -600,7 +600,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/OAuthStopResponse'
-  /api/oauth/callback:
+  /api/providers/oauth/callback:
     get:
       operationId: oauthCallbackHandoff
       summary: Public browser OAuth redirect receiver rendering escaped handoff instructions or JSON parameters
@@ -676,6 +676,12 @@ components:
           format: uri
         client_id_configured:
           type: boolean
+        flow_type:
+          type: string
+        fixed_port:
+          type: integer
+        callback_path:
+          type: string
     CatalogAdapterDescriptor:
       type: object
       additionalProperties: false
@@ -1036,6 +1042,10 @@ components:
           type: string
           format: date-time
         flow_type:
+          type: string
+        fixed_port:
+          type: integer
+        callback_path:
           type: string
         user_code:
           type: string

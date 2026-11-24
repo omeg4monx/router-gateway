@@ -44,6 +44,7 @@ type refreshCall struct {
 type oauthTokenResponse struct {
 	AccessToken      string `json:"access_token"`
 	RefreshToken     string `json:"refresh_token"`
+	IDToken          string `json:"id_token"`
 	TokenType        string `json:"token_type"`
 	ExpiresIn        int64  `json:"expires_in"`
 	Scope            string `json:"scope"`
@@ -430,60 +431,24 @@ func (m *Module) doRefreshOAuthToken(ctx context.Context, connectionID string) (
 		return contracts.UpstreamCredentials{}, contracts.ErrOAuthRefreshUnsupported
 	}
 
+	strat := m.getOAuthStrategy(rec.Summary.ProviderID)
 	var tok oauthTokenResponse
-	if rec.Summary.ProviderID == providerIDAWSQuick || rec.Summary.ProviderID == providerIDKiro {
-		awsTok, awsErr := m.postAwsQuickTokenJSON(ctx, tokenURL, map[string]any{
-			"clientId":     clientID,
-			"clientSecret": clientSecret,
-			"grantType":    "refresh_token",
-			"refreshToken": stored.RefreshToken,
-		})
-		if awsErr != nil {
-			return contracts.UpstreamCredentials{}, awsErr
-		}
-		accessTok := awsTok.IDToken
-		if accessTok == "" {
-			accessTok = awsTok.AccessToken
-		}
-		tok = oauthTokenResponse{
-			AccessToken:  accessTok,
-			RefreshToken: awsTok.RefreshToken,
-			ExpiresIn:    awsTok.ExpiresIn,
-		}
-	} else if rec.Summary.ProviderID == "claude" && isAnthropicTokenURL(tokenURL) {
-		payload := map[string]any{
-			"grant_type":    "refresh_token",
-			"refresh_token": stored.RefreshToken,
-		}
-		if clientID != "" {
-			payload["client_id"] = clientID
-		}
-		var postErr error
-		tok, postErr = m.postJSONTokenEndpoint(ctx, tokenURL, payload)
-		if postErr != nil {
-			return contracts.UpstreamCredentials{}, postErr
-		}
+	var postErr error
+	if strat.RefreshToken != nil {
+		tok, postErr = strat.RefreshToken(ctx, m, tokenURL, clientID, clientSecret, stored)
 	} else {
-		form := url.Values{}
-		form.Set("grant_type", "refresh_token")
-		form.Set("refresh_token", stored.RefreshToken)
-		if clientID != "" {
-			form.Set("client_id", clientID)
-		}
-		if clientSecret != "" {
-			form.Set("client_secret", clientSecret)
-		}
-
-		var postErr error
-		tok, postErr = m.postTokenEndpoint(ctx, tokenURL, form)
-		if postErr != nil {
-			return contracts.UpstreamCredentials{}, postErr
-		}
+		tok, postErr = defaultRefreshFormToken(ctx, m, tokenURL, clientID, clientSecret, stored)
+	}
+	if postErr != nil {
+		return contracts.UpstreamCredentials{}, postErr
 	}
 
 	stored.AccessToken = tok.AccessToken
 	if strings.TrimSpace(tok.RefreshToken) != "" {
 		stored.RefreshToken = strings.TrimSpace(tok.RefreshToken)
+	}
+	if strings.TrimSpace(tok.IDToken) != "" {
+		stored.IDToken = strings.TrimSpace(tok.IDToken)
 	}
 	if strings.TrimSpace(tok.TokenType) != "" {
 		stored.TokenType = strings.TrimSpace(tok.TokenType)

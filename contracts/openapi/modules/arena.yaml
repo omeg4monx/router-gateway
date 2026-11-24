@@ -27,7 +27,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ArenaBattleListResponse'
-  /api/arena/battles/run:
     post:
       tags: [arena]
       operationId: runArenaBattle

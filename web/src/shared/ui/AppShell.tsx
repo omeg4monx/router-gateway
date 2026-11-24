@@ -264,7 +264,7 @@ export function AppShell({ children }: AppShellProps) {
     const searchInputRef = surface === "mobile" ? mobileSearchRef : desktopSearchRef;
 
     return (
-      <div className="flex h-full flex-col text-[var(--color-text-main)]">
+      <div className="flex h-full min-h-0 flex-col text-[var(--color-text-main)]">
         {/* Brand header (main LeftRail parity) */}
         <div
           className={cn(
@@ -390,7 +390,7 @@ export function AppShell({ children }: AppShellProps) {
 
         {/* Main navigation list (exact main LeftRail section order: Routing -> Operations -> Extensions) */}
         <nav
-          className="custom-scrollbar flex-1 space-y-3 overflow-y-auto overflow-x-hidden px-2 py-2.5"
+          className="custom-scrollbar min-h-0 flex-1 space-y-3 overflow-y-auto overflow-x-hidden px-2 py-2.5"
           aria-label="Control plane navigation"
         >
           {totalMatches === 0 ? (
@@ -680,16 +680,16 @@ export function AppShell({ children }: AppShellProps) {
   };
 
   return (
-    <div className="flex min-h-screen bg-[var(--bg-canvas)] text-[var(--text-primary)]">
-      {/* Floating rounded desktop studio rail (main LeftRail parity) */}
+    <div className="flex min-h-dvh bg-[var(--bg-canvas)] text-[var(--text-primary)]">
+      {/* Floating rounded desktop studio rail (pinned to viewport while main content scrolls) */}
       <aside
         className={cn(
-          "shell-rail relative isolate z-[45] my-2.5 ml-2.5 hidden h-[calc(100dvh-20px)] shrink-0 select-none flex-col overflow-visible rounded-2xl transition-[width] duration-250 ease-[var(--ease-spring)] lg:flex",
+          "shell-rail sticky top-2.5 isolate z-[45] my-2.5 ml-2.5 hidden h-[calc(100dvh-20px)] shrink-0 self-start select-none flex-col overflow-hidden rounded-2xl transition-[width] duration-250 ease-[var(--ease-spring)] lg:flex",
           sidebarCollapsed ? "w-[60px]" : "w-[244px]",
         )}
         aria-label="Application navigation"
       >
-        <div className="sticky top-0 flex h-full flex-col">
+        <div className="flex h-full min-h-0 flex-col">
           {renderSidebar(sidebarCollapsed, "desktop")}
         </div>
       </aside>

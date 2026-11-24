@@ -151,7 +151,7 @@ func (m *Module) RegisterRoutes(mounts lifecycle.RouteMounts) {
 	if mounts.AdminAPI == nil {
 		return
 	}
-	mounts.AdminAPI.Route("/modeleditor", func(r chi.Router) {
+	mounts.AdminAPI.Route("/model-editor", func(r chi.Router) {
 		r.Get("/overrides", m.handleListOverrides)
 		r.Post("/overrides", m.handleCreateOverride)
 		r.Patch("/overrides/{id}", m.handlePatchOverride)

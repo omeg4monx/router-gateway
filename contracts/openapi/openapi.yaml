@@ -68,8 +68,8 @@ paths:
     $ref: './modules/system.yaml#/paths/~1api~1init'
   /api/system/telemetry:
     $ref: './modules/system.yaml#/paths/~1api~1system~1telemetry'
-  /api/shutdown:
-    $ref: './modules/system.yaml#/paths/~1api~1shutdown'
+  /api/system/shutdown:
+    $ref: './modules/system.yaml#/paths/~1api~1system~1shutdown'
   /api/auth/login:
     $ref: './modules/auth.yaml#/paths/~1api~1auth~1login'
   /api/auth/logout:
@@ -96,8 +96,8 @@ paths:
     $ref: './modules/providers.yaml#/paths/~1api~1providers~1catalog'
   /api/providers/nodes:
     $ref: './modules/providers.yaml#/paths/~1api~1providers~1nodes'
-  /api/providers/nodes/test:
-    $ref: './modules/providers.yaml#/paths/~1api~1providers~1nodes~1test'
+  /api/providers/node-drafts/test:
+    $ref: './modules/providers.yaml#/paths/~1api~1providers~1node-drafts~1test'
   /api/providers/nodes/{id}:
     $ref: './modules/providers.yaml#/paths/~1api~1providers~1nodes~1{id}'
   /api/providers/connections:
@@ -116,16 +116,16 @@ paths:
     $ref: './modules/providers.yaml#/paths/~1api~1providers~1oauth~1{provider}~1paste'
   /api/providers/oauth/{provider}/stop:
     $ref: './modules/providers.yaml#/paths/~1api~1providers~1oauth~1{provider}~1stop'
-  /api/oauth/callback:
-    $ref: './modules/providers.yaml#/paths/~1api~1oauth~1callback'
+  /api/providers/oauth/callback:
+    $ref: './modules/providers.yaml#/paths/~1api~1providers~1oauth~1callback'
   /api/combos:
     $ref: './modules/combos.yaml#/paths/~1api~1combos'
   /api/combos/{id}:
     $ref: './modules/combos.yaml#/paths/~1api~1combos~1{id}'
-  /api/aliases:
-    $ref: './modules/combos.yaml#/paths/~1api~1aliases'
-  /api/aliases/{alias}:
-    $ref: './modules/combos.yaml#/paths/~1api~1aliases~1{alias}'
+  /api/models/aliases:
+    $ref: './modules/combos.yaml#/paths/~1api~1models~1aliases'
+  /api/models/aliases/{alias}:
+    $ref: './modules/combos.yaml#/paths/~1api~1models~1aliases~1{alias}'
   /api/models/disabled:
     $ref: './modules/combos.yaml#/paths/~1api~1models~1disabled'
   /api/models/cooldowns:
@@ -142,24 +142,24 @@ paths:
     $ref: './modules/usage.yaml#/paths/~1api~1usage~1pricing'
   /api/usage/pricing/{model}:
     $ref: './modules/usage.yaml#/paths/~1api~1usage~1pricing~1{model}'
-  /api/clitools:
-    $ref: './modules/clitools.yaml#/paths/~1api~1clitools'
-  /api/clitools/{tool}/generate:
-    $ref: './modules/clitools.yaml#/paths/~1api~1clitools~1{tool}~1generate'
-  /api/clitools/{tool}/apply:
-    $ref: './modules/clitools.yaml#/paths/~1api~1clitools~1{tool}~1apply'
-  /api/clitools/{tool}/rollback:
-    $ref: './modules/clitools.yaml#/paths/~1api~1clitools~1{tool}~1rollback'
-  /api/proxypools:
-    $ref: './modules/proxypools.yaml#/paths/~1api~1proxypools'
-  /api/proxypools/{id}:
-    $ref: './modules/proxypools.yaml#/paths/~1api~1proxypools~1{id}'
-  /api/proxypools/{id}/test:
-    $ref: './modules/proxypools.yaml#/paths/~1api~1proxypools~1{id}~1test'
-  /api/proxypools/scan:
-    $ref: './modules/proxypools.yaml#/paths/~1api~1proxypools~1scan'
-  /api/proxypools/bindings/{providerId}:
-    $ref: './modules/proxypools.yaml#/paths/~1api~1proxypools~1bindings~1{providerId}'
+  /api/cli-tools:
+    $ref: './modules/clitools.yaml#/paths/~1api~1cli-tools'
+  /api/cli-tools/{tool}/generate:
+    $ref: './modules/clitools.yaml#/paths/~1api~1cli-tools~1{tool}~1generate'
+  /api/cli-tools/{tool}/apply:
+    $ref: './modules/clitools.yaml#/paths/~1api~1cli-tools~1{tool}~1apply'
+  /api/cli-tools/{tool}/rollback:
+    $ref: './modules/clitools.yaml#/paths/~1api~1cli-tools~1{tool}~1rollback'
+  /api/proxy-pools:
+    $ref: './modules/proxypools.yaml#/paths/~1api~1proxy-pools'
+  /api/proxy-pools/{id}:
+    $ref: './modules/proxypools.yaml#/paths/~1api~1proxy-pools~1{id}'
+  /api/proxy-pools/{id}/test:
+    $ref: './modules/proxypools.yaml#/paths/~1api~1proxy-pools~1{id}~1test'
+  /api/proxy-pools/scan:
+    $ref: './modules/proxypools.yaml#/paths/~1api~1proxy-pools~1scan'
+  /api/proxy-pool-bindings/{providerId}:
+    $ref: './modules/proxypools.yaml#/paths/~1api~1proxy-pool-bindings~1{providerId}'
   /api/translator/protocols:
     $ref: './modules/translator.yaml#/paths/~1api~1translator~1protocols'
   /api/translator/translate:
@@ -178,26 +178,24 @@ paths:
     $ref: './modules/promptinjection.yaml#/paths/~1api~1prompt-guard~1test'
   /api/prompt-guard/events:
     $ref: './modules/promptinjection.yaml#/paths/~1api~1prompt-guard~1events'
-  /api/modeleditor/overrides:
-    $ref: './modules/modeleditor.yaml#/paths/~1api~1modeleditor~1overrides'
-  /api/modeleditor/overrides/{id}:
-    $ref: './modules/modeleditor.yaml#/paths/~1api~1modeleditor~1overrides~1{id}'
-  /api/modeleditor/bypass:
-    $ref: './modules/modeleditor.yaml#/paths/~1api~1modeleditor~1bypass'
-  /api/modeleditor/bypass/{id}:
-    $ref: './modules/modeleditor.yaml#/paths/~1api~1modeleditor~1bypass~1{id}'
-  /api/modeleditor/preview:
-    $ref: './modules/modeleditor.yaml#/paths/~1api~1modeleditor~1preview'
-  /api/tokensaver/config:
-    $ref: './modules/tokensaver.yaml#/paths/~1api~1tokensaver~1config'
-  /api/tokensaver/stats:
-    $ref: './modules/tokensaver.yaml#/paths/~1api~1tokensaver~1stats'
-  /api/tokensaver/stats/reset:
-    $ref: './modules/tokensaver.yaml#/paths/~1api~1tokensaver~1stats~1reset'
-  /api/tokensaver/cache/clear:
-    $ref: './modules/tokensaver.yaml#/paths/~1api~1tokensaver~1cache~1clear'
-  /api/tokensaver/preview:
-    $ref: './modules/tokensaver.yaml#/paths/~1api~1tokensaver~1preview'
+  /api/model-editor/overrides:
+    $ref: './modules/modeleditor.yaml#/paths/~1api~1model-editor~1overrides'
+  /api/model-editor/overrides/{id}:
+    $ref: './modules/modeleditor.yaml#/paths/~1api~1model-editor~1overrides~1{id}'
+  /api/model-editor/bypass:
+    $ref: './modules/modeleditor.yaml#/paths/~1api~1model-editor~1bypass'
+  /api/model-editor/bypass/{id}:
+    $ref: './modules/modeleditor.yaml#/paths/~1api~1model-editor~1bypass~1{id}'
+  /api/model-editor/preview:
+    $ref: './modules/modeleditor.yaml#/paths/~1api~1model-editor~1preview'
+  /api/token-saver/config:
+    $ref: './modules/tokensaver.yaml#/paths/~1api~1token-saver~1config'
+  /api/token-saver/stats:
+    $ref: './modules/tokensaver.yaml#/paths/~1api~1token-saver~1stats'
+  /api/token-saver/cache:
+    $ref: './modules/tokensaver.yaml#/paths/~1api~1token-saver~1cache'
+  /api/token-saver/preview:
+    $ref: './modules/tokensaver.yaml#/paths/~1api~1token-saver~1preview'
   /api/security/posture:
     $ref: './modules/security.yaml#/paths/~1api~1security~1posture'
   /api/security/audit:
@@ -286,8 +284,6 @@ paths:
     $ref: './modules/pxpipe.yaml#/paths/~1api~1pxpipe~1health'
   /api/pxpipe/stats:
     $ref: './modules/pxpipe.yaml#/paths/~1api~1pxpipe~1stats'
-  /api/pxpipe/stats/reset:
-    $ref: './modules/pxpipe.yaml#/paths/~1api~1pxpipe~1stats~1reset'
   /api/pxpipe/logs:
     $ref: './modules/pxpipe.yaml#/paths/~1api~1pxpipe~1logs'
   /api/pxpipe/preview:
@@ -296,10 +292,8 @@ paths:
     $ref: './modules/telegram.yaml#/paths/~1api~1telegram~1config'
   /api/telegram/secret/rotate:
     $ref: './modules/telegram.yaml#/paths/~1api~1telegram~1secret~1rotate'
-  /api/telegram/webhook/register:
-    $ref: './modules/telegram.yaml#/paths/~1api~1telegram~1webhook~1register'
-  /api/telegram/webhook/delete:
-    $ref: './modules/telegram.yaml#/paths/~1api~1telegram~1webhook~1delete'
+  /api/telegram/webhook/registration:
+    $ref: './modules/telegram.yaml#/paths/~1api~1telegram~1webhook~1registration'
   /api/telegram/test:
     $ref: './modules/telegram.yaml#/paths/~1api~1telegram~1test'
   /api/telegram/command:
@@ -310,8 +304,6 @@ paths:
     $ref: './modules/arena.yaml#/paths/~1api~1arena~1models'
   /api/arena/battles:
     $ref: './modules/arena.yaml#/paths/~1api~1arena~1battles'
-  /api/arena/battles/run:
-    $ref: './modules/arena.yaml#/paths/~1api~1arena~1battles~1run'
   /api/arena/battles/{id}:
     $ref: './modules/arena.yaml#/paths/~1api~1arena~1battles~1{id}'
   /api/arena/battles/{id}/vote:
@@ -336,18 +328,18 @@ paths:
     $ref: './modules/plugins.yaml#/paths/~1api~1skills~1{id}'
   /api/skills/{id}/export:
     $ref: './modules/plugins.yaml#/paths/~1api~1skills~1{id}~1export'
-  /api/cloudsync/config:
-    $ref: './modules/cloudsync.yaml#/paths/~1api~1cloudsync~1config'
-  /api/cloudsync/push:
-    $ref: './modules/cloudsync.yaml#/paths/~1api~1cloudsync~1push'
-  /api/cloudsync/pull:
-    $ref: './modules/cloudsync.yaml#/paths/~1api~1cloudsync~1pull'
-  /api/cloudsync/snapshot:
-    $ref: './modules/cloudsync.yaml#/paths/~1api~1cloudsync~1snapshot'
-  /api/cloudsync/restore:
-    $ref: './modules/cloudsync.yaml#/paths/~1api~1cloudsync~1restore'
-  /api/cloudsync/history:
-    $ref: './modules/cloudsync.yaml#/paths/~1api~1cloudsync~1history'
+  /api/cloud-sync/config:
+    $ref: './modules/cloudsync.yaml#/paths/~1api~1cloud-sync~1config'
+  /api/cloud-sync/push:
+    $ref: './modules/cloudsync.yaml#/paths/~1api~1cloud-sync~1push'
+  /api/cloud-sync/pull:
+    $ref: './modules/cloudsync.yaml#/paths/~1api~1cloud-sync~1pull'
+  /api/cloud-sync/snapshot:
+    $ref: './modules/cloudsync.yaml#/paths/~1api~1cloud-sync~1snapshot'
+  /api/cloud-sync/restore:
+    $ref: './modules/cloudsync.yaml#/paths/~1api~1cloud-sync~1restore'
+  /api/cloud-sync/history:
+    $ref: './modules/cloudsync.yaml#/paths/~1api~1cloud-sync~1history'
   /api/importer/inspect:
     $ref: './modules/importer.yaml#/paths/~1api~1importer~1inspect'
   /api/importer/run:

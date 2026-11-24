@@ -224,4 +224,14 @@ describe("providers catalogUtils", () => {
       "/providers/custom-moonshot.svg",
     );
   });
+
+  test("sorts provider entries alphabetically by asc (A-Z) and desc (Z-A)", () => {
+    const entries = buildProviderEntries(ADAPTERS, CUSTOM_NODES, CONNECTIONS).filter((e) =>
+      ["openai", "claude", "vllm-local"].includes(e.id),
+    );
+    const ascNames = sortProviderEntries(entries, "asc").map((e) => e.name);
+    const descNames = sortProviderEntries(entries, "desc").map((e) => e.name);
+    expect(ascNames).toEqual(["Claude Code", "Local vLLM", "OpenAI"]);
+    expect(descNames).toEqual(["OpenAI", "Local vLLM", "Claude Code"]);
+  });
 });

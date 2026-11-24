@@ -371,9 +371,36 @@ input:focus-visible {
   background-color: color-mix(in srgb, var(--color-surface) 92%, transparent);
 }
 
+/* Provider card & neutral-contrast logo tile (prevents light/dark logos from blending in) */
+.provider-card-surface {
+  background-color: #ffffff;
+  border-color: #dce2ec;
+}
+
+[data-theme="dark"] .provider-card-surface {
+  background-color: #141821;
+  border-color: #293040;
+}
+
+.provider-logo-tile {
+  background-color: #dde3ee;
+  border-color: #c5cedd;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55);
+}
+
+[data-theme="dark"] .provider-logo-tile {
+  background-color: #283040;
+  border-color: #3b4559;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.provider-logo-img {
+  filter: drop-shadow(0 1px 1px rgba(15, 23, 42, 0.2));
+}
+
 /* Monochrome provider brand logos invert cleanly on dark surfaces */
 [data-theme="dark"] .provider-logo-invert {
-  filter: invert(1);
+  filter: invert(1) brightness(1.1) drop-shadow(0 1px 1px rgba(0, 0, 0, 0.35));
 }
 
 /* Subtle thin scrollbar for floating sidebar & internal panels */

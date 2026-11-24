@@ -20,6 +20,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
+	"github.com/omeg4monx/router-gateway/internal/contracts"
 	"github.com/omeg4monx/router-gateway/internal/platform/httpserver"
 )
 
@@ -824,12 +825,17 @@ type oauthStatusResponse struct {
 
 func (m *Module) handleOAuthStatus(w http.ResponseWriter, r *http.Request) {
 	providerID := strings.TrimSpace(chi.URLParam(r, "provider"))
-	if isDeviceCodeProvider(providerID) {
+	strat := m.getOAuthStrategy(providerID)
+	if strat.FixedPort > 0 {
+		m.handleLoopbackOAuthStatus(w, r, providerID)
+		return
+	}
+	if strat.FlowType == oauthFlowDeviceCode {
 		m.handleDeviceOAuthStatus(w, r, providerID)
 		return
 	}
-	if providerID != providerIDAWSQuick {
-		httpserver.WriteError(w, r, http.StatusBadRequest, "oauth_not_supported", "oauth status polling is only supported for aws-quick and device-code providers")
+	if strat.FlowType != oauthFlowLoopbackProxy {
+		httpserver.WriteError(w, r, http.StatusBadRequest, "oauth_not_supported", "oauth status polling is only supported for loopback and device-code providers")
 		return
 	}
 	state := strings.TrimSpace(r.URL.Query().Get("state"))
@@ -963,8 +969,14 @@ type oauthStopResponse struct {
 
 func (m *Module) handleOAuthStop(w http.ResponseWriter, r *http.Request) {
 	providerID := strings.TrimSpace(chi.URLParam(r, "provider"))
-	if providerID != providerIDAWSQuick {
-		httpserver.WriteError(w, r, http.StatusBadRequest, "oauth_not_supported", "oauth stop is only supported for aws-quick")
+	strat := m.getOAuthStrategy(providerID)
+	if strat.FixedPort > 0 {
+		m.oauthProxy.stop(providerID)
+		httpserver.WriteJSON(w, http.StatusOK, oauthStopResponse{Stopped: true})
+		return
+	}
+	if strat.FlowType != oauthFlowLoopbackProxy {
+		httpserver.WriteError(w, r, http.StatusBadRequest, "oauth_not_supported", "oauth stop is only supported for loopback OAuth providers")
 		return
 	}
 	m.stopAwsQuickProxy("")
@@ -1033,14 +1045,36 @@ func (m *Module) handleAwsQuickOAuthExchange(w http.ResponseWriter, r *http.Requ
 	if accessToken == "" {
 		accessToken = res.Tokens.AccessToken
 	}
+	tenantURL := strings.TrimRight(strings.TrimSpace(res.Discovery.TenantURL), "/")
+	wsHost := ""
+	if parsedTenant, parseErr := url.Parse(tenantURL); parseErr == nil {
+		wsHost = parsedTenant.Host
+	}
+	region := strings.TrimSpace(res.Discovery.IDCRegion)
+	if region == "" {
+		region = "us-east-1"
+	}
+	meta := map[string]any{
+		"tenant_url":     tenantURL,
+		"ws_host":        wsHost,
+		"actor_arn":      res.UserInfo.UserARN,
+		"aws_account_id": res.UserInfo.AWSAccountID,
+		"account_name":   res.UserInfo.AccountName,
+		"email":          res.UserInfo.Email,
+		"region":         region,
+		"issuer_url":     res.Discovery.IssuerURL,
+		"app_version":    awsQuickAppVersion,
+	}
 	stored := storedCredentials{
 		AccessToken:  accessToken,
 		RefreshToken: res.Tokens.RefreshToken,
+		IDToken:      res.Tokens.IDToken,
 		TokenType:    "Bearer",
 		Scope:        awsQuickScopeProd,
 		ClientID:     res.ClientID,
 		ClientSecret: res.ClientSecret,
 		TokenURL:     res.TokenURL,
+		Metadata:     meta,
 	}
 	sealed, err := m.sealCredentials(stored)
 	if err != nil {
@@ -1103,4 +1137,125 @@ func (m *Module) handleAwsQuickOAuthExchange(w http.ResponseWriter, r *http.Requ
 
 	m.publishChanged("created", "connection", summary.ID, summary.ProviderID, actorFromContext(r.Context()), summary.UpdatedAt)
 	httpserver.WriteJSON(w, http.StatusCreated, summary)
+}
+
+func resolveAwsQuickTenantBaseURL(baseURL string, meta map[string]any) string {
+	if tenant := strings.TrimRight(stringClaim(meta, "tenant_url"), "/"); tenant != "" {
+		return tenant
+	}
+	if wsHost := strings.TrimRight(stringClaim(meta, "ws_host"), "/"); wsHost != "" {
+		switch {
+		case strings.HasPrefix(wsHost, "wss://"):
+			return "https://" + strings.TrimPrefix(wsHost, "wss://")
+		case strings.HasPrefix(wsHost, "ws://"):
+			return "http://" + strings.TrimPrefix(wsHost, "ws://")
+		case strings.HasPrefix(wsHost, "http://"), strings.HasPrefix(wsHost, "https://"):
+			return wsHost
+		default:
+			return "https://" + wsHost
+		}
+	}
+	return strings.TrimRight(strings.TrimSpace(baseURL), "/")
+}
+
+func generateTraceID() string {
+	buf := make([]byte, 16)
+	if _, err := rand.Read(buf); err != nil {
+		return fmt.Sprintf("trace-%d", time.Now().UnixNano())
+	}
+	return fmt.Sprintf("%x-%x-%x-%x-%x", buf[0:4], buf[4:6], buf[6:8], buf[8:10], buf[10:16])
+}
+
+// testAwsQuickConnection probes Amazon Quick's entitlements qbs-event endpoint
+// (adopted from xrouter commits 105b0ff & 9d62aae): validates id_token + tenant
+// + account without spending agent-hours, auto-refreshes on 401/403 (persisting
+// the rotated refresh token), and treats 408/429/5xx/timeouts as soft success.
+func (m *Module) testAwsQuickConnection(ctx context.Context, connectionID string, creds contracts.UpstreamCredentials) (testConnectionResponse, string) {
+	var meta map[string]any
+	if rec, err := m.repo.GetConnectionRecord(ctx, connectionID); err == nil {
+		if stored, unsealErr := m.unsealCredentials(rec.CredentialsEnc); unsealErr == nil {
+			meta = stored.Metadata
+		}
+	}
+
+	tenantBase := resolveAwsQuickTenantBaseURL(creds.BaseURL, meta)
+	if tenantBase == "" {
+		return testConnectionResponse{OK: false, Error: "Missing Quick tenant/account metadata"}, "error"
+	}
+	accountID := stringClaim(meta, "aws_account_id")
+	probeURL := tenantBase + "/integration/quick-work/qbs-event"
+
+	doProbe := func(token string) (int, error) {
+		payload := map[string]any{
+			"eventType": "getAvailableEntitlementUnits",
+			"eventBody": map[string]any{
+				"getAvailableEntitlementUnits": map[string]any{
+					"awsAccountId": accountID,
+				},
+			},
+		}
+		rawBody, err := json.Marshal(payload)
+		if err != nil {
+			return 0, err
+		}
+		req, err := http.NewRequestWithContext(ctx, http.MethodPost, probeURL, bytes.NewReader(rawBody))
+		if err != nil {
+			return 0, err
+		}
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Accept", "application/json")
+		req.Header.Set("Authorization", "Bearer "+token)
+		req.Header.Set("x-amzn-qs-internal-trace-id", generateTraceID())
+
+		resp, err := m.httpClient.Do(req) //nolint:gosec // G704: validated tenant base URL
+		if err != nil {
+			return 0, err
+		}
+		defer resp.Body.Close()
+		_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, maxTestErrorBodyBytes))
+		return resp.StatusCode, nil
+	}
+
+	start := time.Now()
+	statusCode, probeErr := doProbe(creds.AccessToken)
+	if (probeErr != nil || statusCode == http.StatusUnauthorized || statusCode == http.StatusForbidden) && connectionID != "" {
+		if refreshed, refreshErr := m.RefreshOAuthToken(ctx, connectionID); refreshErr == nil && refreshed.AccessToken != "" {
+			statusCode, probeErr = doProbe(refreshed.AccessToken)
+		}
+	}
+	latencyMS := time.Since(start).Milliseconds()
+
+	if probeErr != nil {
+		// Upstream timeout/network blip says nothing about credentials: soft success.
+		return testConnectionResponse{
+			OK:        true,
+			LatencyMS: latencyMS,
+			Error:     "Quick API probe failed or timed out — quota unknown",
+		}, "ok"
+	}
+	if statusCode >= http.StatusOK && statusCode < http.StatusMultipleChoices {
+		return testConnectionResponse{OK: true, StatusCode: statusCode, LatencyMS: latencyMS}, "ok"
+	}
+	if statusCode == http.StatusUnauthorized || statusCode == http.StatusForbidden {
+		return testConnectionResponse{
+			OK:         false,
+			StatusCode: statusCode,
+			LatencyMS:  latencyMS,
+			Error:      "Token invalid or revoked",
+		}, "error"
+	}
+	if statusCode == http.StatusRequestTimeout || statusCode == http.StatusTooManyRequests || statusCode >= http.StatusInternalServerError {
+		return testConnectionResponse{
+			OK:         true,
+			StatusCode: statusCode,
+			LatencyMS:  latencyMS,
+			Error:      fmt.Sprintf("Quick API returned %d — quota unknown", statusCode),
+		}, "ok"
+	}
+	return testConnectionResponse{
+		OK:         false,
+		StatusCode: statusCode,
+		LatencyMS:  latencyMS,
+		Error:      fmt.Sprintf("Quick API returned %d", statusCode),
+	}, "error"
 }

@@ -121,7 +121,7 @@ func (m *Module) RegisterRoutes(mounts lifecycle.RouteMounts) {
 	if inferenceRouter == nil {
 		inferenceRouter = mounts.AdminAPI
 	}
-	inferenceRouter.Post("/arena/battles/run", m.handleRunBattle)
+	inferenceRouter.Post("/arena/battles", m.handleRunBattle)
 	inferenceRouter.Post("/chat/sessions/{id}/messages", m.handleSendMessage)
 }
 

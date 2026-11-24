@@ -3,7 +3,7 @@ info:
   title: omeg4mon-router Proxy Pools Module API
   version: 0.1.0
 paths:
-  /api/proxypools:
+  /api/proxy-pools:
     get:
       operationId: listProxyPools
       summary: List configured HTTP/SOCKS5 proxy pools and provider bindings
@@ -52,7 +52,7 @@ paths:
             application/json:
               schema:
                 $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
-  /api/proxypools/{id}:
+  /api/proxy-pools/{id}:
     parameters:
       - name: id
         in: path
@@ -103,7 +103,7 @@ paths:
             application/json:
               schema:
                 $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
-  /api/proxypools/{id}/test:
+  /api/proxy-pools/{id}/test:
     parameters:
       - name: id
         in: path
@@ -134,7 +134,7 @@ paths:
             application/json:
               schema:
                 $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
-  /api/proxypools/scan:
+  /api/proxy-pools/scan:
     post:
       operationId: scanProxyCandidates
       summary: Concurrently probe candidate proxy URLs and optionally auto-add healthy pools
@@ -159,7 +159,7 @@ paths:
             application/json:
               schema:
                 $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
-  /api/proxypools/bindings/{providerId}:
+  /api/proxy-pool-bindings/{providerId}:
     parameters:
       - name: providerId
         in: path

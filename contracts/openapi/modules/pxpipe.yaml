@@ -105,8 +105,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PxpipeStats'
-  /api/pxpipe/stats/reset:
-    post:
+    delete:
       tags: [pxpipe]
       operationId: resetPxpipeStats
       summary: Reset PXPIPE transform statistics counters

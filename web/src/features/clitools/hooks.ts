@@ -20,7 +20,7 @@ export function useCliToolsCatalog() {
   return useQuery<CLIToolsCatalogResponse, Error>({
     queryKey: cliToolsQueryKeys.catalog,
     queryFn: async () => {
-      const { data, error } = await apiClient.GET("/api/clitools");
+      const { data, error } = await apiClient.GET("/api/cli-tools");
       if (data) {
         return data;
       }
@@ -37,7 +37,7 @@ export interface CLIToolConfigMutationVariables {
 export function useGenerateCliToolConfigMutation() {
   return useMutation<GenerateCLIToolConfigResponse, Error, CLIToolConfigMutationVariables>({
     mutationFn: async ({ tool, body }) => {
-      const { data, error } = await apiClient.POST("/api/clitools/{tool}/generate", {
+      const { data, error } = await apiClient.POST("/api/cli-tools/{tool}/generate", {
         params: { path: { tool } },
         body,
       });
@@ -52,7 +52,7 @@ export function useGenerateCliToolConfigMutation() {
 export function useApplyCliToolConfigMutation() {
   return useMutation<ApplyCLIToolConfigResponse, Error, CLIToolConfigMutationVariables>({
     mutationFn: async ({ tool, body }) => {
-      const { data, error } = await apiClient.POST("/api/clitools/{tool}/apply", {
+      const { data, error } = await apiClient.POST("/api/cli-tools/{tool}/apply", {
         params: { path: { tool } },
         body,
       });
@@ -67,7 +67,7 @@ export function useApplyCliToolConfigMutation() {
 export function useRollbackCliToolConfigMutation() {
   return useMutation<RollbackCLIToolConfigResponse, Error, CLIToolID>({
     mutationFn: async (tool) => {
-      const { data, error } = await apiClient.POST("/api/clitools/{tool}/rollback", {
+      const { data, error } = await apiClient.POST("/api/cli-tools/{tool}/rollback", {
         params: { path: { tool } },
       });
       if (data) {

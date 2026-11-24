@@ -252,7 +252,7 @@ func TestTelegramConfigVaultIsolationAndWebhookSecurity(t *testing.T) {
 	}
 
 	// 4. Register webhook to capture generated secret_token sent to Telegram Bot API.
-	resp, raw = doJSON(t, http.MethodPost, env.adminSrv.URL+"/api/telegram/webhook/register", nil, nil)
+	resp, raw = doJSON(t, http.MethodPost, env.adminSrv.URL+"/api/telegram/webhook/registration", nil, nil)
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("register webhook status=%d body=%s", resp.StatusCode, raw)
 	}

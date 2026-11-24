@@ -40,6 +40,9 @@ type catalogOAuthDescriptor struct {
 	Scopes             []string `json:"scopes"`
 	DefaultRedirectURI string   `json:"default_redirect_uri"`
 	ClientIDConfigured bool     `json:"client_id_configured"`
+	FlowType           string   `json:"flow_type,omitempty"`
+	FixedPort          int      `json:"fixed_port,omitempty"`
+	CallbackPath       string   `json:"callback_path,omitempty"`
 }
 
 type catalogAdapterDescriptor struct {
@@ -132,6 +135,8 @@ type oauthStartResponse struct {
 	RedirectURI     string `json:"redirect_uri"`
 	ExpiresAt       string `json:"expires_at"`
 	FlowType        string `json:"flow_type,omitempty"`
+	FixedPort       int    `json:"fixed_port,omitempty"`
+	CallbackPath    string `json:"callback_path,omitempty"`
 	UserCode        string `json:"user_code,omitempty"`
 	VerificationURI string `json:"verification_uri,omitempty"`
 	Interval        int    `json:"interval,omitempty"`
@@ -170,12 +175,16 @@ func (m *Module) handleGetCatalog(w http.ResponseWriter, r *http.Request) {
 		if adapter.OAuthConfig() != nil {
 			resolved, err := m.resolveOAuthConfig(adapter.ID(), "", "")
 			if err == nil {
+				strat := m.getOAuthStrategy(adapter.ID())
 				desc.OAuth = &catalogOAuthDescriptor{
 					AuthorizeURL:       resolved.AuthorizeURL,
 					TokenURL:           resolved.TokenURL,
 					Scopes:             cloneStringSlice(resolved.Scopes),
 					DefaultRedirectURI: resolved.DefaultRedirectURI,
-					ClientIDConfigured: resolved.ClientID != "" || adapter.ID() == providerIDAWSQuick || isDeviceCodeProvider(adapter.ID()),
+					ClientIDConfigured: resolved.ClientID != "" || strat.ClientIDOptional,
+					FlowType:           strat.FlowType,
+					FixedPort:          strat.FixedPort,
+					CallbackPath:       strat.CallbackPath,
 				}
 			}
 		}
@@ -760,10 +769,28 @@ func (m *Module) handleTestConnection(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, statusText, err := m.executeConnectivityTest(r.Context(), creds)
-	if err != nil {
-		httpserver.WriteError(w, r, http.StatusBadRequest, "invalid_request", "failed to build connectivity test request")
-		return
+	var (
+		result     testConnectionResponse
+		statusText string
+	)
+	if creds.ProviderID == providerIDAWSQuick {
+		result, statusText = m.testAwsQuickConnection(r.Context(), id, creds)
+	} else if probeSpec, hasProbe := oauthTestProbes[creds.ProviderID]; hasProbe && isHostMatch(creds.BaseURL, probeSpec.LiveHostSuffix) {
+		result, statusText = m.executeOAuthTestProbe(r.Context(), id, creds, probeSpec)
+	} else {
+		result, statusText, err = m.executeConnectivityTest(r.Context(), creds)
+		if err != nil {
+			httpserver.WriteError(w, r, http.StatusBadRequest, "invalid_request", "failed to build connectivity test request")
+			return
+		}
+		if creds.AuthType == authTypeOAuth && !result.OK &&
+			(result.StatusCode == http.StatusUnauthorized || result.StatusCode == http.StatusForbidden) {
+			if refreshed, refreshErr := m.RefreshOAuthToken(r.Context(), id); refreshErr == nil && refreshed.AccessToken != "" {
+				if retryRes, retryStatus, retryErr := m.executeConnectivityTest(r.Context(), refreshed); retryErr == nil {
+					result, statusText = retryRes, retryStatus
+				}
+			}
+		}
 	}
 
 	testedAt := time.Now().UTC().Format(rfc3339NanoFixed)
@@ -789,11 +816,12 @@ func (m *Module) handleOAuthStart(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if providerID == providerIDAWSQuick {
+	strat := m.getOAuthStrategy(providerID)
+	if strat.FlowType == oauthFlowLoopbackProxy {
 		m.handleAwsQuickOAuthStart(w, r, adapter, req)
 		return
 	}
-	if isDeviceCodeProvider(providerID) {
+	if strat.FlowType == oauthFlowDeviceCode {
 		m.handleDeviceOAuthStart(w, r, providerID, adapter, req)
 		return
 	}
@@ -803,7 +831,7 @@ func (m *Module) handleOAuthStart(w http.ResponseWriter, r *http.Request) {
 		httpserver.WriteError(w, r, http.StatusBadRequest, "oauth_not_supported", "provider does not support OAuth")
 		return
 	}
-	if strings.TrimSpace(cfg.ClientID) == "" {
+	if strings.TrimSpace(cfg.ClientID) == "" && !strat.ClientIDOptional {
 		httpserver.WriteError(w, r, http.StatusBadRequest, "invalid_request",
 			fmt.Sprintf("oauth client_id is required; set %s_CLIENT_ID or provide client_id", oauthEnvPrefix(providerID)))
 		return
@@ -876,7 +904,12 @@ func (m *Module) handleOAuthStart(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	authorizeURL, err := buildAuthorizeURL(cfg, redirectURI, state, challenge)
+	var authorizeURL string
+	if strat.BuildAuthURL != nil {
+		authorizeURL, err = strat.BuildAuthURL(cfg, redirectURI, state, challenge)
+	} else {
+		authorizeURL, err = buildAuthorizeURL(cfg, redirectURI, state, challenge)
+	}
 	if err != nil {
 		httpserver.WriteError(w, r, http.StatusInternalServerError, "internal_error", "failed to build authorization URL")
 		return
@@ -903,11 +936,19 @@ func (m *Module) handleOAuthStart(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if strat.FixedPort > 0 {
+		// Best-effort fixed-port loopback listener; falls back to manual callback paste if busy.
+		_, _ = m.oauthProxy.start(providerID, strat.FixedPort, strat.CallbackPath, state)
+	}
+
 	httpserver.WriteJSON(w, http.StatusOK, oauthStartResponse{
 		State:        state,
 		AuthorizeURL: authorizeURL,
 		RedirectURI:  redirectURI,
 		ExpiresAt:    expiresAt,
+		FlowType:     strat.FlowType,
+		FixedPort:    strat.FixedPort,
+		CallbackPath: strat.CallbackPath,
 	})
 }
 
@@ -928,13 +969,21 @@ func (m *Module) handleOAuthExchange(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if providerID == providerIDAWSQuick {
+	strat := m.getOAuthStrategy(providerID)
+	if strat.FlowType == oauthFlowLoopbackProxy {
 		m.handleAwsQuickOAuthExchange(w, r, adapter, req)
 		return
 	}
-	if isDeviceCodeProvider(providerID) {
+	if strat.FlowType == oauthFlowDeviceCode {
 		m.handleDeviceOAuthExchange(w, r, providerID, adapter, req)
 		return
+	}
+
+	if strat.FixedPort > 0 && strings.TrimSpace(req.CallbackURL) == "" && strings.TrimSpace(req.Code) == "" && strings.TrimSpace(req.State) != "" {
+		if capturedCode, ok := m.oauthProxy.consumeCode(providerID, strings.TrimSpace(req.State)); ok {
+			req.Code = capturedCode
+			m.oauthProxy.stop(providerID)
+		}
 	}
 
 	code, state, oauthErr, oauthErrDesc, err := parseOAuthCallbackInput(req.CallbackURL, req.Code, req.State)
@@ -1041,54 +1090,36 @@ func (m *Module) handleOAuthExchange(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var tok oauthTokenResponse
-	if providerID == "claude" && isAnthropicTokenURL(cfg.TokenURL) {
-		authCode, codeState := code, state
-		if idx := strings.IndexByte(authCode, '#'); idx >= 0 {
-			codeState = authCode[idx+1:]
-			authCode = authCode[:idx]
-			if codeState == "" {
-				codeState = state
-			}
-		}
-		tok, err = m.postJSONTokenEndpoint(r.Context(), cfg.TokenURL, map[string]any{
-			"grant_type":    "authorization_code",
-			"code":          authCode,
-			"state":         codeState,
-			"client_id":     sess.ClientID,
-			"redirect_uri":  sess.RedirectURI,
-			"code_verifier": string(verifierBytes),
-		})
+	if strat.ExchangeCode != nil {
+		tok, err = strat.ExchangeCode(r.Context(), m, cfg, sess, code, state, string(verifierBytes), clientSecret)
 	} else {
-		form := make(map[string][]string)
-		form["grant_type"] = []string{"authorization_code"}
-		form["code"] = []string{code}
-		form["redirect_uri"] = []string{sess.RedirectURI}
-		form["client_id"] = []string{sess.ClientID}
-		form["code_verifier"] = []string{string(verifierBytes)}
-		if clientSecret != "" {
-			form["client_secret"] = []string{clientSecret}
-		}
-		for k, v := range cfg.ExtraTokenParams {
-			if strings.TrimSpace(k) != "" && v != "" {
-				form[k] = []string{v}
-			}
-		}
-
-		tok, err = m.postTokenEndpoint(r.Context(), cfg.TokenURL, form)
+		tok, err = defaultExchangePKCECode(r.Context(), m, cfg, sess, code, string(verifierBytes), clientSecret)
 	}
 	if err != nil {
 		httpserver.WriteError(w, r, http.StatusBadGateway, "oauth_exchange_failed", "upstream OAuth token exchange failed")
 		return
 	}
 
+	var postRes oauthPostExchangeResult
+	if strat.PostExchange != nil {
+		postRes = strat.PostExchange(r.Context(), m, cfg.TokenURL, tok)
+	}
+	for k, v := range postRes.ExtraHeaders {
+		if _, exists := headers[k]; !exists && strings.TrimSpace(v) != "" {
+			headers[k] = v
+		}
+	}
+
 	stored := storedCredentials{
 		AccessToken:  tok.AccessToken,
 		RefreshToken: tok.RefreshToken,
+		IDToken:      tok.IDToken,
 		TokenType:    tok.TokenType,
 		Scope:        tok.Scope,
 		ClientID:     sess.ClientID,
 		ClientSecret: clientSecret,
 		TokenURL:     cfg.TokenURL,
+		Metadata:     postRes.Metadata,
 	}
 	sealed, err := m.sealCredentials(stored)
 	if err != nil {
@@ -1105,6 +1136,8 @@ func (m *Module) handleOAuthExchange(w http.ResponseWriter, r *http.Request) {
 	connName := sess.ConnectionName
 	if validatedConnName != "" {
 		connName = validatedConnName
+	} else if postRes.DisplayLabel != "" && (connName == "" || connName == adapter.DisplayName()) {
+		connName = postRes.DisplayLabel
 	}
 
 	errOAuthConnectionMismatch := errors.New("providers: target connection mismatch")
@@ -1226,7 +1259,7 @@ func (m *Module) handleOAuthCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'")
+	w.Header().Set("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'")
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
 
@@ -1240,45 +1273,59 @@ func (m *Module) handleOAuthCallback(w http.ResponseWriter, r *http.Request) {
 	}
 	fullURL := fmt.Sprintf("%s://%s%s", scheme, host, r.URL.RequestURI())
 
-	title := "OAuth Callback Received"
+	title := "Authorization Received"
 	if oauthErr != "" {
 		title = "OAuth Authorization Error"
 	}
 
+	payloadBytes, _ := json.Marshal(map[string]any{
+		"code":             code,
+		"state":            state,
+		"error":            oauthErr,
+		"errorDescription": oauthErrDesc,
+		"callbackUrl":      fullURL,
+		"providerId":       providerID,
+		"timestamp":        time.Now().UnixMilli(),
+	})
+	// Escape closing script tags safely for inline JSON embedding.
+	safePayload := strings.ReplaceAll(string(payloadBytes), "</", `<\/`)
+
 	var b strings.Builder
-	b.WriteString("<!DOCTYPE html><html lang=\"en\"><head><meta charset=\"utf-8\"><title>")
+	b.WriteString("<!DOCTYPE html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>")
 	b.WriteString(html.EscapeString(title))
-	b.WriteString("</title><style>body{font-family:system-ui,sans-serif;max-width:44rem;margin:2rem auto;padding:0 1rem;line-height:1.5}pre{background:#f4f4f5;padding:.75rem;overflow-x:auto;border-radius:4px}</style></head><body><h1>")
-	b.WriteString(html.EscapeString(title))
-	b.WriteString("</h1><p>Status: <strong>")
-	b.WriteString(html.EscapeString(sessionStatus))
-	b.WriteString("</strong>")
-	if providerID != "" {
-		b.WriteString(" (provider: <code>")
-		b.WriteString(html.EscapeString(providerID))
-		b.WriteString("</code>)")
-	}
-	b.WriteString("</p>")
+	b.WriteString("</title><style>body{font-family:system-ui,-apple-system,sans-serif;max-width:34rem;margin:3rem auto;padding:0 1.25rem;line-height:1.55;color:#111827;background:#f8fafc}.card{background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:1.5rem;box-shadow:0 10px 30px -15px rgba(15,23,42,.12)}h1{font-size:1.15rem;margin:0 0 .5rem}p{margin:.35rem 0;font-size:.9rem;color:#475569}pre{background:#f1f5f9;padding:.65rem .75rem;overflow-x:auto;border-radius:8px;font-size:.78rem;word-break:break-all;white-space:pre-wrap}.ok{color:#15803d}.err{color:#b91c1c}</style></head><body><div class=\"card\"><h1 class=\"")
 	if oauthErr != "" {
-		b.WriteString("<p>Error: <code>")
+		b.WriteString("err")
+	} else {
+		b.WriteString("ok")
+	}
+	b.WriteString("\">")
+	b.WriteString(html.EscapeString(title))
+	b.WriteString("</h1><p id=\"status-msg\">")
+	if oauthErr != "" {
+		b.WriteString("Error: <code>")
 		b.WriteString(html.EscapeString(oauthErr))
-		b.WriteString("</code></p>")
+		b.WriteString("</code>")
 		if oauthErrDesc != "" {
-			b.WriteString("<p>Description: ")
+			b.WriteString(" — ")
 			b.WriteString(html.EscapeString(oauthErrDesc))
-			b.WriteString("</p>")
 		}
 	} else {
-		b.WriteString("<p>Copy the callback URL or parameters below into the router OAuth exchange step:</p>")
-		b.WriteString("<h2>Callback URL</h2><pre>")
-		b.WriteString(html.EscapeString(fullURL))
-		b.WriteString("</pre><h2>State</h2><pre>")
-		b.WriteString(html.EscapeString(state))
-		b.WriteString("</pre><h2>Code</h2><pre>")
-		b.WriteString(html.EscapeString(code))
-		b.WriteString("</pre>")
+		b.WriteString("Sending authorization back to OMEG4MON Router dashboard… You can close this window if it does not close automatically.")
 	}
-	b.WriteString("</body></html>")
+	b.WriteString("</p>")
+	if oauthErr == "" {
+		b.WriteString("<details style=\"margin-top:1rem\"><summary style=\"cursor:pointer;font-size:.82rem;color:#64748b\">Manual copy fallback (remote / SSH)</summary><pre>")
+		b.WriteString(html.EscapeString(fullURL))
+		b.WriteString("</pre><pre>state: ")
+		b.WriteString(html.EscapeString(state))
+		b.WriteString("\ncode: ")
+		b.WriteString(html.EscapeString(code))
+		b.WriteString("</pre></details>")
+	}
+	b.WriteString("</div><script>(function(){var d=")
+	b.WriteString(safePayload)
+	b.WriteString(";try{if(window.opener&&!window.opener.closed){window.opener.postMessage({type:\"oauth_callback\",data:d},\"*\");}}catch(e){}try{var bc=new BroadcastChannel(\"oauth_callback\");bc.postMessage(d);bc.close();}catch(e){}try{localStorage.setItem(\"oauth_callback\",JSON.stringify(d));}catch(e){}if(!d.error&&window.opener){setTimeout(function(){try{window.close();}catch(e){}},800);}})();</script></body></html>")
 	_, _ = io.WriteString(w, b.String())
 }
 

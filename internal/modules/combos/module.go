@@ -134,9 +134,9 @@ func (m *Module) RegisterRoutes(mounts lifecycle.RouteMounts) {
 	mounts.AdminAPI.Patch("/combos/{id}", m.handlePatchCombo)
 	mounts.AdminAPI.Delete("/combos/{id}", m.handleDeleteCombo)
 
-	mounts.AdminAPI.Get("/aliases", m.handleListAliases)
-	mounts.AdminAPI.Put("/aliases/{alias}", m.handleUpsertAlias)
-	mounts.AdminAPI.Delete("/aliases/{alias}", m.handleDeleteAlias)
+	mounts.AdminAPI.Get("/models/aliases", m.handleListAliases)
+	mounts.AdminAPI.Put("/models/aliases/{alias}", m.handleUpsertAlias)
+	mounts.AdminAPI.Delete("/models/aliases/{alias}", m.handleDeleteAlias)
 
 	mounts.AdminAPI.Get("/models/disabled", m.handleListDisabledModels)
 	mounts.AdminAPI.Put("/models/disabled", m.handleUpsertDisabledModel)

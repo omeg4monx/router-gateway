@@ -3,7 +3,7 @@ info:
   title: Model Editor & Bypass API
   version: 0.1.0
 paths:
-  /api/modeleditor/overrides:
+  /api/model-editor/overrides:
     get:
       operationId: listModelOverrides
       tags: [modeleditor]
@@ -38,7 +38,7 @@ paths:
             application/json:
               schema:
                 $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
-  /api/modeleditor/overrides/{id}:
+  /api/model-editor/overrides/{id}:
     patch:
       operationId: updateModelOverride
       tags: [modeleditor]
@@ -93,7 +93,7 @@ paths:
             application/json:
               schema:
                 $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
-  /api/modeleditor/bypass:
+  /api/model-editor/bypass:
     get:
       operationId: listModelBypassRules
       tags: [modeleditor]
@@ -128,7 +128,7 @@ paths:
             application/json:
               schema:
                 $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
-  /api/modeleditor/bypass/{id}:
+  /api/model-editor/bypass/{id}:
     patch:
       operationId: updateModelBypassRule
       tags: [modeleditor]
@@ -183,7 +183,7 @@ paths:
             application/json:
               schema:
                 $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
-  /api/modeleditor/preview:
+  /api/model-editor/preview:
     post:
       operationId: previewModelEditor
       tags: [modeleditor]

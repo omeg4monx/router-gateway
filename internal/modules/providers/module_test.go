@@ -682,7 +682,7 @@ func TestHeadlessOAuthFlowAndCallbackXSSProtection(t *testing.T) {
 			TokenURL:           mockTokenServer.URL + "/token",
 			ClientID:           expectedClientID,
 			ClientSecret:       expectedClientSecret,
-			DefaultRedirectURI: "http://localhost:20128/api/oauth/callback",
+			DefaultRedirectURI: "http://localhost:20128/api/providers/oauth/callback",
 		},
 	}
 
@@ -735,21 +735,21 @@ func TestHeadlessOAuthFlowAndCallbackXSSProtection(t *testing.T) {
 		t.Fatalf("oauth_sessions secrets must be vault-encrypted, got verifier=%q secret=%q", verifierEnc, secretEnc)
 	}
 
-	// Step 2: Public GET /api/oauth/callback must work without admin auth and prevent reflected XSS.
-	xssRec := h.doRequest(t, http.MethodGet, `/api/oauth/callback?code=%3Cscript%3Ealert(1)%3C/script%3E&state=%22%3E%3Cimg%20src=x%20onerror=alert(1)%3E`, "", false)
+	// Step 2: Public GET /api/providers/oauth/callback must work without admin auth and prevent reflected XSS.
+	xssRec := h.doRequest(t, http.MethodGet, `/api/providers/oauth/callback?code=%3Cscript%3Ealert(1)%3C/script%3E&state=%22%3E%3Cimg%20src=x%20onerror=alert(1)%3E`, "", false)
 	if xssRec.Code != http.StatusOK {
-		t.Fatalf("GET /api/oauth/callback status = %d", xssRec.Code)
+		t.Fatalf("GET /api/providers/oauth/callback status = %d", xssRec.Code)
 	}
 	htmlBody := xssRec.Body.String()
 	if strings.Contains(htmlBody, "<script>alert(1)</script>") || strings.Contains(htmlBody, `<img src=x onerror=alert(1)>`) {
-		t.Fatalf("GET /api/oauth/callback reflected unescaped HTML/XSS: %s", htmlBody)
+		t.Fatalf("GET /api/providers/oauth/callback reflected unescaped HTML/XSS: %s", htmlBody)
 	}
 	if !strings.Contains(htmlBody, "&lt;script&gt;alert(1)&lt;/script&gt;") {
 		t.Fatalf("expected HTML-escaped payload in callback output: %s", htmlBody)
 	}
 
 	// Step 3: Headless-safe exchange via pasted callback_url.
-	pastedCallback := "http://localhost:20128/api/oauth/callback?code=" + url.QueryEscape(expectedAuthCode) + "&state=" + url.QueryEscape(startResp.State)
+	pastedCallback := "http://localhost:20128/api/providers/oauth/callback?code=" + url.QueryEscape(expectedAuthCode) + "&state=" + url.QueryEscape(startResp.State)
 	exchangeBody, _ := json.Marshal(map[string]string{
 		"callback_url": pastedCallback,
 	})
@@ -871,7 +871,7 @@ func TestRefreshOAuthTokenSingleflightCoalescing(t *testing.T) {
 			AuthorizeURL:       "https://auth.openai.com/oauth/authorize",
 			TokenURL:           mockTokenServer.URL + "/token",
 			ClientID:           "codex-client-test",
-			DefaultRedirectURI: "http://localhost:20128/api/oauth/callback",
+			DefaultRedirectURI: "http://localhost:20128/api/providers/oauth/callback",
 		},
 	}
 
@@ -971,12 +971,12 @@ func TestOAuthEnvResolutionAndCallbackJSONAndValidation(t *testing.T) {
 	}
 
 	// Callback JSON handoff verifies active session state without consuming it.
-	req := httptest.NewRequest(http.MethodGet, "/api/oauth/callback?code=cb-code&state="+url.QueryEscape(startResp.State), http.NoBody)
+	req := httptest.NewRequest(http.MethodGet, "/api/providers/oauth/callback?code=cb-code&state="+url.QueryEscape(startResp.State), http.NoBody)
 	req.Header.Set("Accept", "application/json")
 	cbRec := httptest.NewRecorder()
 	h.server.Handler().ServeHTTP(cbRec, req)
 	if cbRec.Code != http.StatusOK {
-		t.Fatalf("GET /api/oauth/callback JSON status = %d", cbRec.Code)
+		t.Fatalf("GET /api/providers/oauth/callback JSON status = %d", cbRec.Code)
 	}
 	var cbJSON map[string]string
 	if err := json.Unmarshal(cbRec.Body.Bytes(), &cbJSON); err != nil {
@@ -1023,13 +1023,13 @@ func TestOAuthExchangePreValidationAndConnectionCompatibility(t *testing.T) {
 			AuthorizeURL:       "https://claude.ai/oauth/authorize",
 			TokenURL:           mockTokenServer.URL + "/token",
 			ClientID:           "claude-client-id",
-			DefaultRedirectURI: "http://localhost:20128/api/oauth/callback",
+			DefaultRedirectURI: "http://localhost:20128/api/providers/oauth/callback",
 		},
 		"codex": {
 			AuthorizeURL:       "https://auth.openai.com/oauth/authorize",
 			TokenURL:           mockTokenServer.URL + "/token",
 			ClientID:           "codex-client-id",
-			DefaultRedirectURI: "http://localhost:20128/api/oauth/callback",
+			DefaultRedirectURI: "http://localhost:20128/api/providers/oauth/callback",
 		},
 	}
 
@@ -1323,14 +1323,14 @@ func TestProviderDraftProbe(t *testing.T) {
 
 	// 1. Authenticated openai-chat draft probe succeeds and forwards Bearer + custom headers.
 	const secretKey = "sk-draft-probe-secret-value"
-	rec := h.doRequest(t, http.MethodPost, "/api/providers/nodes/test", `{
+	rec := h.doRequest(t, http.MethodPost, "/api/providers/node-drafts/test", `{
 		"protocol": "openai-chat",
 		"base_url": "`+upstream.URL+`/v1",
 		"api_key": "`+secretKey+`",
 		"headers": {"X-Custom-Probe": "ok-123"}
 	}`, false)
 	if rec.Code != http.StatusOK {
-		t.Fatalf("POST /api/providers/nodes/test status = %d: %s", rec.Code, rec.Body.String())
+		t.Fatalf("POST /api/providers/node-drafts/test status = %d: %s", rec.Code, rec.Body.String())
 	}
 	var resp struct {
 		OK         bool   `json:"ok"`
@@ -1350,7 +1350,7 @@ func TestProviderDraftProbe(t *testing.T) {
 
 	// 2. Local / no-auth draft probe (e.g. Ollama) succeeds with no API key and leaves DB untouched.
 	seenAuth.Store("")
-	recNoAuth := h.doRequest(t, http.MethodPost, "/api/providers/nodes/test", `{
+	recNoAuth := h.doRequest(t, http.MethodPost, "/api/providers/node-drafts/test", `{
 		"protocol": "openai-chat",
 		"base_url": "`+upstream.URL+`/v1"
 	}`, false)
@@ -1373,7 +1373,7 @@ func TestProviderDraftProbe(t *testing.T) {
 	// 3. Upstream 401 echoing secret key must redact the secret from returned error.
 	returnStatus.Store(http.StatusUnauthorized)
 	echoBody.Store(`{"error":"invalid token ` + secretKey + `"}`)
-	recFail := h.doRequest(t, http.MethodPost, "/api/providers/nodes/test", `{
+	recFail := h.doRequest(t, http.MethodPost, "/api/providers/node-drafts/test", `{
 		"protocol": "openai-chat",
 		"base_url": "`+upstream.URL+`/v1",
 		"api_key": "`+secretKey+`"
@@ -1395,7 +1395,7 @@ func TestProviderDraftProbe(t *testing.T) {
 	}
 
 	// 4. Invalid protocol or base_url returns HTTP 400.
-	badProto := h.doRequest(t, http.MethodPost, "/api/providers/nodes/test", `{
+	badProto := h.doRequest(t, http.MethodPost, "/api/providers/node-drafts/test", `{
 		"protocol": "invalid-proto",
 		"base_url": "`+upstream.URL+`/v1"
 	}`, false)
@@ -1403,7 +1403,7 @@ func TestProviderDraftProbe(t *testing.T) {
 		t.Fatalf("bad protocol status = %d, want 400", badProto.Code)
 	}
 
-	badURL := h.doRequest(t, http.MethodPost, "/api/providers/nodes/test", `{
+	badURL := h.doRequest(t, http.MethodPost, "/api/providers/node-drafts/test", `{
 		"protocol": "openai-chat",
 		"base_url": "ftp://example.com"
 	}`, false)

@@ -2,6 +2,7 @@ import {
   PROVIDER_REGISTRY,
   PROVIDER_REGISTRY_MAP,
   type ProviderAuthMode,
+  type ProviderModelSpec,
   type ProviderRegistrySpec,
   type ProviderSourceCategory,
 } from "./providerRegistry";
@@ -12,9 +13,12 @@ import type {
   ProviderProtocol,
 } from "./schemas";
 
+export type { ProviderModelSpec };
+
 export type ProviderCategory = "oauth" | "apikey" | "free" | "custom";
 export type ProviderStatusFilter = "all" | "active" | "error" | "inactive" | "unconfigured";
 export type ProviderCategoryTab = "all" | ProviderCategory;
+export type ProviderSortOrder = "default" | "asc" | "desc";
 
 export interface ProviderEntryStats {
   total: number;
@@ -38,6 +42,7 @@ export interface ProviderEntry {
   protocol: ProviderProtocol;
   baseUrl: string;
   defaultModels: string[];
+  models: ProviderModelSpec[];
   headers?: Record<string, string>;
   website?: string;
   apiKeyUrl?: string;
@@ -72,7 +77,8 @@ export interface FleetTelemetry {
 // Map Go backend adapter IDs to their matching registry metadata ID when names differ.
 const ADAPTER_TO_REGISTRY_ID: Record<string, string> = {
   "gemini-oauth": "gemini-cli",
-  "github-copilot": "copilot",
+  "github-copilot": "github",
+  "openai-responses": "openai",
   "aws-quick": "aws-quick",
 };
 
@@ -164,6 +170,13 @@ export function buildProviderEntries(
           ? "free"
           : "apikey";
 
+    const resolvedDefaultModels =
+      regSpec && regSpec.defaultModels.length > 0 ? regSpec.defaultModels : adapter.default_models;
+    const resolvedModels: ProviderModelSpec[] =
+      regSpec?.models && regSpec.models.length > 0
+        ? [...regSpec.models]
+        : resolvedDefaultModels.map((id) => ({ id }));
+
     entries.push({
       id: adapter.id,
       name: regSpec?.name ?? adapter.display_name,
@@ -174,8 +187,8 @@ export function buildProviderEntries(
       authType: adapter.auth_type === "oauth" ? "oauth" : (regSpec?.authType ?? "api_key"),
       protocol: adapter.protocol,
       baseUrl: adapter.default_base_url || regSpec?.baseUrl || "",
-      defaultModels:
-        adapter.default_models.length > 0 ? adapter.default_models : (regSpec?.defaultModels ?? []),
+      defaultModels: resolvedDefaultModels,
+      models: resolvedModels,
       website: regSpec?.website,
       apiKeyUrl: regSpec?.apiKeyUrl,
       signupUrl: regSpec?.signupUrl,
@@ -203,6 +216,11 @@ export function buildProviderEntries(
     seen.add(regSpec.id);
     const conns = byProviderId.get(regSpec.id) ?? [];
     const registeredNode = customNodeMap.get(regSpec.id);
+    const resolvedRegModels =
+      registeredNode && registeredNode.models.length > 0
+        ? registeredNode.models
+        : regSpec.defaultModels;
+    const regMetaById = new Map((regSpec.models ?? []).map((m) => [m.id, m]));
     entries.push({
       id: regSpec.id,
       name: regSpec.name,
@@ -213,10 +231,8 @@ export function buildProviderEntries(
       authType: regSpec.authType,
       protocol: registeredNode?.protocol ?? regSpec.protocol,
       baseUrl: registeredNode?.base_url || regSpec.baseUrl,
-      defaultModels:
-        registeredNode && registeredNode.models.length > 0
-          ? registeredNode.models
-          : regSpec.defaultModels,
+      defaultModels: resolvedRegModels,
+      models: resolvedRegModels.map((id) => regMetaById.get(id) ?? { id }),
       headers: registeredNode?.headers,
       website: regSpec.website,
       apiKeyUrl: regSpec.apiKeyUrl,
@@ -253,6 +269,7 @@ export function buildProviderEntries(
       protocol: node.protocol,
       baseUrl: node.base_url,
       defaultModels: node.models,
+      models: node.models.map((id) => ({ id })),
       headers: node.headers,
       isCustom: true,
       isBuiltinAdapter: false,
@@ -278,6 +295,7 @@ export function buildProviderEntries(
       protocol: first?.protocol ?? "openai-chat",
       baseUrl: first?.base_url ?? "",
       defaultModels: first?.models ?? [],
+      models: (first?.models ?? []).map((id) => ({ id })),
       isCustom: first?.auth_type !== "oauth",
       isBuiltinAdapter: false,
       isNativeOAuth: false,
@@ -427,7 +445,20 @@ function getEntrySortRank(entry: ProviderEntry): number {
   return 4;
 }
 
-export function sortProviderEntries(entries: ProviderEntry[]): ProviderEntry[] {
+export function sortProviderEntries(
+  entries: ProviderEntry[],
+  sortOrder: ProviderSortOrder = "default",
+): ProviderEntry[] {
+  if (sortOrder === "asc") {
+    return [...entries].sort((a, b) =>
+      a.name.localeCompare(b.name, undefined, { sensitivity: "base" }),
+    );
+  }
+  if (sortOrder === "desc") {
+    return [...entries].sort((a, b) =>
+      b.name.localeCompare(a.name, undefined, { sensitivity: "base" }),
+    );
+  }
   return [...entries].sort((a, b) => {
     const rankDiff = getEntrySortRank(a) - getEntrySortRank(b);
     if (rankDiff !== 0) {

@@ -225,7 +225,8 @@ describe("oauthStartSchema", () => {
 describe("oauthExchangeSchema", () => {
   test("accepts callback_url alone without manual code/state", () => {
     const parsed = oauthExchangeSchema.safeParse({
-      callback_url: "http://localhost:20128/api/oauth/callback?code=auth_123&state=st_456",
+      callback_url:
+        "http://localhost:20128/api/providers/oauth/callback?code=auth_123&state=st_456",
       code: "",
       state: "",
       connection_name: "Claude Max",
@@ -236,7 +237,8 @@ describe("oauthExchangeSchema", () => {
     expect(parsed.success).toBe(true);
     if (parsed.success) {
       expect(toOAuthExchangeRequest(parsed.data)).toEqual({
-        callback_url: "http://localhost:20128/api/oauth/callback?code=auth_123&state=st_456",
+        callback_url:
+          "http://localhost:20128/api/providers/oauth/callback?code=auth_123&state=st_456",
         connection_name: "Claude Max",
         priority: 50,
         enabled: true,

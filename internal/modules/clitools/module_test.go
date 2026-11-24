@@ -195,18 +195,18 @@ func TestCLIToolsModuleContract(t *testing.T) {
 	}
 
 	// Admin endpoints must enforce admin authentication when configured.
-	unauthRec := h.doJSON(t, http.MethodGet, "/api/clitools", nil, false)
+	unauthRec := h.doJSON(t, http.MethodGet, "/api/cli-tools", nil, false)
 	if unauthRec.Code != http.StatusUnauthorized {
-		t.Fatalf("unauthenticated GET /api/clitools status = %d, want 401", unauthRec.Code)
+		t.Fatalf("unauthenticated GET /api/cli-tools status = %d, want 401", unauthRec.Code)
 	}
 }
 
 func TestCLIToolsCatalogAndGenerateAllTools(t *testing.T) {
 	h := newTestHarness(t, "127.0.0.1", false)
 
-	catRec := h.doJSON(t, http.MethodGet, "/api/clitools", nil, false)
+	catRec := h.doJSON(t, http.MethodGet, "/api/cli-tools", nil, false)
 	if catRec.Code != http.StatusOK {
-		t.Fatalf("GET /api/clitools status = %d, body = %s", catRec.Code, catRec.Body.String())
+		t.Fatalf("GET /api/cli-tools status = %d, body = %s", catRec.Code, catRec.Body.String())
 	}
 	cat := decodeJSON[catalogResponse](t, catRec)
 	if !cat.LocalApplyEnabled {
@@ -255,13 +255,13 @@ func TestCLIToolsCatalogAndGenerateAllTools(t *testing.T) {
 
 	// Generate config for all 6 tools.
 	for id, exp := range expectedTargets {
-		rec := h.doJSON(t, http.MethodPost, "/api/clitools/"+id+"/generate", map[string]string{
+		rec := h.doJSON(t, http.MethodPost, "/api/cli-tools/"+id+"/generate", map[string]string{
 			"base_url": "http://127.0.0.1:20128/",
 			"api_key":  `om4_secret_"quoted"\key`,
 			"model":    "claude-sonnet-4",
 		}, false)
 		if rec.Code != http.StatusOK {
-			t.Fatalf("POST /api/clitools/%s/generate status = %d, body = %s", id, rec.Code, rec.Body.String())
+			t.Fatalf("POST /api/cli-tools/%s/generate status = %d, body = %s", id, rec.Code, rec.Body.String())
 		}
 		resp := decodeJSON[generateResponse](t, rec)
 		if resp.Tool != id {
@@ -319,7 +319,7 @@ func TestCLIToolsCatalogAndGenerateAllTools(t *testing.T) {
 	}
 
 	// Unknown tool -> 404.
-	unknownRec := h.doJSON(t, http.MethodPost, "/api/clitools/nonexistent/generate", map[string]string{
+	unknownRec := h.doJSON(t, http.MethodPost, "/api/cli-tools/nonexistent/generate", map[string]string{
 		"base_url": "http://127.0.0.1:20128",
 	}, false)
 	if unknownRec.Code != http.StatusNotFound {
@@ -332,7 +332,7 @@ func TestCLIToolsCatalogAndGenerateAllTools(t *testing.T) {
 
 	// Non-HTTP base_url -> 400 invalid_base_url.
 	for _, badURL := range []string{"", "ftp://127.0.0.1:20128", "javascript:alert(1)", "http://", "/relative/path"} {
-		badRec := h.doJSON(t, http.MethodPost, "/api/clitools/claude-code/generate", map[string]string{
+		badRec := h.doJSON(t, http.MethodPost, "/api/cli-tools/claude-code/generate", map[string]string{
 			"base_url": badURL,
 		}, false)
 		if badRec.Code != http.StatusBadRequest {
@@ -345,13 +345,13 @@ func TestCLIToolsCatalogAndGenerateAllTools(t *testing.T) {
 	}
 
 	// Strict JSON decoding: unknown field rejected with 400.
-	unknownFieldRec := h.doJSON(t, http.MethodPost, "/api/clitools/claude-code/generate", `{"base_url":"http://127.0.0.1:20128","extra":1}`, false)
+	unknownFieldRec := h.doJSON(t, http.MethodPost, "/api/cli-tools/claude-code/generate", `{"base_url":"http://127.0.0.1:20128","extra":1}`, false)
 	if unknownFieldRec.Code != http.StatusBadRequest {
 		t.Fatalf("unknown field status = %d, want 400", unknownFieldRec.Code)
 	}
 
 	// Base URL already ending in /v1 should not duplicate /v1/v1 for OpenAI-compatible tools.
-	v1Rec := h.doJSON(t, http.MethodPost, "/api/clitools/codex-cli/generate", map[string]string{
+	v1Rec := h.doJSON(t, http.MethodPost, "/api/cli-tools/codex-cli/generate", map[string]string{
 		"base_url": "http://127.0.0.1:20128/v1/",
 	}, false)
 	if v1Rec.Code != http.StatusOK {
@@ -366,7 +366,7 @@ func TestCLIToolsCatalogAndGenerateAllTools(t *testing.T) {
 	}
 
 	// Optional fields omitted: claude-code omits ANTHROPIC_MODEL and uses placeholder token.
-	omitRec := h.doJSON(t, http.MethodPost, "/api/clitools/claude-code/generate", map[string]string{
+	omitRec := h.doJSON(t, http.MethodPost, "/api/cli-tools/claude-code/generate", map[string]string{
 		"base_url": "http://127.0.0.1:20128",
 	}, false)
 	if omitRec.Code != http.StatusOK {
@@ -391,7 +391,7 @@ func TestCLIToolsLoopbackAtomicApplyAndRollback(t *testing.T) {
 	}
 
 	// Apply on loopback writes new config atomically and creates timestamped backup.
-	applyRec := h.doJSON(t, http.MethodPost, "/api/clitools/claude-code/apply", map[string]string{
+	applyRec := h.doJSON(t, http.MethodPost, "/api/cli-tools/claude-code/apply", map[string]string{
 		"base_url": "http://127.0.0.1:20128",
 		"api_key":  "om4_test_key_123",
 		"model":    "claude-sonnet-4",
@@ -433,7 +433,7 @@ func TestCLIToolsLoopbackAtomicApplyAndRollback(t *testing.T) {
 	}
 
 	// Rollback restores exact original bytes atomically.
-	rbRec := h.doJSON(t, http.MethodPost, "/api/clitools/claude-code/rollback", nil, false)
+	rbRec := h.doJSON(t, http.MethodPost, "/api/cli-tools/claude-code/rollback", nil, false)
 	if rbRec.Code != http.StatusOK {
 		t.Fatalf("rollback status = %d, body = %s", rbRec.Code, rbRec.Body.String())
 	}
@@ -451,7 +451,7 @@ func TestCLIToolsLoopbackAtomicApplyAndRollback(t *testing.T) {
 	}
 
 	// Apply to a tool without a pre-existing file creates parent dir and leaves backup_path empty.
-	freshRec := h.doJSON(t, http.MethodPost, "/api/clitools/codex-cli/apply", map[string]string{
+	freshRec := h.doJSON(t, http.MethodPost, "/api/cli-tools/codex-cli/apply", map[string]string{
 		"base_url": "http://127.0.0.1:20128",
 	}, false)
 	if freshRec.Code != http.StatusOK {
@@ -463,7 +463,7 @@ func TestCLIToolsLoopbackAtomicApplyAndRollback(t *testing.T) {
 	}
 
 	// Rollback without any backup returns 404 backup_not_found.
-	noBackupRec := h.doJSON(t, http.MethodPost, "/api/clitools/codex-cli/rollback", nil, false)
+	noBackupRec := h.doJSON(t, http.MethodPost, "/api/cli-tools/codex-cli/rollback", nil, false)
 	if noBackupRec.Code != http.StatusNotFound {
 		t.Fatalf("rollback without backup status = %d, want 404", noBackupRec.Code)
 	}
@@ -473,7 +473,7 @@ func TestCLIToolsLoopbackAtomicApplyAndRollback(t *testing.T) {
 	}
 
 	// Multiple applies create ordered backups; rollback restores the lexicographically newest backup.
-	apply2Rec := h.doJSON(t, http.MethodPost, "/api/clitools/codex-cli/apply", map[string]string{
+	apply2Rec := h.doJSON(t, http.MethodPost, "/api/cli-tools/codex-cli/apply", map[string]string{
 		"base_url": "http://127.0.0.1:20128",
 		"api_key":  "second_apply_key",
 	}, false)
@@ -485,7 +485,7 @@ func TestCLIToolsLoopbackAtomicApplyAndRollback(t *testing.T) {
 		t.Fatalf("expected backup_path on second apply")
 	}
 
-	apply3Rec := h.doJSON(t, http.MethodPost, "/api/clitools/codex-cli/apply", map[string]string{
+	apply3Rec := h.doJSON(t, http.MethodPost, "/api/cli-tools/codex-cli/apply", map[string]string{
 		"base_url": "http://127.0.0.1:20128",
 		"api_key":  "third_apply_key",
 	}, false)
@@ -497,7 +497,7 @@ func TestCLIToolsLoopbackAtomicApplyAndRollback(t *testing.T) {
 		t.Fatalf("expected strictly newer backup path: %q <= %q", apply3.BackupPath, apply2.BackupPath)
 	}
 
-	rbNewestRec := h.doJSON(t, http.MethodPost, "/api/clitools/codex-cli/rollback", nil, false)
+	rbNewestRec := h.doJSON(t, http.MethodPost, "/api/cli-tools/codex-cli/rollback", nil, false)
 	if rbNewestRec.Code != http.StatusOK {
 		t.Fatalf("rollback newest status = %d, body = %s", rbNewestRec.Code, rbNewestRec.Body.String())
 	}
@@ -518,9 +518,9 @@ func TestCLIToolsNonLoopbackRejectsApplyAndRollback(t *testing.T) {
 	h := newTestHarness(t, "0.0.0.0", true)
 
 	// Catalog reports local_apply_enabled = false on non-loopback bind.
-	catRec := h.doJSON(t, http.MethodGet, "/api/clitools", nil, true)
+	catRec := h.doJSON(t, http.MethodGet, "/api/cli-tools", nil, true)
 	if catRec.Code != http.StatusOK {
-		t.Fatalf("GET /api/clitools status = %d", catRec.Code)
+		t.Fatalf("GET /api/cli-tools status = %d", catRec.Code)
 	}
 	cat := decodeJSON[catalogResponse](t, catRec)
 	if cat.LocalApplyEnabled {
@@ -528,7 +528,7 @@ func TestCLIToolsNonLoopbackRejectsApplyAndRollback(t *testing.T) {
 	}
 
 	// Generate still works on non-loopback (stateless).
-	genRec := h.doJSON(t, http.MethodPost, "/api/clitools/claude-code/generate", map[string]string{
+	genRec := h.doJSON(t, http.MethodPost, "/api/cli-tools/claude-code/generate", map[string]string{
 		"base_url": "https://router.example.com",
 	}, true)
 	if genRec.Code != http.StatusOK {
@@ -549,7 +549,7 @@ func TestCLIToolsNonLoopbackRejectsApplyAndRollback(t *testing.T) {
 		t.Fatalf("os.WriteFile(bak): %v", err)
 	}
 
-	applyRec := h.doJSON(t, http.MethodPost, "/api/clitools/claude-code/apply", map[string]string{
+	applyRec := h.doJSON(t, http.MethodPost, "/api/cli-tools/claude-code/apply", map[string]string{
 		"base_url": "http://127.0.0.1:20128",
 	}, true)
 	if applyRec.Code != http.StatusForbidden {
@@ -560,7 +560,7 @@ func TestCLIToolsNonLoopbackRejectsApplyAndRollback(t *testing.T) {
 		t.Fatalf("non-loopback apply code = %q, want local_apply_disabled", applyErr.Error.Code)
 	}
 
-	rbRec := h.doJSON(t, http.MethodPost, "/api/clitools/claude-code/rollback", nil, true)
+	rbRec := h.doJSON(t, http.MethodPost, "/api/cli-tools/claude-code/rollback", nil, true)
 	if rbRec.Code != http.StatusForbidden {
 		t.Fatalf("non-loopback rollback status = %d, want 403 (body=%s)", rbRec.Code, rbRec.Body.String())
 	}
@@ -570,7 +570,7 @@ func TestCLIToolsNonLoopbackRejectsApplyAndRollback(t *testing.T) {
 	}
 
 	// Also verify fresh HomeDir directory (e.g. .codex) is never created on non-loopback.
-	codexApplyRec := h.doJSON(t, http.MethodPost, "/api/clitools/codex-cli/apply", map[string]string{
+	codexApplyRec := h.doJSON(t, http.MethodPost, "/api/cli-tools/codex-cli/apply", map[string]string{
 		"base_url": "http://127.0.0.1:20128",
 	}, true)
 	if codexApplyRec.Code != http.StatusForbidden {

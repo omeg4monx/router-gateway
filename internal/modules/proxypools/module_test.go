@@ -121,14 +121,14 @@ func TestProxyPoolsCRUDCredentialRedactionAndValidation(t *testing.T) {
 		`{"name":"No Host","url":"http://:8080"}`,
 		`{"name":"","url":"http://127.0.0.1:8080"}`,
 	} {
-		rec := h.doReq(t, http.MethodPost, "/api/proxypools", bad)
+		rec := h.doReq(t, http.MethodPost, "/api/proxy-pools", bad)
 		if rec.Code != http.StatusBadRequest {
-			t.Fatalf("POST /api/proxypools (%s) = %d, want 400: %s", bad, rec.Code, rec.Body.String())
+			t.Fatalf("POST /api/proxy-pools (%s) = %d, want 400: %s", bad, rec.Code, rec.Body.String())
 		}
 	}
 
 	// Create HTTP proxy with embedded credentials.
-	rec := h.doReq(t, http.MethodPost, "/api/proxypools", `{
+	rec := h.doReq(t, http.MethodPost, "/api/proxy-pools", `{
 		"name": "Corp HTTP",
 		"url": "http://alice:supersecretpass@proxy.corp.local:8080"
 	}`)
@@ -148,7 +148,7 @@ func TestProxyPoolsCRUDCredentialRedactionAndValidation(t *testing.T) {
 	}
 
 	// Create SOCKS5 pool without credentials.
-	recSocks := h.doReq(t, http.MethodPost, "/api/proxypools", `{
+	recSocks := h.doReq(t, http.MethodPost, "/api/proxy-pools", `{
 		"name": "Edge SOCKS5",
 		"url": "socks5h://127.0.0.1:1080"
 	}`)
@@ -157,7 +157,7 @@ func TestProxyPoolsCRUDCredentialRedactionAndValidation(t *testing.T) {
 	}
 
 	// Bind provider and verify ProxyURLForProvider returns decrypted URL with credentials.
-	bindRec := h.doReq(t, http.MethodPut, "/api/proxypools/bindings/openai", `{"pool_id":"`+created.ID+`"}`)
+	bindRec := h.doReq(t, http.MethodPut, "/api/proxy-pool-bindings/openai", `{"pool_id":"`+created.ID+`"}`)
 	if bindRec.Code != http.StatusOK {
 		t.Fatalf("bind provider = %d, want 200: %s", bindRec.Code, bindRec.Body.String())
 	}
@@ -177,7 +177,7 @@ func TestProxyPoolsCRUDCredentialRedactionAndValidation(t *testing.T) {
 	}
 
 	// Disable pool -> ProxyURLForProvider returns nil.
-	patchRec := h.doReq(t, http.MethodPatch, "/api/proxypools/"+created.ID, `{"enabled":false}`)
+	patchRec := h.doReq(t, http.MethodPatch, "/api/proxy-pools/"+created.ID, `{"enabled":false}`)
 	if patchRec.Code != http.StatusOK {
 		t.Fatalf("disable pool = %d: %s", patchRec.Code, patchRec.Body.String())
 	}
@@ -217,7 +217,7 @@ func TestProxyPoolsLatencyTestAndAutoScanner(t *testing.T) {
 	_ = closedLn.Close()
 
 	// Create pool pointing to reachable listener and run /test.
-	createRec := h.doReq(t, http.MethodPost, "/api/proxypools", `{"name":"Local Proxy","url":"http://`+ln.Addr().String()+`"}`)
+	createRec := h.doReq(t, http.MethodPost, "/api/proxy-pools", `{"name":"Local Proxy","url":"http://`+ln.Addr().String()+`"}`)
 	if createRec.Code != http.StatusCreated {
 		t.Fatalf("create pool = %d: %s", createRec.Code, createRec.Body.String())
 	}
@@ -226,7 +226,7 @@ func TestProxyPoolsLatencyTestAndAutoScanner(t *testing.T) {
 		t.Fatalf("unmarshal pool: %v", err)
 	}
 
-	testRec := h.doReq(t, http.MethodPost, "/api/proxypools/"+pool.ID+"/test", `{}`)
+	testRec := h.doReq(t, http.MethodPost, "/api/proxy-pools/"+pool.ID+"/test", `{}`)
 	if testRec.Code != http.StatusOK {
 		t.Fatalf("test pool = %d: %s", testRec.Code, testRec.Body.String())
 	}
@@ -245,7 +245,7 @@ func TestProxyPoolsLatencyTestAndAutoScanner(t *testing.T) {
 		"name_prefix": "Scanned",
 		"timeout_ms":  1000,
 	})
-	scanRec := h.doReq(t, http.MethodPost, "/api/proxypools/scan", string(scanBody))
+	scanRec := h.doReq(t, http.MethodPost, "/api/proxy-pools/scan", string(scanBody))
 	if scanRec.Code != http.StatusOK {
 		t.Fatalf("scan = %d: %s", scanRec.Code, scanRec.Body.String())
 	}
@@ -269,7 +269,7 @@ func TestProxyPoolsBindingLifecycleAndCacheInvalidation(t *testing.T) {
 
 	h := newHarness(t)
 
-	rec := h.doReq(t, http.MethodPost, "/api/proxypools", `{"name":"Primary","url":"http://127.0.0.1:8888"}`)
+	rec := h.doReq(t, http.MethodPost, "/api/proxy-pools", `{"name":"Primary","url":"http://127.0.0.1:8888"}`)
 	if rec.Code != http.StatusCreated {
 		t.Fatalf("create pool = %d: %s", rec.Code, rec.Body.String())
 	}
@@ -278,12 +278,12 @@ func TestProxyPoolsBindingLifecycleAndCacheInvalidation(t *testing.T) {
 		t.Fatalf("unmarshal: %v", err)
 	}
 
-	if r := h.doReq(t, http.MethodPut, "/api/proxypools/bindings/qwen", `{"pool_id":"`+pool.ID+`"}`); r.Code != http.StatusOK {
+	if r := h.doReq(t, http.MethodPut, "/api/proxy-pool-bindings/qwen", `{"pool_id":"`+pool.ID+`"}`); r.Code != http.StatusOK {
 		t.Fatalf("bind qwen = %d: %s", r.Code, r.Body.String())
 	}
 
 	// Update URL -> cache invalidates immediately.
-	if r := h.doReq(t, http.MethodPatch, "/api/proxypools/"+pool.ID, `{"url":"http://127.0.0.1:9999"}`); r.Code != http.StatusOK {
+	if r := h.doReq(t, http.MethodPatch, "/api/proxy-pools/"+pool.ID, `{"url":"http://127.0.0.1:9999"}`); r.Code != http.StatusOK {
 		t.Fatalf("patch pool = %d: %s", r.Code, r.Body.String())
 	}
 	got, err := h.mod.ProxyURLForProvider(context.Background(), "qwen")
@@ -292,7 +292,7 @@ func TestProxyPoolsBindingLifecycleAndCacheInvalidation(t *testing.T) {
 	}
 
 	// Unbind -> returns nil.
-	if r := h.doReq(t, http.MethodDelete, "/api/proxypools/bindings/qwen", ""); r.Code != http.StatusNoContent {
+	if r := h.doReq(t, http.MethodDelete, "/api/proxy-pool-bindings/qwen", ""); r.Code != http.StatusNoContent {
 		t.Fatalf("unbind qwen = %d: %s", r.Code, r.Body.String())
 	}
 	got, err = h.mod.ProxyURLForProvider(context.Background(), "qwen")
@@ -301,10 +301,10 @@ func TestProxyPoolsBindingLifecycleAndCacheInvalidation(t *testing.T) {
 	}
 
 	// Rebind then delete pool -> binding cascades cleanly.
-	if r := h.doReq(t, http.MethodPut, "/api/proxypools/bindings/qwen", `{"pool_id":"`+pool.ID+`"}`); r.Code != http.StatusOK {
+	if r := h.doReq(t, http.MethodPut, "/api/proxy-pool-bindings/qwen", `{"pool_id":"`+pool.ID+`"}`); r.Code != http.StatusOK {
 		t.Fatalf("rebind qwen = %d: %s", r.Code, r.Body.String())
 	}
-	if r := h.doReq(t, http.MethodDelete, "/api/proxypools/"+pool.ID, ""); r.Code != http.StatusNoContent {
+	if r := h.doReq(t, http.MethodDelete, "/api/proxy-pools/"+pool.ID, ""); r.Code != http.StatusNoContent {
 		t.Fatalf("delete pool = %d: %s", r.Code, r.Body.String())
 	}
 	got, err = h.mod.ProxyURLForProvider(context.Background(), "qwen")

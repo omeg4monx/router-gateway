@@ -282,6 +282,7 @@ func fetchAntigravityQuotaSummary(ctx context.Context, client *http.Client, base
 	req.Header.Set("Authorization", "Bearer "+accessToken)
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
+	req.Header.Set("User-Agent", "antigravity/hub/2.32.1 linux/x64")
 	req.Header.Set("X-Client-Name", "antigravity")
 
 	resp, err := client.Do(req)

@@ -23,7 +23,7 @@ export function useProxyPools() {
   return useQuery<ListProxyPoolsResponse, Error>({
     queryKey: proxyPoolsQueryKeys.list,
     queryFn: async () => {
-      const { data, error } = await apiClient.GET("/api/proxypools");
+      const { data, error } = await apiClient.GET("/api/proxy-pools");
       if (data) {
         return data;
       }
@@ -36,7 +36,7 @@ export function useCreateProxyPoolMutation() {
   const queryClient = useQueryClient();
   return useMutation<ProxyPoolSummary, Error, CreateProxyPoolRequest>({
     mutationFn: async (body) => {
-      const { data, error } = await apiClient.POST("/api/proxypools", { body });
+      const { data, error } = await apiClient.POST("/api/proxy-pools", { body });
       if (data) {
         return data;
       }
@@ -52,7 +52,7 @@ export function useUpdateProxyPoolMutation() {
   const queryClient = useQueryClient();
   return useMutation<ProxyPoolSummary, Error, { id: string; body: UpdateProxyPoolRequest }>({
     mutationFn: async ({ id, body }) => {
-      const { data, error } = await apiClient.PATCH("/api/proxypools/{id}", {
+      const { data, error } = await apiClient.PATCH("/api/proxy-pools/{id}", {
         params: { path: { id } },
         body,
       });
@@ -71,7 +71,7 @@ export function useDeleteProxyPoolMutation() {
   const queryClient = useQueryClient();
   return useMutation<void, Error, string>({
     mutationFn: async (id) => {
-      const { error } = await apiClient.DELETE("/api/proxypools/{id}", {
+      const { error } = await apiClient.DELETE("/api/proxy-pools/{id}", {
         params: { path: { id } },
       });
       if (error) {
@@ -88,7 +88,7 @@ export function useTestProxyPoolMutation() {
   const queryClient = useQueryClient();
   return useMutation<TestProxyPoolResponse, Error, { id: string; body?: TestProxyPoolRequest }>({
     mutationFn: async ({ id, body }) => {
-      const { data, error } = await apiClient.POST("/api/proxypools/{id}/test", {
+      const { data, error } = await apiClient.POST("/api/proxy-pools/{id}/test", {
         params: { path: { id } },
         body,
       });
@@ -107,7 +107,7 @@ export function useScanProxyCandidatesMutation() {
   const queryClient = useQueryClient();
   return useMutation<ScanProxyCandidatesResponse, Error, ScanProxyCandidatesRequest>({
     mutationFn: async (body) => {
-      const { data, error } = await apiClient.POST("/api/proxypools/scan", { body });
+      const { data, error } = await apiClient.POST("/api/proxy-pools/scan", { body });
       if (data) {
         return data;
       }
@@ -123,7 +123,7 @@ export function useUpsertProxyBindingMutation() {
   const queryClient = useQueryClient();
   return useMutation<ProxyBindingSummary, Error, { providerId: string; poolId: string }>({
     mutationFn: async ({ providerId, poolId }) => {
-      const { data, error } = await apiClient.PUT("/api/proxypools/bindings/{providerId}", {
+      const { data, error } = await apiClient.PUT("/api/proxy-pool-bindings/{providerId}", {
         params: { path: { providerId } },
         body: { pool_id: poolId },
       });
@@ -142,7 +142,7 @@ export function useDeleteProxyBindingMutation() {
   const queryClient = useQueryClient();
   return useMutation<void, Error, string>({
     mutationFn: async (providerId) => {
-      const { error } = await apiClient.DELETE("/api/proxypools/bindings/{providerId}", {
+      const { error } = await apiClient.DELETE("/api/proxy-pool-bindings/{providerId}", {
         params: { path: { providerId } },
       });
       if (error) {

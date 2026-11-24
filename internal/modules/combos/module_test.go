@@ -392,12 +392,12 @@ func TestCombosAliasesDisabledCRUDAndAuth(t *testing.T) {
 	}
 
 	// Aliases CRUD.
-	if rec := h.doJSON(t, http.MethodPut, "/api/aliases/fast", map[string]any{"target_model": "fast"}, true); rec.Code != http.StatusBadRequest {
-		t.Fatalf("self-referential PUT /api/aliases/fast = %d, want 400", rec.Code)
+	if rec := h.doJSON(t, http.MethodPut, "/api/models/aliases/fast", map[string]any{"target_model": "fast"}, true); rec.Code != http.StatusBadRequest {
+		t.Fatalf("self-referential PUT /api/models/aliases/fast = %d, want 400", rec.Code)
 	}
-	putAlias := h.doJSON(t, http.MethodPut, "/api/aliases/fast", map[string]any{"target_model": "openai/gpt-4o-mini"}, true)
+	putAlias := h.doJSON(t, http.MethodPut, "/api/models/aliases/fast", map[string]any{"target_model": "openai/gpt-4o-mini"}, true)
 	if putAlias.Code != http.StatusOK {
-		t.Fatalf("PUT /api/aliases/fast = %d: %s", putAlias.Code, putAlias.Body.String())
+		t.Fatalf("PUT /api/models/aliases/fast = %d: %s", putAlias.Code, putAlias.Body.String())
 	}
 	aliasObj := decodeJSON[combos.ModelAlias](t, putAlias)
 	if aliasObj.Alias != "fast" || aliasObj.TargetModel != "openai/gpt-4o-mini" {
@@ -406,18 +406,18 @@ func TestCombosAliasesDisabledCRUDAndAuth(t *testing.T) {
 
 	// Upsert existing alias updates target_model.
 	h.clock.Advance(2 * time.Second)
-	putAlias2 := h.doJSON(t, http.MethodPut, "/api/aliases/fast", map[string]any{"target_model": "gemini/gemini-2.5-flash"}, true)
+	putAlias2 := h.doJSON(t, http.MethodPut, "/api/models/aliases/fast", map[string]any{"target_model": "gemini/gemini-2.5-flash"}, true)
 	if putAlias2.Code != http.StatusOK {
-		t.Fatalf("second PUT /api/aliases/fast = %d: %s", putAlias2.Code, putAlias2.Body.String())
+		t.Fatalf("second PUT /api/models/aliases/fast = %d: %s", putAlias2.Code, putAlias2.Body.String())
 	}
 	aliasObj2 := decodeJSON[combos.ModelAlias](t, putAlias2)
 	if aliasObj2.TargetModel != "gemini/gemini-2.5-flash" || aliasObj2.CreatedAt != aliasObj.CreatedAt {
 		t.Fatalf("unexpected upserted alias: %+v", aliasObj2)
 	}
 
-	listAliasesRec := h.doJSON(t, http.MethodGet, "/api/aliases", nil, true)
+	listAliasesRec := h.doJSON(t, http.MethodGet, "/api/models/aliases", nil, true)
 	if listAliasesRec.Code != http.StatusOK {
-		t.Fatalf("GET /api/aliases = %d", listAliasesRec.Code)
+		t.Fatalf("GET /api/models/aliases = %d", listAliasesRec.Code)
 	}
 	aliasesResp := decodeJSON[struct {
 		Aliases []combos.ModelAlias `json:"aliases"`
@@ -426,11 +426,11 @@ func TestCombosAliasesDisabledCRUDAndAuth(t *testing.T) {
 		t.Fatalf("unexpected aliases list: %+v", aliasesResp.Aliases)
 	}
 
-	if rec := h.doJSON(t, http.MethodDelete, "/api/aliases/fast", nil, true); rec.Code != http.StatusNoContent {
-		t.Fatalf("DELETE /api/aliases/fast = %d, want 204", rec.Code)
+	if rec := h.doJSON(t, http.MethodDelete, "/api/models/aliases/fast", nil, true); rec.Code != http.StatusNoContent {
+		t.Fatalf("DELETE /api/models/aliases/fast = %d, want 204", rec.Code)
 	}
-	if rec := h.doJSON(t, http.MethodDelete, "/api/aliases/fast", nil, true); rec.Code != http.StatusNotFound {
-		t.Fatalf("second DELETE /api/aliases/fast = %d, want 404", rec.Code)
+	if rec := h.doJSON(t, http.MethodDelete, "/api/models/aliases/fast", nil, true); rec.Code != http.StatusNotFound {
+		t.Fatalf("second DELETE /api/models/aliases/fast = %d, want 404", rec.Code)
 	}
 
 	// Disabled models CRUD (query param and body deletion for models containing '/').
@@ -595,7 +595,7 @@ func TestResolverFourTierPrecedenceAndTargetFields(t *testing.T) {
 	}
 	createdCombo := decodeJSON[combos.Combo](t, comboRec)
 
-	if rec := h.doJSON(t, http.MethodPut, "/api/aliases/shared-model", map[string]any{
+	if rec := h.doJSON(t, http.MethodPut, "/api/models/aliases/shared-model", map[string]any{
 		"target_model": "gemini/gemini-2.5-pro",
 	}, false); rec.Code != http.StatusOK {
 		t.Fatalf("create alias = %d: %s", rec.Code, rec.Body.String())
@@ -638,7 +638,7 @@ func TestResolverFourTierPrecedenceAndTargetFields(t *testing.T) {
 	}
 
 	// Delete the alias -> Tier 4 (Bare model) ordered strictly by (Priority ASC, ID ASC), skipping empty-models compat connection!
-	if rec := h.doJSON(t, http.MethodDelete, "/api/aliases/shared-model", nil, false); rec.Code != http.StatusNoContent {
+	if rec := h.doJSON(t, http.MethodDelete, "/api/models/aliases/shared-model", nil, false); rec.Code != http.StatusNoContent {
 		t.Fatalf("delete alias = %d", rec.Code)
 	}
 	targets, err = h.mod.Resolve(ctx, "shared-model", nil)
@@ -672,7 +672,7 @@ func TestResolverFourTierPrecedenceAndTargetFields(t *testing.T) {
 	}
 
 	// Tier 2 (Alias) beats Tier 3 (Explicit <provider>/<model>) when alias is named "<provider>/<model>".
-	if rec := h.doJSON(t, http.MethodPut, "/api/aliases/openai%2Fgpt-4o", map[string]any{
+	if rec := h.doJSON(t, http.MethodPut, "/api/models/aliases/openai%2Fgpt-4o", map[string]any{
 		"target_model": "anthropic/claude-sonnet-4",
 	}, false); rec.Code != http.StatusOK {
 		t.Fatalf("create explicit-named alias = %d: %s", rec.Code, rec.Body.String())
@@ -1000,8 +1000,8 @@ func TestResolverCycleProtectionAndDeduplication(t *testing.T) {
 	}
 
 	// 2. Mutual alias cycle: alpha -> beta -> alpha.
-	_ = h.doJSON(t, http.MethodPut, "/api/aliases/alpha", map[string]any{"target_model": "beta"}, false)
-	_ = h.doJSON(t, http.MethodPut, "/api/aliases/beta", map[string]any{"target_model": "alpha"}, false)
+	_ = h.doJSON(t, http.MethodPut, "/api/models/aliases/alpha", map[string]any{"target_model": "beta"}, false)
+	_ = h.doJSON(t, http.MethodPut, "/api/models/aliases/beta", map[string]any{"target_model": "alpha"}, false)
 	if _, err := h.mod.Resolve(ctx, "alpha", nil); !errors.Is(err, contracts.ErrModelNotFound) {
 		t.Fatalf("Resolve(alpha cycle) = %v, want ErrModelNotFound", err)
 	}
@@ -1028,7 +1028,7 @@ func TestResolverCycleProtectionAndDeduplication(t *testing.T) {
 		"name":    "combo-loop",
 		"targets": []string{"alias-to-combo"},
 	}, false)
-	_ = h.doJSON(t, http.MethodPut, "/api/aliases/alias-to-combo", map[string]any{
+	_ = h.doJSON(t, http.MethodPut, "/api/models/aliases/alias-to-combo", map[string]any{
 		"target_model": "combo-loop",
 	}, false)
 	if _, err := h.mod.Resolve(ctx, "combo-loop", nil); !errors.Is(err, contracts.ErrModelNotFound) {
@@ -1101,11 +1101,11 @@ func TestListModelsDeduplicationAndFiltering(t *testing.T) {
 		"targets": []string{"openai/gpt-4o"},
 		"enabled": false,
 	}, false)
-	_ = h.doJSON(t, http.MethodPut, "/api/aliases/fast", map[string]any{
+	_ = h.doJSON(t, http.MethodPut, "/api/models/aliases/fast", map[string]any{
 		"target_model": "openai/gpt-4o-mini",
 	}, false)
 	// Alias with same name as active combo should be shadowed by combo.
-	_ = h.doJSON(t, http.MethodPut, "/api/aliases/prod-combo", map[string]any{
+	_ = h.doJSON(t, http.MethodPut, "/api/models/aliases/prod-combo", map[string]any{
 		"target_model": "openai/gpt-4o",
 	}, false)
 	_ = h.doJSON(t, http.MethodPut, "/api/models/disabled", map[string]any{

@@ -210,7 +210,7 @@ func TestPxpipeInterceptorTransformsAndRuntimeGating(t *testing.T) {
 	}
 
 	// Reset stats & clear logs
-	_ = doPxpipeJSON(t, handler, http.MethodPost, "/api/pxpipe/stats/reset", nil)
+	_ = doPxpipeJSON(t, handler, http.MethodDelete, "/api/pxpipe/stats", nil)
 	_ = doPxpipeJSON(t, handler, http.MethodDelete, "/api/pxpipe/logs", nil)
 
 	// Preview endpoint works even when pipeline is stopped

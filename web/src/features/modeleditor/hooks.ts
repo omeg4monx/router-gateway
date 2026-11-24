@@ -25,7 +25,7 @@ export function useModelOverrides() {
   return useQuery<ModelOverrideList, Error>({
     queryKey: modelEditorQueryKeys.overrides,
     queryFn: async () => {
-      const { data, error } = await apiClient.GET("/api/modeleditor/overrides");
+      const { data, error } = await apiClient.GET("/api/model-editor/overrides");
       if (data) return data;
       throw new Error(extractErrorMessage(error));
     },
@@ -36,7 +36,7 @@ export function useCreateModelOverrideMutation() {
   const queryClient = useQueryClient();
   return useMutation<ModelOverride, Error, CreateModelOverrideRequest>({
     mutationFn: async (body) => {
-      const { data, error } = await apiClient.POST("/api/modeleditor/overrides", { body });
+      const { data, error } = await apiClient.POST("/api/model-editor/overrides", { body });
       if (data) return data;
       throw new Error(extractErrorMessage(error));
     },
@@ -50,7 +50,7 @@ export function useUpdateModelOverrideMutation() {
   const queryClient = useQueryClient();
   return useMutation<ModelOverride, Error, { id: string; body: UpdateModelOverrideRequest }>({
     mutationFn: async ({ id, body }) => {
-      const { data, error } = await apiClient.PATCH("/api/modeleditor/overrides/{id}", {
+      const { data, error } = await apiClient.PATCH("/api/model-editor/overrides/{id}", {
         params: { path: { id } },
         body,
       });
@@ -67,7 +67,7 @@ export function useDeleteModelOverrideMutation() {
   const queryClient = useQueryClient();
   return useMutation<void, Error, string>({
     mutationFn: async (id) => {
-      const { error } = await apiClient.DELETE("/api/modeleditor/overrides/{id}", {
+      const { error } = await apiClient.DELETE("/api/model-editor/overrides/{id}", {
         params: { path: { id } },
       });
       if (error) throw new Error(extractErrorMessage(error));
@@ -82,7 +82,7 @@ export function useModelBypassRules() {
   return useQuery<ModelBypassRuleList, Error>({
     queryKey: modelEditorQueryKeys.bypass,
     queryFn: async () => {
-      const { data, error } = await apiClient.GET("/api/modeleditor/bypass");
+      const { data, error } = await apiClient.GET("/api/model-editor/bypass");
       if (data) return data;
       throw new Error(extractErrorMessage(error));
     },
@@ -93,7 +93,7 @@ export function useCreateBypassRuleMutation() {
   const queryClient = useQueryClient();
   return useMutation<ModelBypassRule, Error, CreateModelBypassRuleRequest>({
     mutationFn: async (body) => {
-      const { data, error } = await apiClient.POST("/api/modeleditor/bypass", { body });
+      const { data, error } = await apiClient.POST("/api/model-editor/bypass", { body });
       if (data) return data;
       throw new Error(extractErrorMessage(error));
     },
@@ -107,7 +107,7 @@ export function useUpdateBypassRuleMutation() {
   const queryClient = useQueryClient();
   return useMutation<ModelBypassRule, Error, { id: string; body: UpdateModelBypassRuleRequest }>({
     mutationFn: async ({ id, body }) => {
-      const { data, error } = await apiClient.PATCH("/api/modeleditor/bypass/{id}", {
+      const { data, error } = await apiClient.PATCH("/api/model-editor/bypass/{id}", {
         params: { path: { id } },
         body,
       });
@@ -124,7 +124,7 @@ export function useDeleteBypassRuleMutation() {
   const queryClient = useQueryClient();
   return useMutation<void, Error, string>({
     mutationFn: async (id) => {
-      const { error } = await apiClient.DELETE("/api/modeleditor/bypass/{id}", {
+      const { error } = await apiClient.DELETE("/api/model-editor/bypass/{id}", {
         params: { path: { id } },
       });
       if (error) throw new Error(extractErrorMessage(error));
@@ -138,7 +138,7 @@ export function useDeleteBypassRuleMutation() {
 export function usePreviewModelEditorMutation() {
   return useMutation<ModelEditorPreviewResult, Error, ModelEditorPreviewRequest>({
     mutationFn: async (body) => {
-      const { data, error } = await apiClient.POST("/api/modeleditor/preview", { body });
+      const { data, error } = await apiClient.POST("/api/model-editor/preview", { body });
       if (data) return data;
       throw new Error(extractErrorMessage(error));
     },

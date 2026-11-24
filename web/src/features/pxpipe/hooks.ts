@@ -144,7 +144,7 @@ export function useResetPxpipeStatsMutation() {
   const queryClient = useQueryClient();
   return useMutation<PxpipeStats, Error, void>({
     mutationFn: async () => {
-      const { data, error } = await apiClient.POST("/api/pxpipe/stats/reset");
+      const { data, error } = await apiClient.DELETE("/api/pxpipe/stats");
       if (data) {
         return data;
       }

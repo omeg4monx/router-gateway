@@ -189,15 +189,15 @@ func TestAppRunAndShutdownEndpointTriggersGracefulExit(t *testing.T) {
 		t.Fatalf("GET /api/health status = %d, want 200", healthResp.StatusCode)
 	}
 
-	// Unauthenticated POST /api/shutdown must be rejected when require_login=true.
-	unauthShutResp, err := client.Post("http://"+addr+"/api/shutdown", "application/json", nil)
+	// Unauthenticated POST /api/system/shutdown must be rejected when require_login=true.
+	unauthShutResp, err := client.Post("http://"+addr+"/api/system/shutdown", "application/json", nil)
 	if err != nil {
-		t.Fatalf("unauthenticated POST /api/shutdown failed: %v", err)
+		t.Fatalf("unauthenticated POST /api/system/shutdown failed: %v", err)
 	}
 	_, _ = io.ReadAll(unauthShutResp.Body)
 	_ = unauthShutResp.Body.Close()
 	if unauthShutResp.StatusCode != http.StatusUnauthorized {
-		t.Fatalf("unauthenticated POST /api/shutdown status = %d, want 401", unauthShutResp.StatusCode)
+		t.Fatalf("unauthenticated POST /api/system/shutdown status = %d, want 401", unauthShutResp.StatusCode)
 	}
 
 	loginResp, err := client.Post(
@@ -214,14 +214,14 @@ func TestAppRunAndShutdownEndpointTriggersGracefulExit(t *testing.T) {
 		t.Fatalf("POST /api/auth/login status = %d, want 200 (body: %s)", loginResp.StatusCode, string(loginBody))
 	}
 
-	shutResp, err := client.Post("http://"+addr+"/api/shutdown", "application/json", nil)
+	shutResp, err := client.Post("http://"+addr+"/api/system/shutdown", "application/json", nil)
 	if err != nil {
-		t.Fatalf("POST /api/shutdown failed: %v", err)
+		t.Fatalf("POST /api/system/shutdown failed: %v", err)
 	}
 	_, _ = io.ReadAll(shutResp.Body)
 	_ = shutResp.Body.Close()
 	if shutResp.StatusCode != http.StatusAccepted {
-		t.Fatalf("POST /api/shutdown status = %d, want 202", shutResp.StatusCode)
+		t.Fatalf("POST /api/system/shutdown status = %d, want 202", shutResp.StatusCode)
 	}
 
 	select {
@@ -230,7 +230,7 @@ func TestAppRunAndShutdownEndpointTriggersGracefulExit(t *testing.T) {
 			t.Fatalf("app.Run() returned error after shutdown: %v", err)
 		}
 	case <-time.After(5 * time.Second):
-		t.Fatalf("timed out waiting for app.Run() to exit after POST /api/shutdown")
+		t.Fatalf("timed out waiting for app.Run() to exit after POST /api/system/shutdown")
 	}
 }
 
@@ -1080,10 +1080,10 @@ func TestAppWave1CUsageAndCLIToolsEndToEnd(t *testing.T) {
 		t.Fatalf("unexpected usage summary totals: %+v", summary.Totals)
 	}
 
-	// 5) Verify GET /api/clitools and POST /api/clitools/claude-code/generate.
-	status, toolsBody := doJSON(http.MethodGet, ts.URL+"/api/clitools", nil, nil)
+	// 5) Verify GET /api/cli-tools and POST /api/cli-tools/claude-code/generate.
+	status, toolsBody := doJSON(http.MethodGet, ts.URL+"/api/cli-tools", nil, nil)
 	if status != http.StatusOK {
-		t.Fatalf("GET /api/clitools status = %d, want 200 (body: %s)", status, string(toolsBody))
+		t.Fatalf("GET /api/cli-tools status = %d, want 200 (body: %s)", status, string(toolsBody))
 	}
 	var toolsCatalog struct {
 		LocalApplyEnabled bool `json:"local_apply_enabled"`
@@ -1092,22 +1092,22 @@ func TestAppWave1CUsageAndCLIToolsEndToEnd(t *testing.T) {
 		} `json:"tools"`
 	}
 	if err := json.Unmarshal(toolsBody, &toolsCatalog); err != nil {
-		t.Fatalf("decode GET /api/clitools JSON: %v", err)
+		t.Fatalf("decode GET /api/cli-tools JSON: %v", err)
 	}
 	if !toolsCatalog.LocalApplyEnabled {
 		t.Fatalf("expected local_apply_enabled=true for loopback host")
 	}
 	if len(toolsCatalog.Tools) != 6 {
-		t.Fatalf("GET /api/clitools count = %d, want 6 (%+v)", len(toolsCatalog.Tools), toolsCatalog.Tools)
+		t.Fatalf("GET /api/cli-tools count = %d, want 6 (%+v)", len(toolsCatalog.Tools), toolsCatalog.Tools)
 	}
 
-	status, genBody := doJSON(http.MethodPost, ts.URL+"/api/clitools/claude-code/generate", map[string]any{
+	status, genBody := doJSON(http.MethodPost, ts.URL+"/api/cli-tools/claude-code/generate", map[string]any{
 		"base_url": ts.URL,
 		"api_key":  createdKey.Secret,
 		"model":    "openai/gpt-4o",
 	}, nil)
 	if status != http.StatusOK {
-		t.Fatalf("POST /api/clitools/claude-code/generate status = %d, want 200 (body: %s)", status, string(genBody))
+		t.Fatalf("POST /api/cli-tools/claude-code/generate status = %d, want 200 (body: %s)", status, string(genBody))
 	}
 	var genResp struct {
 		Tool    string `json:"tool"`
@@ -1115,7 +1115,7 @@ func TestAppWave1CUsageAndCLIToolsEndToEnd(t *testing.T) {
 		Content string `json:"content"`
 	}
 	if err := json.Unmarshal(genBody, &genResp); err != nil {
-		t.Fatalf("decode POST /api/clitools/claude-code/generate JSON: %v", err)
+		t.Fatalf("decode POST /api/cli-tools/claude-code/generate JSON: %v", err)
 	}
 	if genResp.Tool != "claude-code" || genResp.Format != "json" {
 		t.Fatalf("unexpected generate response metadata: %+v", genResp)
@@ -1235,7 +1235,7 @@ func TestWave2AE2EProviderProxyRouting(t *testing.T) {
 	_ = json.Unmarshal(connBody, &createdConn)
 
 	// Create proxy pool & bind openai to it.
-	st, poolBody := doJSON(http.MethodPost, ts.URL+"/api/proxypools", map[string]any{
+	st, poolBody := doJSON(http.MethodPost, ts.URL+"/api/proxy-pools", map[string]any{
 		"name": "Local Forward Proxy",
 		"url":  proxySrv.URL,
 	}, nil)
@@ -1247,7 +1247,7 @@ func TestWave2AE2EProviderProxyRouting(t *testing.T) {
 	}
 	_ = json.Unmarshal(poolBody, &pool)
 
-	if st, body := doJSON(http.MethodPut, ts.URL+"/api/proxypools/bindings/openai", map[string]string{"pool_id": pool.ID}, nil); st != http.StatusOK {
+	if st, body := doJSON(http.MethodPut, ts.URL+"/api/proxy-pool-bindings/openai", map[string]string{"pool_id": pool.ID}, nil); st != http.StatusOK {
 		t.Fatalf("bind proxy = %d: %s", st, body)
 	}
 
@@ -1466,7 +1466,7 @@ func TestWave2BGatewayInterceptorPipelineE2E(t *testing.T) {
 	}
 
 	// 2. Create modeleditor override (rewrites alias-fast -> openai/gpt-4o, strips presence_penalty, sets temperature=0.2).
-	resp, raw = doJSON(http.MethodPost, ts.URL+"/api/modeleditor/overrides", map[string]any{
+	resp, raw = doJSON(http.MethodPost, ts.URL+"/api/model-editor/overrides", map[string]any{
 		"name":          "Fast Rewrite",
 		"model_pattern": "alias-fast",
 		"target_model":  "openai/gpt-4o",
@@ -1478,7 +1478,7 @@ func TestWave2BGatewayInterceptorPipelineE2E(t *testing.T) {
 	}
 
 	// 3. Enable tokensaver (whitespace) + headroom.
-	resp, raw = doJSON(http.MethodPatch, ts.URL+"/api/tokensaver/config", map[string]any{
+	resp, raw = doJSON(http.MethodPatch, ts.URL+"/api/token-saver/config", map[string]any{
 		"enabled":          true,
 		"strategy":         "whitespace",
 		"headroom_enabled": true,
@@ -1559,7 +1559,7 @@ func TestWave2BDisabledModulesSkipInterceptors(t *testing.T) {
 	}
 	_ = resp.Body.Close()
 
-	for _, path := range []string{"/api/prompt-guard/config", "/api/modeleditor/overrides", "/api/tokensaver/config"} {
+	for _, path := range []string{"/api/prompt-guard/config", "/api/model-editor/overrides", "/api/token-saver/config"} {
 		r, err := client.Get(ts.URL + path)
 		if err != nil {
 			t.Fatalf("GET %s: %v", path, err)
@@ -2369,12 +2369,12 @@ func TestWave3DTelegramArenaAndChatE2E(t *testing.T) {
 	if code, body := doJSON(http.MethodGet, ts.URL+"/api/arena/models", nil); code != http.StatusOK || !strings.Contains(string(body), "gpt-4o") {
 		t.Fatalf("GET /api/arena/models = %d: %s", code, body)
 	}
-	battleCode, battleRaw := doJSON(http.MethodPost, ts.URL+"/api/arena/battles/run", map[string]any{
+	battleCode, battleRaw := doJSON(http.MethodPost, ts.URL+"/api/arena/battles", map[string]any{
 		"prompt": "Hello Wave 3D",
 		"models": []string{"openai/gpt-4o", "openai/gpt-4o-mini"},
 	})
 	if battleCode != http.StatusCreated {
-		t.Fatalf("POST /api/arena/battles/run = %d: %s", battleCode, battleRaw)
+		t.Fatalf("POST /api/arena/battles = %d: %s", battleCode, battleRaw)
 	}
 	var battle struct {
 		ID         string `json:"id"`
@@ -2532,22 +2532,22 @@ func TestWave3EE2EPluginsCloudSyncImporter(t *testing.T) {
 	}
 
 	// 2. CloudSync: SSRF rejection on loopback + portable snapshot export & restore.
-	if code, _ := doJSON(http.MethodPatch, ts.URL+"/api/cloudsync/config", map[string]any{
+	if code, _ := doJSON(http.MethodPatch, ts.URL+"/api/cloud-sync/config", map[string]any{
 		"endpoint_url": "http://127.0.0.1:9999/sync",
 	}); code != http.StatusBadRequest {
 		t.Fatalf("expected 400 SSRF rejection for loopback endpoint, got %d", code)
 	}
-	snapCode, snapRaw := doJSON(http.MethodGet, ts.URL+"/api/cloudsync/snapshot", nil)
+	snapCode, snapRaw := doJSON(http.MethodGet, ts.URL+"/api/cloud-sync/snapshot", nil)
 	if snapCode != http.StatusOK || !strings.Contains(string(snapRaw), `"checksum"`) {
-		t.Fatalf("GET /api/cloudsync/snapshot = %d: %s", snapCode, snapRaw)
+		t.Fatalf("GET /api/cloud-sync/snapshot = %d: %s", snapCode, snapRaw)
 	}
 	var snapObj map[string]any
 	_ = json.Unmarshal(snapRaw, &snapObj)
-	if code, body := doJSON(http.MethodPost, ts.URL+"/api/cloudsync/restore", map[string]any{
+	if code, body := doJSON(http.MethodPost, ts.URL+"/api/cloud-sync/restore", map[string]any{
 		"conflict_policy": "merge",
 		"snapshot":        snapObj,
 	}); code != http.StatusOK {
-		t.Fatalf("POST /api/cloudsync/restore = %d: %s", code, body)
+		t.Fatalf("POST /api/cloud-sync/restore = %d: %s", code, body)
 	}
 
 	// 3. Importer: create temp legacy SQLite DB, inspect, dry-run, and live import.
@@ -2618,7 +2618,7 @@ func TestWave3EDisabledModulesDetachCleanly(t *testing.T) {
 	}
 	_ = resp.Body.Close()
 
-	for _, path := range []string{"/api/plugins", "/api/skills", "/api/cloudsync/config", "/api/importer/history"} {
+	for _, path := range []string{"/api/plugins", "/api/skills", "/api/cloud-sync/config", "/api/importer/history"} {
 		r, err := client.Get(ts.URL + path)
 		if err != nil {
 			t.Fatalf("GET %s: %v", path, err)

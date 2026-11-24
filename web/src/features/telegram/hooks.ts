@@ -82,7 +82,7 @@ export function useRegisterTelegramWebhookMutation() {
   const queryClient = useQueryClient();
   return useMutation<TelegramActionResponse, Error, void>({
     mutationFn: async () => {
-      const { data, error } = await apiClient.POST("/api/telegram/webhook/register");
+      const { data, error } = await apiClient.POST("/api/telegram/webhook/registration");
       if (data) {
         return data;
       }
@@ -98,7 +98,7 @@ export function useDeleteTelegramWebhookMutation() {
   const queryClient = useQueryClient();
   return useMutation<TelegramActionResponse, Error, void>({
     mutationFn: async () => {
-      const { data, error } = await apiClient.POST("/api/telegram/webhook/delete");
+      const { data, error } = await apiClient.DELETE("/api/telegram/webhook/registration");
       if (data) {
         return data;
       }

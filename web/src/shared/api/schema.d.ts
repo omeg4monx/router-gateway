@@ -73,7 +73,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/shutdown": {
+    "/api/system/shutdown": {
         parameters: {
             query?: never;
             header?: never;
@@ -322,7 +322,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/providers/nodes/test": {
+    "/api/providers/node-drafts/test": {
         parameters: {
             query?: never;
             header?: never;
@@ -522,7 +522,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/oauth/callback": {
+    "/api/providers/oauth/callback": {
         parameters: {
             query?: never;
             header?: never;
@@ -579,7 +579,7 @@ export interface paths {
         patch: operations["updateCombo"];
         trace?: never;
     };
-    "/api/aliases": {
+    "/api/models/aliases": {
         parameters: {
             query?: never;
             header?: never;
@@ -596,7 +596,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/aliases/{alias}": {
+    "/api/models/aliases/{alias}": {
         parameters: {
             query?: never;
             header?: never;
@@ -762,7 +762,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/clitools": {
+    "/api/cli-tools": {
         parameters: {
             query?: never;
             header?: never;
@@ -779,7 +779,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/clitools/{tool}/generate": {
+    "/api/cli-tools/{tool}/generate": {
         parameters: {
             query?: never;
             header?: never;
@@ -799,7 +799,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/clitools/{tool}/apply": {
+    "/api/cli-tools/{tool}/apply": {
         parameters: {
             query?: never;
             header?: never;
@@ -819,7 +819,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/clitools/{tool}/rollback": {
+    "/api/cli-tools/{tool}/rollback": {
         parameters: {
             query?: never;
             header?: never;
@@ -839,7 +839,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/proxypools": {
+    "/api/proxy-pools": {
         parameters: {
             query?: never;
             header?: never;
@@ -857,7 +857,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/proxypools/{id}": {
+    "/api/proxy-pools/{id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -877,7 +877,7 @@ export interface paths {
         patch: operations["updateProxyPool"];
         trace?: never;
     };
-    "/api/proxypools/{id}/test": {
+    "/api/proxy-pools/{id}/test": {
         parameters: {
             query?: never;
             header?: never;
@@ -896,7 +896,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/proxypools/scan": {
+    "/api/proxy-pools/scan": {
         parameters: {
             query?: never;
             header?: never;
@@ -913,7 +913,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/proxypools/bindings/{providerId}": {
+    "/api/proxy-pool-bindings/{providerId}": {
         parameters: {
             query?: never;
             header?: never;
@@ -1090,7 +1090,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/modeleditor/overrides": {
+    "/api/model-editor/overrides": {
         parameters: {
             query?: never;
             header?: never;
@@ -1108,7 +1108,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/modeleditor/overrides/{id}": {
+    "/api/model-editor/overrides/{id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -1126,7 +1126,7 @@ export interface paths {
         patch: operations["updateModelOverride"];
         trace?: never;
     };
-    "/api/modeleditor/bypass": {
+    "/api/model-editor/bypass": {
         parameters: {
             query?: never;
             header?: never;
@@ -1144,7 +1144,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/modeleditor/bypass/{id}": {
+    "/api/model-editor/bypass/{id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -1162,7 +1162,7 @@ export interface paths {
         patch: operations["updateModelBypassRule"];
         trace?: never;
     };
-    "/api/modeleditor/preview": {
+    "/api/model-editor/preview": {
         parameters: {
             query?: never;
             header?: never;
@@ -1179,7 +1179,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/tokensaver/config": {
+    "/api/token-saver/config": {
         parameters: {
             query?: never;
             header?: never;
@@ -1197,7 +1197,7 @@ export interface paths {
         patch: operations["updateTokenSaverConfig"];
         trace?: never;
     };
-    "/api/tokensaver/stats": {
+    "/api/token-saver/stats": {
         parameters: {
             query?: never;
             header?: never;
@@ -1208,30 +1208,14 @@ export interface paths {
         get: operations["getTokenSaverStats"];
         put?: never;
         post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/tokensaver/stats/reset": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
         /** Reset compression and Headroom counters */
-        post: operations["resetTokenSaverStats"];
-        delete?: never;
+        delete: operations["resetTokenSaverStats"];
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/tokensaver/cache/clear": {
+    "/api/token-saver/cache": {
         parameters: {
             query?: never;
             header?: never;
@@ -1240,15 +1224,15 @@ export interface paths {
         };
         get?: never;
         put?: never;
+        post?: never;
         /** Clear in-memory Headroom prefix affinity cache */
-        post: operations["clearHeadroomCache"];
-        delete?: never;
+        delete: operations["clearHeadroomCache"];
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/tokensaver/preview": {
+    "/api/token-saver/preview": {
         parameters: {
             query?: never;
             header?: never;
@@ -2022,24 +2006,8 @@ export interface paths {
         get: operations["getPxpipeStats"];
         put?: never;
         post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/pxpipe/stats/reset": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
         /** Reset PXPIPE transform statistics counters */
-        post: operations["resetPxpipeStats"];
-        delete?: never;
+        delete: operations["resetPxpipeStats"];
         options?: never;
         head?: never;
         patch?: never;
@@ -2115,7 +2083,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/telegram/webhook/register": {
+    "/api/telegram/webhook/registration": {
         parameters: {
             query?: never;
             header?: never;
@@ -2126,24 +2094,8 @@ export interface paths {
         put?: never;
         /** Register the configured webhook URL and secret token with Telegram Bot API */
         post: operations["registerTelegramWebhook"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/telegram/webhook/delete": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
         /** Remove the active webhook from Telegram Bot API */
-        post: operations["deleteTelegramWebhook"];
-        delete?: never;
+        delete: operations["deleteTelegramWebhook"];
         options?: never;
         head?: never;
         patch?: never;
@@ -2227,22 +2179,6 @@ export interface paths {
         };
         /** List recent Arena multi-model comparison battles */
         get: operations["listArenaBattles"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/arena/battles/run": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
         put?: never;
         /** Execute a prompt concurrently across 2 to 4 models and persist the comparison */
         post: operations["runArenaBattle"];
@@ -2463,7 +2399,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/cloudsync/config": {
+    "/api/cloud-sync/config": {
         parameters: {
             query?: never;
             header?: never;
@@ -2481,7 +2417,7 @@ export interface paths {
         patch: operations["updateCloudSyncConfig"];
         trace?: never;
     };
-    "/api/cloudsync/push": {
+    "/api/cloud-sync/push": {
         parameters: {
             query?: never;
             header?: never;
@@ -2498,7 +2434,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/cloudsync/pull": {
+    "/api/cloud-sync/pull": {
         parameters: {
             query?: never;
             header?: never;
@@ -2515,7 +2451,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/cloudsync/snapshot": {
+    "/api/cloud-sync/snapshot": {
         parameters: {
             query?: never;
             header?: never;
@@ -2532,7 +2468,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/cloudsync/restore": {
+    "/api/cloud-sync/restore": {
         parameters: {
             query?: never;
             header?: never;
@@ -2549,7 +2485,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/cloudsync/history": {
+    "/api/cloud-sync/history": {
         parameters: {
             query?: never;
             header?: never;
@@ -2849,6 +2785,9 @@ export interface components {
             /** Format: uri */
             default_redirect_uri: string;
             client_id_configured: boolean;
+            flow_type?: string;
+            fixed_port?: number;
+            callback_path?: string;
         };
         CatalogAdapterDescriptor: {
             id: string;
@@ -2991,6 +2930,8 @@ export interface components {
             /** Format: date-time */
             expires_at: string;
             flow_type?: string;
+            fixed_port?: number;
+            callback_path?: string;
             user_code?: string;
             verification_uri?: string;
             interval?: number;

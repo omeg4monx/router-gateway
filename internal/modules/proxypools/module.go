@@ -104,14 +104,14 @@ func (m *Module) RegisterRoutes(mounts lifecycle.RouteMounts) {
 	if mounts.AdminAPI == nil {
 		return
 	}
-	mounts.AdminAPI.Get("/proxypools", m.handleList)
-	mounts.AdminAPI.Post("/proxypools", m.handleCreate)
-	mounts.AdminAPI.Patch("/proxypools/{id}", m.handleUpdate)
-	mounts.AdminAPI.Delete("/proxypools/{id}", m.handleDelete)
-	mounts.AdminAPI.Post("/proxypools/{id}/test", m.handleTest)
-	mounts.AdminAPI.Post("/proxypools/scan", m.handleScan)
-	mounts.AdminAPI.Put("/proxypools/bindings/{providerId}", m.handleUpsertBinding)
-	mounts.AdminAPI.Delete("/proxypools/bindings/{providerId}", m.handleDeleteBinding)
+	mounts.AdminAPI.Get("/proxy-pools", m.handleList)
+	mounts.AdminAPI.Post("/proxy-pools", m.handleCreate)
+	mounts.AdminAPI.Patch("/proxy-pools/{id}", m.handleUpdate)
+	mounts.AdminAPI.Delete("/proxy-pools/{id}", m.handleDelete)
+	mounts.AdminAPI.Post("/proxy-pools/{id}/test", m.handleTest)
+	mounts.AdminAPI.Post("/proxy-pools/scan", m.handleScan)
+	mounts.AdminAPI.Put("/proxy-pool-bindings/{providerId}", m.handleUpsertBinding)
+	mounts.AdminAPI.Delete("/proxy-pool-bindings/{providerId}", m.handleDeleteBinding)
 }
 
 // Start pre-warms the in-memory provider proxy binding cache.

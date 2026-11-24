@@ -3,7 +3,7 @@ info:
   title: Token Saver & Headroom API
   version: 0.1.0
 paths:
-  /api/tokensaver/config:
+  /api/token-saver/config:
     get:
       operationId: getTokenSaverConfig
       tags: [tokensaver]
@@ -38,7 +38,7 @@ paths:
             application/json:
               schema:
                 $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
-  /api/tokensaver/stats:
+  /api/token-saver/stats:
     get:
       operationId: getTokenSaverStats
       tags: [tokensaver]
@@ -50,23 +50,22 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/TokenSaverStats'
-  /api/tokensaver/stats/reset:
-    post:
+    delete:
       operationId: resetTokenSaverStats
       tags: [tokensaver]
       summary: Reset compression and Headroom counters
       responses:
         '204':
           description: Reset
-  /api/tokensaver/cache/clear:
-    post:
+  /api/token-saver/cache:
+    delete:
       operationId: clearHeadroomCache
       tags: [tokensaver]
       summary: Clear in-memory Headroom prefix affinity cache
       responses:
         '204':
           description: Cleared
-  /api/tokensaver/preview:
+  /api/token-saver/preview:
     post:
       operationId: previewTokenSaver
       tags: [tokensaver]

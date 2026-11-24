@@ -386,7 +386,7 @@ func TestAdminAPIAuthEnforcement(t *testing.T) {
 		mounts.PublicAPI.Get("/health", func(w http.ResponseWriter, r *http.Request) {
 			httpserver.WriteJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 		})
-		mounts.AdminAPI.Post("/shutdown", func(w http.ResponseWriter, r *http.Request) {
+		mounts.AdminAPI.Post("/system/shutdown", func(w http.ResponseWriter, r *http.Request) {
 			httpserver.WriteJSON(w, http.StatusAccepted, map[string]string{
 				"status":  "shutting_down",
 				"subject": httpserver.AdminSubject(r.Context()),
@@ -412,7 +412,7 @@ func TestAdminAPIAuthEnforcement(t *testing.T) {
 			method string
 			path   string
 		}{
-			{http.MethodPost, "/api/shutdown"},
+			{http.MethodPost, "/api/system/shutdown"},
 			{http.MethodGet, "/api/providers/"},
 		} {
 			rec := httptest.NewRecorder()
@@ -433,15 +433,15 @@ func TestAdminAPIAuthEnforcement(t *testing.T) {
 		}
 
 		// AdminAPI with valid auth -> 202 and subject populated in context
-		req := httptest.NewRequest(http.MethodPost, "/api/shutdown", nil)
+		req := httptest.NewRequest(http.MethodPost, "/api/system/shutdown", nil)
 		req.Header.Set("Authorization", "Bearer secret")
 		rec = httptest.NewRecorder()
 		h.ServeHTTP(rec, req)
 		if rec.Code != http.StatusAccepted {
-			t.Fatalf("POST /api/shutdown (with auth): status = %d, want 202", rec.Code)
+			t.Fatalf("POST /api/system/shutdown (with auth): status = %d, want 202", rec.Code)
 		}
 		if !strings.Contains(rec.Body.String(), `"subject":"admin"`) {
-			t.Fatalf("POST /api/shutdown: expected subject=admin in body %q", rec.Body.String())
+			t.Fatalf("POST /api/system/shutdown: expected subject=admin in body %q", rec.Body.String())
 		}
 
 		// Wrong method on API route -> 405 JSON

@@ -34,7 +34,28 @@ export const PROVIDER_PROTOCOLS = [
   "gemini",
 ] as const;
 
-export const OAUTH_PROVIDER_IDS = ["claude", "codex", "gemini-oauth"] as const;
+export const OAUTH_PROVIDER_IDS = [
+  "claude",
+  "codex",
+  "gemini-oauth",
+  "qwen",
+  "github-copilot",
+  "kiro",
+  "antigravity",
+  "aws-quick",
+  "freepi",
+  "kimi",
+  "grok-cli",
+  "nous",
+  "minimax-code",
+  "minimax-code-global",
+  "muse",
+  "kilocode",
+  "iflow",
+  "cline",
+  "clinepass",
+  "gitlab",
+] as const;
 
 export const MAX_NAME_RUNES = 128;
 export const MAX_ID_RUNES = 64;

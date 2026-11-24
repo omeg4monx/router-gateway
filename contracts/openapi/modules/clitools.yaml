@@ -3,7 +3,7 @@ info:
   title: omeg4mon-router CLI Tools Module API
   version: 0.1.0
 paths:
-  /api/clitools:
+  /api/cli-tools:
     get:
       operationId: listCLITools
       summary: List supported CLI coding tools and whether loopback-only local apply is enabled
@@ -22,7 +22,7 @@ paths:
             application/json:
               schema:
                 $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
-  /api/clitools/{tool}/generate:
+  /api/cli-tools/{tool}/generate:
     parameters:
       - name: tool
         in: path
@@ -72,7 +72,7 @@ paths:
             application/json:
               schema:
                 $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
-  /api/clitools/{tool}/apply:
+  /api/cli-tools/{tool}/apply:
     parameters:
       - name: tool
         in: path
@@ -134,7 +134,7 @@ paths:
             application/json:
               schema:
                 $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
-  /api/clitools/{tool}/rollback:
+  /api/cli-tools/{tool}/rollback:
     parameters:
       - name: tool
         in: path
