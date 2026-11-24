@@ -32,13 +32,13 @@ jobs:
         working-directory: web
         run: bun install --frozen-lockfile
 
-      - name: Verify web lint, tests, typecheck, and static export
+      - name: Verify web lint, tests, typecheck, and static build
         working-directory: web
         run: |
           bun run check
           bun test
           bun run typecheck
-          NEXT_OUTPUT_EXPORT=true bun run build
+          bun run build
 
       - name: Run CLI launcher tests
         working-directory: cli

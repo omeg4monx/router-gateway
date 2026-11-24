@@ -1,10 +1,10 @@
 # OMEG4MON Router
 
-Single-binary modular LLM gateway and control plane built with **Go (`net/http` + `chi/v5`, zero-CGO SQLite WAL)** and **Next.js 16 (TypeScript, static export embedded via `//go:embed`)**.
+Single-binary modular LLM gateway and control plane built with **Go (`net/http` + `chi/v5`, zero-CGO SQLite WAL)** and **Vite + React 19 (TypeScript, static SPA embedded via `//go:embed`)**.
 
 ## Architecture
 
-- **Single self-contained binary:** Serves OpenAI/Anthropic/Gemini-compatible gateway routes (`/v1/*`, `/v1beta/*`), admin management API (`/api/*`), and the embedded Next.js static dashboard (`web/out/`).
+- **Single self-contained binary:** Serves OpenAI/Anthropic/Gemini-compatible gateway routes (`/v1/*`, `/v1beta/*`), admin management API (`/api/*`), and the embedded Vite + React static dashboard (`web/out/`).
 - **27 isolated vertical-slice modules:** Each feature domain lives in `internal/modules/<name>/` (with its own SQLite migrations and OpenAPI 3.1 contract in `contracts/openapi/modules/`) and mirrors `web/src/features/<name>/`. Cross-module calls use narrow interfaces in `internal/contracts/` and `internal/platform/eventbus`.
 - **Zero-CGO persistence & secret vault:** Pure-Go `modernc.org/sqlite` with split 1-writer / 8-reader WAL pools and AES-256-GCM credential encryption backed by `OMEG4MON_MASTER_KEY` or `<DATA_DIR>/master.key` (`0600`).
 
@@ -48,7 +48,7 @@ docker run -d --name omeg4mon-router \
 # Terminal 1 — Go API backend (:20128)
 go run ./cmd/omeg4mon-router
 
-# Terminal 2 — Next.js dev UI (:20127, proxying /api, /v1, /v1beta)
+# Terminal 2 — Vite dev UI (:20127, proxying /api, /v1, /v1beta)
 cd web && bun run dev
 ```
 
@@ -75,7 +75,7 @@ cd web && bun run dev
 
 ```bash
 make check        # Go fmt/lint/race/zero-CGO + Web biome/tests/typecheck + CLI tests
-make build        # OpenAPI codegen + Next.js static export + single binary (bin/omeg4mon-router)
+make build        # OpenAPI codegen + Vite SPA static build + single binary (bin/omeg4mon-router)
 make smoke        # Live single-binary health, UI, 404, CLI launcher, and idle RSS check
 make cross-build  # 6 zero-CGO binaries (linux/darwin/windows x amd64/arm64) + dist/SHA256SUMS.txt
 ```

@@ -2,10 +2,9 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { AlertCircle, CheckCircle2, Eye, EyeOff, Lock } from "lucide-react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
+import { Link, useNavigate } from "react-router";
 import { Alert, AlertDescription, AlertTitle } from "@/shared/ui/alert";
 import { Button } from "@/shared/ui/button";
 import { Card } from "@/shared/ui/card";
@@ -22,7 +21,7 @@ import {
 } from "./password";
 
 export function InitForm() {
-  const router = useRouter();
+  const navigate = useNavigate();
   const initStatusQuery = useInitStatus();
   const initializeMutation = useInitializeSystem();
   const [showPassword, setShowPassword] = useState(false);
@@ -57,7 +56,7 @@ export function InitForm() {
       { password: values.password },
       {
         onSuccess: () => {
-          router.replace("/dashboard/");
+          void navigate("/dashboard/", { replace: true });
         },
       },
     );
@@ -105,10 +104,10 @@ export function InitForm() {
 
         <div className="flex flex-wrap items-center gap-3">
           <Button asChild>
-            <Link href="/dashboard/">Open Dashboard</Link>
+            <Link to="/dashboard/">Open Dashboard</Link>
           </Button>
           <Button asChild variant="outline">
-            <Link href="/login/">Go to Sign In</Link>
+            <Link to="/login/">Go to Sign In</Link>
           </Button>
         </div>
       </Card>
@@ -244,7 +243,7 @@ export function InitForm() {
           </Button>
 
           <Link
-            href="/dashboard/"
+            to="/dashboard/"
             className="text-center text-xs font-medium text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]"
           >
             Return to Dashboard

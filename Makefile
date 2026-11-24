@@ -38,7 +38,7 @@ test:
 	cd cli && bun test
 
 build-web:
-	cd web && NEXT_OUTPUT_EXPORT=true bun run build
+	cd web && bun run build
 	rm -rf $(UI_DIST)
 	cp -R web/out $(UI_DIST)
 
@@ -52,7 +52,7 @@ smoke:
 dev:
 	@echo "Start omeg4mon-router in two terminals for live reload:"
 	@echo "  1) Go API backend  : go run ./cmd/omeg4mon-router"
-	@echo "  2) Next.js dev UI  : cd web && bun run dev"
+	@echo "  2) Vite dev UI     : cd web && bun run dev"
 	@echo "Then open http://127.0.0.1:20127 (API proxied to http://127.0.0.1:20128)."
 
 cross-build: codegen build-web
@@ -67,4 +67,4 @@ cross-build: codegen build-web
 	cd dist && sha256sum omeg4mon-router-* > SHA256SUMS.txt
 
 clean:
-	rm -rf bin dist $(UI_DIST) web/out web/.next
+	rm -rf bin dist $(UI_DIST) web/out

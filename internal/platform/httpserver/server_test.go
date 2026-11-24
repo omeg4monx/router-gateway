@@ -42,10 +42,11 @@ func testLogger() *slog.Logger {
 
 func TestServerIsolatesJSON404FromSPAFallback(t *testing.T) {
 	uiFS := fstest.MapFS{
-		"index.html":           {Data: []byte("<!DOCTYPE html><html><body>root-spa</body></html>")},
-		"dashboard/index.html": {Data: []byte("<!DOCTYPE html><html><body>dashboard-page</body></html>")},
-		"about.html":           {Data: []byte("<!DOCTYPE html><html><body>about-page</body></html>")},
-		"_next/static/app.js":  {Data: []byte("console.log('ok');")},
+		"index.html":             {Data: []byte("<!DOCTYPE html><html><body>root-spa</body></html>")},
+		"dashboard/index.html":   {Data: []byte("<!DOCTYPE html><html><body>dashboard-page</body></html>")},
+		"about.html":             {Data: []byte("<!DOCTYPE html><html><body>about-page</body></html>")},
+		"assets/index-abc123.js": {Data: []byte("console.log('vite-ok');")},
+		"_next/static/app.js":    {Data: []byte("console.log('ok');")},
 	}
 
 	srv := httpserver.New(httpserver.Options{
@@ -138,6 +139,14 @@ func TestServerIsolatesJSON404FromSPAFallback(t *testing.T) {
 				wantCacheSubstr: "no-store",
 			},
 			{
+				name:            "immutable vite static asset",
+				method:          http.MethodGet,
+				path:            "/assets/index-abc123.js",
+				wantStatus:      http.StatusOK,
+				wantBodySubstr:  "console.log('vite-ok');",
+				wantCacheSubstr: "immutable",
+			},
+			{
 				name:            "immutable next static asset",
 				method:          http.MethodGet,
 				path:            "/_next/static/app.js",
@@ -182,7 +191,7 @@ func TestServerIsolatesJSON404FromSPAFallback(t *testing.T) {
 	})
 
 	t.Run("missing assets return 404 instead of SPA HTML", func(t *testing.T) {
-		for _, p := range []string{"/_next/static/missing.js", "/_next/data/build/page", "/assets/logo.png"} {
+		for _, p := range []string{"/assets/missing.js", "/assets/chunk", "/_next/static/missing.js", "/_next/data/build/page", "/assets/logo.png"} {
 			req := httptest.NewRequest(http.MethodGet, p, nil)
 			rec := httptest.NewRecorder()
 			handler.ServeHTTP(rec, req)

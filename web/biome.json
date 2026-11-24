@@ -8,15 +8,7 @@
   },
   "files": {
     "ignoreUnknown": true,
-    "includes": [
-      "**",
-      "!.next",
-      "!out",
-      "!node_modules",
-      "!next-env.d.ts",
-      "!src/shared/api/schema.d.ts",
-      "!public/providers"
-    ]
+    "includes": ["**", "!out", "!node_modules", "!src/shared/api/schema.d.ts", "!public/providers"]
   },
   "formatter": {
     "enabled": true,
@@ -59,7 +51,6 @@
   "linter": {
     "enabled": true,
     "domains": {
-      "next": "recommended",
       "react": "recommended"
     },
     "rules": {

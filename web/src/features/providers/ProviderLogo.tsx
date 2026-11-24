@@ -106,7 +106,6 @@ export function ProviderLogo({
   const shouldInvertDark = DARK_INVERT_PATTERN.test(src);
 
   return (
-    // biome-ignore lint/performance/noImgElement: Static-export build serves local /providers/* brand assets with runtime onError monogram fallback
     <img
       src={src}
       alt={name}

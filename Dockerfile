@@ -6,7 +6,6 @@ COPY web/package.json web/bun.lock ./
 RUN bun install --frozen-lockfile
 COPY contracts /src/contracts
 COPY web/ ./
-ENV NEXT_OUTPUT_EXPORT=true
 RUN bun run build
 
 FROM golang:1.26-alpine AS go-builder
@@ -32,7 +31,7 @@ FROM gcr.io/distroless/static-debian12:nonroot
 ARG VERSION=dev
 ARG COMMIT=none
 LABEL org.opencontainers.image.title="omeg4mon-router" \
-      org.opencontainers.image.description="Single-binary modular Go + Next.js LLM gateway and control plane" \
+      org.opencontainers.image.description="Single-binary modular Go + Vite React LLM gateway and control plane" \
       org.opencontainers.image.version="${VERSION}" \
       org.opencontainers.image.revision="${COMMIT}" \
       org.opencontainers.image.licenses="MIT"

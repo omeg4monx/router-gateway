@@ -44,9 +44,7 @@ node_modules/
 dist/
 build/
 out/
-web/.next/
 web/out/
-web/next-env.d.ts
 web/tsconfig.tsbuildinfo
 cmd/omeg4mon-router/ui_dist/
 *.exe

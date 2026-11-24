@@ -1,7 +1,7 @@
 {
   "name": "@omeg4mon/router",
   "version": "0.1.0",
-  "description": "Thin multi-platform launcher for the single-binary omeg4mon-router Go + Next.js LLM gateway.",
+  "description": "Thin multi-platform launcher for the single-binary omeg4mon-router Go + Vite React LLM gateway.",
   "license": "MIT",
   "type": "module",
   "bin": {

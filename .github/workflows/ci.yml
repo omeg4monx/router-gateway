@@ -75,7 +75,7 @@ jobs:
           "
 
   web-check:
-    name: Web & CLI (Next.js 16, OpenAPI Drift, Tests & Static Export)
+    name: Web & CLI (Vite + React 19, OpenAPI Drift, Tests & Static Build)
     runs-on: ubuntu-latest
     timeout-minutes: 15
     defaults:
@@ -115,7 +115,7 @@ jobs:
         working-directory: cli
         run: bun test
 
-      - name: Run strict TypeScript check (next typegen + tsc)
+      - name: Run strict TypeScript check (tsc)
         run: bun run typecheck
 
       - name: Enforce DESIGN.md surface guardrail (no glassmorphism)
@@ -125,13 +125,11 @@ jobs:
             exit 1
           fi
 
-      - name: Build Next.js 16 static export
+      - name: Build Vite SPA static bundle
         run: |
-          NEXT_OUTPUT_EXPORT=true bun run build
+          bun run build
           test -f out/index.html
-          test -f out/dashboard/index.html
-          test -f out/init/index.html
-          test -f out/login/index.html
+          test -d out/assets
 
       - name: Upload static UI bundle for single-binary jobs
         uses: actions/upload-artifact@v4

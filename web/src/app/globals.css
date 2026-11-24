@@ -334,6 +334,8 @@ input:focus-visible {
 }
 
 :root {
+  --font-ui-sans: "Plus Jakarta Sans Variable", "Plus Jakarta Sans";
+  --font-ui-mono: "JetBrains Mono Variable", "JetBrains Mono";
   --ease-spring: cubic-bezier(0.22, 1, 0.36, 1);
 }
 

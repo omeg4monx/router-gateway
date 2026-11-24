@@ -1,9 +1,6 @@
-"use client";
-
 import { AlertTriangle, ArrowRight, Loader2, RefreshCw } from "lucide-react";
-import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
 import { type ReactNode, useEffect } from "react";
+import { Link, useLocation, useNavigate } from "react-router";
 import { cn } from "@/shared/lib/utils";
 import { useUIStore } from "@/shared/store/uiStore";
 import { Alert, AlertDescription, AlertTitle } from "@/shared/ui/alert";
@@ -19,8 +16,8 @@ interface AuthGuardProps {
 }
 
 export function AuthGuard({ children }: AuthGuardProps) {
-  const pathname = usePathname();
-  const router = useRouter();
+  const { pathname } = useLocation();
+  const navigate = useNavigate();
   const locale = useUIStore((state) => state.locale);
   const isId = locale === "id";
   const authSessionQuery = useAuthSession();
@@ -32,9 +29,9 @@ export function AuthGuard({ children }: AuthGuardProps) {
 
   useEffect(() => {
     if (redirectTarget && !authSessionQuery.isFetching) {
-      router.replace(redirectTarget);
+      void navigate(redirectTarget, { replace: true });
     }
-  }, [authSessionQuery.isFetching, redirectTarget, router]);
+  }, [authSessionQuery.isFetching, navigate, redirectTarget]);
 
   if (authSessionQuery.isPending || awaitingFreshRedirectCheck) {
     return (
@@ -131,7 +128,7 @@ export function AuthGuard({ children }: AuthGuardProps) {
                 </span>
               </Button>
               <Button asChild variant="outline" size="sm">
-                <Link href="/login/">{isId ? "Ke Halaman Masuk" : "Go to Sign In"}</Link>
+                <Link to="/login/">{isId ? "Ke Halaman Masuk" : "Go to Sign In"}</Link>
               </Button>
             </div>
           </div>
@@ -172,7 +169,7 @@ export function AuthGuard({ children }: AuthGuardProps) {
               {isId ? `Mengarahkan ke ${destinationLabel}…` : `Redirecting to ${destinationLabel}…`}
             </p>
             <Button asChild variant="outline" size="sm">
-              <Link href={redirectTarget}>
+              <Link to={redirectTarget}>
                 <span>
                   {isId ? `Lanjut ke ${redirectTarget}` : `Continue to ${redirectTarget}`}
                 </span>

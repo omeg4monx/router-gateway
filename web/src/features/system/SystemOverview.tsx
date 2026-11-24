@@ -15,8 +15,8 @@ import {
   Server,
   Sparkles,
 } from "lucide-react";
-import Link from "next/link";
 import { useMemo, useState } from "react";
+import { Link } from "react-router";
 import { useCombos } from "@/features/combos/hooks";
 import { useApiKeys } from "@/features/keys/hooks";
 import { useProviderConnections } from "@/features/providers/hooks";
@@ -419,7 +419,7 @@ export function SystemOverview() {
             ].map((item) => (
               <Link
                 key={item.step}
-                href={item.href}
+                to={item.href}
                 className="group flex items-start gap-3 rounded-lg border border-[var(--color-border-subtle)] bg-[var(--color-surface)] p-3.5 transition-colors hover:border-[var(--color-primary)]/40"
               >
                 <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-[var(--color-primary)] font-mono text-xs font-bold text-[var(--color-on-primary)]">
@@ -803,7 +803,7 @@ export function SystemOverview() {
       {/* Row 3: 4 Inventory MiniCards (9router MonitoringPageClient parity) */}
       <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Link
-          href="/dashboard/providers/"
+          to="/dashboard/providers/"
           className="group flex flex-col gap-1 rounded-xl border border-[var(--color-border)]/80 bg-[var(--color-surface)] p-4 transition-colors hover:border-[var(--color-primary)]/35"
         >
           <Server className="h-4 w-4 text-[var(--color-primary)]" aria-hidden="true" />
@@ -819,7 +819,7 @@ export function SystemOverview() {
         </Link>
 
         <Link
-          href="/dashboard/proxy-pools/"
+          to="/dashboard/proxy-pools/"
           className="group flex flex-col gap-1 rounded-xl border border-[var(--color-border)]/80 bg-[var(--color-surface)] p-4 transition-colors hover:border-[var(--color-primary)]/35"
         >
           <Network className="h-4 w-4 text-[var(--color-primary)]" aria-hidden="true" />
@@ -835,7 +835,7 @@ export function SystemOverview() {
         </Link>
 
         <Link
-          href="/dashboard/models/"
+          to="/dashboard/models/"
           className="group flex flex-col gap-1 rounded-xl border border-[var(--color-border)]/80 bg-[var(--color-surface)] p-4 transition-colors hover:border-[var(--color-primary)]/35"
         >
           <Layers className="h-4 w-4 text-[var(--color-primary)]" aria-hidden="true" />
@@ -851,7 +851,7 @@ export function SystemOverview() {
         </Link>
 
         <Link
-          href="/dashboard/keys/"
+          to="/dashboard/keys/"
           className="group flex flex-col gap-1 rounded-xl border border-[var(--color-border)]/80 bg-[var(--color-surface)] p-4 transition-colors hover:border-[var(--color-primary)]/35"
         >
           <KeyRound className="h-4 w-4 text-[var(--color-primary)]" aria-hidden="true" />
@@ -879,7 +879,7 @@ export function SystemOverview() {
             </h3>
           </div>
           <Link
-            href="/dashboard/usage/"
+            to="/dashboard/usage/"
             className="inline-flex items-center gap-1 text-xs font-medium text-[var(--color-primary)] hover:underline"
           >
             <span>{isId ? "Analitik Lengkap" : "Full Analytics"}</span>

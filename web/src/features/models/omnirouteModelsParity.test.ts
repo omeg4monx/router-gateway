@@ -7,14 +7,7 @@ const modelsDir = resolve(import.meta.dir);
 const consoleSource = readFileSync(resolve(modelsDir, "ModelCatalogConsole.tsx"), "utf8");
 const modalSource = readFileSync(resolve(modelsDir, "AssignKeysModal.tsx"), "utf8");
 const hooksSource = readFileSync(resolve(modelsDir, "hooks.ts"), "utf8");
-const pageSource = readFileSync(
-  resolve(modelsDir, "../../app/(dashboard)/dashboard/models/page.tsx"),
-  "utf8",
-);
-const combosPageSource = readFileSync(
-  resolve(modelsDir, "../../app/(dashboard)/dashboard/combos/page.tsx"),
-  "utf8",
-);
+const appSource = readFileSync(resolve(modelsDir, "../../App.tsx"), "utf8");
 const comboBuilderSource = readFileSync(
   resolve(modelsDir, "../combos/ComboBuilderModal.tsx"),
   "utf8",
@@ -23,8 +16,8 @@ const legacyConsolePath = resolve(modelsDir, "../combos/ModelsRoutingConsole.tsx
 
 describe("/dashboard/models & /dashboard/combos parity", () => {
   test("/dashboard/models mounts ModelCatalogConsole and /dashboard/combos mounts CombosConsole (legacy removed)", () => {
-    expect(pageSource).toContain("ModelCatalogConsole");
-    expect(combosPageSource).toContain("CombosConsole");
+    expect(appSource).toContain('<Route path="models" element={<ModelCatalogConsole />} />');
+    expect(appSource).toContain('<Route path="combos" element={<CombosConsole />} />');
     expect(existsSync(legacyConsolePath)).toBe(false);
   });
 

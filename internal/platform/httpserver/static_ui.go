@@ -17,8 +17,8 @@ const (
 // NewStaticUIHandler returns an http.Handler serving a static-exported SPA from
 // fsys. It resolves exact regular files, <path>/index.html, <path>.html, and
 // falls back to root index.html for non-asset client-side routes. Immutable
-// Cache-Control headers are applied to /_next/static/* assets and no-store
-// headers are applied to HTML documents.
+// Cache-Control headers are applied to /assets/* (Vite) and /_next/static/*
+// hashed assets, and no-store headers are applied to HTML documents.
 func NewStaticUIHandler(fsys fs.FS) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet && r.Method != http.MethodHead {
@@ -115,7 +115,7 @@ func isMissingAssetPath(rel string) bool {
 	if rel == "" {
 		return false
 	}
-	if rel == "_next" || strings.HasPrefix(rel, "_next/") {
+	if rel == "assets" || strings.HasPrefix(rel, "assets/") || rel == "_next" || strings.HasPrefix(rel, "_next/") {
 		return true
 	}
 	return path.Ext(path.Base(rel)) != ""
@@ -123,7 +123,7 @@ func isMissingAssetPath(rel string) bool {
 
 func applyStaticCacheHeaders(h http.Header, servedName string) {
 	switch {
-	case strings.HasPrefix(servedName, "_next/static/"):
+	case strings.HasPrefix(servedName, "assets/"), strings.HasPrefix(servedName, "_next/static/"):
 		h.Set("Cache-Control", immutableCacheControl)
 	case strings.HasSuffix(strings.ToLower(servedName), ".html"):
 		h.Set("Cache-Control", htmlCacheControl)

@@ -27,9 +27,9 @@ import {
   X,
   Zap,
 } from "lucide-react";
-import Link from "next/link";
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
+import { Link } from "react-router";
 import { cn } from "@/shared/lib/utils";
 import { Alert, AlertDescription, AlertTitle } from "@/shared/ui/alert";
 import { Badge } from "@/shared/ui/badge";
@@ -1411,8 +1411,7 @@ export function OAuthWizardModal({
   const currentEntry = allEntries.find((e) => e.id === watchedProvider) ?? selectedEntry;
   const oauthMeta = currentEntry?.adapter?.oauth;
   const isNonNativeOAuth = Boolean(selectedEntry && !selectedEntry.isNativeOAuth);
-  const isAwsQuick =
-    oauthMeta?.flow_type === "loopback_proxy" || watchedProvider === "aws-quick";
+  const isAwsQuick = oauthMeta?.flow_type === "loopback_proxy" || watchedProvider === "aws-quick";
   const isDeviceCodeProvider =
     oauthMeta?.flow_type === "device_code" ||
     watchedProvider === "github-copilot" ||
@@ -2553,140 +2552,138 @@ export function OAuthWizardModal({
         ) : (
           <div className="space-y-4">
             {activeSession ? (
-                  <>
-                    {/* OmniRoute Option A: Waiting for popup authorization */}
-                    <div className="flex items-center gap-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)]/55 px-3 py-2.5">
-                      <RefreshCw
-                        className="h-4 w-4 shrink-0 animate-spin text-[var(--color-primary)]"
-                        aria-hidden="true"
-                      />
-                      <span className="text-xs font-medium text-[var(--color-text-main)]">
-                        {isId
-                          ? "Menunggu otorisasi popup browser…"
-                          : "Waiting for popup authorization…"}
-                      </span>
-                    </div>
+              <>
+                {/* OmniRoute Option A: Waiting for popup authorization */}
+                <div className="flex items-center gap-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)]/55 px-3 py-2.5">
+                  <RefreshCw
+                    className="h-4 w-4 shrink-0 animate-spin text-[var(--color-primary)]"
+                    aria-hidden="true"
+                  />
+                  <span className="text-xs font-medium text-[var(--color-text-main)]">
+                    {isId
+                      ? "Menunggu otorisasi popup browser…"
+                      : "Waiting for popup authorization…"}
+                  </span>
+                </div>
 
-                    {/* OmniRoute Divider */}
-                    <div className="flex items-center gap-3">
-                      <div className="h-px flex-1 bg-[var(--color-border)]" />
-                      <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
-                        {isId
-                          ? "Atau tempel URL callback manual"
-                          : "Or paste callback URL manually"}
-                      </span>
-                      <div className="h-px flex-1 bg-[var(--color-border)]" />
-                    </div>
+                {/* OmniRoute Divider */}
+                <div className="flex items-center gap-3">
+                  <div className="h-px flex-1 bg-[var(--color-border)]" />
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
+                    {isId ? "Atau tempel URL callback manual" : "Or paste callback URL manually"}
+                  </span>
+                  <div className="h-px flex-1 bg-[var(--color-border)]" />
+                </div>
 
-                    {/* OmniRoute Step 1: Compact Open / Copy URL */}
-                    <div className="space-y-2.5 rounded-xl border border-[var(--color-primary)]/35 bg-[var(--color-surface-2)]/65 p-3.5">
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <span className="text-xs font-semibold text-[var(--color-text-main)]">
-                          {isId
-                            ? "Langkah 1: Buka halaman login di browser"
-                            : "Step 1: Open sign-in page in your browser"}
-                        </span>
-                        <div className="flex w-full items-center gap-1.5 sm:w-auto">
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="secondary"
-                            className="flex-1 sm:flex-none"
-                            onClick={() => void handleCopyUrl()}
-                          >
-                            {copied ? (
-                              <>
-                                <Check
-                                  className="h-3.5 w-3.5 text-[var(--status-ok)]"
-                                  aria-hidden="true"
-                                />
-                                <span>{isId ? "Tersalin" : "Copied"}</span>
-                              </>
-                            ) : (
-                              <>
-                                <Copy className="h-3.5 w-3.5" aria-hidden="true" />
-                                <span>{isId ? "Salin" : "Copy"}</span>
-                              </>
-                            )}
-                          </Button>
-                          <Button
-                            type="button"
-                            size="sm"
-                            className="flex-1 sm:flex-none"
-                            onClick={() => {
-                              window.open(
-                                activeSession.session.authorize_url,
-                                "oauth_popup",
-                                "width=600,height=700",
-                              );
-                            }}
-                          >
-                            <span>{isId ? "Buka Login" : "Open Login"}</span>
-                            <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
-                          </Button>
-                        </div>
-                      </div>
-                      <Input
-                        value={activeSession.session.authorize_url}
-                        readOnly
-                        aria-label="OAuth Authorization URL"
-                        className="h-8 bg-[var(--color-surface)] font-mono text-[11px] text-[var(--color-text-muted)]"
-                      />
-                    </div>
-                  </>
-                ) : null}
-
-                <form
-                  id="oauth-exchange-form"
-                  className="space-y-3.5"
-                  onSubmit={exchangeForm.handleSubmit(onExchange)}
-                  noValidate
-                >
-                  {exchangeOAuthMutation.isError ? (
-                    <Alert variant="destructive">
-                      <AlertDescription>{exchangeOAuthMutation.error.message}</AlertDescription>
-                    </Alert>
-                  ) : null}
-
-                  <div className="space-y-1.5">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <Label htmlFor="modal-oauth-callback">
-                        {isId ? "Langkah 2: Tempel Callback URL" : "Step 2: Paste Callback URL"}
-                      </Label>
-                      {callbackDetected ? (
-                        <Badge variant="success" className="text-[10px]">
-                          <Check className="mr-1 h-3 w-3" aria-hidden="true" />
-                          {isId ? "Code & State terdeteksi" : "Code & State detected"}
-                        </Badge>
-                      ) : null}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Input
-                        id="modal-oauth-callback"
-                        placeholder="http://localhost:.../callback?code=...&state=..."
-                        className="flex-1 font-mono text-xs"
-                        {...exchangeForm.register("callback_url", {
-                          onChange: (e) => handleCallbackUrlChange(e.target.value),
-                        })}
-                      />
+                {/* OmniRoute Step 1: Compact Open / Copy URL */}
+                <div className="space-y-2.5 rounded-xl border border-[var(--color-primary)]/35 bg-[var(--color-surface-2)]/65 p-3.5">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="text-xs font-semibold text-[var(--color-text-main)]">
+                      {isId
+                        ? "Langkah 1: Buka halaman login di browser"
+                        : "Step 1: Open sign-in page in your browser"}
+                    </span>
+                    <div className="flex w-full items-center gap-1.5 sm:w-auto">
                       <Button
                         type="button"
                         size="sm"
                         variant="secondary"
-                        className="shrink-0"
-                        onClick={() => void pasteCallbackFromClipboard()}
+                        className="flex-1 sm:flex-none"
+                        onClick={() => void handleCopyUrl()}
                       >
-                        {isId ? "Tempel" : "Paste"}
+                        {copied ? (
+                          <>
+                            <Check
+                              className="h-3.5 w-3.5 text-[var(--status-ok)]"
+                              aria-hidden="true"
+                            />
+                            <span>{isId ? "Tersalin" : "Copied"}</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="h-3.5 w-3.5" aria-hidden="true" />
+                            <span>{isId ? "Salin" : "Copy"}</span>
+                          </>
+                        )}
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        className="flex-1 sm:flex-none"
+                        onClick={() => {
+                          window.open(
+                            activeSession.session.authorize_url,
+                            "oauth_popup",
+                            "width=600,height=700",
+                          );
+                        }}
+                      >
+                        <span>{isId ? "Buka Login" : "Open Login"}</span>
+                        <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
                       </Button>
                     </div>
-                    {exchangeForm.formState.errors.callback_url ? (
-                      <p className="text-xs text-[var(--status-error)]">
-                        {exchangeForm.formState.errors.callback_url.message}
-                      </p>
-                    ) : null}
                   </div>
-                </form>
+                  <Input
+                    value={activeSession.session.authorize_url}
+                    readOnly
+                    aria-label="OAuth Authorization URL"
+                    className="h-8 bg-[var(--color-surface)] font-mono text-[11px] text-[var(--color-text-muted)]"
+                  />
+                </div>
+              </>
+            ) : null}
+
+            <form
+              id="oauth-exchange-form"
+              className="space-y-3.5"
+              onSubmit={exchangeForm.handleSubmit(onExchange)}
+              noValidate
+            >
+              {exchangeOAuthMutation.isError ? (
+                <Alert variant="destructive">
+                  <AlertDescription>{exchangeOAuthMutation.error.message}</AlertDescription>
+                </Alert>
+              ) : null}
+
+              <div className="space-y-1.5">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <Label htmlFor="modal-oauth-callback">
+                    {isId ? "Langkah 2: Tempel Callback URL" : "Step 2: Paste Callback URL"}
+                  </Label>
+                  {callbackDetected ? (
+                    <Badge variant="success" className="text-[10px]">
+                      <Check className="mr-1 h-3 w-3" aria-hidden="true" />
+                      {isId ? "Code & State terdeteksi" : "Code & State detected"}
+                    </Badge>
+                  ) : null}
+                </div>
+                <div className="flex items-center gap-2">
+                  <Input
+                    id="modal-oauth-callback"
+                    placeholder="http://localhost:.../callback?code=...&state=..."
+                    className="flex-1 font-mono text-xs"
+                    {...exchangeForm.register("callback_url", {
+                      onChange: (e) => handleCallbackUrlChange(e.target.value),
+                    })}
+                  />
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="secondary"
+                    className="shrink-0"
+                    onClick={() => void pasteCallbackFromClipboard()}
+                  >
+                    {isId ? "Tempel" : "Paste"}
+                  </Button>
+                </div>
+                {exchangeForm.formState.errors.callback_url ? (
+                  <p className="text-xs text-[var(--status-error)]">
+                    {exchangeForm.formState.errors.callback_url.message}
+                  </p>
+                ) : null}
               </div>
+            </form>
+          </div>
         )}
       </div>
     </ModalShell>
@@ -3673,7 +3670,7 @@ export function ProviderConnectionsDrawer({
                         </Button>
 
                         <Link
-                          href={`/dashboard/providers/detail/?id=${encodeURIComponent(conn.id)}`}
+                          to={`/dashboard/providers/detail/?id=${encodeURIComponent(conn.id)}`}
                           onClick={onClose}
                           className="inline-flex h-9 flex-1 items-center justify-center gap-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)] px-2.5 text-xs font-medium text-[var(--color-text-main)] transition-colors hover:border-[var(--color-primary)]/40 hover:text-[var(--color-primary)] sm:h-8 sm:flex-none"
                         >

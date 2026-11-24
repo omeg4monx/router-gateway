@@ -23,8 +23,8 @@ import {
   Terminal,
   X,
 } from "lucide-react";
-import Link from "next/link";
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { Link } from "react-router";
 import { cn } from "@/shared/lib/utils";
 import { useUIStore } from "@/shared/store/uiStore";
 import { Alert, AlertDescription, AlertTitle } from "@/shared/ui/alert";
@@ -235,7 +235,7 @@ function ProviderCard({
           <div className="min-w-0 flex-1">
             <h3 className="truncate text-sm font-semibold text-[var(--color-text-main)] transition-colors group-hover:text-[var(--color-primary)]">
               <Link
-                href={detailHref}
+                to={detailHref}
                 className="after:absolute after:inset-0 after:content-[''] focus:outline-none"
               >
                 {entry.name}

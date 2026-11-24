@@ -14,7 +14,7 @@ import (
 	"github.com/omeg4monx/router-gateway/internal/platform/config"
 )
 
-func TestDevUIHandlerDirectsToNextDevServer(t *testing.T) {
+func TestDevUIHandlerDirectsToViteDevServer(t *testing.T) {
 	ctx := context.Background()
 	cfg := config.Config{
 		Host:       "127.0.0.1",

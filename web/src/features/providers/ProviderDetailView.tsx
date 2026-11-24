@@ -28,10 +28,9 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
+import { Link, useNavigate, useSearchParams } from "react-router";
 import { cn } from "@/shared/lib/utils";
 import { useUIStore } from "@/shared/store/uiStore";
 import { Alert, AlertDescription, AlertTitle } from "@/shared/ui/alert";
@@ -88,7 +87,7 @@ function formatTimestamp(iso: string | null): string {
 }
 
 function ProviderStudioDetail({ providerId }: { providerId: string }) {
-  const router = useRouter();
+  const navigate = useNavigate();
   const locale = useUIStore((state) => state.locale);
   const isId = locale === "id";
 
@@ -233,7 +232,7 @@ function ProviderStudioDetail({ providerId }: { providerId: string }) {
         <CardHeader className="flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
           <CardTitle>{isId ? "Provider Tidak Ditemukan" : "Provider Not Found"}</CardTitle>
           <Button asChild variant="outline" size="xs" className="w-full sm:w-auto">
-            <Link href="/dashboard/providers/">
+            <Link to="/dashboard/providers/">
               <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
               <span>{isId ? "Kembali ke Providers" : "Back to Providers"}</span>
             </Link>
@@ -365,7 +364,7 @@ function ProviderStudioDetail({ providerId }: { providerId: string }) {
     setActionError(null);
     deleteNodeMutation.mutate(entry.node.id, {
       onSuccess: () => {
-        router.push("/dashboard/providers/");
+        void navigate("/dashboard/providers/");
       },
       onError: (err) => setActionError(err.message),
     });
@@ -436,7 +435,7 @@ function ProviderStudioDetail({ providerId }: { providerId: string }) {
       <div className="space-y-4">
         <div className="flex flex-wrap items-center gap-2 text-xs text-[var(--color-text-muted)]">
           <Link
-            href="/dashboard/providers/"
+            to="/dashboard/providers/"
             className="inline-flex items-center gap-1 font-medium transition-colors hover:text-[var(--color-primary)]"
           >
             <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
@@ -869,7 +868,7 @@ function ProviderStudioDetail({ providerId }: { providerId: string }) {
                           </Button>
 
                           <Link
-                            href={`/dashboard/providers/detail/?id=${encodeURIComponent(conn.id)}`}
+                            to={`/dashboard/providers/detail/?id=${encodeURIComponent(conn.id)}`}
                             className="inline-flex h-8 flex-1 items-center justify-center gap-1 rounded border border-[var(--border-subtle)] bg-[var(--bg-surface-raised)] px-2.5 text-xs font-medium text-[var(--text-secondary)] transition-colors hover:border-[var(--border-strong)] hover:text-[var(--text-primary)] sm:flex-none"
                           >
                             <Settings2 className="h-3.5 w-3.5" aria-hidden="true" />
@@ -1181,7 +1180,7 @@ function ProviderStudioDetail({ providerId }: { providerId: string }) {
 }
 
 export function ProviderDetailView() {
-  const searchParams = useSearchParams();
+  const [searchParams] = useSearchParams();
   const providerId = (searchParams.get("provider") ?? "").trim();
   const connectionId = (searchParams.get("id") ?? "").trim();
 
@@ -1193,7 +1192,7 @@ export function ProviderDetailView() {
 }
 
 function ConnectionDetailEditor({ connectionId }: { connectionId: string }) {
-  const router = useRouter();
+  const navigate = useNavigate();
 
   const connectionQuery = useProviderConnection(connectionId);
   const updateMutation = useUpdateProviderConnectionMutation();
@@ -1231,7 +1230,7 @@ function ConnectionDetailEditor({ connectionId }: { connectionId: string }) {
         <CardHeader className="flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
           <CardTitle>Provider Connection Not Specified</CardTitle>
           <Button asChild variant="outline" size="xs" className="w-full sm:w-auto">
-            <Link href="/dashboard/providers/">
+            <Link to="/dashboard/providers/">
               <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
               <span>Back to Providers</span>
             </Link>
@@ -1297,7 +1296,7 @@ function ConnectionDetailEditor({ connectionId }: { connectionId: string }) {
     }
     deleteMutation.mutate(connection.id, {
       onSuccess: () => {
-        router.push("/dashboard/providers/");
+        void navigate("/dashboard/providers/");
       },
     });
   };
@@ -1309,7 +1308,7 @@ function ConnectionDetailEditor({ connectionId }: { connectionId: string }) {
           <div className="flex flex-wrap items-center gap-2">
             <Button asChild variant="ghost" size="xs" className="-ml-2 shrink-0">
               <Link
-                href={
+                to={
                   connection
                     ? `/dashboard/providers/detail/?provider=${encodeURIComponent(connection.provider_id)}`
                     : "/dashboard/providers/"
@@ -1683,7 +1682,7 @@ function ConnectionDetailEditor({ connectionId }: { connectionId: string }) {
                         OAuth Token Rotation (optional)
                       </span>
                       <Link
-                        href="/dashboard/providers/"
+                        to="/dashboard/providers/"
                         className="font-mono text-xs text-[var(--accent-text)] hover:underline"
                       >
                         Re-authorize via OAuth Wizard

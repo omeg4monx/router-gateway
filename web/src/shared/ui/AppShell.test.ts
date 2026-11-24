@@ -18,8 +18,12 @@ describe("AppShell fixed desktop sidebar and layout contracts", () => {
   });
 
   test("constrains sidebar flex container with min-h-0 so nav scrolls internally while header and footer remain docked", () => {
-    expect(appShellSource).toContain('className="flex h-full min-h-0 flex-col text-[var(--color-text-main)]"');
-    expect(appShellSource).toContain("custom-scrollbar min-h-0 flex-1 space-y-3 overflow-y-auto overflow-x-hidden");
+    expect(appShellSource).toContain(
+      'className="flex h-full min-h-0 flex-col text-[var(--color-text-main)]"',
+    );
+    expect(appShellSource).toContain(
+      "custom-scrollbar min-h-0 flex-1 space-y-3 overflow-y-auto overflow-x-hidden",
+    );
   });
 
   test("keeps top dashboard header sticky at top-0", () => {

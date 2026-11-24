@@ -12,9 +12,8 @@ import {
   SearchX,
   X,
 } from "lucide-react";
-import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Link, useLocation, useNavigate } from "react-router";
 import { useAuthSession, useLogoutMutation } from "@/features/auth/hooks";
 import { useSystemHealth, useSystemVersion } from "@/features/system/hooks";
 import { cn } from "@/shared/lib/utils";
@@ -59,8 +58,8 @@ function isEditableElement(target: EventTarget | null): boolean {
 }
 
 export function AppShell({ children }: AppShellProps) {
-  const pathname = usePathname();
-  const router = useRouter();
+  const { pathname } = useLocation();
+  const navigate = useNavigate();
   const locale = useUIStore((state) => state.locale);
   const copy = getShellCopy(locale);
 
@@ -153,7 +152,7 @@ export function AppShell({ children }: AppShellProps) {
     logoutMutation.mutate(undefined, {
       onSuccess: () => {
         closeMobileNav();
-        router.replace("/login/");
+        void navigate("/login/", { replace: true });
       },
     });
   };
@@ -218,7 +217,7 @@ export function AppShell({ children }: AppShellProps) {
     return (
       <Link
         key={item.href}
-        href={item.href}
+        to={item.href}
         onClick={closeMobileNav}
         title={label}
         aria-label={label}
@@ -275,7 +274,7 @@ export function AppShell({ children }: AppShellProps) {
           {!compact ? (
             <>
               <Link
-                href="/dashboard/"
+                to="/dashboard/"
                 className="flex min-w-0 flex-1 items-center gap-2.5 overflow-hidden transition-opacity hover:opacity-90"
                 onClick={closeMobileNav}
                 aria-label="OMEG4MON ROUTER Dashboard"
@@ -563,7 +562,7 @@ export function AppShell({ children }: AppShellProps) {
                                 return (
                                   <Link
                                     key={item.href}
-                                    href={item.href}
+                                    to={item.href}
                                     onClick={closeMobileNav}
                                     tabIndex={isExpanded ? undefined : -1}
                                     title={itemLabel}

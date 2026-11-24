@@ -1,9 +1,6 @@
-"use client";
-
 import { AlertTriangle, RefreshCw } from "lucide-react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useEffect } from "react";
+import { Link, useNavigate } from "react-router";
 import { useAuthSession } from "@/features/auth/hooks";
 import { authSessionToRouteState, resolvePostAuthRedirect } from "@/features/auth/schemas";
 import { Alert, AlertDescription, AlertTitle } from "@/shared/ui/alert";
@@ -12,8 +9,8 @@ import { CaduceusLogo } from "@/shared/ui/CaduceusLogo";
 import { Card } from "@/shared/ui/card";
 import { EmberRule } from "@/shared/ui/EmberRule";
 
-export default function HomePage() {
-  const router = useRouter();
+export function HomePage() {
+  const navigate = useNavigate();
   const authSessionQuery = useAuthSession();
 
   useEffect(() => {
@@ -22,9 +19,9 @@ export default function HomePage() {
     }
     const target = resolvePostAuthRedirect(authSessionToRouteState(authSessionQuery.data), "/");
     if (target) {
-      router.replace(target);
+      void navigate(target, { replace: true });
     }
-  }, [authSessionQuery.data, authSessionQuery.isFetching, router]);
+  }, [authSessionQuery.data, authSessionQuery.isFetching, navigate]);
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-[var(--bg-canvas)] px-4 py-12">
@@ -67,13 +64,13 @@ export default function HomePage() {
                 <span>{authSessionQuery.isFetching ? "Retrying..." : "Retry"}</span>
               </Button>
               <Button asChild variant="outline" size="sm">
-                <Link href="/login/">Sign In</Link>
+                <Link to="/login/">Sign In</Link>
               </Button>
               <Button asChild variant="outline" size="sm">
-                <Link href="/dashboard/">Open Dashboard</Link>
+                <Link to="/dashboard/">Open Dashboard</Link>
               </Button>
               <Button asChild variant="outline" size="sm">
-                <Link href="/init/">Setup</Link>
+                <Link to="/init/">Setup</Link>
               </Button>
             </div>
           </div>

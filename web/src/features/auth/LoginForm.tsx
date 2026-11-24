@@ -13,9 +13,9 @@ import {
   Lock,
   ShieldCheck,
 } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { type KeyboardEvent, useState } from "react";
 import { useForm } from "react-hook-form";
+import { useNavigate } from "react-router";
 import { cn } from "@/shared/lib/utils";
 import { useUIStore } from "@/shared/store/uiStore";
 import { Alert, AlertDescription, AlertTitle } from "@/shared/ui/alert";
@@ -31,7 +31,7 @@ interface LoginFormProps {
 }
 
 export function LoginForm({ remoteEnforced = false }: LoginFormProps) {
-  const router = useRouter();
+  const navigate = useNavigate();
   const locale = useUIStore((state) => state.locale);
   const copy = getLoginCopy(locale);
   const loginMutation = useLoginMutation();
@@ -73,7 +73,7 @@ export function LoginForm({ remoteEnforced = false }: LoginFormProps) {
       { password: values.password },
       {
         onSuccess: () => {
-          router.replace("/dashboard/");
+          void navigate("/dashboard/", { replace: true });
         },
       },
     );

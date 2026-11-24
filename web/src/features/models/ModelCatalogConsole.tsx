@@ -22,8 +22,8 @@ import {
   X,
   XCircle,
 } from "lucide-react";
-import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Link } from "react-router";
 import { useCombos } from "@/features/combos/hooks";
 import { useUIStore } from "@/shared/store/uiStore";
 import { Alert, AlertDescription, AlertTitle } from "@/shared/ui/alert";
@@ -668,7 +668,7 @@ export function ModelCatalogConsole() {
             </span>
           </div>
 
-          <Link href="/dashboard/combos/">
+          <Link to="/dashboard/combos/">
             <Button type="button" variant="outline" size="sm">
               <Layers className="h-3.5 w-3.5 text-[var(--accent-primary)]" aria-hidden="true" />
               <span>{isId ? "Kelola Combo" : "Manage Combos"}</span>
@@ -1665,7 +1665,7 @@ export function ModelCatalogConsole() {
                       : "No combos match the current filters"}
                 </p>
                 <div className="mt-3">
-                  <Link href="/dashboard/combos/">
+                  <Link to="/dashboard/combos/">
                     <Button type="button" size="sm" variant="outline">
                       <Sparkles className="h-3.5 w-3.5" />
                       <span>{isId ? "Buka Pembuat Combo" : "Open Combo Builder"}</span>

@@ -10,7 +10,7 @@ const modalsSource = readFileSync(resolve(providersDir, "ProvidersModals.tsx"), 
 describe("OmniRoute provider card flow & styling", () => {
   test("ProviderCard navigates to dedicated provider detail route via Link", () => {
     expect(consoleSource).toContain("/dashboard/providers/detail/?provider=");
-    expect(consoleSource).toContain('import Link from "next/link"');
+    expect(consoleSource).toContain('import { Link } from "react-router"');
   });
 
   test("ProviderCard includes OmniRoute top 2px status hairline accent and Setup CTA", () => {

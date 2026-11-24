@@ -11,9 +11,8 @@ import {
   ShieldCheck,
   Sparkles,
 } from "lucide-react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useEffect } from "react";
+import { Link, useNavigate } from "react-router";
 import { useAuthSession } from "@/features/auth/hooks";
 import { describeAuthPosture, formatUptime, getLoginCopy } from "@/features/auth/i18n";
 import { LoginForm } from "@/features/auth/LoginForm";
@@ -30,8 +29,8 @@ import { EmberRule } from "@/shared/ui/EmberRule";
 import { LocaleToggle } from "@/shared/ui/LocaleToggle";
 import { ThemeToggle } from "@/shared/ui/ThemeToggle";
 
-export default function LoginPage() {
-  const router = useRouter();
+export function LoginPage() {
+  const navigate = useNavigate();
   const locale = useUIStore((state) => state.locale);
   const copy = getLoginCopy(locale);
 
@@ -49,9 +48,9 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (redirectTarget && !authSessionQuery.isFetching) {
-      router.replace(redirectTarget);
+      void navigate(redirectTarget, { replace: true });
     }
-  }, [authSessionQuery.isFetching, redirectTarget, router]);
+  }, [authSessionQuery.isFetching, navigate, redirectTarget]);
 
   const isRetrying =
     authSessionQuery.isFetching || versionQuery.isFetching || healthQuery.isFetching;
@@ -398,7 +397,7 @@ export default function LoginPage() {
                     <span>{isRetrying ? copy.retryingLabel : copy.retryLabel}</span>
                   </Button>
                   <Button asChild variant="outline" className="h-10 w-full">
-                    <Link href="/dashboard/">{copy.openDashboardLabel}</Link>
+                    <Link to="/dashboard/">{copy.openDashboardLabel}</Link>
                   </Button>
                 </div>
               </div>
@@ -420,7 +419,7 @@ export default function LoginPage() {
                 </Alert>
 
                 <Button asChild className="h-11 w-full">
-                  <Link href="/init/">
+                  <Link to="/init/">
                     <span>{copy.uninitializedCta}</span>
                     <ArrowRight className="h-4 w-4" aria-hidden="true" />
                   </Link>
@@ -446,7 +445,7 @@ export default function LoginPage() {
                 </div>
 
                 <Button asChild className="h-11 w-full">
-                  <Link href="/dashboard/">
+                  <Link to="/dashboard/">
                     <span>{copy.redirectCta}</span>
                     <ArrowRight className="h-4 w-4" aria-hidden="true" />
                   </Link>

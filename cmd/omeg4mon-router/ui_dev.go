@@ -17,7 +17,7 @@ const devUIHTML = `<!DOCTYPE html>
 <body>
   <h1>omeg4mon-router (dev mode)</h1>
   <p>The frontend bundle is not embedded in this build.</p>
-  <p>Run the Next.js dev server and visit <a href="http://127.0.0.1:20127">http://127.0.0.1:20127</a>, or build the single binary with <code>make build</code>.</p>
+  <p>Run the Vite dev server and visit <a href="http://127.0.0.1:20127">http://127.0.0.1:20127</a>, or build the single binary with <code>make build</code>.</p>
 </body>
 </html>
 `

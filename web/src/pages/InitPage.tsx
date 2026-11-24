@@ -1,11 +1,9 @@
-"use client";
-
 import { InitForm } from "@/features/system/InitForm";
 import { CaduceusLogo } from "@/shared/ui/CaduceusLogo";
 import { EmberRule } from "@/shared/ui/EmberRule";
 import { ThemeToggle } from "@/shared/ui/ThemeToggle";
 
-export default function InitPage() {
+export function InitPage() {
   return (
     <div className="flex min-h-screen flex-col bg-[var(--bg-canvas)] text-[var(--text-primary)]">
       <header className="bg-[var(--bg-surface)]">
