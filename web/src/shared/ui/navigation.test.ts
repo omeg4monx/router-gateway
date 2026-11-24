@@ -74,6 +74,10 @@ describe("shared/ui/navigation (main LeftRail layout parity)", () => {
     const id = getShellCopy("id");
     expect(en.searchPlaceholder).not.toBe(id.searchPlaceholder);
     expect(en.signOutLabel).not.toBe(id.signOutLabel);
+    expect(en.signOutConfirmTitle).not.toBe(id.signOutConfirmTitle);
+    expect(en.signOutConfirmMessage).not.toBe(id.signOutConfirmMessage);
+    expect(en.signOutCancelLabel).not.toBe(id.signOutCancelLabel);
+    expect(en.signOutConfirmLabel).not.toBe(id.signOutConfirmLabel);
     expect(en.emptySearchTitle).not.toBe(id.emptySearchTitle);
     expect(en.expandAllLabel).not.toBe(id.expandAllLabel);
     expect(en.collapseAllLabel).not.toBe(id.collapseAllLabel);

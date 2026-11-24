@@ -306,8 +306,8 @@
     "semantic_hash": ""
   },
   "web/src/shared/api/schema.d.ts": {
-    "mtime": 1795535640.2943666,
-    "seen": 1795535651.0353413,
+    "mtime": 1795536062.87863,
+    "seen": 1795536246.8635554,
     "ast_hash": "0bd7342966b7c48d10154d18a38210f8",
     "semantic_hash": ""
   },
@@ -336,9 +336,9 @@
     "semantic_hash": ""
   },
   "web/src/shared/ui/AppShell.tsx": {
-    "mtime": 1795534160.9758425,
-    "seen": 1795534217.689219,
-    "ast_hash": "d17f62ae8d9075431f0e02ecb472ac76",
+    "mtime": 1795536413.6327398,
+    "seen": 1795536453.0075123,
+    "ast_hash": "ea70dbcea6ec452fadb6063ab83ffd6f",
     "semantic_hash": ""
   },
   "web/src/shared/ui/CaduceusLogo.tsx": {
@@ -534,9 +534,9 @@
     "semantic_hash": ""
   },
   "web/src/features/auth/LoginForm.tsx": {
-    "mtime": 1795534160.9963899,
-    "seen": 1795534217.687098,
-    "ast_hash": "8a8fa87546337dddca072fe9549937f6",
+    "mtime": 1795536204.2791553,
+    "seen": 1795536246.860041,
+    "ast_hash": "b4cb789e97cfa8b368cdafe052371efa",
     "semantic_hash": ""
   },
   "web/src/features/auth/hooks.ts": {
@@ -2016,15 +2016,15 @@
     "semantic_hash": ""
   },
   "web/src/features/auth/i18n.test.ts": {
-    "mtime": 1795457224.4272645,
-    "seen": 1795457255.2922783,
-    "ast_hash": "573287291921dd7a8b5e370c67676fa9",
+    "mtime": 1795536152.8205235,
+    "seen": 1795536246.8600721,
+    "ast_hash": "a3d63494f12f0fcec58cdeb09272044f",
     "semantic_hash": ""
   },
   "web/src/features/auth/i18n.ts": {
-    "mtime": 1795457101.5316126,
-    "seen": 1795457255.2922812,
-    "ast_hash": "71dfda18f492839ef8769ab1f31185fe",
+    "mtime": 1795536201.821125,
+    "seen": 1795536246.860074,
+    "ast_hash": "99c70f375d87fbb8ebfa1eb32747b153",
     "semantic_hash": ""
   },
   "web/src/shared/ui/LocaleToggle.tsx": {
@@ -2046,15 +2046,15 @@
     "semantic_hash": ""
   },
   "web/src/shared/ui/navigation.test.ts": {
-    "mtime": 1795513938.9468591,
-    "seen": 1795514417.5891402,
-    "ast_hash": "948ee45958ef9d3ab5b44c5064424dc1",
+    "mtime": 1795536368.9281805,
+    "seen": 1795536453.007849,
+    "ast_hash": "d3c3bebe020b4e599e4f47accdcd2441",
     "semantic_hash": ""
   },
   "web/src/shared/ui/navigation.ts": {
-    "mtime": 1795513935.1946325,
-    "seen": 1795514417.5891423,
-    "ast_hash": "45d44db86bd2238e5e5bbf83bea720a0",
+    "mtime": 1795536408.6996782,
+    "seen": 1795536453.0078511,
+    "ast_hash": "2a6332e6b8e781688603ee7801dbe640",
     "semantic_hash": ""
   },
   "docs/superpowers/plans/2026-11-24-dashboard-shell-navigation.md": {
@@ -3408,9 +3408,9 @@
     "semantic_hash": ""
   },
   "web/src/shared/ui/AppShell.test.ts": {
-    "mtime": 1795516369.5284698,
-    "seen": 1795516549.668297,
-    "ast_hash": "0675c1ef72fb7c071a016492327fe24c",
+    "mtime": 1795536371.2276964,
+    "seen": 1795536453.0075095,
+    "ast_hash": "cba1ee6d010cef9388f03fab8ec15567",
     "semantic_hash": ""
   },
   "internal/modules/combos/catalog.go": {
@@ -3540,9 +3540,9 @@
     "semantic_hash": ""
   },
   "web/src/pages/LoginPage.tsx": {
-    "mtime": 1795534160.973147,
-    "seen": 1795534217.6890388,
-    "ast_hash": "aa83c435fea00fcd2adc5b8c287e499a",
+    "mtime": 1795536206.0821774,
+    "seen": 1795536246.8634667,
+    "ast_hash": "a40c4b57665c33ee53abce38cf81bb58",
     "semantic_hash": ""
   },
   "web/vite.config.ts": {
@@ -3582,9 +3582,9 @@
     "semantic_hash": ""
   },
   ".agents/skills/omeg4mon-verify/SKILL.md": {
-    "mtime": 1795534998.613941,
-    "seen": 1795535651.035945,
-    "ast_hash": "d2f299d622bd5da9e8776fa64e80d9e3",
+    "mtime": 1795535780.5196693,
+    "seen": 1795536246.864179,
+    "ast_hash": "314a440f602af70dd8b1cd6740eeb83e",
     "semantic_hash": ""
   }
 }

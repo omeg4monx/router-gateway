@@ -29,4 +29,11 @@ describe("AppShell fixed desktop sidebar and layout contracts", () => {
   test("keeps top dashboard header sticky at top-0", () => {
     expect(appShellSource).toContain('<header className="sticky top-0 z-20');
   });
+
+  test("requires confirmation dialog before triggering logout mutation", () => {
+    expect(appShellSource).toContain("signOutConfirmOpen");
+    expect(appShellSource).toContain('aria-labelledby="sign-out-confirm-title"');
+    expect(appShellSource).toContain("onClick={openSignOutConfirm}");
+    expect(appShellSource).toContain("onClick={handleConfirmSignOut}");
+  });
 });
