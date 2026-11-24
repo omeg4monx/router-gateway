@@ -22,26 +22,17 @@ const (
 	providerIDFreePI        = "freepi"
 
 	githubDeviceCodeURL     = "https://github.com/login/device/code"
-	githubOAuthTokenURL     = "https://github.com/login/oauth/access_token"
+	githubOAuthTokenURL     = "https://github.com/login/oauth/access_token" //nolint:gosec // G101: public OAuth token endpoint URL
 	kiroOIDCBaseURL         = "https://oidc.us-east-1.amazonaws.com"
 	kiroStartURL            = "https://view.awsapps.com/start"
 	kiroIssuerURL           = "https://identitycenter.amazonaws.com/ssoins-722374e8c3c8e6c6"
 	freepiDeviceCodeURL     = "https://api.freepi.ai/auth/github/device"
 	freepiConsentURL        = "https://api.freepi.ai/auth/consent"
-	freepiTokenURL          = "https://api.freepi.ai/auth/token"
+	freepiTokenURL          = "https://api.freepi.ai/auth/token" //nolint:gosec // G101: public OAuth token endpoint URL
 	freepiConsentVersion    = "4"
 	defaultDevicePollSec    = 5
 	defaultDeviceSessionTTL = 15 * time.Minute
 )
-
-func isDeviceCodeProvider(providerID string) bool {
-	switch providerID {
-	case providerIDGitHubCopilot, providerIDKiro, providerIDFreePI:
-		return true
-	default:
-		return false
-	}
-}
 
 type deviceOAuthResult struct {
 	AccessToken  string
@@ -95,7 +86,7 @@ func (rt *deviceOAuthRuntime) sweepLocked(now time.Time) {
 	}
 }
 
-func (m *Module) postFormJSON(ctx context.Context, targetURL string, form url.Values) (int, []byte, error) {
+func (m *Module) postFormJSON(ctx context.Context, targetURL string, form url.Values) (statusCode int, respBody []byte, err error) {
 	validURL, err := validateHTTPURL(targetURL)
 	if err != nil {
 		return 0, nil, err
@@ -115,7 +106,7 @@ func (m *Module) postFormJSON(ctx context.Context, targetURL string, form url.Va
 	return resp.StatusCode, body, err
 }
 
-func (m *Module) postRawJSON(ctx context.Context, targetURL string, payload any) (int, []byte, error) {
+func (m *Module) postRawJSON(ctx context.Context, targetURL string, payload any) (statusCode int, respBody []byte, err error) {
 	validURL, err := validateHTTPURL(targetURL)
 	if err != nil {
 		return 0, nil, err
@@ -190,12 +181,12 @@ func (m *Module) handleDeviceOAuthStart(w http.ResponseWriter, r *http.Request, 
 
 	cfg, _ := m.resolveOAuthConfig(providerID, req.ClientID, req.ClientSecret)
 
-	strat := m.getOAuthStrategy(providerID)
-	if strat.StartDevice == nil {
+	strategy := m.getOAuthStrategy(providerID)
+	if strategy.StartDevice == nil {
 		httpserver.WriteError(w, r, http.StatusBadRequest, "oauth_not_supported", "provider does not support device code OAuth")
 		return
 	}
-	sess, err := strat.StartDevice(r.Context(), m, state, cfg, connName, baseURL, models)
+	sess, err := strategy.StartDevice(r.Context(), m, state, cfg, connName, baseURL, models)
 	if err != nil {
 		httpserver.WriteError(w, r, http.StatusBadGateway, "oauth_start_failed", truncateError(err.Error()))
 		return
@@ -306,8 +297,11 @@ func (m *Module) startKiroDevice(ctx context.Context, state string, cfg OAuthCon
 		"grantTypes": []string{"urn:ietf:params:oauth:grant-type:device_code", "refresh_token"},
 		"issuerUrl":  kiroIssuerURL,
 	})
-	if err != nil || regStatus < 200 || regStatus >= 300 {
-		return nil, fmt.Errorf("kiro client registration failed (status %d): %v", regStatus, err)
+	if err != nil {
+		return nil, fmt.Errorf("kiro client registration failed (status %d): %w", regStatus, err)
+	}
+	if regStatus < 200 || regStatus >= 300 {
+		return nil, fmt.Errorf("kiro client registration failed (status %d)", regStatus)
 	}
 	var clientInfo struct {
 		ClientID     string `json:"clientId"`
@@ -322,8 +316,11 @@ func (m *Module) startKiroDevice(ctx context.Context, state string, cfg OAuthCon
 		"clientSecret": clientInfo.ClientSecret,
 		"startUrl":     kiroStartURL,
 	})
-	if err != nil || devStatus < 200 || devStatus >= 300 {
-		return nil, fmt.Errorf("kiro device authorization failed (status %d): %v", devStatus, err)
+	if err != nil {
+		return nil, fmt.Errorf("kiro device authorization failed (status %d): %w", devStatus, err)
+	}
+	if devStatus < 200 || devStatus >= 300 {
+		return nil, fmt.Errorf("kiro device authorization failed (status %d)", devStatus)
 	}
 	var devData struct {
 		DeviceCode              string `json:"deviceCode"`
@@ -384,8 +381,11 @@ func (m *Module) startFreePIDevice(ctx context.Context, state string, cfg OAuthC
 	}
 
 	status, body, err := m.postRawJSON(ctx, devURL, map[string]any{})
-	if err != nil || status < 200 || status >= 300 {
-		return nil, fmt.Errorf("freepi device code request failed (status %d): %v", status, err)
+	if err != nil {
+		return nil, fmt.Errorf("freepi device code request failed (status %d): %w", status, err)
+	}
+	if status < 200 || status >= 300 {
+		return nil, fmt.Errorf("freepi device code request failed (status %d)", status)
 	}
 	var raw struct {
 		SessionID               string `json:"session_id"`
@@ -470,8 +470,8 @@ func (m *Module) handleDeviceOAuthStatus(w http.ResponseWriter, r *http.Request,
 		nextInt   int
 		pollError string
 	)
-	if strat := m.getOAuthStrategy(providerID); strat.PollDevice != nil {
-		res, pending, nextInt, pollError = strat.PollDevice(r.Context(), m, snapshot)
+	if strategy := m.getOAuthStrategy(providerID); strategy.PollDevice != nil {
+		res, pending, nextInt, pollError = strategy.PollDevice(r.Context(), m, snapshot)
 	}
 
 	if pending {
@@ -513,7 +513,7 @@ func (m *Module) handleDeviceOAuthStatus(w http.ResponseWriter, r *http.Request,
 	httpserver.WriteJSON(w, http.StatusOK, oauthStatusResponse{Status: "done"})
 }
 
-func (m *Module) pollGitHubCopilotDevice(ctx context.Context, sess deviceOAuthSession) (*deviceOAuthResult, bool, int, string) {
+func (m *Module) pollGitHubCopilotDevice(ctx context.Context, sess deviceOAuthSession) (result *deviceOAuthResult, pending bool, nextInterval int, errMsg string) {
 	form := url.Values{}
 	form.Set("client_id", sess.ClientID)
 	form.Set("device_code", sess.DeviceCode)
@@ -558,7 +558,7 @@ func (m *Module) pollGitHubCopilotDevice(ctx context.Context, sess deviceOAuthSe
 	}
 }
 
-func (m *Module) pollKiroDevice(ctx context.Context, sess deviceOAuthSession) (*deviceOAuthResult, bool, int, string) {
+func (m *Module) pollKiroDevice(ctx context.Context, sess deviceOAuthSession) (result *deviceOAuthResult, pending bool, nextInterval int, errMsg string) {
 	_, body, err := m.postRawJSON(ctx, sess.TokenURL, map[string]any{
 		"clientId":     sess.ClientID,
 		"clientSecret": sess.ClientSecret,
@@ -605,7 +605,7 @@ func (m *Module) pollKiroDevice(ctx context.Context, sess deviceOAuthSession) (*
 	}
 }
 
-func (m *Module) pollFreePIDevice(ctx context.Context, sess deviceOAuthSession) (*deviceOAuthResult, bool, int, string) {
+func (m *Module) pollFreePIDevice(ctx context.Context, sess deviceOAuthSession) (result *deviceOAuthResult, pending bool, nextInterval int, errMsg string) {
 	_, body, err := m.postRawJSON(ctx, sess.TokenURL, map[string]any{
 		"session_id": sess.DeviceCode,
 		"timezone":   "UTC",
@@ -706,8 +706,8 @@ func (m *Module) handleDeviceOAuthExchange(w http.ResponseWriter, r *http.Reques
 	m.deviceOAuth.mu.Unlock()
 
 	var postRes oauthPostExchangeResult
-	if strat := m.getOAuthStrategy(providerID); strat.PostExchange != nil {
-		postRes = strat.PostExchange(r.Context(), m, res.TokenURL, oauthTokenResponse{
+	if strategy := m.getOAuthStrategy(providerID); strategy.PostExchange != nil {
+		postRes = strategy.PostExchange(r.Context(), m, res.TokenURL, oauthTokenResponse{
 			AccessToken:  res.AccessToken,
 			RefreshToken: res.RefreshToken,
 			TokenType:    res.TokenType,

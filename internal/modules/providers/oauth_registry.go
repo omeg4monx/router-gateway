@@ -24,7 +24,7 @@ const (
 	googleUserInfoURL     = "https://www.googleapis.com/oauth2/v2/userinfo"
 	googleLoadCodeAssist  = "https://cloudcode-pa.googleapis.com/v1internal:loadCodeAssist"
 	googleOnboardUserURL  = "https://cloudcode-pa.googleapis.com/v1internal:onboardUser"
-	githubCopilotTokenURL = "https://api.github.com/copilot_internal/v2/token"
+	githubCopilotTokenURL = "https://api.github.com/copilot_internal/v2/token" //nolint:gosec // G101: public GitHub Copilot token endpoint URL
 	githubUserInfoURL     = "https://api.github.com/user"
 	kiroListProfilesURL   = "https://codewhisperer.us-east-1.amazonaws.com/ListAvailableProfiles"
 )
@@ -134,7 +134,7 @@ func defaultOAuthStrategies() map[string]*oauthProviderStrategy {
 			CallbackPath:     "/callback",
 			RefreshToken:     refreshAWSOIDCToken,
 		},
-		"kimi": newRFC8628Strategy(rfc8628DeviceSpec{
+		"kimi": newRFC8628Strategy(rfc8628DeviceSpec{ //nolint:gosec // G101: public OAuth device client ID and token endpoint URL
 			ProviderID:              "kimi",
 			DefaultDeviceCodeURL:    "https://auth.kimi.com/api/oauth/device_authorization",
 			DefaultTokenURL:         "https://auth.kimi.com/api/oauth/token",
@@ -142,7 +142,7 @@ func defaultOAuthStrategies() map[string]*oauthProviderStrategy {
 			FallbackVerificationURI: "https://www.kimi.com/code/authorize_device",
 			DisplayPrefix:           "Kimi Code",
 		}, nil),
-		"grok-cli": newRFC8628Strategy(rfc8628DeviceSpec{
+		"grok-cli": newRFC8628Strategy(rfc8628DeviceSpec{ //nolint:gosec // G101: public OAuth device client ID and token endpoint URL
 			ProviderID:           "grok-cli",
 			DefaultDeviceCodeURL: "https://auth.x.ai/oauth2/device/code",
 			DefaultTokenURL:      "https://auth.x.ai/oauth2/token",
@@ -150,7 +150,7 @@ func defaultOAuthStrategies() map[string]*oauthProviderStrategy {
 			DefaultScope:         "openid profile email offline_access grok-cli:access api:access conversations:read conversations:write",
 			DisplayPrefix:        "Grok CLI",
 		}, nil),
-		"nous": newRFC8628Strategy(rfc8628DeviceSpec{
+		"nous": newRFC8628Strategy(rfc8628DeviceSpec{ //nolint:gosec // G101: public OAuth device client ID and token endpoint URL
 			ProviderID:           "nous",
 			DefaultDeviceCodeURL: "https://portal.nousresearch.com/api/oauth/device/code",
 			DefaultTokenURL:      "https://portal.nousresearch.com/api/oauth/token",
@@ -158,7 +158,7 @@ func defaultOAuthStrategies() map[string]*oauthProviderStrategy {
 			DefaultScope:         "inference:invoke inference:mint_agent_key",
 			DisplayPrefix:        "Nous",
 		}, postExchangeNous),
-		"minimax-code": newRFC8628Strategy(rfc8628DeviceSpec{
+		"minimax-code": newRFC8628Strategy(rfc8628DeviceSpec{ //nolint:gosec // G101: public OAuth device client ID and token endpoint URL
 			ProviderID:           "minimax-code",
 			DefaultDeviceCodeURL: "https://account.minimax.cn/oauth2/device/code",
 			DefaultTokenURL:      "https://account.minimax.cn/oauth2/token",
@@ -168,7 +168,7 @@ func defaultOAuthStrategies() map[string]*oauthProviderStrategy {
 			UsePKCE:              true,
 			DisplayPrefix:        "MiniMax Coding",
 		}, nil),
-		"minimax-code-global": newRFC8628Strategy(rfc8628DeviceSpec{
+		"minimax-code-global": newRFC8628Strategy(rfc8628DeviceSpec{ //nolint:gosec // G101: public OAuth device client ID and token endpoint URL
 			ProviderID:           "minimax-code-global",
 			DefaultDeviceCodeURL: "https://account.minimax.io/oauth2/device/code",
 			DefaultTokenURL:      "https://account.minimax.io/oauth2/token",
@@ -178,7 +178,7 @@ func defaultOAuthStrategies() map[string]*oauthProviderStrategy {
 			UsePKCE:              true,
 			DisplayPrefix:        "MiniMax Coding Global",
 		}, nil),
-		"muse": newRFC8628Strategy(rfc8628DeviceSpec{
+		"muse": newRFC8628Strategy(rfc8628DeviceSpec{ //nolint:gosec // G101: public OAuth device client ID and token endpoint URL
 			ProviderID:           "muse",
 			DefaultDeviceCodeURL: "https://auth.meta.com/oidc/device/authorization/",
 			DefaultTokenURL:      "https://auth.meta.com/oidc/device/token/",
@@ -243,10 +243,10 @@ func newRFC8628Strategy(
 
 func (m *Module) getOAuthStrategy(providerID string) *oauthProviderStrategy {
 	m.mu.RLock()
-	strat, ok := m.oauthStrategies[providerID]
+	strategy, ok := m.oauthStrategies[providerID]
 	m.mu.RUnlock()
-	if ok && strat != nil {
-		return strat
+	if ok && strategy != nil {
+		return strategy
 	}
 	return &oauthProviderStrategy{
 		ID:           providerID,
@@ -683,48 +683,6 @@ func enrichGeminiOAuth(ctx context.Context, m *Module, userInfoURL, loadEndpoint
 		res.Metadata["project_id"] = projectID
 	}
 	return res
-}
-
-// testAntigravityConnection verifies an Antigravity OAuth connection via Google's
-// oauth2/v1/userinfo endpoint (matching xrouter testUtils.js:62), auto-refreshing
-// on 401/403 so expired access tokens are rotated transparently.
-func (m *Module) testAntigravityConnection(ctx context.Context, connectionID, userInfoURL, accessToken string) (testConnectionResponse, string) {
-	doProbe := func(token string) (int, error) {
-		req, err := http.NewRequestWithContext(ctx, http.MethodGet, userInfoURL+"?alt=json", http.NoBody)
-		if err != nil {
-			return 0, err
-		}
-		req.Header.Set("Authorization", "Bearer "+token)
-		req.Header.Set("Accept", "application/json")
-		req.Header.Set("x-request-source", "local")
-		resp, err := m.httpClient.Do(req)
-		if err != nil {
-			return 0, err
-		}
-		defer resp.Body.Close()
-		return resp.StatusCode, nil
-	}
-
-	statusCode, probeErr := doProbe(accessToken)
-	if (probeErr != nil || statusCode == http.StatusUnauthorized || statusCode == http.StatusForbidden) && connectionID != "" {
-		if refreshed, refreshErr := m.RefreshOAuthToken(ctx, connectionID); refreshErr == nil && refreshed.AccessToken != "" {
-			statusCode, probeErr = doProbe(refreshed.AccessToken)
-		}
-	}
-	if probeErr != nil {
-		return testConnectionResponse{OK: false, Error: truncateError(probeErr.Error())}, "error"
-	}
-	if statusCode >= http.StatusOK && statusCode < http.StatusMultipleChoices {
-		return testConnectionResponse{OK: true, StatusCode: statusCode}, "ok"
-	}
-	if statusCode == http.StatusUnauthorized || statusCode == http.StatusForbidden {
-		return testConnectionResponse{OK: false, StatusCode: statusCode, Error: "Token invalid or revoked"}, "error"
-	}
-	return testConnectionResponse{
-		OK:         false,
-		StatusCode: statusCode,
-		Error:      "upstream returned HTTP " + http.StatusText(statusCode),
-	}, "error"
 }
 
 func postExchangeGitHubCopilot(ctx context.Context, m *Module, tokenURL string, tok oauthTokenResponse) oauthPostExchangeResult {

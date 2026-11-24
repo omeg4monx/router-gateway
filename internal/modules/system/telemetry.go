@@ -223,7 +223,7 @@ func parseCPUModel(raw string) string {
 	return ""
 }
 
-func parseMemInfo(raw string) (totalBytes uint64, usedBytes uint64) {
+func parseMemInfo(raw string) (totalBytes, usedBytes uint64) {
 	var memTotalKB, memAvailableKB, memFreeKB uint64
 	var hasAvailable bool
 	for _, line := range strings.Split(raw, "\n") {

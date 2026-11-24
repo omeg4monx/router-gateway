@@ -29,16 +29,11 @@ func (rt *codexOAuthRuntime) registerSession(state string) {
 	rt.proxy.registerSession(providerIDCodex, codexCallbackPath, state)
 }
 
-func (rt *codexOAuthRuntime) start(state string) {
-	// Port 1455 busy — gracefully fall back to manual callback paste.
-	_, _ = rt.proxy.start(providerIDCodex, codexCallbackPort, codexCallbackPath, state)
-}
-
 func (rt *codexOAuthRuntime) stop() {
 	rt.proxy.stop(providerIDCodex)
 }
 
-func (rt *codexOAuthRuntime) status(state string) (string, string) {
+func (rt *codexOAuthRuntime) status(state string) (status, errMsg string) {
 	return rt.proxy.status(providerIDCodex, state)
 }
 

@@ -431,11 +431,11 @@ func (m *Module) doRefreshOAuthToken(ctx context.Context, connectionID string) (
 		return contracts.UpstreamCredentials{}, contracts.ErrOAuthRefreshUnsupported
 	}
 
-	strat := m.getOAuthStrategy(rec.Summary.ProviderID)
+	strategy := m.getOAuthStrategy(rec.Summary.ProviderID)
 	var tok oauthTokenResponse
 	var postErr error
-	if strat.RefreshToken != nil {
-		tok, postErr = strat.RefreshToken(ctx, m, tokenURL, clientID, clientSecret, stored)
+	if strategy.RefreshToken != nil {
+		tok, postErr = strategy.RefreshToken(ctx, m, tokenURL, clientID, clientSecret, stored)
 	} else {
 		tok, postErr = defaultRefreshFormToken(ctx, m, tokenURL, clientID, clientSecret, stored)
 	}

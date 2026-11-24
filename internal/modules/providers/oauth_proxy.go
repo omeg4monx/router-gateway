@@ -96,7 +96,13 @@ func (p *oauthLoopbackProxy) start(providerID string, port int, callbackPath, st
 		p.mu.Unlock()
 		return 0, err
 	}
-	actualPort := ln.Addr().(*net.TCPAddr).Port
+	tcpAddr, ok := ln.Addr().(*net.TCPAddr)
+	if !ok {
+		_ = ln.Close()
+		p.mu.Unlock()
+		return 0, fmt.Errorf("providers: unexpected loopback listener address %T", ln.Addr())
+	}
+	actualPort := tcpAddr.Port
 
 	mux := http.NewServeMux()
 	mux.HandleFunc(ps.callbackPath, func(w http.ResponseWriter, r *http.Request) {
@@ -153,7 +159,7 @@ func (p *oauthLoopbackProxy) stopAll() {
 	}
 }
 
-func (p *oauthLoopbackProxy) status(providerID, state string) (string, string) {
+func (p *oauthLoopbackProxy) status(providerID, state string) (status, errMsg string) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	ps, ok := p.servers[providerID]

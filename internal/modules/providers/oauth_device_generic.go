@@ -26,18 +26,6 @@ type rfc8628DeviceSpec struct {
 	DisplayPrefix           string
 }
 
-func (m *Module) makeRFC8628StartFn(spec rfc8628DeviceSpec) func(context.Context, *Module, string, OAuthConfig, string, string, []string) (*deviceOAuthSession, error) {
-	return func(ctx context.Context, mod *Module, state string, cfg OAuthConfig, connName, baseURL string, models []string) (*deviceOAuthSession, error) {
-		return mod.startRFC8628Device(ctx, spec, state, cfg, connName, baseURL, models)
-	}
-}
-
-func (m *Module) makeRFC8628PollFn(spec rfc8628DeviceSpec) func(context.Context, *Module, deviceOAuthSession) (*deviceOAuthResult, bool, int, string) {
-	return func(ctx context.Context, mod *Module, sess deviceOAuthSession) (*deviceOAuthResult, bool, int, string) {
-		return mod.pollRFC8628Device(ctx, spec, sess)
-	}
-}
-
 func (m *Module) startRFC8628Device(
 	ctx context.Context,
 	spec rfc8628DeviceSpec,
@@ -158,7 +146,7 @@ func (m *Module) pollRFC8628Device(
 	ctx context.Context,
 	spec rfc8628DeviceSpec,
 	sess deviceOAuthSession,
-) (*deviceOAuthResult, bool, int, string) {
+) (result *deviceOAuthResult, pending bool, nextInterval int, errMsg string) {
 	form := url.Values{}
 	form.Set("grant_type", "urn:ietf:params:oauth:grant-type:device_code")
 	form.Set("device_code", sess.DeviceCode)
@@ -267,7 +255,7 @@ func (m *Module) startKiloCodeDevice(
 	}, nil
 }
 
-func (m *Module) pollKiloCodeDevice(ctx context.Context, sess deviceOAuthSession) (*deviceOAuthResult, bool, int, string) {
+func (m *Module) pollKiloCodeDevice(ctx context.Context, sess deviceOAuthSession) (result *deviceOAuthResult, pending bool, nextInterval int, errMsg string) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, sess.TokenURL, http.NoBody)
 	if err != nil {
 		return nil, true, 0, ""

@@ -334,11 +334,12 @@ func evaluateAntigravityQuota(summary *agQuotaSummary, model string, now time.Ti
 				continue
 			}
 			var rem float64
-			if b.Disabled {
+			switch {
+			case b.Disabled:
 				rem = 0
-			} else if b.RemainingFraction != nil {
+			case b.RemainingFraction != nil:
 				rem = *b.RemainingFraction
-			} else {
+			default:
 				continue
 			}
 			if !found || rem < minRemaining {

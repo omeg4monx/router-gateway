@@ -242,7 +242,7 @@ func (m *Module) handleProviderHealthMatrix(w http.ResponseWriter, r *http.Reque
 	entries := make([]ProviderHealthMatrixEntry, 0, len(keys))
 	for _, pid := range keys {
 		a := byProvider[pid]
-		state := "untested"
+		var state string
 		switch {
 		case a.total == 0:
 			state = "untested"
@@ -464,7 +464,7 @@ func (m *Module) probeConnectionModel(ctx context.Context, connectionID, modelID
 	}
 
 	start := time.Now()
-	resp, doErr := client.Do(req) //nolint:gosec // G704: upstream provider base_url is configured by operator
+	resp, doErr := client.Do(req)
 	latency := time.Since(start).Milliseconds()
 
 	if doErr != nil {

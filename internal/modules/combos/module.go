@@ -417,13 +417,14 @@ func (m *Module) handlePatchCombo(w http.ResponseWriter, r *http.Request) {
 			rawTargets []string
 			rawSteps   []ComboStep
 		)
-		if req.Steps != nil {
+		switch {
+		case req.Steps != nil:
 			rawSteps = *req.Steps
-		} else if req.Targets != nil {
+		case req.Targets != nil:
 			rawTargets = *req.Targets
-		} else if len(cur.Steps) > 0 {
+		case len(cur.Steps) > 0:
 			rawSteps = cur.Steps
-		} else {
+		default:
 			rawTargets = cur.Targets
 		}
 		cleanTargets, cleanSteps, tErr := normalizeAndValidateSteps(vals.Name, rawTargets, rawSteps)
