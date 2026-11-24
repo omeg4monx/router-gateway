@@ -110,6 +110,12 @@ paths:
     $ref: './modules/providers.yaml#/paths/~1api~1providers~1oauth~1{provider}~1start'
   /api/providers/oauth/{provider}/exchange:
     $ref: './modules/providers.yaml#/paths/~1api~1providers~1oauth~1{provider}~1exchange'
+  /api/providers/oauth/{provider}/status:
+    $ref: './modules/providers.yaml#/paths/~1api~1providers~1oauth~1{provider}~1status'
+  /api/providers/oauth/{provider}/paste:
+    $ref: './modules/providers.yaml#/paths/~1api~1providers~1oauth~1{provider}~1paste'
+  /api/providers/oauth/{provider}/stop:
+    $ref: './modules/providers.yaml#/paths/~1api~1providers~1oauth~1{provider}~1stop'
   /api/oauth/callback:
     $ref: './modules/providers.yaml#/paths/~1api~1oauth~1callback'
   /api/combos:
@@ -466,6 +472,14 @@ components:
       $ref: './modules/providers.yaml#/components/schemas/OAuthExchangeRequest'
     OAuthCallbackJSONResponse:
       $ref: './modules/providers.yaml#/components/schemas/OAuthCallbackJSONResponse'
+    OAuthStatusResponse:
+      $ref: './modules/providers.yaml#/components/schemas/OAuthStatusResponse'
+    OAuthPasteRequest:
+      $ref: './modules/providers.yaml#/components/schemas/OAuthPasteRequest'
+    OAuthPasteResponse:
+      $ref: './modules/providers.yaml#/components/schemas/OAuthPasteResponse'
+    OAuthStopResponse:
+      $ref: './modules/providers.yaml#/components/schemas/OAuthStopResponse'
     ComboStrategy:
       $ref: './modules/combos.yaml#/components/schemas/ComboStrategy'
     Combo:

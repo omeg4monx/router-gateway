@@ -329,15 +329,14 @@ function ProviderCard({
                 </Badge>
               ) : null}
             </>
-          ) : entry.isCustom ? (
-            <span className="inline-flex items-center gap-1 text-[11px] font-medium text-[var(--color-primary)]">
-              <KeyRound className="h-3 w-3" aria-hidden="true" />
-              {isId ? "Tambah API Key" : "Add API Key"}
-            </span>
           ) : (
-            <span className="inline-flex items-center gap-1 text-[11px] font-medium text-[var(--color-text-muted)] transition-colors group-hover:text-[var(--color-primary)]">
-              <Plus className="h-3 w-3" aria-hidden="true" />
-              {isId ? "Atur Koneksi" : "Setup"}
+            <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-[var(--color-text-muted)] transition-colors group-hover:text-[var(--color-primary)]">
+              <span>{isId ? "Lihat Detail" : "View Details"}</span>
+              {entry.defaultModels.length > 0 ? (
+                <span className="rounded bg-[var(--color-surface-2)] px-1.5 py-0.5 font-mono text-[10px] text-[var(--color-text-subtle)]">
+                  {entry.defaultModels.length} {isId ? "model" : "models"}
+                </span>
+              ) : null}
             </span>
           )}
         </div>
@@ -627,22 +626,16 @@ export function ProvidersConsole() {
   };
 
   const handleCardSelect = (entry: ProviderEntry) => {
-    if (entry.connections.length > 0 || entry.isCustom) {
-      setSelectedProviderId(entry.id);
-      return;
-    }
-    if (entry.isNativeOAuth) {
-      setOauthModal({ open: true, providerId: entry.id });
-    } else if (entry.authType === "oauth") {
-      setOauthModal({ open: true, providerId: entry.id });
-    } else {
-      setApiKeyModal({ open: true, providerId: entry.id });
-    }
+    setSelectedProviderId(entry.id);
   };
 
-  const handleAddConnectionForEntry = (entry: ProviderEntry) => {
+  const handleAddConnectionForEntry = (entry: ProviderEntry, mode?: "oauth" | "apikey") => {
     setSelectedProviderId(null);
-    if (entry.isNativeOAuth) {
+    if (mode === "apikey") {
+      setApiKeyModal({ open: true, providerId: entry.id });
+      return;
+    }
+    if (mode === "oauth" || entry.isNativeOAuth) {
       setOauthModal({ open: true, providerId: entry.id });
     } else {
       setApiKeyModal({ open: true, providerId: entry.id });
@@ -841,10 +834,10 @@ export function ProvidersConsole() {
                   <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-[var(--status-ok)]" />
                   <span className="min-w-0">
                     <span className="block text-xs font-semibold text-[var(--color-text-main)]">
-                      {isId ? "Akun OAuth (PKCE)" : "OAuth Account (PKCE)"}
+                      {isId ? "Akun OAuth" : "OAuth Account"}
                     </span>
                     <span className="block truncate text-[11px] text-[var(--color-text-muted)]">
-                      Claude, Codex, Gemini OAuth
+                      Claude, Codex, Gemini, Amazon Quick, Copilot, Kiro...
                     </span>
                   </span>
                 </button>
@@ -1390,7 +1383,9 @@ export function ProvidersConsole() {
         onClose={() => setSelectedProviderId(null)}
         isId={isId}
         busyConnectionId={busyConnectionId}
+        isTestingAll={Boolean(selectedEntry && testingScope === `provider:${selectedEntry.id}`)}
         liveTestResults={liveTestResults}
+        onTestAll={(entry) => runBatchTests(`provider:${entry.id}`, entry.name, entry.connections)}
         onTestConnection={handleTestSingleConnection}
         onToggleConnection={handleToggleSingleConnection}
         onDeleteConnection={handleDeleteSingleConnection}

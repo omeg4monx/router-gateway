@@ -147,3 +147,11 @@ export function buildTestFingerprint(input: DraftTestFingerprintInput): string {
     (input.headers ?? "").trim(),
   ]);
 }
+
+export function formatOAuthClientIdEnvVar(providerId: string): string {
+  const normalized = providerId
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, "_");
+  return `OMEG4MON_OAUTH_${normalized}_CLIENT_ID`;
+}

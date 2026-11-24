@@ -6,8 +6,12 @@ import type {
   CreateProviderConnectionRequest,
   CreateProviderNodeRequest,
   OAuthExchangeRequest,
+  OAuthPasteRequest,
+  OAuthPasteResponse,
   OAuthStartRequest,
   OAuthStartResponse,
+  OAuthStatusResponse,
+  OAuthStopResponse,
   ProviderConnectionSummary,
   ProviderNode,
   ProvidersCatalogResponse,
@@ -278,6 +282,53 @@ export function useExchangeProviderOAuthMutation() {
         queryClient.invalidateQueries({ queryKey: providersQueryKeys.connections }),
         queryClient.invalidateQueries({ queryKey: providersQueryKeys.connection(conn.id) }),
       ]);
+    },
+  });
+}
+
+export async function fetchProviderOAuthStatus(
+  provider: string,
+  state: string,
+): Promise<OAuthStatusResponse> {
+  const { data, error } = await apiClient.GET("/api/providers/oauth/{provider}/status", {
+    params: { path: { provider }, query: { state } },
+  });
+  if (data) {
+    return data;
+  }
+  throw new Error(extractErrorMessage(error));
+}
+
+export interface PasteProviderOAuthVariables {
+  provider: string;
+  body: OAuthPasteRequest;
+}
+
+export function usePasteProviderOAuthMutation() {
+  return useMutation<OAuthPasteResponse, Error, PasteProviderOAuthVariables>({
+    mutationFn: async ({ provider, body }) => {
+      const { data, error } = await apiClient.POST("/api/providers/oauth/{provider}/paste", {
+        params: { path: { provider } },
+        body,
+      });
+      if (data) {
+        return data;
+      }
+      throw new Error(extractErrorMessage(error));
+    },
+  });
+}
+
+export function useStopProviderOAuthMutation() {
+  return useMutation<OAuthStopResponse, Error, string>({
+    mutationFn: async (provider) => {
+      const { data, error } = await apiClient.POST("/api/providers/oauth/{provider}/stop", {
+        params: { path: { provider } },
+      });
+      if (data) {
+        return data;
+      }
+      throw new Error(extractErrorMessage(error));
     },
   });
 }

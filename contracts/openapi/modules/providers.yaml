@@ -501,6 +501,105 @@ paths:
             application/json:
               schema:
                 $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+  /api/providers/oauth/{provider}/status:
+    parameters:
+      - name: provider
+        in: path
+        required: true
+        description: OAuth provider adapter identifier (aws-quick).
+        schema:
+          type: string
+      - name: state
+        in: query
+        required: true
+        description: Active OAuth session state.
+        schema:
+          type: string
+    get:
+      operationId: getProviderOAuthStatus
+      summary: Poll status of a loopback-proxied OAuth session
+      tags:
+        - providers
+      security:
+        - sessionCookie: []
+        - adminBearer: []
+      responses:
+        '200':
+          description: Current session status.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OAuthStatusResponse'
+        '400':
+          description: Unsupported provider or missing state.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+  /api/providers/oauth/{provider}/paste:
+    parameters:
+      - name: provider
+        in: path
+        required: true
+        description: OAuth provider adapter identifier (aws-quick).
+        schema:
+          type: string
+    post:
+      operationId: pasteProviderOAuthCallback
+      summary: Submit a pasted browser callback URL for two-hop loopback OAuth
+      tags:
+        - providers
+      security:
+        - sessionCookie: []
+        - adminBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OAuthPasteRequest'
+      responses:
+        '200':
+          description: Discovery saved (with Hop-2 authorize_url) or exchange settled (done).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OAuthPasteResponse'
+        '400':
+          description: Invalid pasted URL or expired session.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '502':
+          description: Upstream OIDC exchange failed.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+  /api/providers/oauth/{provider}/stop:
+    parameters:
+      - name: provider
+        in: path
+        required: true
+        description: OAuth provider adapter identifier (aws-quick).
+        schema:
+          type: string
+    post:
+      operationId: stopProviderOAuthProxy
+      summary: Stop an idle loopback OAuth callback listener
+      tags:
+        - providers
+      security:
+        - sessionCookie: []
+        - adminBearer: []
+      responses:
+        '200':
+          description: Loopback listener stopped or preserved for another pending login.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OAuthStopResponse'
   /api/oauth/callback:
     get:
       operationId: oauthCallbackHandoff
@@ -936,6 +1035,14 @@ components:
         expires_at:
           type: string
           format: date-time
+        flow_type:
+          type: string
+        user_code:
+          type: string
+        verification_uri:
+          type: string
+        interval:
+          type: integer
     OAuthExchangeRequest:
       type: object
       additionalProperties: false
@@ -986,3 +1093,48 @@ components:
           type: string
         error_description:
           type: string
+    OAuthStatusResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+      properties:
+        status:
+          type: string
+        error:
+          type: string
+        authorize_url:
+          type: string
+        interval:
+          type: integer
+    OAuthPasteRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - url
+      properties:
+        url:
+          type: string
+    OAuthPasteResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - state
+      properties:
+        status:
+          type: string
+        state:
+          type: string
+        authorize_url:
+          type: string
+        redirect_uri:
+          type: string
+    OAuthStopResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - stopped
+      properties:
+        stopped:
+          type: boolean

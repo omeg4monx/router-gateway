@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import {
   buildTestFingerprint,
   CUSTOM_ENDPOINT_PRESETS,
+  formatOAuthClientIdEnvVar,
   parseBulkCredentials,
   parseOAuthCallbackUrl,
   slugifyProviderId,
@@ -104,5 +105,17 @@ describe("buildTestFingerprint", () => {
     expect(buildTestFingerprint({ ...base, headers: "X-A: 2" })).not.toBe(
       buildTestFingerprint(base),
     );
+  });
+});
+
+describe("formatOAuthClientIdEnvVar", () => {
+  test("mirrors Go oauthEnvPrefix + _CLIENT_ID for built-in OAuth providers", () => {
+    expect(formatOAuthClientIdEnvVar("aws-quick")).toBe("OMEG4MON_OAUTH_AWS_QUICK_CLIENT_ID");
+    expect(formatOAuthClientIdEnvVar("gemini-oauth")).toBe("OMEG4MON_OAUTH_GEMINI_OAUTH_CLIENT_ID");
+    expect(formatOAuthClientIdEnvVar("claude")).toBe("OMEG4MON_OAUTH_CLAUDE_CLIENT_ID");
+    expect(formatOAuthClientIdEnvVar("github-copilot")).toBe(
+      "OMEG4MON_OAUTH_GITHUB_COPILOT_CLIENT_ID",
+    );
+    expect(formatOAuthClientIdEnvVar("  aws-quick  ")).toBe("OMEG4MON_OAUTH_AWS_QUICK_CLIENT_ID");
   });
 });

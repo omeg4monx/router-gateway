@@ -28,7 +28,7 @@ import {
   Zap,
 } from "lucide-react";
 import Link from "next/link";
-import { type ReactNode, useEffect, useMemo, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { cn } from "@/shared/lib/utils";
 import { Alert, AlertDescription, AlertTitle } from "@/shared/ui/alert";
@@ -38,16 +38,20 @@ import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
 import type { ProviderEntry } from "./catalogUtils";
 import {
+  fetchProviderOAuthStatus,
   useCreateProviderConnectionMutation,
   useCreateProviderNodeMutation,
   useExchangeProviderOAuthMutation,
+  usePasteProviderOAuthMutation,
   useStartProviderOAuthMutation,
+  useStopProviderOAuthMutation,
   useTestProviderNodeDraftMutation,
 } from "./hooks";
 import {
   buildTestFingerprint,
   CUSTOM_ENDPOINT_PRESETS,
   type CustomEndpointPreset,
+  formatOAuthClientIdEnvVar,
   parseBulkCredentials,
   parseOAuthCallbackUrl,
   slugifyProviderId,
@@ -64,6 +68,7 @@ import {
   DEFAULT_CREATE_NODE_VALUES,
   DEFAULT_OAUTH_EXCHANGE_VALUES,
   DEFAULT_OAUTH_START_VALUES,
+  DEFAULT_PRIORITY,
   formatCommaSeparatedList,
   formatHeadersText,
   isValidHttpUrl,
@@ -282,11 +287,11 @@ function ModalShell({
         className={cn(
           "relative z-10 flex flex-col overflow-hidden border border-[var(--color-border)] bg-[var(--color-surface)] shadow-2xl",
           variant === "drawer"
-            ? "h-full w-full max-w-xl border-y-0 border-r-0"
+            ? cn("h-full w-full border-y-0 border-r-0", MODAL_SIZE_CLASS[size])
             : cn("max-h-[90vh] w-full rounded-2xl", MODAL_SIZE_CLASS[size]),
         )}
       >
-        <div className="flex shrink-0 items-start justify-between gap-3 border-b border-[var(--color-border-subtle)] px-6 py-4">
+        <div className="flex shrink-0 items-start justify-between gap-3 border-b border-[var(--color-border-subtle)] px-4 py-3.5 sm:px-6 sm:py-4">
           <div className="flex min-w-0 items-center gap-3.5">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-2)]/85 p-1.5 text-[var(--color-primary)]">
               {icon}
@@ -313,10 +318,12 @@ function ModalShell({
           </button>
         </div>
 
-        <div className="custom-scrollbar flex-1 overflow-y-auto px-6 py-5">{children}</div>
+        <div className="custom-scrollbar flex-1 overflow-y-auto px-4 py-4 sm:px-6 sm:py-5">
+          {children}
+        </div>
 
         {footer ? (
-          <div className="shrink-0 border-t border-[var(--color-border-subtle)] bg-[var(--color-surface-2)]/35 px-6 py-3.5">
+          <div className="shrink-0 border-t border-[var(--color-border-subtle)] bg-[var(--color-surface-2)]/35 px-4 py-3 sm:px-6 sm:py-3.5">
             {footer}
           </div>
         ) : null}
@@ -1092,6 +1099,8 @@ export function OAuthWizardModal({
 }) {
   const startOAuthMutation = useStartProviderOAuthMutation();
   const exchangeOAuthMutation = useExchangeProviderOAuthMutation();
+  const pasteOAuthMutation = usePasteProviderOAuthMutation();
+  const stopOAuthMutation = useStopProviderOAuthMutation();
 
   const nativeOAuthEntries = useMemo(() => allEntries.filter((e) => e.isNativeOAuth), [allEntries]);
 
@@ -1101,8 +1110,29 @@ export function OAuthWizardModal({
   } | null>(null);
   const [step, setStep] = useState<1 | 2>(1);
   const [showManualFields, setShowManualFields] = useState(false);
+  const [showAdvancedOAuth, setShowAdvancedOAuth] = useState(false);
   const [callbackDetected, setCallbackDetected] = useState(false);
   const [copied, setCopied] = useState(false);
+
+  // Amazon Quick (aws-quick) two-hop loopback + paste-back wizard state
+  // (learned from xrouter OAuthModal + omniroute OAuthWaitingStep).
+  const [awsQuickSession, setAwsQuickSession] = useState<OAuthStartResponse | null>(null);
+  const [awsQuickPasteStep, setAwsQuickPasteStep] = useState<"discovery" | "code">("discovery");
+  const [awsQuickPasteUrl, setAwsQuickPasteUrl] = useState("");
+  const [awsQuickError, setAwsQuickError] = useState<string | null>(null);
+  const [awsQuickBusy, setAwsQuickBusy] = useState(false);
+  const awsQuickStartedRef = useRef(false);
+  const awsQuickSettledRef = useRef(false);
+  const awsQuickAutoStartedRef = useRef(false);
+
+  // Device Code Flow state (github-copilot, kiro, freepi — learned from xrouter OAuthModal).
+  const [deviceSession, setDeviceSession] = useState<{
+    provider: string;
+    session: OAuthStartResponse;
+  } | null>(null);
+  const [deviceError, setDeviceError] = useState<string | null>(null);
+  const [copiedCode, setCopiedCode] = useState(false);
+  const deviceSettledRef = useRef(false);
 
   const startForm = useForm<OAuthStartFormInput, unknown, OAuthStartFormOutput>({
     resolver: zodResolver(oauthStartSchema),
@@ -1123,15 +1153,186 @@ export function OAuthWizardModal({
     [allEntries, initialProviderId, nativeOAuthEntries],
   );
 
+  const stopOAuthMutate = stopOAuthMutation.mutate;
+  const startOAuthMutate = startOAuthMutation.mutate;
+  const exchangeOAuthMutateAsync = exchangeOAuthMutation.mutateAsync;
+  const pasteOAuthMutateAsync = pasteOAuthMutation.mutateAsync;
+  const startOAuthReset = startOAuthMutation.reset;
+  const exchangeOAuthReset = exchangeOAuthMutation.reset;
+  const pasteOAuthReset = pasteOAuthMutation.reset;
+
+  const stopAwsQuickIfOwned = useCallback(() => {
+    if (awsQuickStartedRef.current) {
+      awsQuickStartedRef.current = false;
+      stopOAuthMutate("aws-quick");
+    }
+  }, [stopOAuthMutate]);
+
+  const handleClose = useCallback(() => {
+    stopAwsQuickIfOwned();
+    onClose();
+  }, [onClose, stopAwsQuickIfOwned]);
+
+  const completeAwsQuickExchange = useCallback(
+    async (state: string) => {
+      if (awsQuickSettledRef.current) return;
+      awsQuickSettledRef.current = true;
+      setAwsQuickBusy(true);
+      try {
+        const connName = startForm.getValues("connection_name")?.trim();
+        const conn = await exchangeOAuthMutateAsync({
+          provider: "aws-quick",
+          body: {
+            state,
+            priority: DEFAULT_PRIORITY,
+            enabled: true,
+            ...(connName ? { connection_name: connName } : {}),
+          },
+        });
+        awsQuickStartedRef.current = false;
+        onConnected(
+          isId
+            ? `Akun Amazon Quick "${conn.name}" berhasil dihubungkan.`
+            : `Connected Amazon Quick account "${conn.name}".`,
+        );
+        onClose();
+      } catch (err) {
+        awsQuickSettledRef.current = false;
+        setAwsQuickError(
+          err instanceof Error ? err.message : "Failed to complete Amazon Quick OAuth",
+        );
+      } finally {
+        setAwsQuickBusy(false);
+      }
+    },
+    [exchangeOAuthMutateAsync, isId, onClose, onConnected, startForm],
+  );
+
+  const startAwsQuickFlow = useCallback(
+    (openPopup = true) => {
+      setAwsQuickPasteStep("discovery");
+      setAwsQuickPasteUrl("");
+      setAwsQuickError(null);
+      setAwsQuickBusy(false);
+      awsQuickSettledRef.current = false;
+      const connName = startForm.getValues("connection_name")?.trim();
+      startOAuthMutate(
+        {
+          provider: "aws-quick",
+          body: connName ? { connection_name: connName } : {},
+        },
+        {
+          onSuccess: (session) => {
+            awsQuickStartedRef.current = true;
+            setAwsQuickSession(session);
+            if (openPopup && typeof window !== "undefined") {
+              window.open(session.authorize_url, "oauth_popup", "width=600,height=700");
+            }
+          },
+          onError: (err) => {
+            setAwsQuickError(err.message);
+          },
+        },
+      );
+    },
+    [startForm, startOAuthMutate],
+  );
+
+  const submitAwsQuickPaste = useCallback(
+    async (rawPasted: string) => {
+      const pasted = rawPasted.trim();
+      if (!pasted) return;
+      setAwsQuickBusy(true);
+      setAwsQuickError(null);
+      try {
+        const res = await pasteOAuthMutateAsync({
+          provider: "aws-quick",
+          body: { url: pasted },
+        });
+        if (res.status === "discovery_saved") {
+          setAwsQuickPasteStep("code");
+          setAwsQuickPasteUrl("");
+          if (res.authorize_url) {
+            setAwsQuickSession((prev) =>
+              prev
+                ? {
+                    ...prev,
+                    state: res.state,
+                    authorize_url: res.authorize_url ?? prev.authorize_url,
+                  }
+                : {
+                    state: res.state,
+                    authorize_url: res.authorize_url ?? "",
+                    redirect_uri: res.redirect_uri ?? "",
+                    expires_at: "",
+                  },
+            );
+            if (typeof window !== "undefined") {
+              window.open(res.authorize_url, "oauth_popup", "width=600,height=700");
+            }
+          }
+          return;
+        }
+        if (res.status === "done") {
+          await completeAwsQuickExchange(res.state);
+          return;
+        }
+        setAwsQuickError(
+          isId ? "Respons paste-back tidak dikenali." : "Unexpected paste-back response.",
+        );
+      } catch (err) {
+        setAwsQuickError(err instanceof Error ? err.message : "Paste-back failed");
+      } finally {
+        setAwsQuickBusy(false);
+      }
+    },
+    [completeAwsQuickExchange, isId, pasteOAuthMutateAsync],
+  );
+
+  const pasteAwsQuickFromClipboard = useCallback(async () => {
+    setAwsQuickBusy(true);
+    setAwsQuickError(null);
+    try {
+      const text = (await navigator.clipboard.readText()).trim();
+      if (!text) return;
+      setAwsQuickPasteUrl(text);
+      await submitAwsQuickPaste(text);
+    } catch {
+      setAwsQuickError(
+        isId
+          ? "Akses clipboard diblokir — klik kolom di atas lalu tempel dengan Ctrl/Cmd+V."
+          : "Clipboard access was blocked — click the field and paste with Ctrl/Cmd+V.",
+      );
+    } finally {
+      setAwsQuickBusy(false);
+    }
+  }, [isId, submitAwsQuickPaste]);
+
   useEffect(() => {
-    if (!open) return;
-    startOAuthMutation.reset();
-    exchangeOAuthMutation.reset();
+    if (!open) {
+      awsQuickAutoStartedRef.current = false;
+      stopAwsQuickIfOwned();
+      return;
+    }
+    startOAuthReset();
+    exchangeOAuthReset();
+    pasteOAuthReset();
     setActiveSession(null);
     setStep(1);
     setShowManualFields(false);
+    setShowAdvancedOAuth(false);
     setCallbackDetected(false);
     setCopied(false);
+    setAwsQuickSession(null);
+    setAwsQuickPasteStep("discovery");
+    setAwsQuickPasteUrl("");
+    setAwsQuickError(null);
+    setAwsQuickBusy(false);
+    awsQuickSettledRef.current = false;
+    setDeviceSession(null);
+    setDeviceError(null);
+    setCopiedCode(false);
+    deviceSettledRef.current = false;
 
     const pid = selectedEntry?.isNativeOAuth
       ? selectedEntry.id
@@ -1147,15 +1348,213 @@ export function OAuthWizardModal({
     nativeOAuthEntries,
     startForm,
     exchangeForm,
-    startOAuthMutation.reset,
-    exchangeOAuthMutation.reset,
+    startOAuthReset,
+    exchangeOAuthReset,
+    pasteOAuthReset,
+    stopAwsQuickIfOwned,
   ]);
 
   const watchedProvider = startForm.watch("provider");
   const currentEntry = allEntries.find((e) => e.id === watchedProvider) ?? selectedEntry;
   const isNonNativeOAuth = Boolean(selectedEntry && !selectedEntry.isNativeOAuth);
+  const isAwsQuick = watchedProvider === "aws-quick";
+  const isDeviceCodeProvider =
+    watchedProvider === "github-copilot" ||
+    watchedProvider === "kiro" ||
+    watchedProvider === "freepi";
+  const oauthMeta = currentEntry?.adapter?.oauth;
+  const clientIdConfigured = Boolean(oauthMeta?.client_id_configured);
+  const oauthEnvVarName = formatOAuthClientIdEnvVar(watchedProvider || currentEntry?.id || "");
+  const defaultRedirectPlaceholder =
+    oauthMeta?.default_redirect_uri || "http://localhost:20128/api/oauth/callback";
+  const awsQuickPort = useMemo(() => {
+    const uri = awsQuickSession?.redirect_uri;
+    if (!uri) return "<port>";
+    try {
+      return new URL(uri).port || "<port>";
+    } catch {
+      return "<port>";
+    }
+  }, [awsQuickSession?.redirect_uri]);
+
+  // Auto-start Amazon Quick loopback proxy when opened directly on aws-quick
+  // (matches xrouter OAuthModal zero-click startup).
+  useEffect(() => {
+    if (!open || !isAwsQuick || awsQuickSession || awsQuickAutoStartedRef.current) return;
+    if (selectedEntry?.id !== "aws-quick") return;
+    awsQuickAutoStartedRef.current = true;
+    startAwsQuickFlow(false);
+  }, [open, isAwsQuick, awsQuickSession, selectedEntry?.id, startAwsQuickFlow]);
+
+  // Poll Amazon Quick loopback session status every 1.5s until settled.
+  useEffect(() => {
+    if (!open || !isAwsQuick || !awsQuickSession?.state) return;
+    if (awsQuickSettledRef.current) return;
+
+    let cancelled = false;
+    let attempts = 0;
+    let timerId: number | null = null;
+    const POLL_INTERVAL_MS = 1500;
+    const MAX_ATTEMPTS = 200;
+    const sessionState = awsQuickSession.state;
+
+    const tick = async () => {
+      if (cancelled || awsQuickSettledRef.current) return;
+      attempts += 1;
+      try {
+        const data = await fetchProviderOAuthStatus("aws-quick", sessionState);
+        if (cancelled || awsQuickSettledRef.current) return;
+        if (data.status === "done") {
+          await completeAwsQuickExchange(sessionState);
+          return;
+        }
+        if (data.status === "discovery_saved") {
+          setAwsQuickPasteStep("code");
+          if (data.authorize_url) {
+            setAwsQuickSession((prev) =>
+              prev ? { ...prev, authorize_url: data.authorize_url ?? prev.authorize_url } : prev,
+            );
+          }
+        }
+        if (data.status === "error") {
+          setAwsQuickError(
+            data.error ||
+              (isId ? "Autentikasi Amazon Quick gagal." : "Amazon Quick authentication failed."),
+          );
+          return;
+        }
+      } catch {
+        // Transient network error — keep polling.
+      }
+      if (attempts >= MAX_ATTEMPTS) {
+        setAwsQuickError(
+          isId
+            ? "Waktu tunggu otorisasi habis. Silakan mulai ulang."
+            : "Authorization timed out. Please try again.",
+        );
+        return;
+      }
+      timerId = window.setTimeout(tick, POLL_INTERVAL_MS);
+    };
+
+    timerId = window.setTimeout(tick, POLL_INTERVAL_MS);
+    return () => {
+      cancelled = true;
+      if (timerId !== null) window.clearTimeout(timerId);
+    };
+  }, [open, isAwsQuick, awsQuickSession?.state, completeAwsQuickExchange, isId]);
+
+  // Poll Device Code Flow status (github-copilot, kiro, freepi) until approved.
+  useEffect(() => {
+    if (!open || !deviceSession?.session.state) return;
+    if (deviceSettledRef.current) return;
+
+    let cancelled = false;
+    let timerId: number | null = null;
+    let intervalSec = Math.max(deviceSession.session.interval ?? 5, 2);
+    const providerId = deviceSession.provider;
+    const sessionState = deviceSession.session.state;
+
+    const tick = async () => {
+      if (cancelled || deviceSettledRef.current) return;
+      try {
+        const data = await fetchProviderOAuthStatus(providerId, sessionState);
+        if (cancelled || deviceSettledRef.current) return;
+        if (data.status === "done") {
+          deviceSettledRef.current = true;
+          const connName = startForm.getValues("connection_name")?.trim();
+          const conn = await exchangeOAuthMutateAsync({
+            provider: providerId,
+            body: {
+              state: sessionState,
+              priority: DEFAULT_PRIORITY,
+              enabled: true,
+              ...(connName ? { connection_name: connName } : {}),
+            },
+          });
+          onConnected(
+            isId
+              ? `Akun OAuth "${conn.name}" berhasil dihubungkan.`
+              : `Connected OAuth account "${conn.name}".`,
+          );
+          onClose();
+          return;
+        }
+        if (data.status === "error") {
+          setDeviceError(
+            data.error || (isId ? "Otorisasi perangkat gagal." : "Device authorization failed."),
+          );
+          return;
+        }
+        if (data.interval && data.interval > intervalSec) {
+          intervalSec = data.interval;
+        }
+      } catch (err) {
+        if (deviceSettledRef.current) {
+          deviceSettledRef.current = false;
+          setDeviceError(err instanceof Error ? err.message : "OAuth exchange failed");
+          return;
+        }
+        // Transient poll error — keep polling.
+      }
+      timerId = window.setTimeout(tick, intervalSec * 1000);
+    };
+
+    timerId = window.setTimeout(tick, intervalSec * 1000);
+    return () => {
+      cancelled = true;
+      if (timerId !== null) window.clearTimeout(timerId);
+    };
+  }, [open, deviceSession, exchangeOAuthMutateAsync, isId, onClose, onConnected, startForm]);
+
+  const startDeviceCodeFlow = useCallback(() => {
+    const providerId = startForm.getValues("provider");
+    const connName = startForm.getValues("connection_name")?.trim();
+    setDeviceError(null);
+    setCopiedCode(false);
+    deviceSettledRef.current = false;
+    startOAuthMutate(
+      {
+        provider: providerId,
+        body: connName ? { connection_name: connName } : {},
+      },
+      {
+        onSuccess: (session) => {
+          setDeviceSession({ provider: providerId, session });
+          const target = session.authorize_url || session.verification_uri;
+          if (target && typeof window !== "undefined") {
+            window.open(target, "_blank", "noopener,noreferrer");
+          }
+        },
+        onError: (err) => {
+          setDeviceError(err.message);
+        },
+      },
+    );
+  }, [startForm, startOAuthMutate]);
+
+  const handleCopyUserCode = async () => {
+    const code = deviceSession?.session.user_code;
+    if (!code) return;
+    try {
+      await navigator.clipboard.writeText(code);
+      setCopiedCode(true);
+      window.setTimeout(() => setCopiedCode(false), 2000);
+    } catch {
+      // Ignore clipboard failures
+    }
+  };
 
   const onStart = (values: OAuthStartFormOutput) => {
+    if (!clientIdConfigured && !values.client_id) {
+      startForm.setError("client_id", {
+        type: "manual",
+        message: isId
+          ? `Client ID diperlukan karena ${oauthEnvVarName} belum disetel di server.`
+          : `Client ID is required because ${oauthEnvVarName} is not configured on the server.`,
+      });
+      return;
+    }
     startOAuthMutation.mutate(
       { provider: values.provider, body: toOAuthStartRequest(values) },
       {
@@ -1202,9 +1601,14 @@ export function OAuthWizardModal({
   };
 
   const handleCopyUrl = async () => {
-    if (!activeSession) return;
+    const targetUrl = isAwsQuick
+      ? awsQuickSession?.authorize_url
+      : isDeviceCodeProvider
+        ? (deviceSession?.session.authorize_url ?? deviceSession?.session.verification_uri)
+        : activeSession?.session.authorize_url;
+    if (!targetUrl) return;
     try {
-      await navigator.clipboard.writeText(activeSession.session.authorize_url);
+      await navigator.clipboard.writeText(targetUrl);
       setCopied(true);
       window.setTimeout(() => setCopied(false), 2000);
     } catch {
@@ -1220,7 +1624,7 @@ export function OAuthWizardModal({
   return (
     <ModalShell
       open={open}
-      onClose={onClose}
+      onClose={handleClose}
       size="lg"
       title={
         currentEntry
@@ -1232,13 +1636,21 @@ export function OAuthWizardModal({
             : "Connect OAuth Account"
       }
       subtitle={
-        isId
-          ? "Alur PKCE 2 langkah untuk autentikasi akun OAuth upstream."
-          : "2-step PKCE flow for upstream OAuth account authentication."
+        isAwsQuick
+          ? isId
+            ? "Alur loopback 2-hop Amazon Quick (registrasi OIDC otomatis + fallback paste URL)."
+            : "Amazon Quick two-hop loopback flow (automatic OIDC registration + paste-back fallback)."
+          : isDeviceCodeProvider
+            ? isId
+              ? "Alur Device Code — masukkan kode di browser, koneksi tersimpan otomatis."
+              : "Device Code flow — enter the code in your browser and the connection saves automatically."
+            : isId
+              ? "Alur PKCE 2 langkah untuk autentikasi akun OAuth upstream."
+              : "2-step PKCE flow for upstream OAuth account authentication."
       }
       badge={
         <Badge variant="outline" className="font-mono text-[10px] uppercase">
-          OAUTH PKCE
+          {isAwsQuick ? "LOOPBACK OIDC" : isDeviceCodeProvider ? "DEVICE CODE" : "OAUTH PKCE"}
         </Badge>
       }
       icon={
@@ -1256,7 +1668,63 @@ export function OAuthWizardModal({
       footer={
         isNonNativeOAuth ? (
           <div className="flex items-center justify-end gap-2">
-            <Button type="button" variant="secondary" size="sm" onClick={onClose}>
+            <Button type="button" variant="secondary" size="sm" onClick={handleClose}>
+              {isId ? "Tutup" : "Close"}
+            </Button>
+          </div>
+        ) : isAwsQuick ? (
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              disabled={startOAuthMutation.isPending || awsQuickBusy}
+              onClick={() => startAwsQuickFlow(true)}
+            >
+              <RefreshCw
+                className={cn("h-3.5 w-3.5", startOAuthMutation.isPending && "animate-spin")}
+                aria-hidden="true"
+              />
+              <span>
+                {awsQuickSession
+                  ? isId
+                    ? "Mulai Ulang Login"
+                    : "Restart Sign-In"
+                  : isId
+                    ? "Mulai Login Amazon Quick"
+                    : "Start Amazon Quick Sign-In"}
+              </span>
+            </Button>
+
+            <Button type="button" variant="secondary" size="sm" onClick={handleClose}>
+              {isId ? "Tutup" : "Close"}
+            </Button>
+          </div>
+        ) : isDeviceCodeProvider ? (
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <Button
+              type="button"
+              variant={deviceSession ? "secondary" : "default"}
+              size="sm"
+              disabled={startOAuthMutation.isPending}
+              onClick={startDeviceCodeFlow}
+            >
+              <RefreshCw
+                className={cn("h-3.5 w-3.5", startOAuthMutation.isPending && "animate-spin")}
+                aria-hidden="true"
+              />
+              <span>
+                {deviceSession
+                  ? isId
+                    ? "Minta Kode Baru"
+                    : "Request New Code"
+                  : isId
+                    ? "Mulai Device Login"
+                    : "Start Device Login"}
+              </span>
+            </Button>
+
+            <Button type="button" variant="secondary" size="sm" onClick={handleClose}>
               {isId ? "Tutup" : "Close"}
             </Button>
           </div>
@@ -1279,7 +1747,7 @@ export function OAuthWizardModal({
             </div>
 
             <div className="flex items-center gap-2">
-              <Button type="button" variant="secondary" size="sm" onClick={onClose}>
+              <Button type="button" variant="secondary" size="sm" onClick={handleClose}>
                 {isId ? "Tutup" : "Close"}
               </Button>
               {step === 1 ? (
@@ -1330,13 +1798,405 @@ export function OAuthWizardModal({
               type="button"
               size="sm"
               onClick={() => {
-                onClose();
+                handleClose();
                 onSwitchToApiKey(selectedEntry.id);
               }}
             >
               <KeyRound className="h-3.5 w-3.5" aria-hidden="true" />
               <span>{isId ? "Setup via API Key / Token" : "Setup via API Key / Token"}</span>
             </Button>
+          </div>
+        ) : isAwsQuick ? (
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label htmlFor="modal-oauth-provider-quick">OAuth Provider</Label>
+                <select
+                  id="modal-oauth-provider-quick"
+                  className={SELECT_CLASS_NAME}
+                  {...startForm.register("provider", {
+                    onChange: (e) => {
+                      if (e.target.value !== "aws-quick") {
+                        stopAwsQuickIfOwned();
+                        setAwsQuickSession(null);
+                        setAwsQuickError(null);
+                      }
+                    },
+                  })}
+                >
+                  {nativeOAuthEntries.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.name} ({item.id})
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="modal-oauth-name-quick">
+                  {isId ? "Label Koneksi (opsional)" : "Connection Label (optional)"}
+                </Label>
+                <Input
+                  id="modal-oauth-name-quick"
+                  placeholder="Amazon Quick Account"
+                  {...startForm.register("connection_name")}
+                />
+              </div>
+            </div>
+
+            {awsQuickSession ? (
+              <>
+                {/* Waiting status banner (omniroute + xrouter parity) */}
+                <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[var(--color-primary)]/35 bg-[var(--color-surface-2)]/65 px-3.5 py-2.5">
+                  <div className="flex items-center gap-2">
+                    <RefreshCw
+                      className="h-4 w-4 animate-spin text-[var(--color-primary)]"
+                      aria-hidden="true"
+                    />
+                    <span className="text-xs font-medium text-[var(--color-text-main)]">
+                      {awsQuickBusy
+                        ? isId
+                          ? "Memproses token Amazon Quick..."
+                          : "Exchanging Amazon Quick tokens..."
+                        : isId
+                          ? "Menunggu otorisasi browser..."
+                          : "Waiting for browser authorization…"}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-1.5">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => void handleCopyUrl()}
+                    >
+                      {copied ? (
+                        <>
+                          <Check
+                            className="h-3.5 w-3.5 text-[var(--status-ok)]"
+                            aria-hidden="true"
+                          />
+                          <span>{isId ? "Tersalin" : "Copied"}</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="h-3.5 w-3.5" aria-hidden="true" />
+                          <span>{isId ? "Salin URL" : "Copy URL"}</span>
+                        </>
+                      )}
+                    </Button>
+                    <a
+                      href={awsQuickSession.authorize_url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-[var(--color-primary)] px-3 text-xs font-medium text-[var(--color-on-primary)] transition-opacity hover:opacity-90"
+                    >
+                      <span>{isId ? "Buka Halaman Login" : "Open Sign-In Page"}</span>
+                      <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
+                    </a>
+                  </div>
+                </div>
+
+                <p className="break-all rounded-lg border border-[var(--color-border-subtle)] bg-[var(--color-surface)] p-2 font-mono text-[11px] text-[var(--color-text-muted)]">
+                  {awsQuickSession.authorize_url}
+                </p>
+
+                {/* Two-step paste-back wizard (exact xrouter layout for remote browser / SSH) */}
+                <div className="space-y-3 rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-surface-2)]/35 p-3.5">
+                  <div className="flex items-center gap-3">
+                    <div className="h-px flex-1 bg-[var(--color-border)]" />
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
+                      {isId
+                        ? "Browser di mesin lain? Tempel kedua URL"
+                        : "Browser on another machine? Paste both URLs"}
+                    </span>
+                    <div className="h-px flex-1 bg-[var(--color-border)]" />
+                  </div>
+
+                  <div className="flex items-center gap-2 text-[11px]">
+                    <span
+                      className={cn(
+                        "rounded-full border px-2.5 py-0.5 font-medium",
+                        awsQuickPasteStep === "discovery"
+                          ? "border-[var(--color-primary)] bg-[var(--color-primary)]/10 text-[var(--color-primary)]"
+                          : "border-[var(--color-border)] text-[var(--color-text-muted)]",
+                      )}
+                    >
+                      {isId ? "Langkah 1 · sign-in" : "Step 1 · sign-in"}
+                    </span>
+                    <span className="text-[var(--color-text-muted)]">→</span>
+                    <span
+                      className={cn(
+                        "rounded-full border px-2.5 py-0.5 font-medium",
+                        awsQuickPasteStep === "code"
+                          ? "border-[var(--color-primary)] bg-[var(--color-primary)]/10 text-[var(--color-primary)]"
+                          : "border-[var(--color-border)] text-[var(--color-text-muted)]",
+                      )}
+                    >
+                      {isId ? "Langkah 2 · otorisasi" : "Step 2 · authorize"}
+                    </span>
+                  </div>
+
+                  <p className="text-xs leading-relaxed text-[var(--color-text-muted)]">
+                    {awsQuickPasteStep === "discovery"
+                      ? isId
+                        ? "Selesaikan login AWS sampai browser menampilkan error koneksi ke 127.0.0.1. Salin seluruh URL di address bar (mengandung nonce=…) lalu tempel di bawah. Halaman otorisasi akan terbuka berikutnya."
+                        : "Finish the AWS sign-in until the browser shows a connection error at 127.0.0.1. Copy that whole address bar URL (it contains nonce=…) and paste it below. The authorize page opens next."
+                      : isId
+                        ? "Setujui akses pada halaman otorisasi. Browser akan gagal lagi di 127.0.0.1 — salin seluruh URL di address bar (mengandung code=…) lalu tempel di bawah untuk menyelesaikan."
+                        : "Approve access on the authorize page. The browser then fails again at 127.0.0.1 — copy that whole address bar URL (it contains code=…) and paste it below to finish."}
+                  </p>
+
+                  <Input
+                    value={awsQuickPasteUrl}
+                    onChange={(e) => setAwsQuickPasteUrl(e.target.value)}
+                    placeholder={
+                      awsQuickPasteStep === "discovery"
+                        ? `http://127.0.0.1:${awsQuickPort}/callback?nonce=…&issuerUrl=…`
+                        : `http://127.0.0.1:${awsQuickPort}/?code=…&state=…`
+                    }
+                    className="font-mono text-xs"
+                  />
+
+                  {awsQuickError ? (
+                    <Alert variant="destructive">
+                      <AlertDescription>{awsQuickError}</AlertDescription>
+                    </Alert>
+                  ) : null}
+
+                  {awsQuickPasteUrl &&
+                  /[?&]code=/.test(awsQuickPasteUrl) &&
+                  awsQuickPasteStep === "discovery" ? (
+                    <p className="text-[11px] text-[var(--status-warn)]">
+                      {isId
+                        ? "URL ini terlihat seperti URL final (code=…). Jika login tahap 1 sudah lewat mesin ini, klik Lanjutkan untuk langsung menyelesaikan."
+                        : "This looks like the final URL (code=…). If the sign-in page was reached on this machine the server may already have the tenant."}
+                    </p>
+                  ) : null}
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      disabled={awsQuickBusy}
+                      onClick={() => void pasteAwsQuickFromClipboard()}
+                    >
+                      {isId ? "Tempel dari Clipboard" : "Paste from Clipboard"}
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      disabled={awsQuickBusy || !awsQuickPasteUrl.trim()}
+                      onClick={() => void submitAwsQuickPaste(awsQuickPasteUrl)}
+                    >
+                      {awsQuickBusy
+                        ? isId
+                          ? "Memproses..."
+                          : "Working..."
+                        : awsQuickPasteStep === "discovery"
+                          ? isId
+                            ? "Lanjutkan"
+                            : "Continue"
+                          : isId
+                            ? "Hubungkan"
+                            : "Connect"}
+                    </Button>
+                  </div>
+
+                  <p className="text-[11px] text-[var(--color-text-muted)]">
+                    {isId
+                      ? "Ingin tanpa tempel manual? Jalankan dashboard di mesin ini atau buka SSH tunnel:"
+                      : "Want zero pastes? Run the dashboard on this machine, or open an SSH tunnel:"}{" "}
+                    <span className="font-mono text-[var(--color-text-main)]">
+                      ssh -L {awsQuickPort}:127.0.0.1:{awsQuickPort} &lt;this-host&gt;
+                    </span>
+                  </p>
+                </div>
+              </>
+            ) : (
+              <div className="space-y-3 rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-surface-2)]/45 p-4 text-center">
+                {awsQuickError ? (
+                  <Alert variant="destructive">
+                    <AlertDescription>{awsQuickError}</AlertDescription>
+                  </Alert>
+                ) : null}
+                <p className="text-xs leading-relaxed text-[var(--color-text-muted)]">
+                  {startOAuthMutation.isPending
+                    ? isId
+                      ? "Menyiapkan listener loopback Amazon Quick..."
+                      : "Starting Amazon Quick loopback callback server..."
+                    : isId
+                      ? "Klik tombol di bawah untuk memulai login Amazon Quick. Client ID OIDC akan didaftarkan otomatis tanpa perlu konfigurasi manual."
+                      : "Click below to start Amazon Quick sign-in. OIDC Client ID is registered dynamically — no manual Client ID required."}
+                </p>
+                <Button
+                  type="button"
+                  size="sm"
+                  disabled={startOAuthMutation.isPending}
+                  onClick={() => startAwsQuickFlow(true)}
+                >
+                  {startOAuthMutation.isPending ? (
+                    <RefreshCw className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+                  ) : (
+                    <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
+                  )}
+                  <span>{isId ? "Mulai Login Amazon Quick" : "Start Amazon Quick Sign-In"}</span>
+                </Button>
+              </div>
+            )}
+          </div>
+        ) : isDeviceCodeProvider ? (
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label htmlFor="modal-oauth-provider-device">OAuth Provider</Label>
+                <select
+                  id="modal-oauth-provider-device"
+                  className={SELECT_CLASS_NAME}
+                  {...startForm.register("provider", {
+                    onChange: () => {
+                      setDeviceSession(null);
+                      setDeviceError(null);
+                      deviceSettledRef.current = false;
+                    },
+                  })}
+                >
+                  {nativeOAuthEntries.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.name} ({item.id})
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="modal-oauth-name-device">
+                  {isId ? "Label Koneksi (opsional)" : "Connection Label (optional)"}
+                </Label>
+                <Input
+                  id="modal-oauth-name-device"
+                  placeholder={currentEntry ? `${currentEntry.name} Account` : "Primary Account"}
+                  {...startForm.register("connection_name")}
+                />
+              </div>
+            </div>
+
+            {deviceError ? (
+              <Alert variant="destructive">
+                <AlertDescription>{deviceError}</AlertDescription>
+              </Alert>
+            ) : null}
+
+            {deviceSession && deviceSession.provider === watchedProvider ? (
+              <div className="space-y-3.5">
+                <div className="space-y-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-2)]/55 p-3.5">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="text-xs font-semibold text-[var(--color-text-main)]">
+                      {isId ? "1. Buka URL Verifikasi" : "1. Open Verification URL"}
+                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => void handleCopyUrl()}
+                      >
+                        {copied ? (
+                          <>
+                            <Check
+                              className="h-3.5 w-3.5 text-[var(--status-ok)]"
+                              aria-hidden="true"
+                            />
+                            <span>{isId ? "Tersalin" : "Copied"}</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="h-3.5 w-3.5" aria-hidden="true" />
+                            <span>{isId ? "Salin" : "Copy"}</span>
+                          </>
+                        )}
+                      </Button>
+                      <a
+                        href={
+                          deviceSession.session.authorize_url ||
+                          deviceSession.session.verification_uri
+                        }
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-[var(--color-primary)] px-3 text-xs font-medium text-[var(--color-on-primary)] transition-opacity hover:opacity-90"
+                      >
+                        <span>{isId ? "Buka" : "Open"}</span>
+                        <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
+                      </a>
+                    </div>
+                  </div>
+                  <p className="break-all rounded-lg bg-[var(--color-surface)] p-2 font-mono text-[11px] text-[var(--color-text-muted)]">
+                    {deviceSession.session.authorize_url || deviceSession.session.verification_uri}
+                  </p>
+                </div>
+
+                {deviceSession.session.user_code ? (
+                  <div className="rounded-xl border border-[var(--color-primary)]/35 bg-[var(--color-primary)]/10 p-4 text-center">
+                    <p className="text-[11px] font-medium uppercase tracking-wider text-[var(--color-text-muted)]">
+                      {isId ? "2. Masukkan Kode Perangkat Anda" : "2. Enter Your Device Code"}
+                    </p>
+                    <div className="mt-2 flex items-center justify-center gap-2.5">
+                      <span className="font-mono text-2xl font-bold tracking-widest text-[var(--color-primary)]">
+                        {deviceSession.session.user_code}
+                      </span>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => void handleCopyUserCode()}
+                      >
+                        {copiedCode ? (
+                          <Check
+                            className="h-3.5 w-3.5 text-[var(--status-ok)]"
+                            aria-hidden="true"
+                          />
+                        ) : (
+                          <Copy className="h-3.5 w-3.5" aria-hidden="true" />
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                ) : null}
+
+                <div className="flex items-center justify-center gap-2 rounded-lg border border-[var(--color-border-subtle)] bg-[var(--color-surface-2)]/40 py-2.5 text-xs text-[var(--color-text-muted)]">
+                  <RefreshCw
+                    className="h-3.5 w-3.5 animate-spin text-[var(--color-primary)]"
+                    aria-hidden="true"
+                  />
+                  <span>
+                    {isId
+                      ? "Menunggu konfirmasi otorisasi di browser..."
+                      : "Waiting for authorization in browser…"}
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-3 rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-surface-2)]/45 p-4 text-center">
+                <p className="text-xs leading-relaxed text-[var(--color-text-muted)]">
+                  {isId
+                    ? `Klik "Mulai Device Login" untuk mendapatkan kode perangkat ${currentEntry?.name ?? watchedProvider}. Setelah disetujui di browser, akun otomatis tersambung.`
+                    : `Click "Start Device Login" to get a ${currentEntry?.name ?? watchedProvider} device code. Once approved in your browser, the account connects automatically.`}
+                </p>
+                <Button
+                  type="button"
+                  size="sm"
+                  disabled={startOAuthMutation.isPending}
+                  onClick={startDeviceCodeFlow}
+                >
+                  {startOAuthMutation.isPending ? (
+                    <RefreshCw className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+                  ) : (
+                    <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
+                  )}
+                  <span>{isId ? "Mulai Device Login" : "Start Device Login"}</span>
+                </Button>
+              </div>
+            )}
           </div>
         ) : (
           <>
@@ -1446,7 +2306,12 @@ export function OAuthWizardModal({
                       <select
                         id="modal-oauth-provider"
                         className={SELECT_CLASS_NAME}
-                        {...startForm.register("provider")}
+                        {...startForm.register("provider", {
+                          onChange: () => {
+                            startOAuthMutation.reset();
+                            startForm.clearErrors("client_id");
+                          },
+                        })}
                       >
                         {nativeOAuthEntries.map((item) => (
                           <option key={item.id} value={item.id}>
@@ -1467,6 +2332,136 @@ export function OAuthWizardModal({
                         {...startForm.register("connection_name")}
                       />
                     </div>
+                  </div>
+
+                  {clientIdConfigured ? (
+                    <div className="flex items-center gap-2 rounded-lg border border-[var(--status-ok)]/30 bg-[var(--status-ok)]/10 px-3 py-2 text-[11px] text-[var(--color-text-main)]">
+                      <CheckCircle2
+                        className="h-3.5 w-3.5 shrink-0 text-[var(--status-ok)]"
+                        aria-hidden="true"
+                      />
+                      <span>
+                        {isId
+                          ? "Client ID sudah dikonfigurasi di server. Anda dapat langsung membuat URL otorisasi."
+                          : "OAuth Client ID is configured on the server. You can generate the authorization URL directly."}
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <Label htmlFor="modal-oauth-client-id">
+                          {isId ? "OAuth Client ID *" : "OAuth Client ID *"}
+                        </Label>
+                        <span className="font-mono text-[10px] text-[var(--color-text-muted)]">
+                          {oauthEnvVarName}
+                        </span>
+                      </div>
+                      <Input
+                        id="modal-oauth-client-id"
+                        className="font-mono text-xs"
+                        placeholder={
+                          isId
+                            ? "Masukkan OAuth Client ID aplikasi..."
+                            : "Enter OAuth application Client ID..."
+                        }
+                        {...startForm.register("client_id")}
+                      />
+                      {startForm.formState.errors.client_id ? (
+                        <p className="text-xs text-[var(--status-error)]">
+                          {startForm.formState.errors.client_id.message}
+                        </p>
+                      ) : (
+                        <p className="text-[11px] text-[var(--color-text-muted)]">
+                          {isId
+                            ? `Env var ${oauthEnvVarName} belum disetel di server. Isi Client ID di sini atau setel env var tersebut lalu restart gateway.`
+                            : `${oauthEnvVarName} is not set on the server. Provide a Client ID here or set that environment variable and restart the gateway.`}
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  <div className="rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-surface-2)]/35">
+                    <button
+                      type="button"
+                      onClick={() => setShowAdvancedOAuth((prev) => !prev)}
+                      className="flex w-full cursor-pointer items-center justify-between px-3.5 py-2.5 text-left text-xs font-medium text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-text-main)]"
+                    >
+                      <span className="inline-flex items-center gap-1.5">
+                        <Settings2 className="h-3.5 w-3.5" aria-hidden="true" />
+                        <span>
+                          {isId
+                            ? "Opsi OAuth Lanjutan (Client Secret / Redirect URI)"
+                            : "Advanced OAuth Options (Client Secret / Redirect URI)"}
+                        </span>
+                      </span>
+                      <ChevronDown
+                        className={cn(
+                          "h-3.5 w-3.5 transition-transform",
+                          showAdvancedOAuth && "rotate-180",
+                        )}
+                        aria-hidden="true"
+                      />
+                    </button>
+
+                    {showAdvancedOAuth ? (
+                      <div className="space-y-3 border-t border-[var(--color-border-subtle)] px-3.5 py-3">
+                        {clientIdConfigured ? (
+                          <div className="space-y-1.5">
+                            <Label htmlFor="modal-oauth-client-id-override">
+                              {isId
+                                ? "Override Client ID (opsional)"
+                                : "Client ID Override (optional)"}
+                            </Label>
+                            <Input
+                              id="modal-oauth-client-id-override"
+                              className="font-mono text-xs"
+                              placeholder={
+                                isId
+                                  ? "Kosongkan untuk memakai default server"
+                                  : "Leave blank to use server default"
+                              }
+                              {...startForm.register("client_id")}
+                            />
+                          </div>
+                        ) : null}
+
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                          <div className="space-y-1.5">
+                            <Label htmlFor="modal-oauth-client-secret">
+                              {isId ? "Client Secret (opsional)" : "Client Secret (optional)"}
+                            </Label>
+                            <Input
+                              id="modal-oauth-client-secret"
+                              type="password"
+                              className="font-mono text-xs"
+                              placeholder={
+                                isId
+                                  ? "Opsional untuk public PKCE client"
+                                  : "Optional for public PKCE clients"
+                              }
+                              {...startForm.register("client_secret")}
+                            />
+                          </div>
+
+                          <div className="space-y-1.5">
+                            <Label htmlFor="modal-oauth-redirect-uri">
+                              {isId ? "Redirect URI (opsional)" : "Redirect URI (optional)"}
+                            </Label>
+                            <Input
+                              id="modal-oauth-redirect-uri"
+                              className="font-mono text-xs"
+                              placeholder={defaultRedirectPlaceholder}
+                              {...startForm.register("redirect_uri")}
+                            />
+                            {startForm.formState.errors.redirect_uri ? (
+                              <p className="text-xs text-[var(--status-error)]">
+                                {startForm.formState.errors.redirect_uri.message}
+                              </p>
+                            ) : null}
+                          </div>
+                        </div>
+                      </div>
+                    ) : null}
                   </div>
                 </form>
               </div>
@@ -2110,7 +3105,9 @@ export function ProviderConnectionsDrawer({
   onClose,
   isId,
   busyConnectionId,
+  isTestingAll = false,
   liveTestResults,
+  onTestAll,
   onTestConnection,
   onToggleConnection,
   onDeleteConnection,
@@ -2122,85 +3119,256 @@ export function ProviderConnectionsDrawer({
   onClose: () => void;
   isId: boolean;
   busyConnectionId: string | null;
+  isTestingAll?: boolean;
   liveTestResults: Record<string, TestProviderConnectionResponse>;
+  onTestAll?: (entry: ProviderEntry) => void;
   onTestConnection: (conn: ProviderConnectionSummary) => void;
   onToggleConnection: (conn: ProviderConnectionSummary) => void;
   onDeleteConnection: (conn: ProviderConnectionSummary) => void;
-  onAddConnection: (entry: ProviderEntry) => void;
+  onAddConnection: (entry: ProviderEntry, mode?: "oauth" | "apikey") => void;
   onDeleteCustomNode: (node: ProviderNode) => void;
   isDeletingNode: boolean;
 }) {
   const [confirmDeleteConnId, setConfirmDeleteConnId] = useState<string | null>(null);
   const [confirmDeleteNode, setConfirmDeleteNode] = useState(false);
+  const [modelSearch, setModelSearch] = useState("");
+  const [showAllModels, setShowAllModels] = useState(false);
+  const [copiedModelId, setCopiedModelId] = useState<string | null>(null);
+  const [copiedBaseUrl, setCopiedBaseUrl] = useState(false);
   const entryId = entry?.id ?? null;
 
   useEffect(() => {
     if (entryId !== null) {
       setConfirmDeleteConnId(null);
       setConfirmDeleteNode(false);
+      setModelSearch("");
+      setShowAllModels(false);
+      setCopiedModelId(null);
+      setCopiedBaseUrl(false);
     }
   }, [entryId]);
+
+  const allModels = useMemo(() => {
+    if (!entry) return [];
+    const seen = new Set<string>();
+    const list: string[] = [];
+    for (const m of entry.defaultModels) {
+      const trimmed = m.trim();
+      if (trimmed && !seen.has(trimmed)) {
+        seen.add(trimmed);
+        list.push(trimmed);
+      }
+    }
+    for (const conn of entry.connections) {
+      for (const m of conn.models) {
+        const trimmed = m.trim();
+        if (trimmed && !seen.has(trimmed)) {
+          seen.add(trimmed);
+          list.push(trimmed);
+        }
+      }
+    }
+    return list;
+  }, [entry]);
+
+  const filteredModels = useMemo(() => {
+    const q = modelSearch.trim().toLowerCase();
+    if (!q) return allModels;
+    return allModels.filter((m) => m.toLowerCase().includes(q));
+  }, [allModels, modelSearch]);
 
   if (!entry) {
     return null;
   }
 
   const keyUrl = entry.apiKeyUrl ?? entry.signupUrl;
+  const enabledCount = entry.connections.filter((c) => c.enabled).length;
+  const authFlowBadge =
+    entry.id === "aws-quick"
+      ? "LOOPBACK OIDC"
+      : entry.id === "github-copilot" || entry.id === "kiro" || entry.id === "freepi"
+        ? "DEVICE CODE"
+        : entry.isNativeOAuth
+          ? "OAUTH PKCE"
+          : entry.category === "free"
+            ? entry.noAuth
+              ? "FREE · NO AUTH"
+              : "FREE TIER"
+            : "API KEY";
+
+  const primaryConnectLabel = entry.isNativeOAuth
+    ? entry.id === "aws-quick"
+      ? isId
+        ? "Login Amazon Quick"
+        : "Sign In Amazon Quick"
+      : entry.id === "github-copilot" || entry.id === "kiro" || entry.id === "freepi"
+        ? isId
+          ? "Hubungkan Device Login"
+          : "Connect via Device Code"
+        : isId
+          ? "Hubungkan via OAuth"
+          : "Connect via OAuth"
+    : isId
+      ? "Tambah API Key"
+      : "Add API Key";
+
+  const visibleModels = showAllModels ? filteredModels : filteredModels.slice(0, 10);
+  const modelPrefix = entry.alias || entry.id;
+
+  const handleCopyModel = async (modelId: string) => {
+    const qualified = modelId.includes("/") ? modelId : `${modelPrefix}/${modelId}`;
+    try {
+      await navigator.clipboard.writeText(qualified);
+      setCopiedModelId(modelId);
+      window.setTimeout(() => setCopiedModelId((cur) => (cur === modelId ? null : cur)), 1800);
+    } catch {
+      // Ignore clipboard failures
+    }
+  };
+
+  const handleCopyBaseUrl = async () => {
+    if (!entry.baseUrl) return;
+    try {
+      await navigator.clipboard.writeText(entry.baseUrl);
+      setCopiedBaseUrl(true);
+      window.setTimeout(() => setCopiedBaseUrl(false), 1800);
+    } catch {
+      // Ignore clipboard failures
+    }
+  };
 
   return (
     <ModalShell
       open={Boolean(entry)}
       onClose={onClose}
       variant="drawer"
+      size="xl"
       title={entry.name}
-      subtitle={`${entry.id} · ${entry.protocol.toUpperCase()} · ${entry.baseUrl || "—"}`}
+      subtitle={`${entry.id}${entry.alias && entry.alias !== entry.id ? ` (alias: ${entry.alias})` : ""} · ${entry.protocol.toUpperCase()}`}
+      badge={
+        <Badge variant="outline" className="font-mono text-[10px] uppercase">
+          {authFlowBadge}
+        </Badge>
+      }
       icon={
         <ProviderLogo
           providerId={entry.id}
           name={entry.name}
           protocol={entry.protocol}
           isCustom={entry.isCustom}
-          size={22}
+          size={24}
         />
       }
+      footer={
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <Button type="button" size="sm" onClick={() => onAddConnection(entry)}>
+              <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+              <span>{primaryConnectLabel}</span>
+            </Button>
+            {entry.isNativeOAuth ? (
+              <Button
+                type="button"
+                size="sm"
+                variant="secondary"
+                onClick={() => onAddConnection(entry, "apikey")}
+              >
+                <KeyRound className="h-3.5 w-3.5" aria-hidden="true" />
+                <span>{isId ? "Pakai API Key / Token" : "Use API Key / Token"}</span>
+              </Button>
+            ) : null}
+          </div>
+          <Button type="button" variant="secondary" size="sm" onClick={onClose}>
+            {isId ? "Tutup" : "Close"}
+          </Button>
+        </div>
+      }
     >
-      <div className="space-y-4">
-        {/* Provider Metadata & Links Card */}
-        <div className="space-y-2.5 rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-surface-2)]/55 p-3.5">
-          <div className="flex flex-wrap items-center justify-between gap-2">
+      <div className="space-y-5">
+        {/* 3-Column Proportional Telemetry Strip */}
+        <div className="grid grid-cols-3 gap-2.5">
+          <div className="rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-surface-2)]/50 px-3 py-2.5">
+            <p className="text-[10px] font-medium uppercase tracking-wider text-[var(--color-text-muted)]">
+              {isId ? "Koneksi" : "Connections"}
+            </p>
+            <div className="mt-1 flex items-baseline gap-1.5">
+              <span className="font-mono text-base font-semibold tabular-nums text-[var(--color-text-main)]">
+                {entry.stats.connected}
+              </span>
+              <span className="font-mono text-[11px] text-[var(--color-text-muted)]">
+                / {entry.stats.total} {isId ? "aktif" : "active"}
+              </span>
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-surface-2)]/50 px-3 py-2.5">
+            <p className="text-[10px] font-medium uppercase tracking-wider text-[var(--color-text-muted)]">
+              {isId ? "Protokol" : "Protocol"}
+            </p>
+            <p className="mt-1 truncate font-mono text-xs font-semibold text-[var(--color-text-main)]">
+              {entry.protocol}
+            </p>
+          </div>
+
+          <div className="rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-surface-2)]/50 px-3 py-2.5">
+            <p className="text-[10px] font-medium uppercase tracking-wider text-[var(--color-text-muted)]">
+              {isId ? "Model" : "Models"}
+            </p>
+            <p className="mt-1 font-mono text-base font-semibold tabular-nums text-[var(--color-text-main)]">
+              {allModels.length}
+            </p>
+          </div>
+        </div>
+
+        {/* Provider Overview, Endpoint & Official Links */}
+        <div className="space-y-3 rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-surface-2)]/40 p-3.5">
+          {entry.baseUrl ? (
+            <div className="flex items-center justify-between gap-2 rounded-lg border border-[var(--color-border-subtle)] bg-[var(--color-surface)] px-3 py-2">
+              <div className="min-w-0">
+                <span className="block text-[10px] font-medium uppercase tracking-wider text-[var(--color-text-subtle)]">
+                  Base Endpoint
+                </span>
+                <p className="truncate font-mono text-xs text-[var(--color-text-main)]">
+                  {entry.baseUrl}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => void handleCopyBaseUrl()}
+                title={isId ? "Salin Base URL" : "Copy Base URL"}
+                className="flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-md border border-[var(--color-border)] bg-[var(--color-surface-2)] text-[var(--color-text-muted)] transition-colors hover:border-[var(--color-primary)]/40 hover:text-[var(--color-primary)]"
+              >
+                {copiedBaseUrl ? (
+                  <Check className="h-3.5 w-3.5 text-[var(--status-ok)]" aria-hidden="true" />
+                ) : (
+                  <Copy className="h-3.5 w-3.5" aria-hidden="true" />
+                )}
+              </button>
+            </div>
+          ) : null}
+
+          {entry.serviceKinds && entry.serviceKinds.length > 0 ? (
             <div className="flex flex-wrap items-center gap-1.5">
-              <Badge variant={entry.stats.connected > 0 ? "success" : "outline"}>
-                {entry.stats.connected} {isId ? "Aktif" : "Active"}
-              </Badge>
-              {entry.stats.error > 0 ? (
-                <Badge variant="destructive">{entry.stats.error} Error</Badge>
-              ) : null}
-              {entry.serviceKinds?.slice(0, 4).map((kind) => (
+              {entry.serviceKinds.map((kind) => (
                 <span
                   key={kind}
-                  className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-1.5 py-0.5 font-mono text-[10px] uppercase text-[var(--color-text-muted)]"
+                  className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-0.5 font-mono text-[10px] uppercase text-[var(--color-text-muted)]"
                 >
                   {kind}
                 </span>
               ))}
             </div>
+          ) : null}
 
-            <Button type="button" size="sm" onClick={() => onAddConnection(entry)}>
-              <Plus className="h-3.5 w-3.5" aria-hidden="true" />
-              <span>
-                {entry.isNativeOAuth
-                  ? isId
-                    ? "Tambah Akun OAuth"
-                    : "Connect OAuth"
-                  : isId
-                    ? "Tambah Kredensial"
-                    : "Add Credential"}
-              </span>
-            </Button>
-          </div>
+          {entry.noticeText ? (
+            <div className="flex items-start gap-2 rounded-lg border border-[var(--color-border-subtle)] bg-[var(--color-surface)]/70 px-3 py-2 text-[11px] leading-relaxed text-[var(--color-text-muted)]">
+              <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[var(--color-primary)]" />
+              <p>{entry.noticeText}</p>
+            </div>
+          ) : null}
 
           {entry.website || keyUrl ? (
-            <div className="flex flex-wrap items-center gap-3 pt-1 text-xs">
+            <div className="flex flex-wrap items-center gap-3 pt-0.5 text-xs">
               {entry.website ? (
                 <a
                   href={entry.website}
@@ -2227,203 +3395,313 @@ export function ProviderConnectionsDrawer({
                         ? "Ambil API Key"
                         : "Get API Key"
                       : isId
-                        ? "Daftar / Login"
-                        : "Sign Up / Login"}
+                        ? "Portal Akun"
+                        : "Account Portal"}
                   </span>
                   <ExternalLink className="h-3 w-3" />
                 </a>
               ) : null}
             </div>
           ) : null}
+        </div>
 
-          {entry.noticeText ? (
-            <p className="text-[11px] leading-relaxed text-[var(--color-text-muted)]">
-              {entry.noticeText}
-            </p>
-          ) : null}
-
-          {entry.defaultModels.length > 0 ? (
-            <div className="space-y-1 pt-1">
-              <span className="inline-flex items-center gap-1 text-[11px] font-medium text-[var(--color-text-muted)]">
-                <Layers className="h-3 w-3" />
-                <span>{isId ? "Model Default" : "Default Models"}</span>
+        {/* Connections Section */}
+        <section className="space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <h4 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-main)]">
+                {isId ? "Akun & Koneksi Terdaftar" : "Configured Connections"}
+              </h4>
+              <span className="rounded-full bg-[var(--color-surface-2)] px-2 py-0.5 font-mono text-[10px] text-[var(--color-text-muted)]">
+                {entry.connections.length}
               </span>
-              <div className="flex flex-wrap gap-1">
-                {entry.defaultModels.slice(0, 8).map((m) => (
-                  <span
-                    key={m}
-                    className="rounded-md bg-[var(--color-surface)] px-1.5 py-0.5 font-mono text-[10px] text-[var(--color-text-muted)]"
+            </div>
+
+            {enabledCount > 0 && onTestAll ? (
+              <Button
+                type="button"
+                size="sm"
+                variant="secondary"
+                disabled={isTestingAll || busyConnectionId !== null}
+                onClick={() => onTestAll(entry)}
+              >
+                {isTestingAll ? (
+                  <RefreshCw className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+                ) : (
+                  <Activity className="h-3.5 w-3.5" aria-hidden="true" />
+                )}
+                <span>
+                  {isTestingAll
+                    ? isId
+                      ? "Menguji..."
+                      : "Testing..."
+                    : isId
+                      ? "Tes Semua"
+                      : "Test All"}
+                </span>
+              </Button>
+            ) : null}
+          </div>
+
+          {entry.connections.length === 0 ? (
+            <div className="space-y-3 rounded-xl border border-dashed border-[var(--color-border)] bg-[var(--color-surface-2)]/25 p-5 text-center">
+              <p className="text-sm font-semibold text-[var(--color-text-main)]">
+                {isId ? "Belum ada akun terhubung" : "No accounts connected yet"}
+              </p>
+              <p className="mx-auto max-w-md text-xs leading-relaxed text-[var(--color-text-muted)]">
+                {isId
+                  ? `Hubungkan akun ${entry.name} pertama Anda untuk mulai merutekan request ke model-model di bawah.`
+                  : `Connect your first ${entry.name} account to start routing requests to the models below.`}
+              </p>
+              <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
+                <Button type="button" size="sm" onClick={() => onAddConnection(entry)}>
+                  <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+                  <span>{primaryConnectLabel}</span>
+                </Button>
+                {entry.isNativeOAuth ? (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => onAddConnection(entry, "apikey")}
                   >
-                    {m}
-                  </span>
-                ))}
-                {entry.defaultModels.length > 8 ? (
-                  <span className="px-1 font-mono text-[10px] text-[var(--color-text-subtle)]">
-                    +{entry.defaultModels.length - 8}
-                  </span>
+                    <KeyRound className="h-3.5 w-3.5" aria-hidden="true" />
+                    <span>{isId ? "Impor Token / API Key" : "Import Token / API Key"}</span>
+                  </Button>
                 ) : null}
               </div>
             </div>
-          ) : null}
-        </div>
+          ) : (
+            <div className="space-y-2.5">
+              {entry.connections.map((conn) => {
+                const live = liveTestResults[conn.id];
+                const isBusy = busyConnectionId === conn.id;
+                const isConfirming = confirmDeleteConnId === conn.id;
 
-        {/* Connections List */}
-        {entry.connections.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-[var(--color-border)] p-6 text-center">
-            <p className="text-sm font-medium text-[var(--color-text-main)]">
-              {isId ? "Belum ada koneksi untuk provider ini" : "No connections configured yet"}
-            </p>
-            <p className="mt-1 text-xs text-[var(--color-text-muted)]">
-              {isId
-                ? "Tambahkan kredensial pertama agar model dari provider ini dapat digunakan."
-                : "Add your first credential to start routing requests through this provider."}
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {entry.connections.map((conn) => {
-              const live = liveTestResults[conn.id];
-              const isBusy = busyConnectionId === conn.id;
-              const isConfirming = confirmDeleteConnId === conn.id;
+                return (
+                  <div
+                    key={conn.id}
+                    className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3.5 transition-colors hover:border-[var(--color-primary)]/35"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <span className="truncate text-sm font-semibold text-[var(--color-text-main)]">
+                            {conn.name}
+                          </span>
+                          <Badge variant={conn.enabled ? "success" : "outline"}>
+                            {conn.enabled
+                              ? isId
+                                ? "Aktif"
+                                : "Enabled"
+                              : isId
+                                ? "Nonaktif"
+                                : "Paused"}
+                          </Badge>
+                          <Badge variant="outline" className="font-mono text-[10px]">
+                            P{conn.priority}
+                          </Badge>
+                          {live ? (
+                            <Badge
+                              variant={live.ok ? "success" : "destructive"}
+                              className="tabular-nums"
+                            >
+                              {live.ok
+                                ? `OK ${live.status_code} · ${live.latency_ms}ms`
+                                : `FAIL ${live.status_code || "ERR"} · ${live.latency_ms}ms`}
+                            </Badge>
+                          ) : conn.last_test_status === "ok" ? (
+                            <Badge variant="success">
+                              <CheckCircle2 className="mr-1 h-3 w-3" />
+                              Healthy
+                            </Badge>
+                          ) : conn.last_test_status === "error" ? (
+                            <Badge variant="destructive">Error</Badge>
+                          ) : null}
+                        </div>
 
-              return (
-                <div
-                  key={conn.id}
-                  className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3.5 transition-colors hover:border-[var(--color-primary)]/35"
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="truncate text-sm font-semibold text-[var(--color-text-main)]">
-                          {conn.name}
-                        </span>
-                        <Badge variant={conn.enabled ? "success" : "outline"}>
-                          {conn.enabled
-                            ? isId
-                              ? "Aktif"
-                              : "Enabled"
-                            : isId
-                              ? "Nonaktif"
-                              : "Paused"}
-                        </Badge>
-                        {live ? (
-                          <Badge
-                            variant={live.ok ? "success" : "destructive"}
-                            className="tabular-nums"
-                          >
-                            {live.ok
-                              ? `OK ${live.status_code} · ${live.latency_ms}ms`
-                              : `FAIL ${live.status_code || "ERR"} · ${live.latency_ms}ms`}
-                          </Badge>
-                        ) : conn.last_test_status === "ok" ? (
-                          <Badge variant="success">
-                            <CheckCircle2 className="mr-1 h-3 w-3" />
-                            Healthy
-                          </Badge>
-                        ) : conn.last_test_status === "error" ? (
-                          <Badge variant="destructive">Error</Badge>
-                        ) : null}
+                        <p className="mt-1 truncate font-mono text-[11px] text-[var(--color-text-muted)]">
+                          {conn.base_url} · {isId ? "Tes terakhir:" : "Tested:"}{" "}
+                          {formatShortTime(conn.last_tested_at, isId)}
+                        </p>
                       </div>
+                    </div>
 
-                      <p className="mt-1 truncate font-mono text-[11px] text-[var(--color-text-muted)]">
-                        {conn.base_url} · P{conn.priority} · {isId ? "Tes terakhir:" : "Tested:"}{" "}
-                        {formatShortTime(conn.last_tested_at, isId)}
+                    {conn.last_test_error ? (
+                      <p className="mt-2 rounded-lg bg-[var(--status-error-bg)] px-2.5 py-1.5 font-mono text-[11px] text-[var(--status-error)]">
+                        {conn.last_test_error}
                       </p>
-                    </div>
-                  </div>
+                    ) : null}
 
-                  {conn.last_test_error ? (
-                    <p className="mt-2 rounded-lg bg-[var(--status-error-bg)] px-2.5 py-1.5 font-mono text-[11px] text-[var(--status-error)]">
-                      {conn.last_test_error}
-                    </p>
-                  ) : null}
-
-                  <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-[var(--color-border-subtle)] pt-2.5">
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="secondary"
-                        disabled={busyConnectionId !== null}
-                        onClick={() => onTestConnection(conn)}
-                      >
-                        {isBusy ? (
-                          <RefreshCw className="h-3.5 w-3.5 animate-spin" />
-                        ) : (
-                          <Activity className="h-3.5 w-3.5" />
-                        )}
-                        <span>{isId ? "Tes" : "Test"}</span>
-                      </Button>
-
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="secondary"
-                        disabled={busyConnectionId !== null}
-                        onClick={() => onToggleConnection(conn)}
-                      >
-                        <Power className="h-3.5 w-3.5" />
-                        <span>
-                          {conn.enabled
-                            ? isId
-                              ? "Nonaktifkan"
-                              : "Disable"
-                            : isId
-                              ? "Aktifkan"
-                              : "Enable"}
-                        </span>
-                      </Button>
-
-                      <Link
-                        href={`/dashboard/providers/detail/?id=${encodeURIComponent(conn.id)}`}
-                        onClick={onClose}
-                        className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)] px-2.5 text-xs font-medium text-[var(--color-text-main)] transition-colors hover:border-[var(--color-primary)]/40 hover:text-[var(--color-primary)]"
-                      >
-                        <Settings2 className="h-3.5 w-3.5" />
-                        <span>{isId ? "Edit Detail" : "Edit Detail"}</span>
-                      </Link>
-                    </div>
-
-                    {isConfirming ? (
-                      <div className="flex items-center gap-1.5">
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="destructive"
-                          disabled={busyConnectionId !== null}
-                          onClick={() => {
-                            onDeleteConnection(conn);
-                            setConfirmDeleteConnId(null);
-                          }}
-                        >
-                          {isId ? "Konfirmasi" : "Confirm"}
-                        </Button>
+                    <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-[var(--color-border-subtle)] pt-2.5">
+                      <div className="flex flex-wrap items-center gap-1.5">
                         <Button
                           type="button"
                           size="sm"
                           variant="secondary"
-                          onClick={() => setConfirmDeleteConnId(null)}
+                          disabled={busyConnectionId !== null}
+                          onClick={() => onTestConnection(conn)}
                         >
-                          {isId ? "Batal" : "Cancel"}
+                          {isBusy ? (
+                            <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            <Activity className="h-3.5 w-3.5" />
+                          )}
+                          <span>{isId ? "Tes" : "Test"}</span>
                         </Button>
+
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="secondary"
+                          disabled={busyConnectionId !== null}
+                          onClick={() => onToggleConnection(conn)}
+                        >
+                          <Power className="h-3.5 w-3.5" />
+                          <span>
+                            {conn.enabled
+                              ? isId
+                                ? "Nonaktifkan"
+                                : "Disable"
+                              : isId
+                                ? "Aktifkan"
+                                : "Enable"}
+                          </span>
+                        </Button>
+
+                        <Link
+                          href={`/dashboard/providers/detail/?id=${encodeURIComponent(conn.id)}`}
+                          onClick={onClose}
+                          className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)] px-2.5 text-xs font-medium text-[var(--color-text-main)] transition-colors hover:border-[var(--color-primary)]/40 hover:text-[var(--color-primary)]"
+                        >
+                          <Settings2 className="h-3.5 w-3.5" />
+                          <span>{isId ? "Edit Detail" : "Edit Detail"}</span>
+                        </Link>
                       </div>
-                    ) : (
-                      <button
-                        type="button"
-                        disabled={busyConnectionId !== null}
-                        onClick={() => setConfirmDeleteConnId(conn.id)}
-                        aria-label={`Delete ${conn.name}`}
-                        className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg text-[var(--color-text-muted)] transition-colors hover:bg-[var(--status-error-bg)] hover:text-[var(--status-error)] disabled:opacity-40"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
-                    )}
+
+                      {isConfirming ? (
+                        <div className="flex items-center gap-1.5">
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="destructive"
+                            disabled={busyConnectionId !== null}
+                            onClick={() => {
+                              onDeleteConnection(conn);
+                              setConfirmDeleteConnId(null);
+                            }}
+                          >
+                            {isId ? "Konfirmasi" : "Confirm"}
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="secondary"
+                            onClick={() => setConfirmDeleteConnId(null)}
+                          >
+                            {isId ? "Batal" : "Cancel"}
+                          </Button>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          disabled={busyConnectionId !== null}
+                          onClick={() => setConfirmDeleteConnId(conn.id)}
+                          aria-label={`Delete ${conn.name}`}
+                          className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg text-[var(--color-text-muted)] transition-colors hover:bg-[var(--status-error-bg)] hover:text-[var(--status-error)] disabled:opacity-40"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                    </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
+                );
+              })}
+            </div>
+          )}
+        </section>
+
+        {/* Interactive Models Catalog Section (xrouter + omniroute parity, click to copy ID) */}
+        {allModels.length > 0 ? (
+          <section className="space-y-2.5">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <Layers className="h-3.5 w-3.5 text-[var(--color-primary)]" aria-hidden="true" />
+                <h4 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-main)]">
+                  {isId ? "Katalog Model Tersedia" : "Available Models"}
+                </h4>
+                <span className="rounded-full bg-[var(--color-surface-2)] px-2 py-0.5 font-mono text-[10px] text-[var(--color-text-muted)]">
+                  {allModels.length}
+                </span>
+              </div>
+              <span className="text-[11px] text-[var(--color-text-muted)]">
+                {isId ? "Klik model untuk salin ID" : "Click model to copy ID"}
+              </span>
+            </div>
+
+            {allModels.length > 6 ? (
+              <div className="relative">
+                <Search
+                  className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--color-text-muted)]"
+                  aria-hidden="true"
+                />
+                <Input
+                  value={modelSearch}
+                  onChange={(e) => setModelSearch(e.target.value)}
+                  placeholder={isId ? "Cari model..." : "Filter models..."}
+                  className="h-8 pl-8 text-xs"
+                />
+              </div>
+            ) : null}
+
+            <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
+              {visibleModels.map((modelId) => {
+                const isCopied = copiedModelId === modelId;
+                const qualified = modelId.includes("/") ? modelId : `${modelPrefix}/${modelId}`;
+                return (
+                  <button
+                    key={modelId}
+                    type="button"
+                    onClick={() => void handleCopyModel(modelId)}
+                    title={isId ? `Salin ${qualified}` : `Copy ${qualified}`}
+                    className="group flex cursor-pointer items-center justify-between gap-2 rounded-lg border border-[var(--color-border-subtle)] bg-[var(--color-surface-2)]/40 px-2.5 py-1.5 text-left transition-colors hover:border-[var(--color-primary)]/45 hover:bg-[var(--color-surface-2)]"
+                  >
+                    <span className="truncate font-mono text-[11px] text-[var(--color-text-main)]">
+                      {modelId}
+                    </span>
+                    {isCopied ? (
+                      <Check
+                        className="h-3.5 w-3.5 shrink-0 text-[var(--status-ok)]"
+                        aria-hidden="true"
+                      />
+                    ) : (
+                      <Copy
+                        className="h-3 w-3 shrink-0 text-[var(--color-text-muted)] opacity-50 transition-opacity group-hover:opacity-100"
+                        aria-hidden="true"
+                      />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+
+            {filteredModels.length > 10 ? (
+              <button
+                type="button"
+                onClick={() => setShowAllModels((prev) => !prev)}
+                className="cursor-pointer text-xs font-medium text-[var(--color-primary)] hover:underline"
+              >
+                {showAllModels
+                  ? isId
+                    ? "Tampilkan lebih sedikit"
+                    : "Show fewer models"
+                  : isId
+                    ? `Tampilkan semua (${filteredModels.length} model)`
+                    : `Show all ${filteredModels.length} models`}
+              </button>
+            ) : null}
+          </section>
+        ) : null}
 
         {/* Delete Custom Node Option */}
         {entry.node && entry.isCustom ? (

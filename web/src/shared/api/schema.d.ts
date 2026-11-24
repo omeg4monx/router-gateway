@@ -459,6 +459,69 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/providers/oauth/{provider}/status": {
+        parameters: {
+            query: {
+                /** @description Active OAuth session state. */
+                state: string;
+            };
+            header?: never;
+            path: {
+                /** @description OAuth provider adapter identifier (aws-quick). */
+                provider: string;
+            };
+            cookie?: never;
+        };
+        /** Poll status of a loopback-proxied OAuth session */
+        get: operations["getProviderOAuthStatus"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/providers/oauth/{provider}/paste": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description OAuth provider adapter identifier (aws-quick). */
+                provider: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Submit a pasted browser callback URL for two-hop loopback OAuth */
+        post: operations["pasteProviderOAuthCallback"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/providers/oauth/{provider}/stop": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description OAuth provider adapter identifier (aws-quick). */
+                provider: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Stop an idle loopback OAuth callback listener */
+        post: operations["stopProviderOAuthProxy"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/oauth/callback": {
         parameters: {
             query?: never;
@@ -2927,6 +2990,10 @@ export interface components {
             redirect_uri: string;
             /** Format: date-time */
             expires_at: string;
+            flow_type?: string;
+            user_code?: string;
+            verification_uri?: string;
+            interval?: number;
         };
         OAuthExchangeRequest: {
             state?: string;
@@ -2950,6 +3017,24 @@ export interface components {
             code: string;
             error: string;
             error_description: string;
+        };
+        OAuthStatusResponse: {
+            status: string;
+            error?: string;
+            authorize_url?: string;
+            interval?: number;
+        };
+        OAuthPasteRequest: {
+            url: string;
+        };
+        OAuthPasteResponse: {
+            status: string;
+            state: string;
+            authorize_url?: string;
+            redirect_uri?: string;
+        };
+        OAuthStopResponse: {
+            stopped: boolean;
         };
         /** @enum {string} */
         ComboStrategy: "ordered";
@@ -6198,6 +6283,109 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    getProviderOAuthStatus: {
+        parameters: {
+            query: {
+                /** @description Active OAuth session state. */
+                state: string;
+            };
+            header?: never;
+            path: {
+                /** @description OAuth provider adapter identifier (aws-quick). */
+                provider: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current session status. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OAuthStatusResponse"];
+                };
+            };
+            /** @description Unsupported provider or missing state. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    pasteProviderOAuthCallback: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description OAuth provider adapter identifier (aws-quick). */
+                provider: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OAuthPasteRequest"];
+            };
+        };
+        responses: {
+            /** @description Discovery saved (with Hop-2 authorize_url) or exchange settled (done). */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OAuthPasteResponse"];
+                };
+            };
+            /** @description Invalid pasted URL or expired session. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Upstream OIDC exchange failed. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    stopProviderOAuthProxy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description OAuth provider adapter identifier (aws-quick). */
+                provider: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Loopback listener stopped or preserved for another pending login. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OAuthStopResponse"];
                 };
             };
         };

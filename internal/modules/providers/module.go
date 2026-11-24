@@ -77,6 +77,9 @@ type Module struct {
 	refreshMu        sync.Mutex
 	refreshCalls     map[string]*refreshCall
 	refreshCooldowns map[string]refreshCooldownEntry
+
+	awsQuick    *awsQuickRuntime
+	deviceOAuth *deviceOAuthRuntime
 }
 
 var (
@@ -108,6 +111,8 @@ func New(opts Options) *Module {
 		oauthOverrides:   overrides,
 		refreshCalls:     make(map[string]*refreshCall),
 		refreshCooldowns: make(map[string]refreshCooldownEntry),
+		awsQuick:         newAwsQuickRuntime(),
+		deviceOAuth:      newDeviceOAuthRuntime(),
 	}
 
 	for _, adapter := range defaultBuiltInAdapters() {
@@ -155,6 +160,9 @@ func (m *Module) RegisterRoutes(mounts lifecycle.RouteMounts) {
 
 		mounts.AdminAPI.Post("/providers/oauth/{provider}/start", m.handleOAuthStart)
 		mounts.AdminAPI.Post("/providers/oauth/{provider}/exchange", m.handleOAuthExchange)
+		mounts.AdminAPI.Get("/providers/oauth/{provider}/status", m.handleOAuthStatus)
+		mounts.AdminAPI.Post("/providers/oauth/{provider}/paste", m.handleOAuthPaste)
+		mounts.AdminAPI.Post("/providers/oauth/{provider}/stop", m.handleOAuthStop)
 	}
 
 	if mounts.PublicAPI != nil {
@@ -175,6 +183,7 @@ func (m *Module) Start(context.Context) error {
 
 // Stop performs graceful module teardown.
 func (m *Module) Stop(context.Context) error {
+	m.shutdownAwsQuickProxy()
 	return nil
 }
 

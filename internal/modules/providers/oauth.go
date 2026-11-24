@@ -199,6 +199,36 @@ func (m *Module) resolveOAuthConfig(providerID, reqClientID, reqClientSecret str
 	return cfg, nil
 }
 
+func isAnthropicTokenURL(rawURL string) bool {
+	parsed, err := url.Parse(strings.TrimSpace(rawURL))
+	if err != nil {
+		return false
+	}
+	host := strings.ToLower(parsed.Hostname())
+	return host == "api.anthropic.com" || host == "console.anthropic.com"
+}
+
+func (m *Module) postJSONTokenEndpoint(ctx context.Context, tokenURL string, payload map[string]any) (oauthTokenResponse, error) {
+	status, body, err := m.postRawJSON(ctx, tokenURL, payload)
+	if err != nil {
+		return oauthTokenResponse{}, fmt.Errorf("providers: token endpoint request failed: %w", err)
+	}
+	var tok oauthTokenResponse
+	if len(body) > 0 {
+		_ = json.Unmarshal(body, &tok)
+	}
+	if status < http.StatusOK || status >= http.StatusMultipleChoices {
+		if tok.Error != "" {
+			return oauthTokenResponse{}, fmt.Errorf("providers: token endpoint returned %d (%s)", status, tok.Error)
+		}
+		return oauthTokenResponse{}, fmt.Errorf("providers: token endpoint returned status %d", status)
+	}
+	if strings.TrimSpace(tok.AccessToken) == "" {
+		return oauthTokenResponse{}, errors.New("providers: token endpoint response missing access_token")
+	}
+	return tok, nil
+}
+
 func (m *Module) postTokenEndpoint(ctx context.Context, tokenURL string, form url.Values) (oauthTokenResponse, error) {
 	validURL, err := validateHTTPURL(tokenURL)
 	if err != nil {
@@ -400,19 +430,55 @@ func (m *Module) doRefreshOAuthToken(ctx context.Context, connectionID string) (
 		return contracts.UpstreamCredentials{}, contracts.ErrOAuthRefreshUnsupported
 	}
 
-	form := url.Values{}
-	form.Set("grant_type", "refresh_token")
-	form.Set("refresh_token", stored.RefreshToken)
-	if clientID != "" {
-		form.Set("client_id", clientID)
-	}
-	if clientSecret != "" {
-		form.Set("client_secret", clientSecret)
-	}
+	var tok oauthTokenResponse
+	if rec.Summary.ProviderID == providerIDAWSQuick || rec.Summary.ProviderID == providerIDKiro {
+		awsTok, awsErr := m.postAwsQuickTokenJSON(ctx, tokenURL, map[string]any{
+			"clientId":     clientID,
+			"clientSecret": clientSecret,
+			"grantType":    "refresh_token",
+			"refreshToken": stored.RefreshToken,
+		})
+		if awsErr != nil {
+			return contracts.UpstreamCredentials{}, awsErr
+		}
+		accessTok := awsTok.IDToken
+		if accessTok == "" {
+			accessTok = awsTok.AccessToken
+		}
+		tok = oauthTokenResponse{
+			AccessToken:  accessTok,
+			RefreshToken: awsTok.RefreshToken,
+			ExpiresIn:    awsTok.ExpiresIn,
+		}
+	} else if rec.Summary.ProviderID == "claude" && isAnthropicTokenURL(tokenURL) {
+		payload := map[string]any{
+			"grant_type":    "refresh_token",
+			"refresh_token": stored.RefreshToken,
+		}
+		if clientID != "" {
+			payload["client_id"] = clientID
+		}
+		var postErr error
+		tok, postErr = m.postJSONTokenEndpoint(ctx, tokenURL, payload)
+		if postErr != nil {
+			return contracts.UpstreamCredentials{}, postErr
+		}
+	} else {
+		form := url.Values{}
+		form.Set("grant_type", "refresh_token")
+		form.Set("refresh_token", stored.RefreshToken)
+		if clientID != "" {
+			form.Set("client_id", clientID)
+		}
+		if clientSecret != "" {
+			form.Set("client_secret", clientSecret)
+		}
 
-	tok, err := m.postTokenEndpoint(ctx, tokenURL, form)
-	if err != nil {
-		return contracts.UpstreamCredentials{}, err
+		var postErr error
+		tok, postErr = m.postTokenEndpoint(ctx, tokenURL, form)
+		if postErr != nil {
+			return contracts.UpstreamCredentials{}, postErr
+		}
 	}
 
 	stored.AccessToken = tok.AccessToken

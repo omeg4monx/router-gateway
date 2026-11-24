@@ -22,6 +22,10 @@ export type TestProviderConnectionResponse =
 export type OAuthStartRequest = components["schemas"]["OAuthStartRequest"];
 export type OAuthStartResponse = components["schemas"]["OAuthStartResponse"];
 export type OAuthExchangeRequest = components["schemas"]["OAuthExchangeRequest"];
+export type OAuthStatusResponse = components["schemas"]["OAuthStatusResponse"];
+export type OAuthPasteRequest = components["schemas"]["OAuthPasteRequest"];
+export type OAuthPasteResponse = components["schemas"]["OAuthPasteResponse"];
+export type OAuthStopResponse = components["schemas"]["OAuthStopResponse"];
 
 export const PROVIDER_PROTOCOLS = [
   "openai-chat",

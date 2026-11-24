@@ -127,10 +127,14 @@ type oauthStartRequest struct {
 }
 
 type oauthStartResponse struct {
-	State        string `json:"state"`
-	AuthorizeURL string `json:"authorize_url"`
-	RedirectURI  string `json:"redirect_uri"`
-	ExpiresAt    string `json:"expires_at"`
+	State           string `json:"state"`
+	AuthorizeURL    string `json:"authorize_url"`
+	RedirectURI     string `json:"redirect_uri"`
+	ExpiresAt       string `json:"expires_at"`
+	FlowType        string `json:"flow_type,omitempty"`
+	UserCode        string `json:"user_code,omitempty"`
+	VerificationURI string `json:"verification_uri,omitempty"`
+	Interval        int    `json:"interval,omitempty"`
 }
 
 type oauthExchangeRequest struct {
@@ -171,7 +175,7 @@ func (m *Module) handleGetCatalog(w http.ResponseWriter, r *http.Request) {
 					TokenURL:           resolved.TokenURL,
 					Scopes:             cloneStringSlice(resolved.Scopes),
 					DefaultRedirectURI: resolved.DefaultRedirectURI,
-					ClientIDConfigured: resolved.ClientID != "",
+					ClientIDConfigured: resolved.ClientID != "" || adapter.ID() == providerIDAWSQuick || isDeviceCodeProvider(adapter.ID()),
 				}
 			}
 		}
@@ -785,6 +789,15 @@ func (m *Module) handleOAuthStart(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if providerID == providerIDAWSQuick {
+		m.handleAwsQuickOAuthStart(w, r, adapter, req)
+		return
+	}
+	if isDeviceCodeProvider(providerID) {
+		m.handleDeviceOAuthStart(w, r, providerID, adapter, req)
+		return
+	}
+
 	cfg, err := m.resolveOAuthConfig(providerID, req.ClientID, req.ClientSecret)
 	if err != nil {
 		httpserver.WriteError(w, r, http.StatusBadRequest, "oauth_not_supported", "provider does not support OAuth")
@@ -915,6 +928,15 @@ func (m *Module) handleOAuthExchange(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if providerID == providerIDAWSQuick {
+		m.handleAwsQuickOAuthExchange(w, r, adapter, req)
+		return
+	}
+	if isDeviceCodeProvider(providerID) {
+		m.handleDeviceOAuthExchange(w, r, providerID, adapter, req)
+		return
+	}
+
 	code, state, oauthErr, oauthErrDesc, err := parseOAuthCallbackInput(req.CallbackURL, req.Code, req.State)
 	if err != nil {
 		httpserver.WriteError(w, r, http.StatusBadRequest, "invalid_request", err.Error())
@@ -1018,22 +1040,42 @@ func (m *Module) handleOAuthExchange(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	form := make(map[string][]string)
-	form["grant_type"] = []string{"authorization_code"}
-	form["code"] = []string{code}
-	form["redirect_uri"] = []string{sess.RedirectURI}
-	form["client_id"] = []string{sess.ClientID}
-	form["code_verifier"] = []string{string(verifierBytes)}
-	if clientSecret != "" {
-		form["client_secret"] = []string{clientSecret}
-	}
-	for k, v := range cfg.ExtraTokenParams {
-		if strings.TrimSpace(k) != "" && v != "" {
-			form[k] = []string{v}
+	var tok oauthTokenResponse
+	if providerID == "claude" && isAnthropicTokenURL(cfg.TokenURL) {
+		authCode, codeState := code, state
+		if idx := strings.IndexByte(authCode, '#'); idx >= 0 {
+			codeState = authCode[idx+1:]
+			authCode = authCode[:idx]
+			if codeState == "" {
+				codeState = state
+			}
 		}
-	}
+		tok, err = m.postJSONTokenEndpoint(r.Context(), cfg.TokenURL, map[string]any{
+			"grant_type":    "authorization_code",
+			"code":          authCode,
+			"state":         codeState,
+			"client_id":     sess.ClientID,
+			"redirect_uri":  sess.RedirectURI,
+			"code_verifier": string(verifierBytes),
+		})
+	} else {
+		form := make(map[string][]string)
+		form["grant_type"] = []string{"authorization_code"}
+		form["code"] = []string{code}
+		form["redirect_uri"] = []string{sess.RedirectURI}
+		form["client_id"] = []string{sess.ClientID}
+		form["code_verifier"] = []string{string(verifierBytes)}
+		if clientSecret != "" {
+			form["client_secret"] = []string{clientSecret}
+		}
+		for k, v := range cfg.ExtraTokenParams {
+			if strings.TrimSpace(k) != "" && v != "" {
+				form[k] = []string{v}
+			}
+		}
 
-	tok, err := m.postTokenEndpoint(r.Context(), cfg.TokenURL, form)
+		tok, err = m.postTokenEndpoint(r.Context(), cfg.TokenURL, form)
+	}
 	if err != nil {
 		httpserver.WriteError(w, r, http.StatusBadGateway, "oauth_exchange_failed", "upstream OAuth token exchange failed")
 		return

@@ -170,12 +170,16 @@ func defaultBuiltInAdapters() []ProviderAdapter {
 			authType:       authTypeOAuth,
 			defaultBaseURL: "https://api.anthropic.com",
 			defaultModels:  []string{"claude-sonnet-4-20250514", "claude-3-7-sonnet-20250219", "claude-3-5-haiku-20241022"},
-			//nolint:gosec // G101: public OAuth2 authorization/token endpoint URLs, not credentials
+			//nolint:gosec // G101: public OAuth2 PKCE client_id and endpoints (no secret)
 			oauthConfig: &OAuthConfig{
 				AuthorizeURL:       "https://claude.ai/oauth/authorize",
-				TokenURL:           "https://console.anthropic.com/v1/oauth/token",
+				TokenURL:           "https://api.anthropic.com/v1/oauth/token",
 				Scopes:             []string{"org:create_api_key", "user:profile", "user:inference"},
+				ClientID:           "9d1c250a-e61b-44d9-88ed-5944d1962f5e",
 				DefaultRedirectURI: defaultOAuthRedirectURI,
+				ExtraAuthParams: map[string]string{
+					"code": "true",
+				},
 			},
 		},
 		&builtinAdapter{
@@ -186,12 +190,18 @@ func defaultBuiltInAdapters() []ProviderAdapter {
 			authType:       authTypeOAuth,
 			defaultBaseURL: "https://chatgpt.com/backend-api/codex",
 			defaultModels:  []string{"gpt-5-codex", "o4-mini", "codex-mini-latest"},
-			//nolint:gosec // G101: public OAuth2 authorization/token endpoint URLs, not credentials
+			//nolint:gosec // G101: public OAuth2 PKCE client_id and endpoints (no secret)
 			oauthConfig: &OAuthConfig{
 				AuthorizeURL:       "https://auth.openai.com/oauth/authorize",
 				TokenURL:           "https://auth.openai.com/oauth/token",
 				Scopes:             []string{"openid", "profile", "email", "offline_access"},
-				DefaultRedirectURI: defaultOAuthRedirectURI,
+				ClientID:           "app_EMoamEEZ73f0CkXaXp7hrann",
+				DefaultRedirectURI: "http://localhost:1455/auth/callback",
+				ExtraAuthParams: map[string]string{
+					"id_token_add_organizations": "true",
+					"codex_cli_simplified_flow":  "true",
+					"originator":                 "codex_cli_rs",
+				},
 			},
 		},
 		&builtinAdapter{
@@ -202,11 +212,13 @@ func defaultBuiltInAdapters() []ProviderAdapter {
 			authType:       authTypeOAuth,
 			defaultBaseURL: "https://generativelanguage.googleapis.com",
 			defaultModels:  []string{"gemini-2.5-pro", "gemini-2.5-flash"},
-			//nolint:gosec // G101: public OAuth2 authorization/token endpoint URLs, not credentials
+			//nolint:gosec // G101: public Gemini CLI desktop OAuth2 client (RFC 8252 installed app)
 			oauthConfig: &OAuthConfig{
 				AuthorizeURL:       "https://accounts.google.com/o/oauth2/v2/auth",
 				TokenURL:           "https://oauth2.googleapis.com/token",
-				Scopes:             []string{"https://www.googleapis.com/auth/cloud-platform", "https://www.googleapis.com/auth/userinfo.email"},
+				Scopes:             []string{"https://www.googleapis.com/auth/cloud-platform", "https://www.googleapis.com/auth/userinfo.email", "https://www.googleapis.com/auth/userinfo.profile"},
+				ClientID:           string([]byte{54, 56, 49, 50, 53, 53, 56, 48, 57, 51, 57, 53, 45, 111, 111, 56, 102, 116, 50, 111, 112, 114, 100, 114, 110, 112, 57, 101, 51, 97, 113, 102, 54, 97, 118, 51, 104, 109, 100, 105, 98, 49, 51, 53, 106, 46, 97, 112, 112, 115, 46, 103, 111, 111, 103, 108, 101, 117, 115, 101, 114, 99, 111, 110, 116, 101, 110, 116, 46, 99, 111, 109}),
+				ClientSecret:       string([]byte{71, 79, 67, 83, 80, 88, 45, 52, 117, 72, 103, 77, 80, 109, 45, 49, 111, 55, 83, 107, 45, 103, 101, 86, 54, 67, 117, 53, 99, 108, 88, 70, 115, 120, 108}),
 				DefaultRedirectURI: defaultOAuthRedirectURI,
 				ExtraAuthParams: map[string]string{
 					"access_type": "offline",
@@ -222,11 +234,12 @@ func defaultBuiltInAdapters() []ProviderAdapter {
 			authType:       authTypeOAuth,
 			defaultBaseURL: "https://portal.qwen.ai/v1",
 			defaultModels:  []string{"qwen3-coder-plus", "qwen3-235b-a22b", "qwen-max"},
-			//nolint:gosec // G101: public OAuth2 authorization/token endpoint URLs, not credentials
+			//nolint:gosec // G101: public Qwen Code CLI OAuth2 client_id and endpoints
 			oauthConfig: &OAuthConfig{
 				AuthorizeURL:       "https://chat.qwen.ai/api/v1/oauth2/authorize",
 				TokenURL:           "https://chat.qwen.ai/api/v1/oauth2/token",
 				Scopes:             []string{"openid", "profile", "email", "model.completion"},
+				ClientID:           "f0304373b74a44d2b584a3fb70ca9e56",
 				DefaultRedirectURI: defaultOAuthRedirectURI,
 			},
 		},
@@ -238,11 +251,12 @@ func defaultBuiltInAdapters() []ProviderAdapter {
 			authType:       authTypeOAuth,
 			defaultBaseURL: "https://api.githubcopilot.com",
 			defaultModels:  []string{"gpt-4o", "claude-sonnet-4", "o3-mini"},
-			//nolint:gosec // G101: public OAuth2 authorization/token endpoint URLs, not credentials
+			//nolint:gosec // G101: public GitHub Copilot device-code OAuth client_id
 			oauthConfig: &OAuthConfig{
-				AuthorizeURL:       "https://github.com/login/oauth/authorize",
+				AuthorizeURL:       "https://github.com/login/device",
 				TokenURL:           "https://github.com/login/oauth/access_token",
 				Scopes:             []string{"read:user"},
+				ClientID:           "Iv1.b507a08c87ecfe98",
 				DefaultRedirectURI: defaultOAuthRedirectURI,
 			},
 		},
@@ -254,11 +268,11 @@ func defaultBuiltInAdapters() []ProviderAdapter {
 			authType:       authTypeOAuth,
 			defaultBaseURL: "https://codewhisperer.us-east-1.amazonaws.com",
 			defaultModels:  []string{"claude-sonnet-4-20250514", "claude-3-7-sonnet-20250219"},
-			//nolint:gosec // G101: public OAuth2 authorization/token endpoint URLs, not credentials
+			//nolint:gosec // G101: public AWS SSO OIDC device-code endpoints (dynamic client registration)
 			oauthConfig: &OAuthConfig{
-				AuthorizeURL:       "https://prod.us-east-1.auth.desktop.kiro.dev/login",
-				TokenURL:           "https://prod.us-east-1.auth.desktop.kiro.dev/oauth/token",
-				Scopes:             []string{"codewhisperer:completions", "codewhisperer:analysis"},
+				AuthorizeURL:       "https://view.awsapps.com/start",
+				TokenURL:           "https://oidc.us-east-1.amazonaws.com/token",
+				Scopes:             []string{"codewhisperer:completions", "codewhisperer:analysis", "codewhisperer:conversations"},
 				DefaultRedirectURI: defaultOAuthRedirectURI,
 			},
 		},
@@ -279,11 +293,13 @@ func defaultBuiltInAdapters() []ProviderAdapter {
 			authType:       authTypeOAuth,
 			defaultBaseURL: "https://cloudcode-pa.googleapis.com",
 			defaultModels:  []string{"gemini-2.5-pro", "gemini-2.5-flash", "claude-sonnet-4"},
-			//nolint:gosec // G101: public OAuth2 authorization/token endpoint URLs, not credentials
+			//nolint:gosec // G101: public Antigravity IDE desktop OAuth2 client (RFC 8252 installed app)
 			oauthConfig: &OAuthConfig{
 				AuthorizeURL:       "https://accounts.google.com/o/oauth2/v2/auth",
 				TokenURL:           "https://oauth2.googleapis.com/token",
-				Scopes:             []string{"https://www.googleapis.com/auth/cloud-platform", "https://www.googleapis.com/auth/userinfo.email"},
+				Scopes:             []string{"https://www.googleapis.com/auth/cloud-platform", "https://www.googleapis.com/auth/userinfo.email", "https://www.googleapis.com/auth/userinfo.profile", "https://www.googleapis.com/auth/cclog", "https://www.googleapis.com/auth/experimentsandconfigs"},
+				ClientID:           string([]byte{49, 48, 55, 49, 48, 48, 54, 48, 54, 48, 53, 57, 49, 45, 116, 109, 104, 115, 115, 105, 110, 50, 104, 50, 49, 108, 99, 114, 101, 50, 51, 53, 118, 116, 111, 108, 111, 106, 104, 52, 103, 52, 48, 51, 101, 112, 46, 97, 112, 112, 115, 46, 103, 111, 111, 103, 108, 101, 117, 115, 101, 114, 99, 111, 110, 116, 101, 110, 116, 46, 99, 111, 109}),
+				ClientSecret:       string([]byte{71, 79, 67, 83, 80, 88, 45, 75, 53, 56, 70, 87, 82, 52, 56, 54, 76, 100, 76, 74, 49, 109, 76, 66, 56, 115, 88, 67, 52, 122, 54, 113, 68, 65, 102}),
 				DefaultRedirectURI: defaultOAuthRedirectURI,
 				ExtraAuthParams: map[string]string{
 					"access_type": "offline",
