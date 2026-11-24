@@ -846,15 +846,15 @@
     "semantic_hash": ""
   },
   "web/src/features/providers/ProviderDetailView.tsx": {
-    "mtime": 1795455720.6146488,
-    "seen": 1795455772.3281298,
-    "ast_hash": "716a0b22ee58f28d7f3b24bc338561f7",
+    "mtime": 1795495693.4674668,
+    "seen": 1795495839.712702,
+    "ast_hash": "3c7a0187c54246725cfabe553407bddc",
     "semantic_hash": ""
   },
   "web/src/features/providers/ProvidersConsole.tsx": {
-    "mtime": 1795494023.834826,
-    "seen": 1795494129.6295514,
-    "ast_hash": "cf8b1948c85f5a918b24ab989ee4212e",
+    "mtime": 1795495826.2460618,
+    "seen": 1795495839.712727,
+    "ast_hash": "6b77c3d4115222c46be15c02dba4f5a7",
     "semantic_hash": ""
   },
   "web/src/features/providers/hooks.ts": {
@@ -2346,9 +2346,9 @@
     "semantic_hash": ""
   },
   "web/src/features/providers/ProvidersModals.tsx": {
-    "mtime": 1795494108.4386237,
-    "seen": 1795494129.629553,
-    "ast_hash": "e9f2d9618487c295b33f4cb2eb10eb02",
+    "mtime": 1795495794.6826828,
+    "seen": 1795495839.7127285,
+    "ast_hash": "c63a3177b70d361d476272b67d938330",
     "semantic_hash": ""
   },
   "web/src/features/providers/catalogUtils.test.ts": {
@@ -3525,6 +3525,12 @@
     "mtime": 1795493448.3371775,
     "seen": 1795493760.4868712,
     "ast_hash": "506be249168b2f375cb54cb40aae4ba0",
+    "semantic_hash": ""
+  },
+  "web/src/features/providers/mobileLayout.test.ts": {
+    "mtime": 1795495826.2220614,
+    "seen": 1795495839.7127972,
+    "ast_hash": "5ab96b3f0ba4aa1cfcfc889ee3a1a969",
     "semantic_hash": ""
   }
 }

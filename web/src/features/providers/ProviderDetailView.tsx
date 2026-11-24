@@ -100,9 +100,9 @@ export function ProviderDetailView() {
   if (!connectionId) {
     return (
       <Card>
-        <CardHeader>
+        <CardHeader className="flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
           <CardTitle>Provider Connection Not Specified</CardTitle>
-          <Button asChild variant="outline" size="xs">
+          <Button asChild variant="outline" size="xs" className="w-full sm:w-auto">
             <Link href="/dashboard/providers/">
               <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
               <span>Back to Providers</span>
@@ -175,19 +175,21 @@ export function ProviderDetailView() {
   };
 
   return (
-    <div className="space-y-6">
-      <section className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <div className="flex items-center gap-2">
-            <Button asChild variant="ghost" size="xs" className="-ml-2">
+    <div className="min-w-0 space-y-6">
+      <section className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between sm:gap-4">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <Button asChild variant="ghost" size="xs" className="-ml-2 shrink-0">
               <Link href="/dashboard/providers/">
                 <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
                 <span>Providers Studio</span>
               </Link>
             </Button>
-            <span className="font-mono text-xs text-[var(--text-muted)]">/ {connectionId}</span>
+            <span className="break-all font-mono text-xs text-[var(--text-muted)]">
+              / {connectionId}
+            </span>
           </div>
-          <h2 className="mt-1 text-2xl font-semibold tracking-tight text-[var(--text-primary)]">
+          <h2 className="mt-1 break-words text-xl font-semibold tracking-tight text-[var(--text-primary)] sm:text-2xl">
             {connection ? connection.name : "Provider Connection Detail"}
           </h2>
           <p className="mt-1 text-sm text-[var(--text-secondary)]">
@@ -200,6 +202,7 @@ export function ProviderDetailView() {
           type="button"
           variant="outline"
           size="sm"
+          className="w-full shrink-0 sm:w-auto"
           onClick={() => void connectionQuery.refetch()}
           disabled={connectionQuery.isFetching}
         >
@@ -230,14 +233,18 @@ export function ProviderDetailView() {
       ) : (
         <>
           <Card>
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <Server className="h-4 w-4 text-[var(--accent-primary)]" aria-hidden="true" />
+            <CardHeader className="flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex min-w-0 items-center gap-2">
+                <Server
+                  className="h-4 w-4 shrink-0 text-[var(--accent-primary)]"
+                  aria-hidden="true"
+                />
                 <CardTitle>Connection Telemetry &amp; Connectivity</CardTitle>
               </div>
               <Button
                 type="button"
                 size="xs"
+                className="w-full shrink-0 sm:w-auto"
                 onClick={handleRunTest}
                 disabled={testMutation.isPending}
               >
@@ -372,17 +379,20 @@ export function ProviderDetailView() {
           <EmberRule />
 
           <Card>
-            <CardHeader>
-              <div>
+            <CardHeader className="flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0">
                 <div className="flex items-center gap-2">
-                  <KeyRound className="h-4 w-4 text-[var(--accent-primary)]" aria-hidden="true" />
+                  <KeyRound
+                    className="h-4 w-4 shrink-0 text-[var(--accent-primary)]"
+                    aria-hidden="true"
+                  />
                   <CardTitle>Configuration &amp; Credential Rotation</CardTitle>
                 </div>
                 <CardDescription className="mt-0.5">
                   Leave credential fields empty to keep existing encrypted secrets untouched.
                 </CardDescription>
               </div>
-              <span className="font-mono text-xs text-[var(--text-muted)]">
+              <span className="break-all font-mono text-xs text-[var(--text-muted)]">
                 PATCH /api/providers/connections/{connection.id}
               </span>
             </CardHeader>
@@ -622,11 +632,12 @@ export function ProviderDetailView() {
                   />
                 </label>
 
-                <div className="flex items-center justify-end gap-3 pt-1">
+                <div className="flex flex-col-reverse gap-2 pt-1 sm:flex-row sm:items-center sm:justify-end sm:gap-3">
                   <Button
                     type="button"
                     variant="secondary"
                     size="sm"
+                    className="w-full sm:w-auto"
                     onClick={() => {
                       updateMutation.reset();
                       setSaveFeedback(null);
@@ -635,7 +646,12 @@ export function ProviderDetailView() {
                   >
                     Discard Changes
                   </Button>
-                  <Button type="submit" size="sm" disabled={updateMutation.isPending}>
+                  <Button
+                    type="submit"
+                    size="sm"
+                    className="w-full sm:w-auto"
+                    disabled={updateMutation.isPending}
+                  >
                     <Save className="h-3.5 w-3.5" aria-hidden="true" />
                     <span>{updateMutation.isPending ? "Saving..." : "Save Changes"}</span>
                   </Button>
@@ -645,19 +661,20 @@ export function ProviderDetailView() {
           </Card>
 
           <Card className="border-[var(--status-error-border)]">
-            <CardHeader>
-              <div>
+            <CardHeader className="flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0">
                 <CardTitle>Delete Connection</CardTitle>
                 <CardDescription className="mt-0.5">
                   Permanently remove this connection and purge its vaulted credentials.
                 </CardDescription>
               </div>
               {confirmDelete ? (
-                <div className="flex items-center gap-2">
+                <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:items-center">
                   <Button
                     type="button"
                     variant="destructive"
                     size="xs"
+                    className="w-full sm:w-auto"
                     onClick={handleConfirmDelete}
                     disabled={deleteMutation.isPending}
                   >
@@ -667,6 +684,7 @@ export function ProviderDetailView() {
                     type="button"
                     variant="secondary"
                     size="xs"
+                    className="w-full sm:w-auto"
                     onClick={() => setConfirmDelete(false)}
                     disabled={deleteMutation.isPending}
                   >
@@ -678,6 +696,7 @@ export function ProviderDetailView() {
                   type="button"
                   variant="destructive"
                   size="xs"
+                  className="w-full shrink-0 sm:w-auto"
                   onClick={() => setConfirmDelete(true)}
                 >
                   <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />

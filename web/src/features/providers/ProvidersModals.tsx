@@ -271,7 +271,9 @@ function ModalShell({
     <div
       className={cn(
         "fixed inset-0 z-50 flex",
-        variant === "drawer" ? "justify-end" : "items-center justify-center p-4 sm:p-6",
+        variant === "drawer"
+          ? "justify-end"
+          : "items-end justify-center p-0 sm:items-center sm:p-6",
       )}
     >
       <button
@@ -287,24 +289,29 @@ function ModalShell({
         className={cn(
           "relative z-10 flex flex-col overflow-hidden border border-[var(--color-border)] bg-[var(--color-surface)] shadow-2xl",
           variant === "drawer"
-            ? cn("h-full w-full border-y-0 border-r-0", MODAL_SIZE_CLASS[size])
-            : cn("max-h-[90vh] w-full rounded-2xl", MODAL_SIZE_CLASS[size]),
+            ? cn("h-[100dvh] w-full border-y-0 border-r-0", MODAL_SIZE_CLASS[size])
+            : cn(
+                "max-h-[92dvh] w-full rounded-t-2xl sm:max-h-[90dvh] sm:rounded-2xl",
+                MODAL_SIZE_CLASS[size],
+              ),
         )}
       >
         <div className="flex shrink-0 items-start justify-between gap-3 border-b border-[var(--color-border-subtle)] px-4 py-3.5 sm:px-6 sm:py-4">
-          <div className="flex min-w-0 items-center gap-3.5">
+          <div className="flex min-w-0 items-center gap-3">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-2)]/85 p-1.5 text-[var(--color-primary)]">
               {icon}
             </div>
             <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
                 <h3 className="truncate text-base font-semibold tracking-tight text-[var(--color-text-main)]">
                   {title}
                 </h3>
                 {badge}
               </div>
               {subtitle ? (
-                <p className="mt-0.5 truncate text-xs text-[var(--color-text-muted)]">{subtitle}</p>
+                <p className="mt-0.5 line-clamp-2 text-xs text-[var(--color-text-muted)] sm:truncate">
+                  {subtitle}
+                </p>
               ) : null}
             </div>
           </div>
@@ -312,7 +319,7 @@ function ModalShell({
             type="button"
             onClick={onClose}
             aria-label="Close modal"
-            className="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-lg text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface-2)] hover:text-[var(--color-text-main)]"
+            className="flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-lg text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface-2)] hover:text-[var(--color-text-main)] sm:h-8 sm:w-8"
           >
             <X className="h-4 w-4" aria-hidden="true" />
           </button>
@@ -323,7 +330,7 @@ function ModalShell({
         </div>
 
         {footer ? (
-          <div className="shrink-0 border-t border-[var(--color-border-subtle)] bg-[var(--color-surface-2)]/35 px-4 py-3 sm:px-6 sm:py-3.5">
+          <div className="shrink-0 border-t border-[var(--color-border-subtle)] bg-[var(--color-surface-2)]/35 px-4 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] sm:px-6 sm:py-3.5">
             {footer}
           </div>
         ) : null}
@@ -655,13 +662,14 @@ export function AddApiKeyModal({
         )
       }
       footer={
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div>
+        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+          <div className="w-full sm:w-auto">
             {mode === "single" ? (
               <Button
                 type="button"
                 variant="secondary"
                 size="sm"
+                className="w-full sm:w-auto"
                 disabled={testDraftMutation.isPending || isSaving}
                 onClick={() => void handleTestDraft()}
               >
@@ -681,7 +689,7 @@ export function AddApiKeyModal({
                 </span>
               </Button>
             ) : (
-              <span className="text-xs text-[var(--color-text-muted)]">
+              <span className="block text-xs text-[var(--color-text-muted)]">
                 {parsedBulk.entries.length > 0
                   ? isId
                     ? `${parsedBulk.entries.length} kredensial siap diimpor`
@@ -693,12 +701,24 @@ export function AddApiKeyModal({
             )}
           </div>
 
-          <div className="flex items-center gap-2">
-            <Button type="button" variant="secondary" size="sm" onClick={onClose}>
+          <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:items-center">
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              className="w-full sm:w-auto"
+              onClick={onClose}
+            >
               {isId ? "Batal" : "Cancel"}
             </Button>
             {mode === "single" ? (
-              <Button type="submit" form="add-apikey-form" size="sm" disabled={isSaving}>
+              <Button
+                type="submit"
+                form="add-apikey-form"
+                size="sm"
+                className="w-full sm:w-auto"
+                disabled={isSaving}
+              >
                 {isSaving
                   ? isId
                     ? "Menyimpan..."
@@ -711,6 +731,7 @@ export function AddApiKeyModal({
               <Button
                 type="button"
                 size="sm"
+                className="w-full sm:w-auto"
                 disabled={bulkBusy || parsedBulk.entries.length === 0}
                 onClick={() => void onSubmitBulk()}
               >
@@ -1668,16 +1689,23 @@ export function OAuthWizardModal({
       footer={
         isNonNativeOAuth ? (
           <div className="flex items-center justify-end gap-2">
-            <Button type="button" variant="secondary" size="sm" onClick={handleClose}>
-              {isId ? "Tutup" : "Close"}
-            </Button>
-          </div>
-        ) : isAwsQuick ? (
-          <div className="flex flex-wrap items-center justify-between gap-2">
             <Button
               type="button"
               variant="secondary"
               size="sm"
+              className="w-full sm:w-auto"
+              onClick={handleClose}
+            >
+              {isId ? "Tutup" : "Close"}
+            </Button>
+          </div>
+        ) : isAwsQuick ? (
+          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              className="w-full sm:w-auto"
               disabled={startOAuthMutation.isPending || awsQuickBusy}
               onClick={() => startAwsQuickFlow(true)}
             >
@@ -1696,16 +1724,23 @@ export function OAuthWizardModal({
               </span>
             </Button>
 
-            <Button type="button" variant="secondary" size="sm" onClick={handleClose}>
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              className="w-full sm:w-auto"
+              onClick={handleClose}
+            >
               {isId ? "Tutup" : "Close"}
             </Button>
           </div>
         ) : isDeviceCodeProvider ? (
-          <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
             <Button
               type="button"
               variant={deviceSession ? "secondary" : "default"}
               size="sm"
+              className="w-full sm:w-auto"
               disabled={startOAuthMutation.isPending}
               onClick={startDeviceCodeFlow}
             >
@@ -1724,30 +1759,48 @@ export function OAuthWizardModal({
               </span>
             </Button>
 
-            <Button type="button" variant="secondary" size="sm" onClick={handleClose}>
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              className="w-full sm:w-auto"
+              onClick={handleClose}
+            >
               {isId ? "Tutup" : "Close"}
             </Button>
           </div>
         ) : (
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div>
+          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+            <div className="w-full sm:w-auto">
               {step === 1 ? (
                 <button
                   type="button"
                   onClick={() => setStep(2)}
-                  className="cursor-pointer text-xs font-medium text-[var(--color-text-muted)] underline-offset-2 hover:text-[var(--color-primary)] hover:underline"
+                  className="cursor-pointer py-1 text-xs font-medium text-[var(--color-text-muted)] underline-offset-2 hover:text-[var(--color-primary)] hover:underline"
                 >
                   {isId ? "Sudah punya callback URL?" : "Already have a callback URL?"}
                 </button>
               ) : (
-                <Button type="button" variant="secondary" size="sm" onClick={() => setStep(1)}>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  className="w-full sm:w-auto"
+                  onClick={() => setStep(1)}
+                >
                   {isId ? "← Kembali ke Langkah 1" : "← Back to Step 1"}
                 </Button>
               )}
             </div>
 
-            <div className="flex items-center gap-2">
-              <Button type="button" variant="secondary" size="sm" onClick={handleClose}>
+            <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:items-center">
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                className="w-full sm:w-auto"
+                onClick={handleClose}
+              >
                 {isId ? "Tutup" : "Close"}
               </Button>
               {step === 1 ? (
@@ -1755,6 +1808,7 @@ export function OAuthWizardModal({
                   type="submit"
                   form="oauth-start-form"
                   size="sm"
+                  className="w-full sm:w-auto"
                   disabled={startOAuthMutation.isPending}
                 >
                   {startOAuthMutation.isPending
@@ -1770,6 +1824,7 @@ export function OAuthWizardModal({
                   type="submit"
                   form="oauth-exchange-form"
                   size="sm"
+                  className="w-full sm:w-auto"
                   disabled={exchangeOAuthMutation.isPending}
                 >
                   {exchangeOAuthMutation.isPending
@@ -1974,7 +2029,7 @@ export function OAuthWizardModal({
                     </p>
                   ) : null}
 
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                     <Button
                       type="button"
                       variant="secondary"
@@ -2004,11 +2059,11 @@ export function OAuthWizardModal({
                     </Button>
                   </div>
 
-                  <p className="text-[11px] text-[var(--color-text-muted)]">
+                  <p className="text-[11px] leading-relaxed text-[var(--color-text-muted)]">
                     {isId
                       ? "Ingin tanpa tempel manual? Jalankan dashboard di mesin ini atau buka SSH tunnel:"
                       : "Want zero pastes? Run the dashboard on this machine, or open an SSH tunnel:"}{" "}
-                    <span className="font-mono text-[var(--color-text-main)]">
+                    <span className="break-all font-mono text-[var(--color-text-main)]">
                       ssh -L {awsQuickPort}:127.0.0.1:{awsQuickPort} &lt;this-host&gt;
                     </span>
                   </p>
@@ -2140,8 +2195,8 @@ export function OAuthWizardModal({
                     <p className="text-[11px] font-medium uppercase tracking-wider text-[var(--color-text-muted)]">
                       {isId ? "2. Masukkan Kode Perangkat Anda" : "2. Enter Your Device Code"}
                     </p>
-                    <div className="mt-2 flex items-center justify-center gap-2.5">
-                      <span className="font-mono text-2xl font-bold tracking-widest text-[var(--color-primary)]">
+                    <div className="mt-2 flex flex-wrap items-center justify-center gap-2.5">
+                      <span className="break-all font-mono text-xl font-bold tracking-widest text-[var(--color-primary)] sm:text-2xl">
                         {deviceSession.session.user_code}
                       </span>
                       <Button
@@ -2348,11 +2403,11 @@ export function OAuthWizardModal({
                     </div>
                   ) : (
                     <div className="space-y-1.5">
-                      <div className="flex items-center justify-between gap-2">
+                      <div className="flex flex-wrap items-center justify-between gap-1.5">
                         <Label htmlFor="modal-oauth-client-id">
                           {isId ? "OAuth Client ID *" : "OAuth Client ID *"}
                         </Label>
-                        <span className="font-mono text-[10px] text-[var(--color-text-muted)]">
+                        <span className="break-all font-mono text-[10px] text-[var(--color-text-muted)]">
                           {oauthEnvVarName}
                         </span>
                       </div>
@@ -2813,11 +2868,12 @@ export function AddCustomNodeModal({
       }
       icon={<Server className="h-4 w-4" aria-hidden="true" />}
       footer={
-        <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
           <Button
             type="button"
             variant="secondary"
             size="sm"
+            className="w-full sm:w-auto"
             disabled={testDraftMutation.isPending || isSaving}
             onClick={() => void handleTestEndpoint()}
           >
@@ -2837,11 +2893,23 @@ export function AddCustomNodeModal({
             </span>
           </Button>
 
-          <div className="flex items-center gap-2">
-            <Button type="button" variant="secondary" size="sm" onClick={onClose}>
+          <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:items-center">
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              className="w-full sm:w-auto"
+              onClick={onClose}
+            >
               {isId ? "Batal" : "Cancel"}
             </Button>
-            <Button type="submit" form="add-custom-node-form" size="sm" disabled={isSaving}>
+            <Button
+              type="submit"
+              form="add-custom-node-form"
+              size="sm"
+              className="w-full sm:w-auto"
+              disabled={isSaving}
+            >
               {isSaving
                 ? isId
                   ? "Menyimpan..."
@@ -3260,9 +3328,14 @@ export function ProviderConnectionsDrawer({
         />
       }
       footer={
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex flex-wrap items-center gap-2">
-            <Button type="button" size="sm" onClick={() => onAddConnection(entry)}>
+        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+            <Button
+              type="button"
+              size="sm"
+              className="w-full sm:w-auto"
+              onClick={() => onAddConnection(entry)}
+            >
               <Plus className="h-3.5 w-3.5" aria-hidden="true" />
               <span>{primaryConnectLabel}</span>
             </Button>
@@ -3271,6 +3344,7 @@ export function ProviderConnectionsDrawer({
                 type="button"
                 size="sm"
                 variant="secondary"
+                className="w-full sm:w-auto"
                 onClick={() => onAddConnection(entry, "apikey")}
               >
                 <KeyRound className="h-3.5 w-3.5" aria-hidden="true" />
@@ -3278,16 +3352,22 @@ export function ProviderConnectionsDrawer({
               </Button>
             ) : null}
           </div>
-          <Button type="button" variant="secondary" size="sm" onClick={onClose}>
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            className="w-full sm:w-auto"
+            onClick={onClose}
+          >
             {isId ? "Tutup" : "Close"}
           </Button>
         </div>
       }
     >
       <div className="space-y-5">
-        {/* 3-Column Proportional Telemetry Strip */}
-        <div className="grid grid-cols-3 gap-2.5">
-          <div className="rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-surface-2)]/50 px-3 py-2.5">
+        {/* 2-Column Mobile / 3-Column Desktop Proportional Telemetry Strip */}
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-2.5">
+          <div className="min-w-0 rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-surface-2)]/50 px-3 py-2.5">
             <p className="text-[10px] font-medium uppercase tracking-wider text-[var(--color-text-muted)]">
               {isId ? "Koneksi" : "Connections"}
             </p>
@@ -3295,27 +3375,27 @@ export function ProviderConnectionsDrawer({
               <span className="font-mono text-base font-semibold tabular-nums text-[var(--color-text-main)]">
                 {entry.stats.connected}
               </span>
-              <span className="font-mono text-[11px] text-[var(--color-text-muted)]">
+              <span className="truncate font-mono text-[11px] text-[var(--color-text-muted)]">
                 / {entry.stats.total} {isId ? "aktif" : "active"}
               </span>
             </div>
           </div>
 
-          <div className="rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-surface-2)]/50 px-3 py-2.5">
-            <p className="text-[10px] font-medium uppercase tracking-wider text-[var(--color-text-muted)]">
-              {isId ? "Protokol" : "Protocol"}
-            </p>
-            <p className="mt-1 truncate font-mono text-xs font-semibold text-[var(--color-text-main)]">
-              {entry.protocol}
-            </p>
-          </div>
-
-          <div className="rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-surface-2)]/50 px-3 py-2.5">
+          <div className="min-w-0 rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-surface-2)]/50 px-3 py-2.5">
             <p className="text-[10px] font-medium uppercase tracking-wider text-[var(--color-text-muted)]">
               {isId ? "Model" : "Models"}
             </p>
             <p className="mt-1 font-mono text-base font-semibold tabular-nums text-[var(--color-text-main)]">
               {allModels.length}
+            </p>
+          </div>
+
+          <div className="col-span-2 min-w-0 rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-surface-2)]/50 px-3 py-2.5 sm:col-span-1">
+            <p className="text-[10px] font-medium uppercase tracking-wider text-[var(--color-text-muted)]">
+              {isId ? "Protokol" : "Protocol"}
+            </p>
+            <p className="mt-1 truncate font-mono text-xs font-semibold text-[var(--color-text-main)]">
+              {entry.protocol}
             </p>
           </div>
         </div>
@@ -3336,7 +3416,7 @@ export function ProviderConnectionsDrawer({
                 type="button"
                 onClick={() => void handleCopyBaseUrl()}
                 title={isId ? "Salin Base URL" : "Copy Base URL"}
-                className="flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-md border border-[var(--color-border)] bg-[var(--color-surface-2)] text-[var(--color-text-muted)] transition-colors hover:border-[var(--color-primary)]/40 hover:text-[var(--color-primary)]"
+                className="flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-md border border-[var(--color-border)] bg-[var(--color-surface-2)] text-[var(--color-text-muted)] transition-colors hover:border-[var(--color-primary)]/40 hover:text-[var(--color-primary)] sm:h-7 sm:w-7"
               >
                 {copiedBaseUrl ? (
                   <Check className="h-3.5 w-3.5 text-[var(--status-ok)]" aria-hidden="true" />
@@ -3528,17 +3608,18 @@ export function ProviderConnectionsDrawer({
                     </div>
 
                     {conn.last_test_error ? (
-                      <p className="mt-2 rounded-lg bg-[var(--status-error-bg)] px-2.5 py-1.5 font-mono text-[11px] text-[var(--status-error)]">
+                      <p className="mt-2 break-words rounded-lg bg-[var(--status-error-bg)] px-2.5 py-1.5 font-mono text-[11px] text-[var(--status-error)]">
                         {conn.last_test_error}
                       </p>
                     ) : null}
 
-                    <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-[var(--color-border-subtle)] pt-2.5">
+                    <div className="mt-3 flex flex-col gap-2 border-t border-[var(--color-border-subtle)] pt-2.5 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
                       <div className="flex flex-wrap items-center gap-1.5">
                         <Button
                           type="button"
                           size="sm"
                           variant="secondary"
+                          className="flex-1 sm:flex-none"
                           disabled={busyConnectionId !== null}
                           onClick={() => onTestConnection(conn)}
                         >
@@ -3554,6 +3635,7 @@ export function ProviderConnectionsDrawer({
                           type="button"
                           size="sm"
                           variant="secondary"
+                          className="flex-1 sm:flex-none"
                           disabled={busyConnectionId !== null}
                           onClick={() => onToggleConnection(conn)}
                         >
@@ -3572,7 +3654,7 @@ export function ProviderConnectionsDrawer({
                         <Link
                           href={`/dashboard/providers/detail/?id=${encodeURIComponent(conn.id)}`}
                           onClick={onClose}
-                          className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)] px-2.5 text-xs font-medium text-[var(--color-text-main)] transition-colors hover:border-[var(--color-primary)]/40 hover:text-[var(--color-primary)]"
+                          className="inline-flex h-9 flex-1 items-center justify-center gap-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)] px-2.5 text-xs font-medium text-[var(--color-text-main)] transition-colors hover:border-[var(--color-primary)]/40 hover:text-[var(--color-primary)] sm:h-8 sm:flex-none"
                         >
                           <Settings2 className="h-3.5 w-3.5" />
                           <span>{isId ? "Edit Detail" : "Edit Detail"}</span>
@@ -3664,7 +3746,7 @@ export function ProviderConnectionsDrawer({
                     type="button"
                     onClick={() => void handleCopyModel(modelId)}
                     title={isId ? `Salin ${qualified}` : `Copy ${qualified}`}
-                    className="group flex cursor-pointer items-center justify-between gap-2 rounded-lg border border-[var(--color-border-subtle)] bg-[var(--color-surface-2)]/40 px-2.5 py-1.5 text-left transition-colors hover:border-[var(--color-primary)]/45 hover:bg-[var(--color-surface-2)]"
+                    className="group flex min-h-9 cursor-pointer items-center justify-between gap-2 rounded-lg border border-[var(--color-border-subtle)] bg-[var(--color-surface-2)]/40 px-2.5 py-1.5 text-left transition-colors hover:border-[var(--color-primary)]/45 hover:bg-[var(--color-surface-2)] sm:min-h-0"
                   >
                     <span className="truncate font-mono text-[11px] text-[var(--color-text-main)]">
                       {modelId}

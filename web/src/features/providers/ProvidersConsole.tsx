@@ -91,17 +91,17 @@ const CARD_SKELETON_KEYS = [
 function ProvidersLoadingSkeleton() {
   return (
     <div className="flex min-w-0 flex-col gap-5 animate-pulse">
-      <div className="flex items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="h-9 w-9 rounded-xl bg-[var(--color-surface-2)]" />
-          <div className="space-y-1.5">
-            <div className="h-5 w-32 rounded bg-[var(--color-surface-2)]" />
-            <div className="h-3 w-64 rounded bg-[var(--color-surface-2)]" />
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="h-9 w-9 shrink-0 rounded-xl bg-[var(--color-surface-2)]" />
+          <div className="min-w-0 flex-1 space-y-1.5">
+            <div className="h-5 w-32 max-w-full rounded bg-[var(--color-surface-2)]" />
+            <div className="h-3 w-64 max-w-full rounded bg-[var(--color-surface-2)]" />
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <div className="h-8 w-24 rounded-lg bg-[var(--color-surface-2)]" />
-          <div className="h-8 w-28 rounded-lg bg-[var(--color-surface-2)]" />
+        <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:items-center">
+          <div className="h-9 w-full rounded-lg bg-[var(--color-surface-2)] sm:h-8 sm:w-24" />
+          <div className="h-9 w-full rounded-lg bg-[var(--color-surface-2)] sm:h-8 sm:w-28" />
         </div>
       </div>
 
@@ -141,12 +141,12 @@ function SectionHeader({
 }) {
   return (
     <div className="flex flex-wrap items-center justify-between gap-2">
-      <div className="flex items-center gap-2">
-        <span className="text-[var(--color-primary)]">{icon}</span>
-        <h3 className="text-sm font-semibold tracking-tight text-[var(--color-text-main)]">
+      <div className="flex min-w-0 items-center gap-2">
+        <span className="shrink-0 text-[var(--color-primary)]">{icon}</span>
+        <h3 className="truncate text-sm font-semibold tracking-tight text-[var(--color-text-main)]">
           {title}
         </h3>
-        <span className="rounded-full border border-[var(--color-border-subtle)] bg-[var(--color-surface-2)] px-2 py-0.5 font-mono text-[11px] tabular-nums text-[var(--color-text-muted)]">
+        <span className="shrink-0 rounded-full border border-[var(--color-border-subtle)] bg-[var(--color-surface-2)] px-2 py-0.5 font-mono text-[11px] tabular-nums text-[var(--color-text-muted)]">
           {count}
         </span>
       </div>
@@ -195,7 +195,7 @@ function ProviderCard({
   return (
     <div
       className={cn(
-        "group relative flex flex-col justify-between rounded-xl border bg-[var(--color-surface)] p-4 transition-all",
+        "group relative flex min-w-0 flex-col justify-between rounded-xl border bg-[var(--color-surface)] p-3.5 transition-all sm:p-4",
         hasError
           ? "border-[var(--status-error)]/40 hover:border-[var(--status-error)]/70"
           : isActiveHealthy
@@ -252,7 +252,7 @@ function ProviderCard({
                 title={isId ? `Tes koneksi ${entry.name}` : `Test ${entry.name} connections`}
                 aria-label={`Test ${entry.name}`}
                 className={cn(
-                  "flex h-7 w-7 cursor-pointer items-center justify-center rounded-lg border transition-colors",
+                  "flex h-9 w-9 cursor-pointer items-center justify-center rounded-lg border transition-colors sm:h-7 sm:w-7",
                   isTesting
                     ? "border-[var(--color-primary)]/40 bg-[var(--color-primary)]/15 text-[var(--color-primary)]"
                     : "border-[var(--color-border)] bg-[var(--color-surface-2)]/80 text-[var(--color-text-muted)] hover:border-[var(--color-primary)]/45 hover:text-[var(--color-primary)]",
@@ -735,7 +735,7 @@ export function ProvidersConsole() {
             <h2 className="truncate text-lg font-semibold tracking-tight text-[var(--color-text-main)] sm:text-xl">
               {isId ? "Provider AI" : "Providers"}
             </h2>
-            <p className="truncate text-xs text-[var(--color-text-muted)]">
+            <p className="line-clamp-2 text-xs leading-relaxed text-[var(--color-text-muted)] sm:truncate">
               {isId
                 ? "Pantau kesehatan upstream, uji koneksi, dan kelola kredensial provider AI."
                 : "Monitor upstream health, test connections, and configure AI providers."}
@@ -743,11 +743,12 @@ export function ProvidersConsole() {
           </div>
         </div>
 
-        <div className="flex shrink-0 flex-wrap items-center gap-2">
+        <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:shrink-0 sm:flex-wrap sm:items-center">
           <Button
             type="button"
             size="sm"
             variant="secondary"
+            className="w-full sm:w-auto"
             onClick={handleRefresh}
             disabled={isRefreshing}
           >
@@ -759,6 +760,7 @@ export function ProvidersConsole() {
             type="button"
             size="sm"
             variant="secondary"
+            className="w-full sm:w-auto"
             disabled={telemetry.enabledConnections === 0 || testingScope !== null}
             onClick={() =>
               runBatchTests("all", isId ? "Semua Provider" : "All Providers", connections)
@@ -781,10 +783,11 @@ export function ProvidersConsole() {
           </Button>
 
           {/* Add Provider Dropdown */}
-          <div className="relative" ref={addMenuRef}>
+          <div className="relative col-span-2 sm:col-span-1" ref={addMenuRef}>
             <Button
               type="button"
               size="sm"
+              className="w-full sm:w-auto"
               aria-expanded={addMenuOpen}
               aria-haspopup="menu"
               onClick={() => setAddMenuOpen((v) => !v)}
@@ -800,7 +803,7 @@ export function ProvidersConsole() {
               <div
                 role="menu"
                 aria-label={isId ? "Menu tambah provider" : "Add provider menu"}
-                className="absolute right-0 top-full z-40 mt-1.5 w-64 max-w-[calc(100vw-2rem)] rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-1.5 shadow-xl"
+                className="absolute left-0 right-0 top-full z-40 mt-1.5 w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-1.5 shadow-xl sm:left-auto sm:right-0 sm:w-64"
               >
                 <button
                   type="button"
@@ -896,19 +899,19 @@ export function ProvidersConsole() {
           onClick={() => toggleStatusKpi("active")}
           aria-pressed={statusFilter === "active"}
           className={cn(
-            "flex cursor-pointer flex-col justify-between rounded-xl border bg-[var(--color-surface)] px-3.5 py-3 text-left transition-all",
+            "flex min-w-0 cursor-pointer flex-col justify-between rounded-xl border bg-[var(--color-surface)] px-3 py-2.5 text-left transition-all sm:px-3.5 sm:py-3",
             statusFilter === "active"
               ? "border-[var(--color-primary)] bg-[var(--color-primary)]/5 ring-1 ring-[var(--color-primary)]/25"
               : "border-[var(--color-border)] hover:border-[var(--color-primary)]/40 hover:bg-[var(--color-surface-2)]/50",
           )}
         >
           <div className="flex items-center justify-between gap-2">
-            <span className="text-[11px] font-medium text-[var(--color-text-muted)]">
+            <span className="truncate text-[11px] font-medium text-[var(--color-text-muted)]">
               {isId ? "Provider Aktif" : "Active Providers"}
             </span>
-            <CheckCircle2 className="h-4 w-4 text-[var(--status-ok)]" aria-hidden="true" />
+            <CheckCircle2 className="h-4 w-4 shrink-0 text-[var(--status-ok)]" aria-hidden="true" />
           </div>
-          <div className="mt-1 flex items-baseline gap-2">
+          <div className="mt-1 flex flex-col gap-0.5 sm:flex-row sm:items-baseline sm:gap-2">
             <span className="font-mono text-lg font-semibold tabular-nums text-[var(--color-text-main)]">
               {telemetry.activeProviders}
             </span>
@@ -921,15 +924,15 @@ export function ProvidersConsole() {
         <button
           type="button"
           onClick={() => setStatusFilter("all")}
-          className="flex cursor-pointer flex-col justify-between rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3.5 py-3 text-left transition-all hover:border-[var(--color-primary)]/40 hover:bg-[var(--color-surface-2)]/50"
+          className="flex min-w-0 cursor-pointer flex-col justify-between rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2.5 text-left transition-all hover:border-[var(--color-primary)]/40 hover:bg-[var(--color-surface-2)]/50 sm:px-3.5 sm:py-3"
         >
           <div className="flex items-center justify-between gap-2">
-            <span className="text-[11px] font-medium text-[var(--color-text-muted)]">
+            <span className="truncate text-[11px] font-medium text-[var(--color-text-muted)]">
               {isId ? "Koneksi Aktif" : "Active Connections"}
             </span>
-            <Server className="h-4 w-4 text-[var(--color-primary)]" aria-hidden="true" />
+            <Server className="h-4 w-4 shrink-0 text-[var(--color-primary)]" aria-hidden="true" />
           </div>
-          <div className="mt-1 flex items-baseline gap-2">
+          <div className="mt-1 flex flex-col gap-0.5 sm:flex-row sm:items-baseline sm:gap-2">
             <span className="font-mono text-lg font-semibold tabular-nums text-[var(--color-text-main)]">
               {telemetry.enabledConnections}
               <span className="text-xs font-normal text-[var(--color-text-muted)]">
@@ -947,7 +950,7 @@ export function ProvidersConsole() {
           onClick={() => toggleStatusKpi("error")}
           aria-pressed={statusFilter === "error"}
           className={cn(
-            "flex cursor-pointer flex-col justify-between rounded-xl border bg-[var(--color-surface)] px-3.5 py-3 text-left transition-all",
+            "flex min-w-0 cursor-pointer flex-col justify-between rounded-xl border bg-[var(--color-surface)] px-3 py-2.5 text-left transition-all sm:px-3.5 sm:py-3",
             statusFilter === "error"
               ? "border-[var(--status-error)] bg-[var(--status-error-bg)] ring-1 ring-[var(--status-error)]/30"
               : telemetry.attentionProviders > 0
@@ -956,12 +959,12 @@ export function ProvidersConsole() {
           )}
         >
           <div className="flex items-center justify-between gap-2">
-            <span className="text-[11px] font-medium text-[var(--color-text-muted)]">
+            <span className="truncate text-[11px] font-medium text-[var(--color-text-muted)]">
               {isId ? "Perlu Perhatian" : "Needs Attention"}
             </span>
             <AlertTriangle
               className={cn(
-                "h-4 w-4",
+                "h-4 w-4 shrink-0",
                 telemetry.attentionProviders > 0
                   ? "text-[var(--status-error)]"
                   : "text-[var(--color-text-muted)]/60",
@@ -969,7 +972,7 @@ export function ProvidersConsole() {
               aria-hidden="true"
             />
           </div>
-          <div className="mt-1 flex items-baseline gap-2">
+          <div className="mt-1 flex flex-col gap-0.5 sm:flex-row sm:items-baseline sm:gap-2">
             <span
               className={cn(
                 "font-mono text-lg font-semibold tabular-nums",
@@ -997,19 +1000,22 @@ export function ProvidersConsole() {
           onClick={() => toggleStatusKpi("inactive")}
           aria-pressed={statusFilter === "inactive"}
           className={cn(
-            "flex cursor-pointer flex-col justify-between rounded-xl border bg-[var(--color-surface)] px-3.5 py-3 text-left transition-all",
+            "flex min-w-0 cursor-pointer flex-col justify-between rounded-xl border bg-[var(--color-surface)] px-3 py-2.5 text-left transition-all sm:px-3.5 sm:py-3",
             statusFilter === "inactive"
               ? "border-[var(--color-primary)] bg-[var(--color-primary)]/5 ring-1 ring-[var(--color-primary)]/25"
               : "border-[var(--color-border)] hover:border-[var(--color-primary)]/40 hover:bg-[var(--color-surface-2)]/50",
           )}
         >
           <div className="flex items-center justify-between gap-2">
-            <span className="text-[11px] font-medium text-[var(--color-text-muted)]">
+            <span className="truncate text-[11px] font-medium text-[var(--color-text-muted)]">
               {isId ? "Nonaktif" : "Disabled"}
             </span>
-            <PauseCircle className="h-4 w-4 text-[var(--color-text-muted)]" aria-hidden="true" />
+            <PauseCircle
+              className="h-4 w-4 shrink-0 text-[var(--color-text-muted)]"
+              aria-hidden="true"
+            />
           </div>
-          <div className="mt-1 flex items-baseline gap-2">
+          <div className="mt-1 flex flex-col gap-0.5 sm:flex-row sm:items-baseline sm:gap-2">
             <span className="font-mono text-lg font-semibold tabular-nums text-[var(--color-text-main)]">
               {telemetry.disabledProviders}
             </span>
@@ -1090,7 +1096,7 @@ export function ProvidersConsole() {
               <span
                 key={r.connectionId}
                 className={cn(
-                  "inline-flex items-center gap-1.5 rounded-lg border px-2 py-1 font-mono text-[11px] tabular-nums",
+                  "inline-flex max-w-full flex-wrap items-center gap-1.5 break-all rounded-lg border px-2 py-1 font-mono text-[11px] tabular-nums",
                   r.ok
                     ? "border-[var(--status-ok-border)] bg-[var(--status-ok-bg)] text-[var(--status-ok)]"
                     : "border-[var(--status-error-border)] bg-[var(--status-error-bg)] text-[var(--status-error)]",
@@ -1105,10 +1111,10 @@ export function ProvidersConsole() {
       ) : null}
 
       {/* Search & Filter Toolbar Card (main ProvidersToolbar parity) */}
-      <div className="flex flex-col gap-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3.5">
+      <div className="flex min-w-0 flex-col gap-3 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3 sm:p-3.5">
         {/* Row 1: Search Input + Status Filter Pills */}
-        <div className="flex flex-col gap-2.5 lg:flex-row lg:items-center lg:justify-between">
-          <div className="relative max-w-md flex-1">
+        <div className="flex min-w-0 flex-col gap-2.5 lg:flex-row lg:items-center lg:justify-between">
+          <div className="relative w-full lg:max-w-md lg:flex-1">
             <Search
               className="pointer-events-none absolute top-1/2 left-3 h-3.5 w-3.5 -translate-y-1/2 text-[var(--color-text-muted)]"
               aria-hidden="true"
@@ -1130,7 +1136,7 @@ export function ProvidersConsole() {
                   : "Search by name, ID, model, or protocol..."
               }
               aria-label={isId ? "Cari provider" : "Search providers"}
-              className="h-9 w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)]/75 pr-9 pl-9 text-xs text-[var(--color-text-main)] placeholder:text-[var(--color-text-muted)] transition-colors focus:border-[var(--color-primary)] focus:outline-none"
+              className="h-10 w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)]/75 pr-9 pl-9 text-sm text-[var(--color-text-main)] placeholder:text-[var(--color-text-muted)] transition-colors focus:border-[var(--color-primary)] focus:outline-none sm:h-9 sm:text-xs"
             />
             {search ? (
               <button
@@ -1149,7 +1155,7 @@ export function ProvidersConsole() {
           </div>
 
           <fieldset
-            className="custom-scrollbar m-0 flex items-center gap-1.5 overflow-x-auto border-0 p-0"
+            className="custom-scrollbar m-0 flex min-w-0 w-full items-center gap-1.5 overflow-x-auto border-0 p-0 pb-0.5 lg:w-auto lg:pb-0"
             aria-label={isId ? "Filter status provider" : "Filter providers by status"}
           >
             {statusPills.map((pill) => {
@@ -1163,7 +1169,7 @@ export function ProvidersConsole() {
                   aria-pressed={active}
                   onClick={() => setStatusFilter(pill.value)}
                   className={cn(
-                    "inline-flex h-8 shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-lg border px-2.5 text-xs font-medium transition-colors",
+                    "inline-flex min-h-9 shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-lg border px-2.5 text-xs font-medium transition-colors sm:h-8 sm:min-h-0",
                     active
                       ? pill.value === "error"
                         ? "border-[var(--status-error)] bg-[var(--status-error)] text-[var(--color-on-primary)]"
@@ -1182,9 +1188,9 @@ export function ProvidersConsole() {
         </div>
 
         {/* Row 2: Category Tabs & Reset */}
-        <div className="flex items-center justify-between gap-2 border-t border-[var(--color-border-subtle)] pt-2.5">
+        <div className="flex min-w-0 items-center justify-between gap-2 border-t border-[var(--color-border-subtle)] pt-2.5">
           <div
-            className="custom-scrollbar flex items-center gap-1.5 overflow-x-auto text-xs"
+            className="custom-scrollbar flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto pb-0.5 text-xs sm:pb-0"
             role="tablist"
             aria-label={isId ? "Kategori provider" : "Provider categories"}
           >
@@ -1199,7 +1205,7 @@ export function ProvidersConsole() {
                   aria-selected={active}
                   onClick={() => setCategoryTab(tab.value)}
                   className={cn(
-                    "inline-flex h-8 shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-lg border px-3 font-medium transition-colors",
+                    "inline-flex min-h-9 shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-lg border px-3 font-medium transition-colors sm:h-8 sm:min-h-0",
                     active
                       ? "border-[var(--color-primary)]/30 bg-[var(--color-primary)]/12 font-semibold text-[var(--color-primary)]"
                       : "border-transparent bg-transparent text-[var(--color-text-muted)] hover:bg-[var(--color-surface-2)] hover:text-[var(--color-text-main)]",
@@ -1217,7 +1223,7 @@ export function ProvidersConsole() {
             <button
               type="button"
               onClick={resetFilters}
-              className="inline-flex h-8 shrink-0 cursor-pointer items-center gap-1 rounded-lg px-2.5 text-xs font-medium text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface-2)] hover:text-[var(--color-text-main)]"
+              className="inline-flex min-h-9 shrink-0 cursor-pointer items-center gap-1 rounded-lg px-2.5 text-xs font-medium text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface-2)] hover:text-[var(--color-text-main)] sm:h-8 sm:min-h-0"
             >
               <FilterX className="h-3.5 w-3.5" aria-hidden="true" />
               <span>Reset</span>
