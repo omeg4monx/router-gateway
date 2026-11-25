@@ -8,6 +8,8 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/omeg4monx/router-gateway/internal/contracts"
 )
 
 func TestTrafficShaperLimitsPerConnectionConcurrencyAndQueues(t *testing.T) {
@@ -182,5 +184,36 @@ func TestResponseCoalescerDeduplicatesAndCachesPerKey(t *testing.T) {
 	}
 	if string(resp.body) != `{"id":"ok"}` {
 		t.Fatalf("cached body = %q", string(resp.body))
+	}
+}
+
+func TestPrioritizeHeadroomAffinityPromotesMatchingCandidateWithoutLosingFallbacks(t *testing.T) {
+	t.Parallel()
+
+	base := []contracts.ResolvedTarget{
+		{ProviderID: "anthropic", ConnectionID: "conn-1"},
+		{ProviderID: "anthropic", ConnectionID: "conn-2"},
+		{ProviderID: "openai", ConnectionID: "conn-3"},
+	}
+
+	got := prioritizeHeadroomAffinity(base, map[string]any{
+		"headroom_affinity_provider":   "anthropic",
+		"headroom_affinity_connection": "conn-2",
+	})
+	if len(got) != 3 || got[0].ConnectionID != "conn-2" || got[1].ConnectionID != "conn-1" || got[2].ConnectionID != "conn-3" {
+		t.Fatalf("unexpected candidate order after affinity promotion: %+v", got)
+	}
+	// Original slice must not be mutated.
+	if base[0].ConnectionID != "conn-1" {
+		t.Fatalf("expected input candidates slice to remain unmodified, got %+v", base)
+	}
+
+	// Mismatched provider/connection leaves order unchanged.
+	unchanged := prioritizeHeadroomAffinity(base, map[string]any{
+		"headroom_affinity_provider":   "openai",
+		"headroom_affinity_connection": "conn-2",
+	})
+	if unchanged[0].ConnectionID != "conn-1" {
+		t.Fatalf("expected mismatched provider+connection not to promote, got %+v", unchanged)
 	}
 }

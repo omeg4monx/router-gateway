@@ -3730,6 +3730,13 @@ export interface components {
             max_cache_entries: number;
             cache_ttl_seconds: number;
             inject_cache_control: boolean;
+            caveman_enabled: boolean;
+            /** @enum {string} */
+            caveman_level: "lite" | "full" | "ultra";
+            ponytail_enabled: boolean;
+            /** @enum {string} */
+            ponytail_level: "lite" | "full" | "ultra";
+            trim_history_enabled: boolean;
             updated_at: string;
         };
         TokenSaverConfigPatch: {
@@ -3743,6 +3750,13 @@ export interface components {
             max_cache_entries?: number;
             cache_ttl_seconds?: number;
             inject_cache_control?: boolean;
+            caveman_enabled?: boolean;
+            /** @enum {string} */
+            caveman_level?: "lite" | "full" | "ultra";
+            ponytail_enabled?: boolean;
+            /** @enum {string} */
+            ponytail_level?: "lite" | "full" | "ultra";
+            trim_history_enabled?: boolean;
         };
         CompressionStats: {
             requests_processed: number;

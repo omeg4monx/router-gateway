@@ -4,10 +4,25 @@ import type { components } from "@/shared/api/schema";
 export type TokenSaverConfig = components["schemas"]["TokenSaverConfig"];
 export type TokenSaverConfigPatch = components["schemas"]["TokenSaverConfigPatch"];
 export type TokenSaverStats = components["schemas"]["TokenSaverStats"];
-export type TokenSaverPreviewRequest = components["schemas"]["TokenSaverPreviewRequest"];
-export type TokenSaverPreviewResult = components["schemas"]["TokenSaverPreviewResult"];
 
 export const TOKEN_SAVER_STRATEGIES = ["off", "whitespace", "dedupe", "aggressive"] as const;
+export type TokenSaverStrategy = (typeof TOKEN_SAVER_STRATEGIES)[number];
+
+export const TOKEN_SAVER_LEVELS = ["lite", "full", "ultra"] as const;
+export type TokenSaverLevel = (typeof TOKEN_SAVER_LEVELS)[number];
+
+export const HISTORY_LIMIT_PRESETS = [
+  { id: "tight", maxMessages: 12 },
+  { id: "balanced", maxMessages: 20 },
+  { id: "deep", maxMessages: 40 },
+] as const;
+
+export type HistoryPresetId = (typeof HISTORY_LIMIT_PRESETS)[number]["id"] | "custom";
+
+export function matchHistoryPreset(maxMessages: number): HistoryPresetId {
+  const matched = HISTORY_LIMIT_PRESETS.find((preset) => preset.maxMessages === maxMessages);
+  return matched ? matched.id : "custom";
+}
 
 export const tokenSaverConfigSchema = z.object({
   enabled: z.boolean(),
@@ -19,24 +34,11 @@ export const tokenSaverConfigSchema = z.object({
   max_cache_entries: z.number().int().min(8).max(10000),
   cache_ttl_seconds: z.number().int().min(60).max(86400),
   inject_cache_control: z.boolean(),
+  caveman_enabled: z.boolean(),
+  caveman_level: z.enum(TOKEN_SAVER_LEVELS),
+  ponytail_enabled: z.boolean(),
+  ponytail_level: z.enum(TOKEN_SAVER_LEVELS),
+  trim_history_enabled: z.boolean(),
 });
 
 export type TokenSaverConfigFormValues = z.infer<typeof tokenSaverConfigSchema>;
-
-export function parsePreviewBodyJson(
-  raw: string,
-): { ok: true; value: Record<string, unknown> } | { ok: false; error: string } {
-  const trimmed = raw.trim();
-  if (!trimmed) {
-    return { ok: false, error: "JSON payload is required" };
-  }
-  try {
-    const parsed: unknown = JSON.parse(trimmed);
-    if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
-      return { ok: false, error: "Payload must be a JSON object" };
-    }
-    return { ok: true, value: parsed as Record<string, unknown> };
-  } catch {
-    return { ok: false, error: "Payload must be valid JSON" };
-  }
-}

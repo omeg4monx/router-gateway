@@ -12,7 +12,15 @@ const (
 	StrategyWhitespace = "whitespace"
 	StrategyDedupe     = "dedupe"
 	StrategyAggressive = "aggressive"
+
+	LevelLite  = "lite"
+	LevelFull  = "full"
+	LevelUltra = "ultra"
 )
+
+func isValidLevel(v string) bool {
+	return v == LevelLite || v == LevelFull || v == LevelUltra
+}
 
 var multiSpaceRe = regexp.MustCompile(`[ \t]{2,}`)
 
@@ -185,11 +193,11 @@ func compressMessages(msgs []any, cfg Config) []any {
 
 		switch content := msg["content"].(type) {
 		case string:
-			c := compressText(content)
 			if cfg.Strategy == StrategyAggressive && isTool {
-				c = truncateToolOutput(c, cfg.MaxToolOutputChars)
+				msg["content"] = compressText(filterToolOutput(content, cfg.MaxToolOutputChars))
+			} else {
+				msg["content"] = compressText(content)
 			}
-			msg["content"] = c
 		case []any:
 			msg["content"] = compressContentBlocks(content, isTool, cfg)
 		}
@@ -205,51 +213,249 @@ func compressMessages(msgs []any, cfg Config) []any {
 		out = append(out, msg)
 	}
 
-	if cfg.Strategy == StrategyAggressive && cfg.MaxHistoryMessages > 2 && len(out) > cfg.MaxHistoryMessages {
-		var leading []any
-		restIdx := 0
-		for restIdx < len(out) {
-			m, ok := out[restIdx].(map[string]any)
-			if !ok {
-				break
-			}
-			if role, _ := m["role"].(string); role == "system" || role == "developer" {
-				leading = append(leading, m)
-				restIdx++
-			} else {
-				break
-			}
-		}
-		if restIdx < len(out) {
-			keepTail := cfg.MaxHistoryMessages - len(leading)
-			if keepTail < 1 {
-				keepTail = 1
-			}
-			start := len(out) - keepTail
-			if start < restIdx {
-				start = restIdx
-			}
-			// Avoid starting the retained tail on an orphaned tool result.
-			for start < len(out)-1 {
-				m, ok := out[start].(map[string]any)
-				if !ok {
-					break
-				}
-				if role, _ := m["role"].(string); role == "tool" {
-					start++
-					continue
-				}
-				break
-			}
-			tail := out[start:]
-			combined := make([]any, 0, len(leading)+len(tail))
-			combined = append(combined, leading...)
-			combined = append(combined, tail...)
-			out = combined
-		}
+	if cfg.TrimHistoryEnabled && cfg.MaxHistoryMessages > 2 && len(out) > cfg.MaxHistoryMessages {
+		out = trimChatHistoryMessages(out, cfg.MaxHistoryMessages)
 	}
 
 	return out
+}
+
+func trimChatHistoryMessages(msgs []any, maxHistory int) []any {
+	if maxHistory <= 2 || len(msgs) <= maxHistory {
+		return msgs
+	}
+	var leading []any
+	restIdx := 0
+	for restIdx < len(msgs) {
+		m, ok := msgs[restIdx].(map[string]any)
+		if !ok {
+			break
+		}
+		if role, _ := m["role"].(string); role == "system" || role == "developer" {
+			leading = append(leading, m)
+			restIdx++
+		} else {
+			break
+		}
+	}
+	if restIdx >= len(msgs) {
+		return msgs
+	}
+	keepTail := maxHistory - len(leading)
+	if keepTail < 1 {
+		keepTail = 1
+	}
+	start := len(msgs) - keepTail
+	if start < restIdx {
+		start = restIdx
+	}
+	// Avoid starting the retained tail on an orphaned tool result.
+	for start < len(msgs)-1 {
+		m, ok := msgs[start].(map[string]any)
+		if !ok {
+			break
+		}
+		if role, _ := m["role"].(string); role == "tool" {
+			start++
+			continue
+		}
+		break
+	}
+	tail := msgs[start:]
+	combined := make([]any, 0, len(leading)+len(tail))
+	combined = append(combined, leading...)
+	combined = append(combined, tail...)
+	return combined
+}
+
+func trimPayloadHistory(body []byte, maxHistory int) (out []byte, bytesSaved, tokensSaved int64, mutated bool) {
+	if maxHistory <= 2 || len(body) == 0 {
+		return body, 0, 0, false
+	}
+	var root map[string]any
+	if err := json.Unmarshal(body, &root); err != nil || root == nil {
+		return body, 0, 0, false
+	}
+	changed := false
+	if msgs, ok := root["messages"].([]any); ok && len(msgs) > maxHistory {
+		root["messages"] = trimChatHistoryMessages(msgs, maxHistory)
+		changed = true
+	}
+	if inp, ok := root["input"].([]any); ok && len(inp) > maxHistory {
+		root["input"] = trimChatHistoryMessages(inp, maxHistory)
+		changed = true
+	}
+	if !changed {
+		return body, 0, 0, false
+	}
+	encoded, err := json.Marshal(root)
+	if err != nil || len(encoded) >= len(body) {
+		return body, 0, 0, false
+	}
+	savedBytes := int64(len(body) - len(encoded))
+	savedTokens := estimateTokens(body) - estimateTokens(encoded)
+	if savedTokens < 0 {
+		savedTokens = 0
+	}
+	return encoded, savedBytes, savedTokens, true
+}
+
+const (
+	cavemanSharedRules = "Code blocks, identifiers, file paths, commands, errors, URLs: keep exact verbatim. " +
+		"Auto-Clarity: switch to clear full sentences for security warnings, irreversible actions, or ambiguous multi-step sequences, then resume terse style. " +
+		"Preserve the user's dominant language (e.g. Indonesian -> reply Indonesian, English -> reply English). " +
+		"No invented abbreviations (standard tech acronyms like API/DB/HTTP/JSON OK). " +
+		"No self-reference (never announce the style), no decorative emoji, no filler/pleasantries/tool narration. " +
+		"Active every response; never drift back to verbose."
+
+	ponytailSharedRules = "You are a lazy senior developer: lazy means efficient, not careless; the best code is code never written. " +
+		"Before writing code, stop at the first rung that holds: 1) Does it need to exist? (YAGNI) 2) Stdlib does it? Use it. 3) Native platform covers it? Use it. 4) Existing dependency solves it? Never add a new one for a few lines. 5) One-liner? Ship it. 6) Only then: minimum working code. " +
+		"No unrequested abstractions (no single-impl interface, no factory for one type, no config for constants). Fewest files, shortest working diff, deletion over addition, boring over clever. Mark deliberate simplifications with a `ponytail:` comment naming the ceiling and upgrade path. " +
+		"Code first, then at most three short lines: what was skipped and when to add it. " +
+		"Never simplify away: trust-boundary input validation, error handling preventing data loss, security, accessibility, or explicitly requested behavior. Non-trivial logic keeps one runnable check/test. " +
+		"Active every response; no drift back to over-building."
+)
+
+func buildOutputDirective(cfg Config) string {
+	var parts []string
+	if cfg.CavemanEnabled {
+		switch cfg.CavemanLevel {
+		case LevelLite:
+			parts = append(parts, "[caveman:lite] Respond tersely. Keep grammar and full sentences; drop filler, hedging, and pleasantries. Pattern: state thing, action, reason, next step. "+cavemanSharedRules)
+		case LevelUltra:
+			parts = append(parts, "[caveman:ultra] Respond ultra-terse and telegraphic. Maximum compression: strip articles, filler, and conjunctions; one word when enough. Pattern: [thing] [action] [reason]. [next step]. "+cavemanSharedRules)
+		default:
+			parts = append(parts, "[caveman:full] Respond terse. Technical substance stays exact, fluff dies. Drop articles (a/an/the), filler, pleasantries, hedging; fragments OK; short synonyms. Pattern: [thing] [action] [reason]. [next step]. "+cavemanSharedRules)
+		}
+	}
+	if cfg.PonytailEnabled {
+		switch cfg.PonytailLevel {
+		case LevelLite:
+			parts = append(parts, "[ponytail:lite] Build what was asked, and name the lazier alternative in one line so the user can pick. "+ponytailSharedRules)
+		case LevelUltra:
+			parts = append(parts, "[ponytail:ultra] YAGNI extremist: deletion before addition; ship the shortest working solution and challenge unnecessary scope in the same response. "+ponytailSharedRules)
+		default:
+			parts = append(parts, "[ponytail:full] Enforce the 6-rung ladder strictly: stdlib and native first, shortest diff, shortest explanation. "+ponytailSharedRules)
+		}
+	}
+	return strings.Join(parts, "\n")
+}
+
+// injectOutputDirectives appends Caveman / Ponytail system directives idempotently
+// using the wire-valid system field for each protocol.
+func injectOutputDirectives(protocol string, body []byte, cfg Config) ([]byte, bool) {
+	directive := buildOutputDirective(cfg)
+	if directive == "" || len(body) == 0 {
+		return body, false
+	}
+	var root map[string]any
+	if err := json.Unmarshal(body, &root); err != nil || root == nil {
+		return body, false
+	}
+
+	marker := "[caveman:"
+	if !cfg.CavemanEnabled {
+		marker = "[ponytail:"
+	}
+
+	mutated := false
+	switch {
+	case protocol == "anthropic" || root["system"] != nil:
+		switch sys := root["system"].(type) {
+		case nil:
+			root["system"] = directive
+			mutated = true
+		case string:
+			if strings.Contains(sys, marker) {
+				return body, false
+			}
+			root["system"] = strings.TrimSpace(sys + "\n\n" + directive)
+			mutated = true
+		case []any:
+			for _, item := range sys {
+				if bm, ok := item.(map[string]any); ok {
+					if txt, _ := bm["text"].(string); strings.Contains(txt, marker) {
+						return body, false
+					}
+				}
+			}
+			root["system"] = append(sys, map[string]any{"type": "text", "text": directive})
+			mutated = true
+		}
+
+	case protocol == "openai-responses" || root["instructions"] != nil || root["input"] != nil:
+		inst, _ := root["instructions"].(string)
+		if strings.Contains(inst, marker) {
+			return body, false
+		}
+		if strings.TrimSpace(inst) == "" {
+			root["instructions"] = directive
+		} else {
+			root["instructions"] = strings.TrimSpace(inst + "\n\n" + directive)
+		}
+		mutated = true
+
+	case protocol == "gemini" || root["contents"] != nil:
+		siKey := "systemInstruction"
+		if _, ok := root["system_instruction"]; ok {
+			siKey = "system_instruction"
+		}
+		si, _ := root[siKey].(map[string]any)
+		if si == nil {
+			si = map[string]any{"parts": []any{}}
+		}
+		parts, _ := si["parts"].([]any)
+		for _, pr := range parts {
+			if pm, ok := pr.(map[string]any); ok {
+				if txt, _ := pm["text"].(string); strings.Contains(txt, marker) {
+					return body, false
+				}
+			}
+		}
+		si["parts"] = append(parts, map[string]any{"text": directive})
+		root[siKey] = si
+		mutated = true
+
+	default:
+		msgs, ok := root["messages"].([]any)
+		if !ok {
+			return body, false
+		}
+		for _, raw := range msgs {
+			if m, ok := raw.(map[string]any); ok {
+				if c, _ := m["content"].(string); strings.Contains(c, marker) {
+					return body, false
+				}
+			}
+		}
+		if len(msgs) > 0 {
+			if first, ok := msgs[0].(map[string]any); ok {
+				role, _ := first["role"].(string)
+				if role == "system" || role == "developer" {
+					if content, ok := first["content"].(string); ok {
+						first["content"] = strings.TrimSpace(content + "\n\n" + directive)
+						msgs[0] = first
+						root["messages"] = msgs
+						mutated = true
+					}
+				}
+			}
+		}
+		if !mutated {
+			sysMsg := map[string]any{"role": "system", "content": directive}
+			root["messages"] = append([]any{sysMsg}, msgs...)
+			mutated = true
+		}
+	}
+
+	if !mutated {
+		return body, false
+	}
+	encoded, err := json.Marshal(root)
+	if err != nil {
+		return body, false
+	}
+	return encoded, true
 }
 
 func compressContentBlocks(blocks []any, isTool bool, cfg Config) []any {
@@ -260,18 +466,18 @@ func compressContentBlocks(blocks []any, isTool bool, cfg Config) []any {
 		}
 		btype, _ := bm["type"].(string)
 		if txt, ok := bm["text"].(string); ok {
-			c := compressText(txt)
 			if cfg.Strategy == StrategyAggressive && (isTool || btype == "tool_result") {
-				c = truncateToolOutput(c, cfg.MaxToolOutputChars)
+				bm["text"] = compressText(filterToolOutput(txt, cfg.MaxToolOutputChars))
+			} else {
+				bm["text"] = compressText(txt)
 			}
-			bm["text"] = c
 		}
 		if contentStr, ok := bm["content"].(string); ok && btype == "tool_result" {
-			c := compressText(contentStr)
 			if cfg.Strategy == StrategyAggressive {
-				c = truncateToolOutput(c, cfg.MaxToolOutputChars)
+				bm["content"] = compressText(filterToolOutput(contentStr, cfg.MaxToolOutputChars))
+			} else {
+				bm["content"] = compressText(contentStr)
 			}
-			bm["content"] = c
 		}
 		blocks[i] = bm
 	}
@@ -279,39 +485,51 @@ func compressContentBlocks(blocks []any, isTool bool, cfg Config) []any {
 }
 
 // injectAnthropicCacheControl adds ephemeral cache_control to the last system
-// content block when eligible and not already present.
+// content block and the last tool definition when eligible and not already present.
 func injectAnthropicCacheControl(body []byte) ([]byte, bool) {
 	var root map[string]any
 	if err := json.Unmarshal(body, &root); err != nil || root == nil {
 		return body, false
 	}
+
+	mutated := false
 	switch sys := root["system"].(type) {
 	case string:
-		if strings.TrimSpace(sys) == "" {
-			return body, false
-		}
-		root["system"] = []any{
-			map[string]any{
-				"type":          "text",
-				"text":          sys,
-				"cache_control": map[string]any{"type": "ephemeral"},
-			},
+		if strings.TrimSpace(sys) != "" {
+			root["system"] = []any{
+				map[string]any{
+					"type":          "text",
+					"text":          sys,
+					"cache_control": map[string]any{"type": "ephemeral"},
+				},
+			}
+			mutated = true
 		}
 	case []any:
-		if len(sys) == 0 {
-			return body, false
+		if len(sys) > 0 {
+			if last, ok := sys[len(sys)-1].(map[string]any); ok {
+				if _, exists := last["cache_control"]; !exists {
+					last["cache_control"] = map[string]any{"type": "ephemeral"}
+					sys[len(sys)-1] = last
+					root["system"] = sys
+					mutated = true
+				}
+			}
 		}
-		last, ok := sys[len(sys)-1].(map[string]any)
-		if !ok {
-			return body, false
+	}
+
+	if tools, ok := root["tools"].([]any); ok && len(tools) > 0 {
+		if lastTool, ok := tools[len(tools)-1].(map[string]any); ok {
+			if _, exists := lastTool["cache_control"]; !exists {
+				lastTool["cache_control"] = map[string]any{"type": "ephemeral"}
+				tools[len(tools)-1] = lastTool
+				root["tools"] = tools
+				mutated = true
+			}
 		}
-		if _, exists := last["cache_control"]; exists {
-			return body, false
-		}
-		last["cache_control"] = map[string]any{"type": "ephemeral"}
-		sys[len(sys)-1] = last
-		root["system"] = sys
-	default:
+	}
+
+	if !mutated {
 		return body, false
 	}
 	encoded, err := json.Marshal(root)

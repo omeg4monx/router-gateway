@@ -306,9 +306,9 @@
     "semantic_hash": ""
   },
   "web/src/shared/api/schema.d.ts": {
-    "mtime": 1795605165.7841566,
-    "seen": 1795606118.806027,
-    "ast_hash": "3e1b3a46da48a12574a8d0900fb9a5cc",
+    "mtime": 1795627272.9966326,
+    "seen": 1795627892.4205627,
+    "ast_hash": "0f1493cf801549e17fa17a6d2eed6a48",
     "semantic_hash": ""
   },
   "web/src/shared/lib/utils.test.ts": {
@@ -756,9 +756,9 @@
     "semantic_hash": ""
   },
   "internal/modules/gateway/module.go": {
-    "mtime": 1795604698.863829,
-    "seen": 1795605101.6531682,
-    "ast_hash": "ddd499a51897c44259280b998c55af14",
+    "mtime": 1795626346.4655929,
+    "seen": 1795626436.9744878,
+    "ast_hash": "358f5ded8d1b6a36ba7808bb959f36a9",
     "semantic_hash": ""
   },
   "internal/modules/gateway/module_test.go": {
@@ -1110,15 +1110,15 @@
     "semantic_hash": ""
   },
   "contracts/openapi/modules/tokensaver.yaml": {
-    "mtime": 1795512141.7399454,
-    "seen": 1795512465.7807422,
-    "ast_hash": "3eaba77ba2d3527b6b8d825621bc0865",
+    "mtime": 1795626835.7846353,
+    "seen": 1795627022.9664552,
+    "ast_hash": "75ef1391bfac1b31faacd889049d53dd",
     "semantic_hash": ""
   },
   "internal/modules/tokensaver/compressor.go": {
-    "mtime": 1795417685.5766518,
-    "seen": 1795454269.4711888,
-    "ast_hash": "0c2d0cb80f51610afcca5f26bbbbe75e",
+    "mtime": 1795628582.3115017,
+    "seen": 1795628602.9792736,
+    "ast_hash": "fb8e4603f1526ebfb0cca8f3445ba6d6",
     "semantic_hash": ""
   },
   "internal/modules/tokensaver/headroom.go": {
@@ -1128,21 +1128,21 @@
     "semantic_hash": ""
   },
   "internal/modules/tokensaver/module.go": {
-    "mtime": 1795512270.604112,
-    "seen": 1795512465.7838168,
-    "ast_hash": "48c6731835afb69142604a904083ac8f",
+    "mtime": 1795627977.1362789,
+    "seen": 1795628001.805286,
+    "ast_hash": "041c51ec6d464f336ea1a84e1bd6a244",
     "semantic_hash": ""
   },
   "internal/modules/tokensaver/module_test.go": {
-    "mtime": 1795512041.2021477,
-    "seen": 1795512465.7838182,
-    "ast_hash": "bf61ab9d513d1b78374c9bab731b00b8",
+    "mtime": 1795627978.5852985,
+    "seen": 1795628001.8052874,
+    "ast_hash": "543081e4a12f02f3e14e81854de4894d",
     "semantic_hash": ""
   },
   "internal/modules/tokensaver/repo.go": {
-    "mtime": 1795417685.577083,
-    "seen": 1795454269.4711943,
-    "ast_hash": "fe241058bf880d1a2060749658718eb6",
+    "mtime": 1795626831.5145767,
+    "seen": 1795627022.9704328,
+    "ast_hash": "607e9d0cbb69b2ea11cff8f9d3b5cef3",
     "semantic_hash": ""
   },
   "web/src/features/modeleditor/ModelEditorConsole.tsx": {
@@ -1194,27 +1194,27 @@
     "semantic_hash": ""
   },
   "web/src/features/tokensaver/schemas.test.ts": {
-    "mtime": 1795417685.5781112,
-    "seen": 1795454269.4714313,
-    "ast_hash": "49f8000d69db47664ea58d86ee13b3b5",
+    "mtime": 1795626931.0109432,
+    "seen": 1795627022.9751062,
+    "ast_hash": "88f0f5e4115659b641f82900729aff2d",
     "semantic_hash": ""
   },
   "web/src/features/tokensaver/TokenSaverConsole.tsx": {
-    "mtime": 1795534160.9874005,
-    "seen": 1795534217.6886873,
-    "ast_hash": "07b82e0777141d0ecc1fc57e974e4686",
+    "mtime": 1795626941.6620896,
+    "seen": 1795627022.975103,
+    "ast_hash": "3bba0c2812f81f75d1d5579dcec180e0",
     "semantic_hash": ""
   },
   "web/src/features/tokensaver/hooks.ts": {
-    "mtime": 1795534160.987664,
-    "seen": 1795534217.6886892,
-    "ast_hash": "4e3173325d13d0d4d9d628ce3cc6e1ed",
+    "mtime": 1795626932.2409601,
+    "seen": 1795627022.9751048,
+    "ast_hash": "61bc794c63644f711d9e1234be2c3ff8",
     "semantic_hash": ""
   },
   "web/src/features/tokensaver/schemas.ts": {
-    "mtime": 1795417685.5781112,
-    "seen": 1795454269.4714327,
-    "ast_hash": "7bcb9b09b005d57ba603c7adb8b95138",
+    "mtime": 1795626929.828927,
+    "seen": 1795627022.975108,
+    "ast_hash": "9a382d0b44695930fc55586bba6f151f",
     "semantic_hash": ""
   },
   "contracts/openapi/modules/notifications.yaml": {
@@ -3744,9 +3744,9 @@
     "semantic_hash": ""
   },
   "internal/modules/gateway/optimization_test.go": {
-    "mtime": 1795604458.2107813,
-    "seen": 1795605101.6532137,
-    "ast_hash": "4c6097405ff53682b937fdae9a1d2cbc",
+    "mtime": 1795626308.100945,
+    "seen": 1795626436.974573,
+    "ast_hash": "e472b2478852b6574795dfe21d446247",
     "semantic_hash": ""
   },
   "internal/modules/gateway/traffic.go": {
@@ -3765,6 +3765,18 @@
     "mtime": 1795624820.6131535,
     "seen": 1795624908.4593062,
     "ast_hash": "9ad77d554f2ee717a71fae3ab22a1420",
+    "semantic_hash": ""
+  },
+  "internal/modules/tokensaver/rtk_filter.go": {
+    "mtime": 1795628579.910469,
+    "seen": 1795628602.979448,
+    "ast_hash": "acc70314c417ad7090711e9663e6f20f",
+    "semantic_hash": ""
+  },
+  "internal/modules/tokensaver/rtk_filter_test.go": {
+    "mtime": 1795628552.5090966,
+    "seen": 1795628602.9794514,
+    "ast_hash": "81be4e0a774f3e5965c04fffa95d7424",
     "semantic_hash": ""
   }
 }

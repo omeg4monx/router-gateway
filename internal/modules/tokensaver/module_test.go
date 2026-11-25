@@ -360,3 +360,252 @@ func TestTokenSaverFinalReviewFindings(t *testing.T) {
 		t.Fatalf("expected second request after failed first request to still be a miss, got %v", fail2.Metadata["headroom_cache_hit"])
 	}
 }
+
+func TestInjectAnthropicCacheControlCoversToolsAndSystem(t *testing.T) {
+	body := []byte(`{"model":"claude-sonnet-4","system":"You are a coding assistant.","tools":[{"name":"read_file","description":"Reads a file"},{"name":"run_cmd","description":"Runs a command"}],"messages":[{"role":"user","content":"hi"}]}`)
+	updated, changed := injectAnthropicCacheControl(body)
+	if !changed {
+		t.Fatal("expected cache_control injection to mutate payload")
+	}
+
+	var root map[string]any
+	if err := json.Unmarshal(updated, &root); err != nil {
+		t.Fatalf("unmarshal updated: %v", err)
+	}
+	sysBlocks, ok := root["system"].([]any)
+	if !ok || len(sysBlocks) != 1 {
+		t.Fatalf("expected system converted to 1 block, got %#v", root["system"])
+	}
+	if _, ok := sysBlocks[0].(map[string]any)["cache_control"]; !ok {
+		t.Fatal("expected cache_control on system block")
+	}
+
+	tools, ok := root["tools"].([]any)
+	if !ok || len(tools) != 2 {
+		t.Fatalf("expected 2 tools, got %#v", root["tools"])
+	}
+	if _, exists := tools[0].(map[string]any)["cache_control"]; exists {
+		t.Fatal("expected cache_control only on last tool, not first tool")
+	}
+	lastToolCC, ok := tools[1].(map[string]any)["cache_control"].(map[string]any)
+	if !ok || lastToolCC["type"] != "ephemeral" {
+		t.Fatalf("expected ephemeral cache_control on last tool, got %#v", tools[1])
+	}
+
+	// Second call must be a no-op (idempotent).
+	if _, changedAgain := injectAnthropicCacheControl(updated); changedAgain {
+		t.Fatal("expected second injectAnthropicCacheControl call to be idempotent")
+	}
+}
+
+func TestTokenSaverFeatureTogglesCavemanPonytailAndTrimHistory(t *testing.T) {
+	env := setupTokenSaverTest(t)
+
+	rec := doJSON(t, env.router, http.MethodPatch, "/api/token-saver/config", map[string]any{
+		"enabled":              false,
+		"caveman_enabled":      true,
+		"caveman_level":        "ultra",
+		"ponytail_enabled":     true,
+		"ponytail_level":       "full",
+		"trim_history_enabled": true,
+		"max_history_messages": 4,
+	})
+	if rec.Code != http.StatusOK {
+		t.Fatalf("patch config: status %d body %s", rec.Code, rec.Body.String())
+	}
+
+	payload, _ := json.Marshal(map[string]any{
+		"model": "gpt-4o",
+		"messages": []any{
+			map[string]any{"role": "system", "content": "Base instructions."},
+			map[string]any{"role": "user", "content": "msg 1"},
+			map[string]any{"role": "assistant", "content": "reply 1"},
+			map[string]any{"role": "user", "content": "msg 2"},
+			map[string]any{"role": "assistant", "content": "reply 2"},
+			map[string]any{"role": "user", "content": "msg 3"},
+		},
+	})
+	req := &contracts.CanonicalRequest{
+		RequestID: "req-toggles",
+		Protocol:  "openai-chat",
+		Model:     "gpt-4o",
+		Body:      payload,
+		Metadata:  make(map[string]any),
+	}
+	if err := env.mod.OnRequest(context.Background(), req); err != nil {
+		t.Fatalf("OnRequest: %v", err)
+	}
+
+	var root map[string]any
+	if err := json.Unmarshal(req.Body, &root); err != nil {
+		t.Fatalf("unmarshal mutated body: %v", err)
+	}
+	msgs, ok := root["messages"].([]any)
+	if !ok {
+		t.Fatalf("expected messages array, got %#v", root["messages"])
+	}
+	if len(msgs) != 4 {
+		t.Fatalf("expected trim_history_enabled to keep 4 messages, got %d", len(msgs))
+	}
+	sysMsg, _ := msgs[0].(map[string]any)["content"].(string)
+	for _, want := range []string{
+		"Base instructions.",
+		"[caveman:ultra]",
+		"Auto-Clarity:",
+		"Preserve the user's dominant language",
+		"[ponytail:full]",
+		"stop at the first rung that holds:",
+		"Never simplify away:",
+	} {
+		if !strings.Contains(sysMsg, want) {
+			t.Fatalf("expected %q in injected system prompt, got: %q", want, sysMsg)
+		}
+	}
+}
+
+func TestTokenSaverToggleIsolationAndAllOffPassThrough(t *testing.T) {
+	env := setupTokenSaverTest(t)
+
+	// 1. RTK ON + Trim History OFF: must truncate tool output & clean whitespace,
+	//    but MUST NOT drop chat history messages.
+	rec := doJSON(t, env.router, http.MethodPatch, "/api/token-saver/config", map[string]any{
+		"enabled":               true,
+		"strategy":              "aggressive",
+		"trim_history_enabled":  false,
+		"max_history_messages":  4,
+		"max_tool_output_chars": 40,
+		"caveman_enabled":       false,
+		"ponytail_enabled":      false,
+		"headroom_enabled":      false,
+	})
+	if rec.Code != http.StatusOK {
+		t.Fatalf("patch RTK only: status %d body %s", rec.Code, rec.Body.String())
+	}
+
+	payload, _ := json.Marshal(map[string]any{
+		"model": "gpt-4o",
+		"messages": []any{
+			map[string]any{"role": "system", "content": "You   are   concise."},
+			map[string]any{"role": "user", "content": "m1"},
+			map[string]any{"role": "assistant", "content": "a1"},
+			map[string]any{"role": "user", "content": "m2"},
+			map[string]any{"role": "tool", "content": strings.Repeat("log-line-", 20)},
+			map[string]any{"role": "user", "content": "m3"},
+		},
+	})
+	req := &contracts.CanonicalRequest{
+		RequestID: "req-rtk-only",
+		Protocol:  "openai-chat",
+		Model:     "gpt-4o",
+		Body:      append([]byte(nil), payload...),
+		Metadata:  make(map[string]any),
+	}
+	if err := env.mod.OnRequest(context.Background(), req); err != nil {
+		t.Fatalf("OnRequest RTK only: %v", err)
+	}
+	var root map[string]any
+	if err := json.Unmarshal(req.Body, &root); err != nil {
+		t.Fatalf("unmarshal RTK only: %v", err)
+	}
+	msgs := root["messages"].([]any)
+	if len(msgs) != 6 {
+		t.Fatalf("RTK ON with trim_history_enabled=false must keep all 6 messages, got %d", len(msgs))
+	}
+	if !strings.Contains(string(req.Body), "[...truncated ") {
+		t.Fatalf("expected RTK to truncate long tool output, got: %s", req.Body)
+	}
+
+	// 2. Gemini payload receives Caveman directive in systemInstruction.
+	rec = doJSON(t, env.router, http.MethodPatch, "/api/token-saver/config", map[string]any{
+		"enabled":         false,
+		"caveman_enabled": true,
+		"caveman_level":   "lite",
+	})
+	if rec.Code != http.StatusOK {
+		t.Fatalf("patch caveman: status %d", rec.Code)
+	}
+	gemReq := &contracts.CanonicalRequest{
+		RequestID: "req-gemini",
+		Protocol:  "gemini",
+		Model:     "gemini-2.5-pro",
+		Body:      []byte(`{"contents":[{"role":"user","parts":[{"text":"explain tcp"}]}]}`),
+		Metadata:  make(map[string]any),
+	}
+	if err := env.mod.OnRequest(context.Background(), gemReq); err != nil {
+		t.Fatalf("OnRequest gemini: %v", err)
+	}
+	if !strings.Contains(string(gemReq.Body), "[caveman:lite]") {
+		t.Fatalf("expected Gemini systemInstruction to contain [caveman:lite], got: %s", gemReq.Body)
+	}
+
+	// 2b. Anthropic payload WITHOUT system field must write to top-level "system",
+	//     NEVER prepend role="system" into messages (Anthropic rejects that with 400).
+	anthReq := &contracts.CanonicalRequest{
+		RequestID: "req-anthropic-nosys",
+		Protocol:  "anthropic",
+		Model:     "claude-sonnet-4",
+		Body:      []byte(`{"model":"claude-sonnet-4","messages":[{"role":"user","content":"hi"}]}`),
+		Metadata:  make(map[string]any),
+	}
+	if err := env.mod.OnRequest(context.Background(), anthReq); err != nil {
+		t.Fatalf("OnRequest anthropic no-system: %v", err)
+	}
+	var anthRoot map[string]any
+	if err := json.Unmarshal(anthReq.Body, &anthRoot); err != nil {
+		t.Fatalf("unmarshal anthropic: %v", err)
+	}
+	if sysStr, ok := anthRoot["system"].(string); !ok || !strings.Contains(sysStr, "[caveman:lite]") {
+		t.Fatalf("expected Anthropic top-level system string with directive, got: %#v", anthRoot["system"])
+	}
+	if anthMsgs := anthRoot["messages"].([]any); len(anthMsgs) != 1 {
+		t.Fatalf("expected Anthropic messages untouched (len=1), got %d: %#v", len(anthMsgs), anthMsgs)
+	}
+	// Re-running OnRequest on already-injected Anthropic payload must be idempotent (no fallthrough).
+	beforeRepeat := append([]byte(nil), anthReq.Body...)
+	if err := env.mod.OnRequest(context.Background(), anthReq); err != nil {
+		t.Fatalf("OnRequest anthropic repeat: %v", err)
+	}
+	if !bytes.Equal(anthReq.Body, beforeRepeat) {
+		t.Fatalf("expected idempotent repeat on Anthropic payload, got: %s", anthReq.Body)
+	}
+
+	// 2c. OpenAI Responses payload WITHOUT instructions must set top-level "instructions".
+	respReq := &contracts.CanonicalRequest{
+		RequestID: "req-responses-noinst",
+		Protocol:  "openai-responses",
+		Model:     "gpt-4o",
+		Body:      []byte(`{"model":"gpt-4o","input":"explain quicksort"}`),
+		Metadata:  make(map[string]any),
+	}
+	if err := env.mod.OnRequest(context.Background(), respReq); err != nil {
+		t.Fatalf("OnRequest responses: %v", err)
+	}
+	if !strings.Contains(string(respReq.Body), `"instructions":"[caveman:lite]`) {
+		t.Fatalf("expected OpenAI Responses instructions injected, got: %s", respReq.Body)
+	}
+
+	// 3. All toggles OFF -> payload passes through untouched byte-for-byte.
+	rec = doJSON(t, env.router, http.MethodPatch, "/api/token-saver/config", map[string]any{
+		"enabled":              false,
+		"headroom_enabled":     false,
+		"caveman_enabled":      false,
+		"ponytail_enabled":     false,
+		"trim_history_enabled": false,
+	})
+	if rec.Code != http.StatusOK {
+		t.Fatalf("patch all off: status %d", rec.Code)
+	}
+	offReq := &contracts.CanonicalRequest{
+		RequestID: "req-all-off",
+		Protocol:  "openai-chat",
+		Model:     "gpt-4o",
+		Body:      append([]byte(nil), payload...),
+		Metadata:  make(map[string]any),
+	}
+	if err := env.mod.OnRequest(context.Background(), offReq); err != nil {
+		t.Fatalf("OnRequest all off: %v", err)
+	}
+	if !bytes.Equal(offReq.Body, payload) {
+		t.Fatal("expected all-off config to leave payload untouched byte-for-byte")
+	}
+}
