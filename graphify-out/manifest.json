@@ -306,8 +306,8 @@
     "semantic_hash": ""
   },
   "web/src/shared/api/schema.d.ts": {
-    "mtime": 1795603795.1454494,
-    "seen": 1795605101.667212,
+    "mtime": 1795605165.7841566,
+    "seen": 1795606118.806027,
     "ast_hash": "3e1b3a46da48a12574a8d0900fb9a5cc",
     "semantic_hash": ""
   },
@@ -336,9 +336,9 @@
     "semantic_hash": ""
   },
   "web/src/shared/ui/AppShell.tsx": {
-    "mtime": 1795536413.6327398,
-    "seen": 1795536453.0075123,
-    "ast_hash": "ea70dbcea6ec452fadb6063ab83ffd6f",
+    "mtime": 1795606070.4367325,
+    "seen": 1795606118.8061793,
+    "ast_hash": "6b1f90bcbcbca5aae24d4dafbe5b84c9",
     "semantic_hash": ""
   },
   "web/src/shared/ui/CaduceusLogo.tsx": {
@@ -2124,9 +2124,9 @@
     "semantic_hash": ""
   },
   "web/src/features/providers/ProvidersModals.tsx": {
-    "mtime": 1795541340.95025,
-    "seen": 1795541358.5461867,
-    "ast_hash": "b9f25da2900d9547f606c99c5257a1be",
+    "mtime": 1795606079.8538516,
+    "seen": 1795606118.8036518,
+    "ast_hash": "7b5922793d7449a0e205860e93641247",
     "semantic_hash": ""
   },
   "web/src/features/providers/catalogUtils.test.ts": {
@@ -3426,15 +3426,15 @@
     "semantic_hash": ""
   },
   "web/src/features/models/AssignKeysModal.tsx": {
-    "mtime": 1795534160.9991512,
-    "seen": 1795534217.6876202,
-    "ast_hash": "8fff2e0b2bbb6bb858e009d7e8632fe5",
+    "mtime": 1795606075.1237917,
+    "seen": 1795606118.8030748,
+    "ast_hash": "515db51d2abeca3cebc7612b537461ad",
     "semantic_hash": ""
   },
   "web/src/features/models/ModelCatalogConsole.tsx": {
-    "mtime": 1795534160.9985092,
-    "seen": 1795534217.687622,
-    "ast_hash": "b7044858c9df8ab6c0bcebeb49412538",
+    "mtime": 1795606073.716774,
+    "seen": 1795606118.8030772,
+    "ast_hash": "725e8f1d298fdcfabd41ce22d11012a1",
     "semantic_hash": ""
   },
   "web/src/features/models/catalogUtils.test.ts": {
@@ -3492,9 +3492,9 @@
     "semantic_hash": ""
   },
   "web/src/features/combos/ComboBuilderModal.tsx": {
-    "mtime": 1795534161.002529,
-    "seen": 1795534217.6872842,
-    "ast_hash": "dee03089b18ddcb44086b1fb9c43f6e8",
+    "mtime": 1795606078.3178322,
+    "seen": 1795606118.8023736,
+    "ast_hash": "7efd8f2381ba1726bb2c40c900f79751",
     "semantic_hash": ""
   },
   "web/src/features/combos/strategies.ts": {
@@ -3630,9 +3630,9 @@
     "semantic_hash": ""
   },
   "web/src/features/keys/KeyModals.tsx": {
-    "mtime": 1795544074.0676923,
-    "seen": 1795544147.2877622,
-    "ast_hash": "258338cc28e960b4bf970a58777d055f",
+    "mtime": 1795606076.6788116,
+    "seen": 1795606118.8026054,
+    "ast_hash": "f06c73675967cb4e70fb7479bdb82050",
     "semantic_hash": ""
   },
   "web/src/features/keys/endpointUtils.ts": {
@@ -3648,9 +3648,9 @@
     "semantic_hash": ""
   },
   "web/src/features/providers/AddCustomModelModal.tsx": {
-    "mtime": 1795545985.499601,
-    "seen": 1795546012.7606666,
-    "ast_hash": "50712212dde951de965f1de0642dbf44",
+    "mtime": 1795606081.1258676,
+    "seen": 1795606118.8035357,
+    "ast_hash": "69b876f0e2486d93898ce647adb7c196",
     "semantic_hash": ""
   },
   "web/src/features/providers/customModelUtils.test.ts": {

@@ -119,7 +119,7 @@ export function KeyFormModal({
         onClick={() => {
           if (!isPending) onClose();
         }}
-        className="fixed inset-0 bg-black/55 backdrop-blur-[2px]"
+        className="fixed inset-0 bg-black/55"
       />
       <div
         role="dialog"
@@ -416,7 +416,7 @@ export function KeyReadyModal({
         tabIndex={-1}
         aria-label={isId ? "Tutup modal" : "Close dialog"}
         onClick={onClose}
-        className="fixed inset-0 bg-black/55 backdrop-blur-[2px]"
+        className="fixed inset-0 bg-black/55"
       />
       <div
         role="dialog"
@@ -613,7 +613,7 @@ export function KeySnippetModal({
         tabIndex={-1}
         aria-label={isId ? "Tutup modal" : "Close dialog"}
         onClick={onClose}
-        className="fixed inset-0 bg-black/55 backdrop-blur-[2px]"
+        className="fixed inset-0 bg-black/55"
       />
       <div
         role="dialog"
