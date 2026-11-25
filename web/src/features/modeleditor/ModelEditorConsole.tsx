@@ -1,5 +1,3 @@
-"use client";
-
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Play, Plus, RefreshCw, Sliders, Trash2 } from "lucide-react";
 import { useState } from "react";

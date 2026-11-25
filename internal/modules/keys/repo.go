@@ -568,6 +568,32 @@ func (r *repository) Delete(ctx context.Context, id string) (deleteResult, error
 	}, nil
 }
 
+func (r *repository) TouchLastUsed(ctx context.Context, id, usedAt string) error {
+	if r == nil || r.db == nil {
+		return errors.New("keys: database is not initialized")
+	}
+	_, err := r.db.Writer().ExecContext(ctx, `UPDATE api_keys SET last_used_at = ? WHERE id = ?`, usedAt, id)
+	if err != nil {
+		return fmt.Errorf("keys: touch last_used_at for %q: %w", id, err)
+	}
+	return nil
+}
+
+func (r *repository) SumUsageCost(ctx context.Context, keyID string) (float64, bool) {
+	if r == nil || r.db == nil || keyID == "" {
+		return 0, false
+	}
+	var total float64
+	if err := r.db.Reader().QueryRowContext(
+		ctx,
+		`SELECT COALESCE(SUM(cost_usd), 0.0) FROM usage_logs WHERE key_id = ?`,
+		keyID,
+	).Scan(&total); err != nil {
+		return 0, false
+	}
+	return total, true
+}
+
 func encodeStringSlice(items []string) (string, error) {
 	normalized := cloneStringSlice(items)
 	data, err := json.Marshal(normalized)

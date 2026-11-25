@@ -15,6 +15,10 @@ Single-binary modular LLM gateway and control plane built with **Go (`net/http` 
 Requires Go `1.26+` and Bun `1.4+`:
 
 ```bash
+# Full 1-cycle production build, check, smoke test, and run
+make prod
+
+# Or step-by-step
 make build
 ./bin/omeg4mon-router
 ```
@@ -42,14 +46,14 @@ docker run -d --name omeg4mon-router \
 
 > Non-loopback binds (`0.0.0.0`) enforce `require_login=true` and disable `/api/shutdown` unless `OMEG4MON_ALLOW_INSECURE_REMOTE=true` is explicitly set.
 
-### 4. Local Development (Live Reload)
+### 4. Local Development (Live Reload & Dev Single Binary)
 
 ```bash
-# Terminal 1 — Go API backend (:20128)
-go run ./cmd/omeg4mon-router
+# 1-cycle live reload (codegen + Go API :20128 + Vite HMR :20127 in one terminal)
+make dev
 
-# Terminal 2 — Vite dev UI (:20127, proxying /api, /v1, /v1beta)
-cd web && bun run dev
+# Or 1-cycle debug single binary (codegen + build-web + unstripped embedui binary on :20128)
+make dev-bin
 ```
 
 ## Configuration

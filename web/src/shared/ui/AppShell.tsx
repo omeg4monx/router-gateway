@@ -1,5 +1,3 @@
-"use client";
-
 import {
   ChevronRight,
   ChevronsDownUp,
@@ -75,6 +73,7 @@ export function AppShell({ children }: AppShellProps) {
   const toggleSidebarCollapsed = useUIStore((state) => state.toggleSidebarCollapsed);
 
   const [searchQuery, setSearchQuery] = useState("");
+  const [signOutConfirmOpen, setSignOutConfirmOpen] = useState(false);
   const [expandedAccordions, setExpandedAccordions] = useState<Record<NavAccordionId, boolean>>(
     createInitialExpandedAccordions,
   );
@@ -119,8 +118,23 @@ export function AppShell({ children }: AppShellProps) {
     desktopSearchRef.current?.select();
   }, [setMobileNavOpen, sidebarCollapsed, toggleSidebarCollapsed]);
 
+  const closeSignOutConfirm = useCallback(() => {
+    if (logoutMutation.isPending) {
+      return;
+    }
+    setSignOutConfirmOpen(false);
+  }, [logoutMutation.isPending]);
+
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
+      if (signOutConfirmOpen) {
+        if (event.key === "Escape") {
+          event.preventDefault();
+          closeSignOutConfirm();
+        }
+        return;
+      }
+
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
         event.preventDefault();
         focusSidebarSearch();
@@ -146,11 +160,26 @@ export function AppShell({ children }: AppShellProps) {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [closeMobileNav, focusSidebarSearch, mobileNavOpen, searchQuery]);
+  }, [
+    closeMobileNav,
+    closeSignOutConfirm,
+    focusSidebarSearch,
+    mobileNavOpen,
+    searchQuery,
+    signOutConfirmOpen,
+  ]);
 
-  const handleSignOut = () => {
+  const openSignOutConfirm = () => {
+    if (logoutMutation.error) {
+      logoutMutation.reset();
+    }
+    setSignOutConfirmOpen(true);
+  };
+
+  const handleConfirmSignOut = () => {
     logoutMutation.mutate(undefined, {
       onSuccess: () => {
+        setSignOutConfirmOpen(false);
         closeMobileNav();
         void navigate("/login/", { replace: true });
       },
@@ -763,9 +792,9 @@ export function AppShell({ children }: AppShellProps) {
                   type="button"
                   variant="secondary"
                   size="sm"
-                  onClick={handleSignOut}
+                  onClick={openSignOutConfirm}
                   disabled={logoutMutation.isPending}
-                  title={logoutMutation.error?.message}
+                  aria-label={copy.signOutLabel}
                   className="h-9"
                 >
                   <LogOut className="h-3.5 w-3.5" aria-hidden="true" />
@@ -783,6 +812,90 @@ export function AppShell({ children }: AppShellProps) {
           {children}
         </main>
       </div>
+
+      {/* Sign-out confirmation dialog */}
+      {signOutConfirmOpen ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="sign-out-confirm-title"
+          aria-describedby="sign-out-confirm-description"
+        >
+          <button
+            type="button"
+            className="fixed inset-0 bg-black/55"
+            aria-label={copy.signOutCancelLabel}
+            disabled={logoutMutation.isPending}
+            onClick={closeSignOutConfirm}
+          />
+          <div className="relative z-10 w-full max-w-sm overflow-hidden rounded-lg border border-[var(--border-strong)] bg-[var(--bg-surface)] shadow-2xl">
+            <div className="flex items-center justify-between border-b border-[var(--border-subtle)] px-5 py-4">
+              <div className="flex items-center gap-2.5">
+                <LogOut className="h-4 w-4 text-[var(--status-error)]" aria-hidden="true" />
+                <h2
+                  id="sign-out-confirm-title"
+                  className="text-sm font-semibold text-[var(--text-primary)]"
+                >
+                  {copy.signOutConfirmTitle}
+                </h2>
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                onClick={closeSignOutConfirm}
+                disabled={logoutMutation.isPending}
+                aria-label={copy.signOutCancelLabel}
+              >
+                <X className="h-4 w-4" aria-hidden="true" />
+              </Button>
+            </div>
+
+            <div className="space-y-3 px-5 py-4">
+              <p
+                id="sign-out-confirm-description"
+                className="text-xs leading-relaxed text-[var(--text-secondary)]"
+              >
+                {copy.signOutConfirmMessage}
+              </p>
+              {logoutMutation.error ? (
+                <p
+                  role="alert"
+                  className="rounded-md border border-[var(--status-error-border)] bg-[var(--status-error-bg)] px-3 py-2 text-xs text-[var(--status-error)]"
+                >
+                  {logoutMutation.error.message}
+                </p>
+              ) : null}
+            </div>
+
+            <div className="flex items-center justify-end gap-2 border-t border-[var(--border-subtle)] px-5 py-3.5">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={closeSignOutConfirm}
+                disabled={logoutMutation.isPending}
+                autoFocus
+              >
+                {copy.signOutCancelLabel}
+              </Button>
+              <Button
+                type="button"
+                variant="destructive"
+                size="sm"
+                onClick={handleConfirmSignOut}
+                disabled={logoutMutation.isPending}
+              >
+                <LogOut className="h-3.5 w-3.5" aria-hidden="true" />
+                <span>
+                  {logoutMutation.isPending ? copy.signingOutLabel : copy.signOutConfirmLabel}
+                </span>
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

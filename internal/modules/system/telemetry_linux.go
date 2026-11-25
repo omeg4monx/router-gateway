@@ -21,7 +21,7 @@ func readBoundedFile(path string) string {
 	return string(data)
 }
 
-func collectStaticHostInfo() (osPrettyName string, cpuModel string) {
+func collectStaticHostInfo() (osPrettyName, cpuModel string) {
 	osPrettyName = parseOSPrettyName(readBoundedFile("/etc/os-release"))
 	cpuModel = parseCPUModel(readBoundedFile("/proc/cpuinfo"))
 	return osPrettyName, cpuModel

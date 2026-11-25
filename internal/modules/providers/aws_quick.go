@@ -276,10 +276,10 @@ func (m *Module) registerAwsQuickOIDCClient(ctx context.Context, discovery awsQu
 	}
 
 	var parsed struct {
-		ClientID        string `json:"clientId"`
-		ClientIDSnake   string `json:"client_id"`
-		ClientSecret    string `json:"clientSecret"`
-		ClientSecSnake  string `json:"client_secret"`
+		ClientID       string `json:"clientId"`
+		ClientIDSnake  string `json:"client_id"`
+		ClientSecret   string `json:"clientSecret"`
+		ClientSecSnake string `json:"client_secret"`
 	}
 	if err := json.Unmarshal(body, &parsed); err != nil {
 		return "", "", "", fmt.Errorf("providers: decode aws-quick client register response: %w", err)
@@ -404,7 +404,7 @@ func (m *Module) fetchAwsQuickUserInfo(ctx context.Context, accessToken, tenantU
 	}
 }
 
-func (m *Module) startAwsQuickProxy() (int, string, error) {
+func (m *Module) startAwsQuickProxy() (port int, baseURL string, err error) {
 	rt := m.awsQuick
 	rt.mu.Lock()
 	defer rt.mu.Unlock()
@@ -825,16 +825,16 @@ type oauthStatusResponse struct {
 
 func (m *Module) handleOAuthStatus(w http.ResponseWriter, r *http.Request) {
 	providerID := strings.TrimSpace(chi.URLParam(r, "provider"))
-	strat := m.getOAuthStrategy(providerID)
-	if strat.FixedPort > 0 {
+	strategy := m.getOAuthStrategy(providerID)
+	if strategy.FixedPort > 0 {
 		m.handleLoopbackOAuthStatus(w, r, providerID)
 		return
 	}
-	if strat.FlowType == oauthFlowDeviceCode {
+	if strategy.FlowType == oauthFlowDeviceCode {
 		m.handleDeviceOAuthStatus(w, r, providerID)
 		return
 	}
-	if strat.FlowType != oauthFlowLoopbackProxy {
+	if strategy.FlowType != oauthFlowLoopbackProxy {
 		httpserver.WriteError(w, r, http.StatusBadRequest, "oauth_not_supported", "oauth status polling is only supported for loopback and device-code providers")
 		return
 	}
@@ -969,13 +969,13 @@ type oauthStopResponse struct {
 
 func (m *Module) handleOAuthStop(w http.ResponseWriter, r *http.Request) {
 	providerID := strings.TrimSpace(chi.URLParam(r, "provider"))
-	strat := m.getOAuthStrategy(providerID)
-	if strat.FixedPort > 0 {
+	strategy := m.getOAuthStrategy(providerID)
+	if strategy.FixedPort > 0 {
 		m.oauthProxy.stop(providerID)
 		httpserver.WriteJSON(w, http.StatusOK, oauthStopResponse{Stopped: true})
 		return
 	}
-	if strat.FlowType != oauthFlowLoopbackProxy {
+	if strategy.FlowType != oauthFlowLoopbackProxy {
 		httpserver.WriteError(w, r, http.StatusBadRequest, "oauth_not_supported", "oauth stop is only supported for loopback OAuth providers")
 		return
 	}
@@ -1093,11 +1093,12 @@ func (m *Module) handleAwsQuickOAuthExchange(w http.ResponseWriter, r *http.Requ
 		connName = sessConnName
 	}
 	if connName == "" {
-		if res.UserInfo.Email != "" {
+		switch {
+		case res.UserInfo.Email != "":
 			connName = "Amazon Quick (" + res.UserInfo.Email + ")"
-		} else if res.UserInfo.DisplayName != "" {
+		case res.UserInfo.DisplayName != "":
 			connName = "Amazon Quick (" + res.UserInfo.DisplayName + ")"
-		} else {
+		default:
 			connName = adapter.DisplayName()
 		}
 	}
@@ -1170,7 +1171,7 @@ func generateTraceID() string {
 // (adopted from xrouter commits 105b0ff & 9d62aae): validates id_token + tenant
 // + account without spending agent-hours, auto-refreshes on 401/403 (persisting
 // the rotated refresh token), and treats 408/429/5xx/timeouts as soft success.
-func (m *Module) testAwsQuickConnection(ctx context.Context, connectionID string, creds contracts.UpstreamCredentials) (testConnectionResponse, string) {
+func (m *Module) testAwsQuickConnection(ctx context.Context, connectionID string, creds contracts.UpstreamCredentials) (result testConnectionResponse, healthStatus string) {
 	var meta map[string]any
 	if rec, err := m.repo.GetConnectionRecord(ctx, connectionID); err == nil {
 		if stored, unsealErr := m.unsealCredentials(rec.CredentialsEnc); unsealErr == nil {
@@ -1207,7 +1208,7 @@ func (m *Module) testAwsQuickConnection(ctx context.Context, connectionID string
 		req.Header.Set("Authorization", "Bearer "+token)
 		req.Header.Set("x-amzn-qs-internal-trace-id", generateTraceID())
 
-		resp, err := m.httpClient.Do(req) //nolint:gosec // G704: validated tenant base URL
+		resp, err := m.httpClient.Do(req)
 		if err != nil {
 			return 0, err
 		}

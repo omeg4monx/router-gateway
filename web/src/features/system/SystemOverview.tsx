@@ -1,9 +1,5 @@
-"use client";
-
 import {
-  Activity,
   AlertTriangle,
-  ArrowRight,
   Cpu,
   Database,
   Flame,
@@ -15,13 +11,13 @@ import {
   Server,
   Sparkles,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router";
 import { useCombos } from "@/features/combos/hooks";
 import { useApiKeys } from "@/features/keys/hooks";
-import { useProviderConnections } from "@/features/providers/hooks";
+import { useProviderConnections, useProvidersCatalog } from "@/features/providers/hooks";
 import { useProxyPools } from "@/features/proxypools/hooks";
-import { useUsageLogs, useUsageSummary } from "@/features/usage/hooks";
+import { useUsageLogs, useUsageStream, useUsageSummary } from "@/features/usage/hooks";
 import {
   formatCompactTokens,
   formatDurationMs,
@@ -34,7 +30,9 @@ import { useUIStore } from "@/shared/store/uiStore";
 import { Badge } from "@/shared/ui/badge";
 import { Button } from "@/shared/ui/button";
 import { useSystemHealth, useSystemTelemetry } from "./hooks";
-import { formatClockUptime } from "./overview";
+import { OverviewRealtimeTraffic } from "./OverviewRealtimeTraffic";
+import { formatActivityOriginLabel, formatClockUptime } from "./overview";
+import { groupTopologyProviders } from "./topologyLayout";
 
 function formatBytesGB(bytes: number | undefined): string {
   if (bytes === undefined || !Number.isFinite(bytes) || bytes < 0) {
@@ -56,12 +54,20 @@ function formatHostUptimeShort(sec: number | undefined, isId: boolean): string {
   return isId ? `${m} mnt` : `${m}m`;
 }
 
-function formatBucketLabel(bucket: string): string {
-  const parsed = new Date(bucket);
-  if (Number.isNaN(parsed.getTime())) {
-    return bucket.slice(0, 10);
-  }
-  return parsed.toLocaleDateString([], { month: "short", day: "numeric" });
+function LiveClockUptime({ baseSeconds }: { baseSeconds: number }) {
+  const [nowSec, setNowSec] = useState(baseSeconds);
+
+  useEffect(() => {
+    setNowSec(baseSeconds);
+    const timer = window.setInterval(() => {
+      setNowSec((prev) => prev + 1);
+    }, 1000);
+    return () => {
+      window.clearInterval(timer);
+    };
+  }, [baseSeconds]);
+
+  return <>{formatClockUptime(nowSec)}</>;
 }
 
 export function SystemOverview() {
@@ -73,11 +79,13 @@ export function SystemOverview() {
   const healthQuery = useSystemHealth();
   const telemetryQuery = useSystemTelemetry();
   const providersQuery = useProviderConnections();
+  const catalogQuery = useProvidersCatalog();
   const keysQuery = useApiKeys();
   const combosQuery = useCombos();
   const proxyPoolsQuery = useProxyPools();
   const usageQuery = useUsageSummary(range);
   const recentLogsQuery = useUsageLogs({ limit: 100 });
+  const usageStream = useUsageStream(true);
 
   const isRefreshing =
     healthQuery.isFetching ||
@@ -123,7 +131,6 @@ export function SystemOverview() {
   const proxyPools = proxyPoolsQuery.data?.pools ?? [];
   const summary = usageQuery.data;
   const totals = summary?.totals;
-  const series = summary?.series ?? [];
   const logs = recentLogsQuery.data?.logs ?? [];
 
   const activeProvidersCount = providers.filter((p) => p.enabled).length;
@@ -132,7 +139,15 @@ export function SystemOverview() {
 
   const isHealthy = health?.status === "ok";
   const isDegraded = health?.status === "degraded";
-  const hasError = healthQuery.isError;
+  const isHealthError = healthQuery.isError;
+  const hasMonitoringError =
+    isHealthError ||
+    providersQuery.isError ||
+    keysQuery.isError ||
+    combosQuery.isError ||
+    proxyPoolsQuery.isError ||
+    usageQuery.isError ||
+    recentLogsQuery.isError;
 
   const isFreshInstall =
     !providersQuery.isPending &&
@@ -205,10 +220,11 @@ export function SystemOverview() {
     };
   }, [topProviders, totalRequests]);
 
+  const keyNameMap = useMemo(() => new Map(keys.map((k) => [k.id, k.name])), [keys]);
+
   // Spotlight #3: Most Used API Key (from recent logs + key name lookup)
   const mostUsedKey = useMemo(() => {
     if (logs.length === 0) return null;
-    const keyNameMap = new Map(keys.map((k) => [k.id, k.name]));
     const counts = new Map<string, { requests: number; tokens: number; provider: string | null }>();
     for (const log of logs) {
       if (!log.key_id) continue;
@@ -232,13 +248,13 @@ export function SystemOverview() {
     if (!bestId) return null;
     const sharePct = logs.length > 0 ? Math.round((best.requests / logs.length) * 100) : null;
     return {
-      name: keyNameMap.get(bestId) ?? bestId,
+      name: formatActivityOriginLabel(bestId, keyNameMap, isId),
       requests: best.requests,
       tokens: best.tokens,
       provider: best.provider,
       sharePct,
     };
-  }, [logs, keys]);
+  }, [logs, keyNameMap, isId]);
 
   // Spotlight #4: Provider with Most Connections
   const providerMostConnections = useMemo(() => {
@@ -267,7 +283,19 @@ export function SystemOverview() {
     };
   }, [providers]);
 
-  const maxSeriesRequests = useMemo(() => Math.max(1, ...series.map((b) => b.requests)), [series]);
+  const topologyProviders = useMemo(() => {
+    const displayNames = new Map<string, string>();
+    const customIds = new Set<string>();
+    for (const adapter of catalogQuery.data?.adapters ?? []) {
+      displayNames.set(adapter.id, adapter.display_name || adapter.id);
+    }
+    for (const node of catalogQuery.data?.custom_nodes ?? []) {
+      displayNames.set(node.id, node.name || node.id);
+      customIds.add(node.id);
+    }
+    return groupTopologyProviders(providers, summary?.by_provider ?? [], displayNames, customIds);
+  }, [providers, summary?.by_provider, catalogQuery.data]);
+
   const maxModelRequests = topModels[0]?.requests ?? 1;
   const maxProviderRequests = topProviders[0]?.requests ?? 1;
 
@@ -293,7 +321,7 @@ export function SystemOverview() {
                   ? "success"
                   : isDegraded
                     ? "warning"
-                    : hasError
+                    : isHealthError
                       ? "destructive"
                       : "secondary"
               }
@@ -306,7 +334,7 @@ export function SystemOverview() {
                   ? isId
                     ? "Terdegradasi"
                     : "Degraded"
-                  : hasError
+                  : isHealthError
                     ? "Offline"
                     : isId
                       ? "Memeriksa"
@@ -317,7 +345,16 @@ export function SystemOverview() {
             {isId
               ? `Ringkasan pemakaian, model terpopuler, dan kesehatan gateway (${rangeLabels[range]})`
               : `Usage overview, most popular models, and gateway health (${rangeLabels[range]})`}
-            {health ? ` · Uptime ${formatClockUptime(health.uptimeSeconds)}` : ""}
+            {sys?.appUptimeSeconds !== undefined || health ? (
+              <>
+                {" · Uptime "}
+                <span className="font-mono tabular-nums">
+                  <LiveClockUptime
+                    baseSeconds={sys?.appUptimeSeconds ?? health?.uptimeSeconds ?? 0}
+                  />
+                </span>
+              </>
+            ) : null}
           </p>
         </div>
 
@@ -372,14 +409,29 @@ export function SystemOverview() {
       </header>
 
       {/* Error banner */}
-      {hasError ? (
-        <div className="flex items-center gap-2.5 rounded-xl border border-[var(--status-error-border)] bg-[var(--status-error-bg)] px-4 py-3 text-xs text-[var(--status-error)]">
-          <AlertTriangle className="h-4 w-4 shrink-0" aria-hidden="true" />
-          <span>
-            {isId
-              ? "Gagal memuat sebagian data monitoring dari backend gateway."
-              : "Failed to load monitoring data from the gateway backend."}
-          </span>
+      {hasMonitoringError ? (
+        <div
+          role="alert"
+          className="flex flex-wrap items-center justify-between gap-2.5 rounded-xl border border-[var(--status-error-border)] bg-[var(--status-error-bg)] px-4 py-3 text-xs text-[var(--status-error)]"
+        >
+          <div className="flex items-center gap-2.5">
+            <AlertTriangle className="h-4 w-4 shrink-0" aria-hidden="true" />
+            <span>
+              {isId
+                ? "Gagal memuat sebagian data monitoring dari backend gateway."
+                : "Failed to load some monitoring data from the gateway backend."}
+            </span>
+          </div>
+          <Button
+            type="button"
+            variant="ghost"
+            size="xs"
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            className="h-7 text-[var(--status-error)] hover:bg-[var(--status-error)]/10"
+          >
+            {isId ? "Coba Lagi" : "Retry"}
+          </Button>
         </div>
       ) : null}
 
@@ -835,7 +887,7 @@ export function SystemOverview() {
         </Link>
 
         <Link
-          to="/dashboard/models/"
+          to="/dashboard/combos/"
           className="group flex flex-col gap-1 rounded-xl border border-[var(--color-border)]/80 bg-[var(--color-surface)] p-4 transition-colors hover:border-[var(--color-primary)]/35"
         >
           <Layers className="h-4 w-4 text-[var(--color-primary)]" aria-hidden="true" />
@@ -867,68 +919,17 @@ export function SystemOverview() {
         </Link>
       </section>
 
-      {/* Row 4: Usage Activity Bar Chart */}
-      <section className="overflow-hidden rounded-xl border border-[var(--color-border)]/80 bg-[var(--color-surface)] shadow-[0_1px_2px_rgba(11,13,18,0.03)]">
-        <div className="flex h-11 items-center justify-between border-b border-[var(--color-border-subtle)] bg-[var(--color-surface-2)]/45 px-4">
-          <div className="flex items-center gap-2">
-            <Activity className="h-4 w-4 text-[var(--color-primary)]" aria-hidden="true" />
-            <h3 className="text-xs font-semibold text-[var(--color-text-main)]">
-              {isId
-                ? `Tren Permintaan (${rangeLabels[range]})`
-                : `Request Trend (${rangeLabels[range]})`}
-            </h3>
-          </div>
-          <Link
-            to="/dashboard/usage/"
-            className="inline-flex items-center gap-1 text-xs font-medium text-[var(--color-primary)] hover:underline"
-          >
-            <span>{isId ? "Analitik Lengkap" : "Full Analytics"}</span>
-            <ArrowRight className="h-3 w-3" aria-hidden="true" />
-          </Link>
-        </div>
-
-        <div className="p-4">
-          {series.length === 0 ? (
-            <div className="flex h-36 items-center justify-center text-xs text-[var(--color-text-muted)]">
-              {usageQuery.isPending
-                ? isId
-                  ? "Memuat grafik…"
-                  : "Loading chart…"
-                : isId
-                  ? "Belum ada data seri waktu pada rentang ini."
-                  : "No time-series data for this period yet."}
-            </div>
-          ) : (
-            <div className="flex h-36 items-end gap-1.5 pt-2">
-              {series.map((bucket) => {
-                const heightPct = Math.max(
-                  6,
-                  Math.round((bucket.requests / maxSeriesRequests) * 100),
-                );
-                const bucketTokens =
-                  bucket.input_tokens + bucket.output_tokens + bucket.cached_tokens;
-                return (
-                  <div
-                    key={bucket.bucket}
-                    className="group flex h-full min-w-0 flex-1 flex-col items-center justify-end gap-1.5"
-                    title={`${formatBucketLabel(bucket.bucket)}: ${bucket.requests} req · ${formatCompactTokens(bucketTokens)} tokens · ${formatUSD(bucket.cost_usd)}`}
-                  >
-                    <div className="flex w-full flex-1 items-end">
-                      <div
-                        className="w-full rounded-t-md bg-[var(--color-primary)]/75 transition-all group-hover:bg-[var(--color-primary)]"
-                        style={{ height: `${heightPct}%` }}
-                      />
-                    </div>
-                    <span className="truncate font-mono text-[9.5px] text-[var(--color-text-subtle)]">
-                      {formatBucketLabel(bucket.bucket)}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      </section>
+      {/* Row 4: Realtime React Flow Provider Topology & Recent Requests */}
+      <OverviewRealtimeTraffic
+        topologyProviders={topologyProviders}
+        logs={logs}
+        keyNameMap={keyNameMap}
+        isLoadingLogs={recentLogsQuery.isPending}
+        streamStatus={usageStream.status}
+        streamEventCount={usageStream.eventCount}
+        lastStreamEvent={usageStream.lastEvent}
+        isId={isId}
+      />
 
       {/* Row 5: Top Models & Top Providers Charts */}
       <section className="grid grid-cols-1 gap-4 lg:grid-cols-2">

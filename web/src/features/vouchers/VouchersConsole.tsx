@@ -1,5 +1,3 @@
-"use client";
-
 import { zodResolver } from "@hookform/resolvers/zod";
 import { AlertTriangle, Check, Copy, Plus, RefreshCw, Ticket, Trash2 } from "lucide-react";
 import { useState } from "react";

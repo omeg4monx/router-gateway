@@ -1,5 +1,3 @@
-"use client";
-
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   Activity,
@@ -18,6 +16,7 @@ import {
   Plus,
   Power,
   RefreshCw,
+  Save,
   Search,
   Server,
   Settings2,
@@ -46,6 +45,7 @@ import {
   useStartProviderOAuthMutation,
   useStopProviderOAuthMutation,
   useTestProviderNodeDraftMutation,
+  useUpdateProviderConnectionMutation,
 } from "./hooks";
 import {
   buildTestFingerprint,
@@ -61,6 +61,7 @@ import {
   type CreateConnectionFormOutput,
   type CreateNodeFormInput,
   type CreateNodeFormOutput,
+  connectionToEditFormValues,
   createConnectionSchema,
   createNodeSchema,
   DEFAULT_CREATE_CONNECTION_VALUES,
@@ -68,6 +69,7 @@ import {
   DEFAULT_OAUTH_EXCHANGE_VALUES,
   DEFAULT_OAUTH_START_VALUES,
   DEFAULT_PRIORITY,
+  DEFAULT_UPDATE_CONNECTION_VALUES,
   formatCommaSeparatedList,
   formatHeadersText,
   isValidHttpUrl,
@@ -88,6 +90,10 @@ import {
   toCreateConnectionRequest,
   toCreateNodeRequest,
   toOAuthExchangeRequest,
+  toUpdateConnectionRequest,
+  type UpdateConnectionFormInput,
+  type UpdateConnectionFormOutput,
+  updateConnectionSchema,
 } from "./schemas";
 
 const SELECT_CLASS_NAME =
@@ -363,7 +369,7 @@ export function AddApiKeyModal({
 
   const [mode, setMode] = useState<"single" | "bulk">("single");
   const [showApiKey, setShowApiKey] = useState(false);
-  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(true);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [providerQuery, setProviderQuery] = useState("");
   const [bulkText, setBulkText] = useState("");
@@ -452,7 +458,7 @@ export function AddApiKeyModal({
     testDraftMutation.reset();
     setMode("single");
     setShowApiKey(false);
-    setShowAdvanced(false);
+    setShowAdvanced(true);
     setPickerOpen(!initialProviderId);
     setProviderQuery("");
     setBulkText("");
@@ -1010,7 +1016,8 @@ export function AddApiKeyModal({
                 </span>
                 <span className="flex items-center gap-2">
                   <span className="rounded-md bg-[var(--color-surface)] px-1.5 py-0.5 font-mono text-[10px] text-[var(--color-text-subtle)]">
-                    P{watchedPriority || "100"} · {modelCount} {isId ? "model" : "models"}
+                    P{watchedPriority || String(DEFAULT_PRIORITY)} · {modelCount}{" "}
+                    {isId ? "model" : "models"}
                   </span>
                   <ChevronDown
                     className={cn("h-3.5 w-3.5 transition-transform", showAdvanced && "rotate-180")}
@@ -3857,6 +3864,403 @@ export function ProviderConnectionsDrawer({
           </div>
         ) : null}
       </div>
+    </ModalShell>
+  );
+}
+
+/* ============================================================================
+ * 5. Edit Connection Modal (in-place edit & credential rotation on Provider Detail)
+ * ========================================================================== */
+export function EditConnectionModal({
+  open,
+  connection,
+  isId,
+  onClose,
+  onUpdated,
+}: {
+  open: boolean;
+  connection: ProviderConnectionSummary | null;
+  isId: boolean;
+  onClose: () => void;
+  onUpdated?: (message: string) => void;
+}) {
+  const updateMutation = useUpdateProviderConnectionMutation();
+  const [showApiKey, setShowApiKey] = useState(false);
+  const [showAccessToken, setShowAccessToken] = useState(false);
+  const [showRefreshToken, setShowRefreshToken] = useState(false);
+  const [secretFieldsUnlocked, setSecretFieldsUnlocked] = useState(false);
+
+  const editForm = useForm<UpdateConnectionFormInput, unknown, UpdateConnectionFormOutput>({
+    resolver: zodResolver(updateConnectionSchema),
+    defaultValues: DEFAULT_UPDATE_CONNECTION_VALUES,
+    mode: "onSubmit",
+    reValidateMode: "onChange",
+  });
+
+  const {
+    reset,
+    formState: { errors },
+  } = editForm;
+  const resetMutation = updateMutation.reset;
+
+  useEffect(() => {
+    if (!open || !connection) {
+      return;
+    }
+    reset(connectionToEditFormValues(connection));
+    resetMutation();
+    setShowApiKey(false);
+    setShowAccessToken(false);
+    setShowRefreshToken(false);
+    setSecretFieldsUnlocked(false);
+  }, [open, connection, reset, resetMutation]);
+
+  const onSubmit = (values: UpdateConnectionFormOutput) => {
+    if (!connection) {
+      return;
+    }
+    updateMutation.reset();
+    updateMutation.mutate(
+      {
+        id: connection.id,
+        body: toUpdateConnectionRequest(values, connection.auth_type),
+      },
+      {
+        onSuccess: (updated) => {
+          onUpdated?.(
+            isId
+              ? `Perubahan pada koneksi "${updated.name}" disimpan.`
+              : `Saved changes to "${updated.name}".`,
+          );
+          onClose();
+        },
+      },
+    );
+  };
+
+  const formId = "edit-connection-modal-form";
+
+  return (
+    <ModalShell
+      open={open && connection !== null}
+      onClose={onClose}
+      size="lg"
+      title={
+        connection
+          ? isId
+            ? `Edit Koneksi — ${connection.name}`
+            : `Edit Connection — ${connection.name}`
+          : isId
+            ? "Edit Koneksi"
+            : "Edit Connection"
+      }
+      subtitle={
+        isId
+          ? "Atur prioritas routing, daftar model, header upstream, atau rotasi kredensial tanpa meninggalkan halaman."
+          : "Configure routing priority, allowed models, upstream headers, or rotate vaulted credentials in place."
+      }
+      badge={
+        connection ? (
+          <Badge variant={connection.auth_type === "oauth" ? "default" : "secondary"}>
+            {connection.auth_type === "oauth" ? "OAuth" : "API Key"}
+          </Badge>
+        ) : undefined
+      }
+      icon={<Settings2 className="h-5 w-5" aria-hidden="true" />}
+      footer={
+        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-end">
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            className="w-full sm:w-auto"
+            onClick={onClose}
+            disabled={updateMutation.isPending}
+          >
+            {isId ? "Batal" : "Cancel"}
+          </Button>
+          <Button
+            type="submit"
+            form={formId}
+            size="sm"
+            className="w-full sm:w-auto"
+            disabled={updateMutation.isPending}
+          >
+            <Save className="h-3.5 w-3.5" aria-hidden="true" />
+            <span>
+              {updateMutation.isPending
+                ? isId
+                  ? "Menyimpan..."
+                  : "Saving..."
+                : isId
+                  ? "Simpan Perubahan"
+                  : "Save Changes"}
+            </span>
+          </Button>
+        </div>
+      }
+    >
+      {connection ? (
+        <form
+          id={formId}
+          autoComplete="off"
+          onSubmit={editForm.handleSubmit(onSubmit)}
+          noValidate
+          className="space-y-4"
+        >
+          {updateMutation.error ? (
+            <Alert variant="destructive">
+              <AlertTriangle
+                className="mt-0.5 h-4 w-4 shrink-0 text-[var(--status-error)]"
+                aria-hidden="true"
+              />
+              <div>
+                <AlertTitle>
+                  {isId ? "Gagal memperbarui koneksi" : "Failed to update connection"}
+                </AlertTitle>
+                <AlertDescription className="font-mono">
+                  {updateMutation.error.message}
+                </AlertDescription>
+              </div>
+            </Alert>
+          ) : null}
+
+          <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
+            <div>
+              <Label htmlFor="modal-edit-name">{isId ? "Nama Koneksi" : "Connection Name"}</Label>
+              <Input
+                id="modal-edit-name"
+                type="text"
+                placeholder={isId ? "contoh: OpenAI Utama" : "e.g. OpenAI Primary"}
+                aria-invalid={Boolean(errors.name)}
+                className="mt-1.5 placeholder:text-[var(--color-text-muted)]/50"
+                {...editForm.register("name")}
+              />
+              {errors.name ? (
+                <p className="mt-1 text-xs text-[var(--status-error)]">{errors.name.message}</p>
+              ) : null}
+            </div>
+
+            <div>
+              <Label htmlFor="modal-edit-priority">
+                {isId
+                  ? "Prioritas Routing (lebih kecil lebih dulu)"
+                  : "Routing Priority (lower runs first)"}
+              </Label>
+              <Input
+                id="modal-edit-priority"
+                type="number"
+                min={0}
+                max={100000}
+                step={1}
+                placeholder={String(DEFAULT_PRIORITY)}
+                aria-invalid={Boolean(errors.priority)}
+                className="mt-1.5 tabular-nums placeholder:text-[var(--color-text-muted)]/50"
+                {...editForm.register("priority")}
+              />
+              {errors.priority ? (
+                <p className="mt-1 text-xs text-[var(--status-error)]">{errors.priority.message}</p>
+              ) : null}
+            </div>
+
+            <div className="md:col-span-2">
+              <Label htmlFor="modal-edit-base-url">Upstream Base URL</Label>
+              <Input
+                id="modal-edit-base-url"
+                type="url"
+                placeholder="https://api.openai.com/v1"
+                aria-invalid={Boolean(errors.base_url)}
+                className="mt-1.5 placeholder:text-[var(--color-text-muted)]/50"
+                {...editForm.register("base_url")}
+              />
+              {errors.base_url ? (
+                <p className="mt-1 text-xs text-[var(--status-error)]">{errors.base_url.message}</p>
+              ) : null}
+            </div>
+
+            <div className="md:col-span-2">
+              <Label htmlFor="modal-edit-models">
+                {isId
+                  ? "Model yang Diizinkan (pisahkan dengan koma)"
+                  : "Allowed / Advertised Models (comma-separated)"}
+              </Label>
+              <Input
+                id="modal-edit-models"
+                type="text"
+                placeholder="gpt-4o, gpt-4o-mini, claude-sonnet-4-5"
+                aria-invalid={Boolean(errors.models)}
+                className="mt-1.5 placeholder:text-[var(--color-text-muted)]/50"
+                {...editForm.register("models")}
+              />
+              {errors.models ? (
+                <p className="mt-1 text-xs text-[var(--status-error)]">{errors.models.message}</p>
+              ) : null}
+            </div>
+
+            <div className="md:col-span-2">
+              <Label htmlFor="modal-edit-headers">
+                {isId
+                  ? "Header Upstream Custom (satu Key: Value per baris)"
+                  : "Custom Upstream Headers (one Key: Value per line)"}
+              </Label>
+              <textarea
+                id="modal-edit-headers"
+                placeholder="X-Custom-Header: value"
+                aria-invalid={Boolean(errors.headers)}
+                className={`${TEXTAREA_CLASS_NAME} mt-1.5 placeholder:text-[var(--color-text-muted)]/50`}
+                {...editForm.register("headers")}
+              />
+              {errors.headers ? (
+                <p className="mt-1 text-xs text-[var(--status-error)]">{errors.headers.message}</p>
+              ) : null}
+            </div>
+          </div>
+
+          {connection.auth_type === "api_key" ? (
+            <div className="rounded-lg border border-[var(--color-border-subtle)] bg-[var(--color-surface-2)]/40 p-3.5">
+              <Label htmlFor="modal-edit-api-key">
+                {isId ? "Rotasi API Key (opsional)" : "Rotate API Key (optional)"}
+              </Label>
+              <div className="relative mt-1.5">
+                <Input
+                  id="modal-edit-api-key"
+                  type={showApiKey ? "text" : "password"}
+                  autoComplete="off"
+                  autoCorrect="off"
+                  autoCapitalize="off"
+                  spellCheck={false}
+                  data-lpignore="true"
+                  data-1p-ignore="true"
+                  readOnly={!secretFieldsUnlocked}
+                  onPointerDown={() => setSecretFieldsUnlocked(true)}
+                  onFocus={() => setSecretFieldsUnlocked(true)}
+                  placeholder={
+                    isId
+                      ? "Kosongkan untuk mempertahankan API key terenkripsi saat ini"
+                      : "Leave blank to keep existing vaulted API key"
+                  }
+                  className="pr-10 placeholder:text-[var(--color-text-muted)]/50 [&:-webkit-autofill]:shadow-[inset_0_0_0_1000px_var(--bg-input)] [&:-webkit-autofill]:[-webkit-text-fill-color:var(--text-primary)]"
+                  {...editForm.register("api_key")}
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={() => setShowApiKey((prev) => !prev)}
+                  aria-label={showApiKey ? "Hide API key" : "Show API key"}
+                  className="absolute top-1.5 right-1.5"
+                >
+                  {showApiKey ? (
+                    <EyeOff className="h-4 w-4" aria-hidden="true" />
+                  ) : (
+                    <Eye className="h-4 w-4" aria-hidden="true" />
+                  )}
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-3 rounded-lg border border-[var(--color-border-subtle)] bg-[var(--color-surface-2)]/40 p-3.5">
+              <span className="text-xs font-medium text-[var(--color-text-main)]">
+                {isId ? "Rotasi Token OAuth (opsional)" : "OAuth Token Rotation (optional)"}
+              </span>
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                <div>
+                  <Label htmlFor="modal-edit-access-token">
+                    {isId ? "Access Token Baru" : "New Access Token"}
+                  </Label>
+                  <div className="relative mt-1.5">
+                    <Input
+                      id="modal-edit-access-token"
+                      type={showAccessToken ? "text" : "password"}
+                      autoComplete="off"
+                      autoCorrect="off"
+                      autoCapitalize="off"
+                      spellCheck={false}
+                      data-lpignore="true"
+                      data-1p-ignore="true"
+                      readOnly={!secretFieldsUnlocked}
+                      onPointerDown={() => setSecretFieldsUnlocked(true)}
+                      onFocus={() => setSecretFieldsUnlocked(true)}
+                      placeholder={isId ? "Kosongkan jika tetap" : "Leave blank to keep existing"}
+                      className="pr-10 placeholder:text-[var(--color-text-muted)]/50 [&:-webkit-autofill]:shadow-[inset_0_0_0_1000px_var(--bg-input)] [&:-webkit-autofill]:[-webkit-text-fill-color:var(--text-primary)]"
+                      {...editForm.register("access_token")}
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      onClick={() => setShowAccessToken((prev) => !prev)}
+                      aria-label={showAccessToken ? "Hide access token" : "Show access token"}
+                      className="absolute top-1.5 right-1.5"
+                    >
+                      {showAccessToken ? (
+                        <EyeOff className="h-4 w-4" aria-hidden="true" />
+                      ) : (
+                        <Eye className="h-4 w-4" aria-hidden="true" />
+                      )}
+                    </Button>
+                  </div>
+                </div>
+
+                <div>
+                  <Label htmlFor="modal-edit-refresh-token">
+                    {isId ? "Refresh Token Baru" : "New Refresh Token"}
+                  </Label>
+                  <div className="relative mt-1.5">
+                    <Input
+                      id="modal-edit-refresh-token"
+                      type={showRefreshToken ? "text" : "password"}
+                      autoComplete="off"
+                      autoCorrect="off"
+                      autoCapitalize="off"
+                      spellCheck={false}
+                      data-lpignore="true"
+                      data-1p-ignore="true"
+                      readOnly={!secretFieldsUnlocked}
+                      onPointerDown={() => setSecretFieldsUnlocked(true)}
+                      onFocus={() => setSecretFieldsUnlocked(true)}
+                      placeholder={isId ? "Kosongkan jika tetap" : "Leave blank to keep existing"}
+                      className="pr-10 placeholder:text-[var(--color-text-muted)]/50 [&:-webkit-autofill]:shadow-[inset_0_0_0_1000px_var(--bg-input)] [&:-webkit-autofill]:[-webkit-text-fill-color:var(--text-primary)]"
+                      {...editForm.register("refresh_token")}
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      onClick={() => setShowRefreshToken((prev) => !prev)}
+                      aria-label={showRefreshToken ? "Hide refresh token" : "Show refresh token"}
+                      className="absolute top-1.5 right-1.5"
+                    >
+                      {showRefreshToken ? (
+                        <EyeOff className="h-4 w-4" aria-hidden="true" />
+                      ) : (
+                        <Eye className="h-4 w-4" aria-hidden="true" />
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <label
+            htmlFor="modal-edit-enabled"
+            className="flex cursor-pointer items-center justify-between rounded-lg border border-[var(--color-border-subtle)] bg-[var(--color-surface-2)]/30 px-3.5 py-2.5"
+          >
+            <span className="text-xs font-medium text-[var(--color-text-main)]">
+              {isId
+                ? "Aktifkan koneksi untuk routing gateway"
+                : "Connection enabled for gateway routing"}
+            </span>
+            <input
+              id="modal-edit-enabled"
+              type="checkbox"
+              className="h-4 w-4 accent-[var(--color-primary)]"
+              {...editForm.register("enabled")}
+            />
+          </label>
+        </form>
+      ) : null}
     </ModalShell>
   );
 }

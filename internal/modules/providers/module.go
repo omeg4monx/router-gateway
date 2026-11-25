@@ -36,7 +36,7 @@ const (
 	defaultAdminSubject  = "admin"
 	defaultHTTPTimeout   = 30 * time.Second
 	idRandomBytes        = 12
-	defaultPriorityValue = 100
+	defaultPriorityValue = 1
 )
 
 //go:embed migrations/*.sql
@@ -104,11 +104,11 @@ func New(opts Options) *Module {
 	}
 
 	m := &Module{
-		db:             opts.DB,
-		vault:          opts.Vault,
-		httpClient:     client,
-		bus:            opts.Bus,
-		repo:           newRepository(opts.DB),
+		db:               opts.DB,
+		vault:            opts.Vault,
+		httpClient:       client,
+		bus:              opts.Bus,
+		repo:             newRepository(opts.DB),
 		adapters:         make(map[string]ProviderAdapter),
 		oauthOverrides:   overrides,
 		oauthStrategies:  defaultOAuthStrategies(),

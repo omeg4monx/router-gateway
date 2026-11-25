@@ -42,4 +42,16 @@ describe("Vite SPA routing & zero-Next.js contract", () => {
     }
     expect(violations).toEqual([]);
   });
+
+  test("no legacy 'use client' directives remain anywhere in web/src", () => {
+    const violations: string[] = [];
+    const useClientPattern = /^\s*["']use client["'];?\s*$/m;
+    for (const filePath of walkTsFiles(WEB_SRC_DIR)) {
+      const content = readFileSync(filePath, "utf8");
+      if (useClientPattern.test(content)) {
+        violations.push(filePath);
+      }
+    }
+    expect(violations).toEqual([]);
+  });
 });

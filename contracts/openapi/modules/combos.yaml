@@ -288,6 +288,37 @@ paths:
             application/json:
               schema:
                 $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+  /api/models/identify:
+    post:
+      operationId: identifyCatalogModel
+      summary: Probe a model for masking/aliasing using upstream metadata, headers, and self-identification
+      tags:
+        - combos
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TestModelRequest'
+      responses:
+        '200':
+          description: Model identity probe result with evidence and detection limitations.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModelIdentityResult'
+        '400':
+          description: Missing providerId or modelId.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Administrative authentication is required.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
   /api/models/test-all:
     post:
       operationId: testAllCatalogModels
@@ -998,6 +1029,65 @@ components:
           type: boolean
         isTimeout:
           type: boolean
+    ModelIdentityResult:
+      type: object
+      additionalProperties: false
+      required:
+        - ok
+        - claimedModel
+        - verdict
+        - confidence
+        - signals
+        - limitationNote
+        - latencyMs
+      properties:
+        ok:
+          type: boolean
+        claimedModel:
+          type: string
+        claimedFamily:
+          type: string
+        verdict:
+          type: string
+          enum:
+            - verified
+            - suspected_masked
+            - inconclusive
+            - error
+        confidence:
+          type: string
+          enum:
+            - high
+            - medium
+            - low
+        detectedModel:
+          type: string
+        detectedFamily:
+          type: string
+        reportedModel:
+          type: string
+        responseIdPrefix:
+          type: string
+        systemFingerprint:
+          type: string
+        vendorHeaders:
+          type: object
+          additionalProperties:
+            type: string
+        selfReport:
+          type: string
+        signals:
+          type: array
+          items:
+            type: string
+        limitationNote:
+          type: string
+        latencyMs:
+          type: integer
+        statusCode:
+          type: integer
+        error:
+          type: string
     TestAllModelsRequest:
       type: object
       additionalProperties: false

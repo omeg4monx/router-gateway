@@ -20,11 +20,11 @@ import (
 )
 
 const (
-	maxProvidersBodyBytes   = 64 << 10 // 64 KiB
+	maxProvidersBodyBytes   = 256 << 10 // 256 KiB
 	maxTestErrorBodyBytes   = 4096
 	maxNameRunes            = 128
 	maxIDRunes              = 64
-	maxSliceItems           = 256
+	maxSliceItems           = 2048
 	maxSliceItemRunes       = 128
 	maxHeadersCount         = 64
 	maxHeaderKeyRunes       = 128
@@ -175,16 +175,16 @@ func (m *Module) handleGetCatalog(w http.ResponseWriter, r *http.Request) {
 		if adapter.OAuthConfig() != nil {
 			resolved, err := m.resolveOAuthConfig(adapter.ID(), "", "")
 			if err == nil {
-				strat := m.getOAuthStrategy(adapter.ID())
+				strategy := m.getOAuthStrategy(adapter.ID())
 				desc.OAuth = &catalogOAuthDescriptor{
 					AuthorizeURL:       resolved.AuthorizeURL,
 					TokenURL:           resolved.TokenURL,
 					Scopes:             cloneStringSlice(resolved.Scopes),
 					DefaultRedirectURI: resolved.DefaultRedirectURI,
-					ClientIDConfigured: resolved.ClientID != "" || strat.ClientIDOptional,
-					FlowType:           strat.FlowType,
-					FixedPort:          strat.FixedPort,
-					CallbackPath:       strat.CallbackPath,
+					ClientIDConfigured: resolved.ClientID != "" || strategy.ClientIDOptional,
+					FlowType:           strategy.FlowType,
+					FixedPort:          strategy.FixedPort,
+					CallbackPath:       strategy.CallbackPath,
 				}
 			}
 		}
@@ -816,12 +816,12 @@ func (m *Module) handleOAuthStart(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	strat := m.getOAuthStrategy(providerID)
-	if strat.FlowType == oauthFlowLoopbackProxy {
+	strategy := m.getOAuthStrategy(providerID)
+	if strategy.FlowType == oauthFlowLoopbackProxy {
 		m.handleAwsQuickOAuthStart(w, r, adapter, req)
 		return
 	}
-	if strat.FlowType == oauthFlowDeviceCode {
+	if strategy.FlowType == oauthFlowDeviceCode {
 		m.handleDeviceOAuthStart(w, r, providerID, adapter, req)
 		return
 	}
@@ -831,7 +831,7 @@ func (m *Module) handleOAuthStart(w http.ResponseWriter, r *http.Request) {
 		httpserver.WriteError(w, r, http.StatusBadRequest, "oauth_not_supported", "provider does not support OAuth")
 		return
 	}
-	if strings.TrimSpace(cfg.ClientID) == "" && !strat.ClientIDOptional {
+	if strings.TrimSpace(cfg.ClientID) == "" && !strategy.ClientIDOptional {
 		httpserver.WriteError(w, r, http.StatusBadRequest, "invalid_request",
 			fmt.Sprintf("oauth client_id is required; set %s_CLIENT_ID or provide client_id", oauthEnvPrefix(providerID)))
 		return
@@ -905,8 +905,8 @@ func (m *Module) handleOAuthStart(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var authorizeURL string
-	if strat.BuildAuthURL != nil {
-		authorizeURL, err = strat.BuildAuthURL(cfg, redirectURI, state, challenge)
+	if strategy.BuildAuthURL != nil {
+		authorizeURL, err = strategy.BuildAuthURL(cfg, redirectURI, state, challenge)
 	} else {
 		authorizeURL, err = buildAuthorizeURL(cfg, redirectURI, state, challenge)
 	}
@@ -936,9 +936,9 @@ func (m *Module) handleOAuthStart(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if strat.FixedPort > 0 {
+	if strategy.FixedPort > 0 {
 		// Best-effort fixed-port loopback listener; falls back to manual callback paste if busy.
-		_, _ = m.oauthProxy.start(providerID, strat.FixedPort, strat.CallbackPath, state)
+		_, _ = m.oauthProxy.start(providerID, strategy.FixedPort, strategy.CallbackPath, state)
 	}
 
 	httpserver.WriteJSON(w, http.StatusOK, oauthStartResponse{
@@ -946,9 +946,9 @@ func (m *Module) handleOAuthStart(w http.ResponseWriter, r *http.Request) {
 		AuthorizeURL: authorizeURL,
 		RedirectURI:  redirectURI,
 		ExpiresAt:    expiresAt,
-		FlowType:     strat.FlowType,
-		FixedPort:    strat.FixedPort,
-		CallbackPath: strat.CallbackPath,
+		FlowType:     strategy.FlowType,
+		FixedPort:    strategy.FixedPort,
+		CallbackPath: strategy.CallbackPath,
 	})
 }
 
@@ -969,17 +969,17 @@ func (m *Module) handleOAuthExchange(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	strat := m.getOAuthStrategy(providerID)
-	if strat.FlowType == oauthFlowLoopbackProxy {
+	strategy := m.getOAuthStrategy(providerID)
+	if strategy.FlowType == oauthFlowLoopbackProxy {
 		m.handleAwsQuickOAuthExchange(w, r, adapter, req)
 		return
 	}
-	if strat.FlowType == oauthFlowDeviceCode {
+	if strategy.FlowType == oauthFlowDeviceCode {
 		m.handleDeviceOAuthExchange(w, r, providerID, adapter, req)
 		return
 	}
 
-	if strat.FixedPort > 0 && strings.TrimSpace(req.CallbackURL) == "" && strings.TrimSpace(req.Code) == "" && strings.TrimSpace(req.State) != "" {
+	if strategy.FixedPort > 0 && strings.TrimSpace(req.CallbackURL) == "" && strings.TrimSpace(req.Code) == "" && strings.TrimSpace(req.State) != "" {
 		if capturedCode, ok := m.oauthProxy.consumeCode(providerID, strings.TrimSpace(req.State)); ok {
 			req.Code = capturedCode
 			m.oauthProxy.stop(providerID)
@@ -1090,8 +1090,8 @@ func (m *Module) handleOAuthExchange(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var tok oauthTokenResponse
-	if strat.ExchangeCode != nil {
-		tok, err = strat.ExchangeCode(r.Context(), m, cfg, sess, code, state, string(verifierBytes), clientSecret)
+	if strategy.ExchangeCode != nil {
+		tok, err = strategy.ExchangeCode(r.Context(), m, cfg, sess, code, state, string(verifierBytes), clientSecret)
 	} else {
 		tok, err = defaultExchangePKCECode(r.Context(), m, cfg, sess, code, string(verifierBytes), clientSecret)
 	}
@@ -1101,8 +1101,8 @@ func (m *Module) handleOAuthExchange(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var postRes oauthPostExchangeResult
-	if strat.PostExchange != nil {
-		postRes = strat.PostExchange(r.Context(), m, cfg.TokenURL, tok)
+	if strategy.PostExchange != nil {
+		postRes = strategy.PostExchange(r.Context(), m, cfg.TokenURL, tok)
 	}
 	for k, v := range postRes.ExtraHeaders {
 		if _, exists := headers[k]; !exists && strings.TrimSpace(v) != "" {

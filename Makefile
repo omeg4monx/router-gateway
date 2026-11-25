@@ -1,14 +1,18 @@
+SHELL := /usr/bin/env bash
 export PATH := $(HOME)/.local/go/bin:$(HOME)/.local/bin:$(HOME)/.bun/bin:$(PATH)
 
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 COMMIT ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo none)
 BUILD_TIME ?= $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
 LDFLAGS := -s -w -X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.buildTime=$(BUILD_TIME)
+DEV_LDFLAGS := -X main.version=$(VERSION)-dev -X main.commit=$(COMMIT) -X main.buildTime=$(BUILD_TIME)
 
 BINARY := bin/omeg4mon-router
+DEV_BINARY := bin/omeg4mon-router-dev
 UI_DIST := cmd/omeg4mon-router/ui_dist
+ARGS ?=
 
-.PHONY: codegen fmt fmt-check lint check test build-web build smoke dev cross-build clean
+.PHONY: codegen fmt fmt-check lint check test build-web build smoke dev dev-bin prod cross-build clean
 
 codegen:
 	cd web && bun run gen:api
@@ -49,11 +53,40 @@ build: codegen build-web
 smoke:
 	./scripts/smoke-test.sh $(BINARY)
 
-dev:
-	@echo "Start omeg4mon-router in two terminals for live reload:"
-	@echo "  1) Go API backend  : go run ./cmd/omeg4mon-router"
-	@echo "  2) Vite dev UI     : cd web && bun run dev"
-	@echo "Then open http://127.0.0.1:20127 (API proxied to http://127.0.0.1:20128)."
+dev: codegen
+	@mkdir -p bin
+	@CGO_ENABLED=0 go build -ldflags="$(DEV_LDFLAGS)" -o $(DEV_BINARY) ./cmd/omeg4mon-router
+	@set -euo pipefail; \
+	HOST="$${OMEG4MON_HOST:-127.0.0.1}"; \
+	PORT="$${OMEG4MON_PORT:-20128}"; \
+	LOG_LEVEL="$${OMEG4MON_LOG_LEVEL:-debug}"; \
+	BACKEND_PID=""; WEB_PID=""; \
+	cleanup() { \
+		trap - INT TERM EXIT; \
+		if [ -n "$$WEB_PID" ]; then \
+			pkill -TERM -P "$$WEB_PID" 2>/dev/null || true; \
+			kill -TERM "$$WEB_PID" 2>/dev/null || true; \
+		fi; \
+		if [ -n "$$BACKEND_PID" ]; then \
+			kill -TERM "$$BACKEND_PID" 2>/dev/null || true; \
+		fi; \
+		wait 2>/dev/null || true; \
+	}; \
+	trap cleanup INT TERM EXIT; \
+	echo "Starting omeg4mon-router dev cycle (API: http://$${HOST}:$${PORT}, UI: http://127.0.0.1:20127)..."; \
+	OMEG4MON_HOST="$$HOST" OMEG4MON_PORT="$$PORT" OMEG4MON_LOG_LEVEL="$$LOG_LEVEL" ./$(DEV_BINARY) $(ARGS) & \
+	BACKEND_PID=$$!; \
+	(cd web && exec env OMEG4MON_BACKEND_URL="http://$${HOST}:$${PORT}" bun run dev) & \
+	WEB_PID=$$!; \
+	wait -n "$$BACKEND_PID" "$$WEB_PID"
+
+dev-bin: codegen build-web
+	mkdir -p bin
+	CGO_ENABLED=0 go build -tags embedui -ldflags="$(DEV_LDFLAGS)" -o $(DEV_BINARY) ./cmd/omeg4mon-router
+	OMEG4MON_LOG_LEVEL="$${OMEG4MON_LOG_LEVEL:-debug}" exec ./$(DEV_BINARY) $(ARGS)
+
+prod: check build smoke
+	exec ./$(BINARY) $(ARGS)
 
 cross-build: codegen build-web
 	mkdir -p dist

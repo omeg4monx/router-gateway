@@ -18,6 +18,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-chi/chi/v5"
+
 	"github.com/omeg4monx/router-gateway/internal/contracts"
 	"github.com/omeg4monx/router-gateway/internal/modules/usage"
 	"github.com/omeg4monx/router-gateway/internal/platform/config"
@@ -699,5 +701,89 @@ func TestUsageBufferFullNeverBlocks(t *testing.T) {
 	}
 	if h.mod.DroppedCount() == 0 {
 		t.Fatalf("expected non-zero DroppedCount under buffer flood with BufferSize=2")
+	}
+}
+
+func TestUsageStreamMountsOnAdminStreamAPI(t *testing.T) {
+	database, err := db.Open(t.TempDir() + "/usage-mount-test.sqlite")
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	t.Cleanup(func() { _ = database.Close() })
+
+	mod := usage.New(usage.Options{DB: database})
+	adminRouter := chi.NewRouter()
+	streamRouter := chi.NewRouter()
+	mod.RegisterRoutes(lifecycle.RouteMounts{
+		AdminAPI:       adminRouter,
+		AdminStreamAPI: streamRouter,
+	})
+
+	summaryRec := httptest.NewRecorder()
+	adminRouter.ServeHTTP(summaryRec, httptest.NewRequest(http.MethodGet, "/usage/summary", nil))
+	if summaryRec.Code == http.StatusNotFound {
+		t.Fatalf("expected /usage/summary mounted on AdminAPI, got 404")
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	adminStreamRec := httptest.NewRecorder()
+	adminRouter.ServeHTTP(adminStreamRec, httptest.NewRequest(http.MethodGet, "/usage/stream", nil).WithContext(ctx))
+	if adminStreamRec.Code != http.StatusNotFound {
+		t.Fatalf("expected /usage/stream NOT on AdminAPI when AdminStreamAPI is provided, got %d", adminStreamRec.Code)
+	}
+
+	streamRec := httptest.NewRecorder()
+	streamRouter.ServeHTTP(streamRec, httptest.NewRequest(http.MethodGet, "/usage/stream", nil).WithContext(ctx))
+	if streamRec.Code != http.StatusOK {
+		t.Fatalf("expected /usage/stream mounted on AdminStreamAPI to return 200, got %d", streamRec.Code)
+	}
+}
+
+func TestUsageStreamForwardsInventoryInvalidations(t *testing.T) {
+	h := newTestHarness(t, usage.Options{}, true)
+	srv := httptest.NewServer(h.server.Handler())
+	t.Cleanup(srv.Close)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, srv.URL+"/api/usage/stream", nil)
+	if err != nil {
+		t.Fatalf("new request: %v", err)
+	}
+	req.Header.Set("Authorization", "Bearer test-admin-token")
+	resp, err := srv.Client().Do(req)
+	if err != nil {
+		t.Fatalf("stream GET: %v", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200 OK, got %d", resp.StatusCode)
+	}
+
+	// Publish a providers.changed event on the shared event bus.
+	go func() {
+		time.Sleep(50 * time.Millisecond)
+		h.bus.Publish("providers.changed", map[string]any{"action": "updated"})
+	}()
+
+	scanner := bufio.NewScanner(resp.Body)
+	gotEvent := false
+	gotTopic := false
+	for scanner.Scan() {
+		line := scanner.Text()
+		if line == "event: invalidation" {
+			gotEvent = true
+		}
+		if gotEvent && strings.HasPrefix(line, "data: ") && strings.Contains(line, `"providers.changed"`) {
+			gotTopic = true
+			break
+		}
+	}
+	if !gotEvent || !gotTopic {
+		t.Fatalf("expected SSE invalidation event for providers.changed, gotEvent=%v gotTopic=%v", gotEvent, gotTopic)
 	}
 }

@@ -1,5 +1,3 @@
-"use client";
-
 import { Database, Play, Search, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/shared/ui/button";

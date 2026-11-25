@@ -285,15 +285,6 @@ func (s *strategyState) recordSelection(connectionID string) {
 	s.usageCounts[connectionID]++
 }
 
-func (s *strategyState) recordLKGP(comboName, connectionID string) {
-	if comboName == "" || connectionID == "" {
-		return
-	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.lkgpConn[comboName] = connectionID
-}
-
 func (s *strategyState) getLKGP(comboName string) string {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -308,7 +299,7 @@ func cryptoRandIntn(n int) int {
 	if _, err := rand.Read(b[:]); err != nil {
 		return 0
 	}
-	return int(binary.LittleEndian.Uint64(b[:]) % uint64(n))
+	return int(binary.LittleEndian.Uint64(b[:]) % uint64(n)) //nolint:gosec // G115: modulo by positive int n guarantees result fits in int
 }
 
 func cryptoRandFloat64() float64 {
@@ -339,26 +330,26 @@ func applyComboStrategy(
 		return []contracts.ResolvedTarget{items[0].target}
 	}
 
-	strat := strings.ToLower(strings.TrimSpace(combo.Strategy))
-	if strat == "" || strat == "ordered" {
-		strat = defaultComboStrategy
+	strategy := strings.ToLower(strings.TrimSpace(combo.Strategy))
+	if strategy == "" || strategy == "ordered" {
+		strategy = defaultComboStrategy
 	}
-	if strat == "auto" {
+	if strategy == "auto" {
 		if rs, ok := combo.Config["routerStrategy"].(string); ok {
 			switch strings.ToLower(strings.TrimSpace(rs)) {
 			case "cost", "eco":
-				strat = "cost-optimized"
+				strategy = "cost-optimized"
 			case "latency", "fast":
-				strat = "p2c"
+				strategy = "p2c"
 			case "lkgp":
-				strat = "lkgp"
+				strategy = "lkgp"
 			case "score", "sla", "sla-aware":
-				strat = "least-used"
+				strategy = "least-used"
 			default:
-				strat = "priority"
+				strategy = "priority"
 			}
 		} else {
-			strat = "priority"
+			strategy = "priority"
 		}
 	}
 
@@ -367,10 +358,10 @@ func applyComboStrategy(
 		out[i] = it.target
 	}
 
-	switch strat {
+	switch strategy {
 	case "round-robin":
 		if state != nil {
-			offset := int(state.nextRR(combo.Name) % uint64(len(out)))
+			offset := int(state.nextRR(combo.Name) % uint64(len(out))) //nolint:gosec // G115: modulo by len(out) guarantees result fits in int
 			if offset > 0 {
 				rotated := make([]contracts.ResolvedTarget, 0, len(out))
 				rotated = append(rotated, out[offset:]...)

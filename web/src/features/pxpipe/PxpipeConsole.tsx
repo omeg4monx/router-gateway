@@ -1,5 +1,3 @@
-"use client";
-
 import { zodResolver } from "@hookform/resolvers/zod";
 import { AlertTriangle, CheckCircle2, Play, RotateCcw, Square, Workflow } from "lucide-react";
 import { useEffect } from "react";

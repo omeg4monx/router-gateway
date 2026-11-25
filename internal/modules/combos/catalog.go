@@ -242,7 +242,7 @@ func (m *Module) handleProviderHealthMatrix(w http.ResponseWriter, r *http.Reque
 	entries := make([]ProviderHealthMatrixEntry, 0, len(keys))
 	for _, pid := range keys {
 		a := byProvider[pid]
-		state := "untested"
+		var state string
 		switch {
 		case a.total == 0:
 			state = "untested"
@@ -449,40 +449,78 @@ func (m *Module) probeConnectionModel(ctx context.Context, connectionID, modelID
 	defer cancel()
 	probeCtx = httpclient.WithProviderID(probeCtx, creds.ProviderID)
 
-	req, err := buildModelProbeRequest(probeCtx, creds, modelID)
-	if err != nil {
-		return ModelTestResult{
-			OK:     false,
-			Status: "error",
-			Error:  sanitizeProbeError(err.Error(), creds),
-		}
-	}
-
 	client := m.httpClient
 	if client == nil {
 		client = &http.Client{Timeout: defaultProbeTimeout}
 	}
 
-	start := time.Now()
-	resp, doErr := client.Do(req) //nolint:gosec // G704: upstream provider base_url is configured by operator
-	latency := time.Since(start).Milliseconds()
+	executeProbe := func(activeCreds contracts.UpstreamCredentials) (int, []byte, int64, error) {
+		req, reqErr := buildModelProbeRequest(probeCtx, activeCreds, modelID)
+		if reqErr != nil {
+			return 0, nil, 0, reqErr
+		}
+		start := time.Now()
+		resp, doErr := client.Do(req)
+		latency := time.Since(start).Milliseconds()
+		if doErr != nil {
+			return 0, nil, latency, doErr
+		}
+		defer func() { _ = resp.Body.Close() }()
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, maxProbeResponseBytes))
+		return resp.StatusCode, body, latency, nil
+	}
 
-	if doErr != nil {
-		isTimeout := errors.Is(doErr, context.DeadlineExceeded) || strings.Contains(strings.ToLower(doErr.Error()), "timeout")
+	statusCode, body, latency, probeErr := executeProbe(creds)
+	if probeErr == nil && strings.EqualFold(creds.AuthType, "oauth") &&
+		(statusCode == http.StatusUnauthorized || statusCode == http.StatusForbidden) {
+		if refreshed, refreshErr := m.providers.RefreshOAuthToken(probeCtx, connectionID); refreshErr == nil &&
+			strings.TrimSpace(refreshed.AccessToken) != "" {
+			creds = refreshed
+			statusCode, body, latency, probeErr = executeProbe(creds)
+		}
+	}
+
+	if probeErr != nil {
+		errMsg := sanitizeProbeError(probeErr.Error(), creds)
+		isTimeout := errors.Is(probeErr, context.DeadlineExceeded) || strings.Contains(strings.ToLower(probeErr.Error()), "timeout")
+		m.emitUsage(ctx, contracts.UsageRecord{
+			KeyID:        probeUsageKeyID,
+			Model:        modelID,
+			ProviderID:   creds.ProviderID,
+			ConnectionID: connectionID,
+			Protocol:     creds.Protocol,
+			Latency:      time.Duration(latency) * time.Millisecond,
+			TTFT:         time.Duration(latency) * time.Millisecond,
+			StatusCode:   0,
+			ErrorSummary: errMsg,
+			Stream:       false,
+		})
 		return ModelTestResult{
 			OK:        false,
 			Status:    "error",
 			LatencyMS: latency,
-			Error:     sanitizeProbeError(doErr.Error(), creds),
+			Error:     errMsg,
 			IsTimeout: isTimeout,
 		}
 	}
-	defer func() { _ = resp.Body.Close() }()
 
-	body, _ := io.ReadAll(io.LimitReader(resp.Body, maxProbeResponseBytes))
-
-	if resp.StatusCode >= http.StatusOK && resp.StatusCode < http.StatusMultipleChoices {
+	if statusCode >= http.StatusOK && statusCode < http.StatusMultipleChoices {
 		m.cooldown.RecordSuccess(connectionID)
+		inTok, outTok, cachedTok := extractProbeTokenUsage(creds.Protocol, body)
+		m.emitUsage(ctx, contracts.UsageRecord{
+			KeyID:        probeUsageKeyID,
+			Model:        modelID,
+			ProviderID:   creds.ProviderID,
+			ConnectionID: connectionID,
+			Protocol:     creds.Protocol,
+			InputTokens:  inTok,
+			OutputTokens: outTok,
+			CachedTokens: cachedTok,
+			Latency:      time.Duration(latency) * time.Millisecond,
+			TTFT:         time.Duration(latency) * time.Millisecond,
+			StatusCode:   statusCode,
+			Stream:       false,
+		})
 		status := "ok"
 		if latency >= slowModelThresholdMS {
 			status = "slow"
@@ -491,26 +529,97 @@ func (m *Module) probeConnectionModel(ctx context.Context, connectionID, modelID
 			OK:         true,
 			Status:     status,
 			LatencyMS:  latency,
-			StatusCode: resp.StatusCode,
+			StatusCode: statusCode,
 		}
 	}
 
-	errMsg := extractUpstreamProbeError(resp.StatusCode, body, creds)
+	errMsg := extractUpstreamProbeError(statusCode, body, creds)
+	m.emitUsage(ctx, contracts.UsageRecord{
+		KeyID:        probeUsageKeyID,
+		Model:        modelID,
+		ProviderID:   creds.ProviderID,
+		ConnectionID: connectionID,
+		Protocol:     creds.Protocol,
+		Latency:      time.Duration(latency) * time.Millisecond,
+		TTFT:         time.Duration(latency) * time.Millisecond,
+		StatusCode:   statusCode,
+		ErrorSummary: errMsg,
+		Stream:       false,
+	})
 	lowerErr := strings.ToLower(errMsg)
-	rateLimited := resp.StatusCode == http.StatusTooManyRequests || strings.Contains(lowerErr, "rate limit") || strings.Contains(lowerErr, "rate_limit")
+	rateLimited := statusCode == http.StatusTooManyRequests || strings.Contains(lowerErr, "rate limit") || strings.Contains(lowerErr, "rate_limit")
 	isQuota := strings.Contains(lowerErr, "quota") || strings.Contains(lowerErr, "insufficient") || strings.Contains(lowerErr, "billing") || strings.Contains(lowerErr, "credit")
-	isTimeout := resp.StatusCode == http.StatusRequestTimeout || resp.StatusCode == http.StatusGatewayTimeout || strings.Contains(lowerErr, "timeout")
+	isTimeout := statusCode == http.StatusRequestTimeout || statusCode == http.StatusGatewayTimeout || strings.Contains(lowerErr, "timeout")
 
 	return ModelTestResult{
 		OK:          false,
 		Status:      "error",
 		LatencyMS:   latency,
-		StatusCode:  resp.StatusCode,
+		StatusCode:  statusCode,
 		Error:       errMsg,
 		RateLimited: rateLimited,
 		IsQuota:     isQuota,
 		IsTimeout:   isTimeout,
 	}
+}
+
+func extractProbeTokenUsage(protocol string, body []byte) (inputTokens, outputTokens, cachedTokens int64) {
+	trimmed := bytes.TrimSpace(body)
+	if len(trimmed) == 0 || trimmed[0] != '{' {
+		return 0, 0, 0
+	}
+
+	var parsed struct {
+		Usage *struct {
+			PromptTokens         int64 `json:"prompt_tokens"`
+			CompletionTokens     int64 `json:"completion_tokens"`
+			InputTokens          int64 `json:"input_tokens"`
+			OutputTokens         int64 `json:"output_tokens"`
+			CacheReadInputTokens int64 `json:"cache_read_input_tokens"`
+			PromptTokensDetails  *struct {
+				CachedTokens int64 `json:"cached_tokens"`
+			} `json:"prompt_tokens_details"`
+			InputTokensDetails *struct {
+				CachedTokens int64 `json:"cached_tokens"`
+			} `json:"input_tokens_details"`
+		} `json:"usage"`
+		UsageMetadata *struct {
+			PromptTokenCount        int64 `json:"promptTokenCount"`
+			CandidatesTokenCount    int64 `json:"candidatesTokenCount"`
+			CachedContentTokenCount int64 `json:"cachedContentTokenCount"`
+		} `json:"usageMetadata"`
+	}
+	if err := json.Unmarshal(trimmed, &parsed); err != nil {
+		return 0, 0, 0
+	}
+
+	if parsed.UsageMetadata != nil && (strings.EqualFold(strings.TrimSpace(protocol), "gemini") || parsed.Usage == nil) {
+		return max(parsed.UsageMetadata.PromptTokenCount, 0),
+			max(parsed.UsageMetadata.CandidatesTokenCount, 0),
+			max(parsed.UsageMetadata.CachedContentTokenCount, 0)
+	}
+
+	if parsed.Usage == nil {
+		return 0, 0, 0
+	}
+
+	inputTokens = parsed.Usage.PromptTokens
+	if inputTokens <= 0 {
+		inputTokens = parsed.Usage.InputTokens
+	}
+	outputTokens = parsed.Usage.CompletionTokens
+	if outputTokens <= 0 {
+		outputTokens = parsed.Usage.OutputTokens
+	}
+	switch {
+	case parsed.Usage.PromptTokensDetails != nil && parsed.Usage.PromptTokensDetails.CachedTokens > 0:
+		cachedTokens = parsed.Usage.PromptTokensDetails.CachedTokens
+	case parsed.Usage.InputTokensDetails != nil && parsed.Usage.InputTokensDetails.CachedTokens > 0:
+		cachedTokens = parsed.Usage.InputTokensDetails.CachedTokens
+	case parsed.Usage.CacheReadInputTokens > 0:
+		cachedTokens = parsed.Usage.CacheReadInputTokens
+	}
+	return max(inputTokens, 0), max(outputTokens, 0), max(cachedTokens, 0)
 }
 
 func buildModelProbeRequest(ctx context.Context, creds contracts.UpstreamCredentials, modelID string) (*http.Request, error) {
@@ -548,6 +657,17 @@ func buildModelProbeRequest(ctx context.Context, creds contracts.UpstreamCredent
 		payload = map[string]any{
 			"contents":         []map[string]any{{"role": "user", "parts": []map[string]string{{"text": "hi"}}}},
 			"generationConfig": map[string]int{"maxOutputTokens": 1},
+		}
+	case "openai-responses":
+		if strings.HasSuffix(baseURL, "/responses") {
+			targetURL = baseURL
+		} else {
+			targetURL = baseURL + "/responses"
+		}
+		payload = map[string]any{
+			"model":             modelID,
+			"input":             "hi",
+			"max_output_tokens": 16,
 		}
 	default:
 		if strings.HasSuffix(baseURL, "/chat/completions") || strings.HasSuffix(baseURL, "/responses") {

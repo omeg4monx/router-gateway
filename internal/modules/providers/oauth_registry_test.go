@@ -42,18 +42,18 @@ func TestOAuthProviderRegistryMetadata(t *testing.T) {
 	}
 
 	for id, want := range expected {
-		strat := m.getOAuthStrategy(id)
-		if strat == nil {
+		strategy := m.getOAuthStrategy(id)
+		if strategy == nil {
 			t.Fatalf("expected oauth strategy for %q, got nil", id)
 		}
-		if strat.FlowType != want.flowType {
-			t.Errorf("provider %q flowType = %q, want %q", id, strat.FlowType, want.flowType)
+		if strategy.FlowType != want.flowType {
+			t.Errorf("provider %q flowType = %q, want %q", id, strategy.FlowType, want.flowType)
 		}
-		if strat.FixedPort != want.fixedPort {
-			t.Errorf("provider %q fixedPort = %d, want %d", id, strat.FixedPort, want.fixedPort)
+		if strategy.FixedPort != want.fixedPort {
+			t.Errorf("provider %q fixedPort = %d, want %d", id, strategy.FixedPort, want.fixedPort)
 		}
-		if want.callbackPath != "" && strat.CallbackPath != want.callbackPath {
-			t.Errorf("provider %q callbackPath = %q, want %q", id, strat.CallbackPath, want.callbackPath)
+		if want.callbackPath != "" && strategy.CallbackPath != want.callbackPath {
+			t.Errorf("provider %q callbackPath = %q, want %q", id, strategy.CallbackPath, want.callbackPath)
 		}
 	}
 }

@@ -15,8 +15,8 @@ import (
 )
 
 const (
-	telemetryCacheTTL  = 1500 * time.Millisecond
-	maxProcFileBytes   = 128 << 10 // 128 KiB hard cap against runaway reads
+	telemetryCacheTTL = 1500 * time.Millisecond
+	maxProcFileBytes  = 128 << 10 // 128 KiB hard cap against runaway reads
 )
 
 type systemTelemetryResponse struct {
@@ -223,7 +223,7 @@ func parseCPUModel(raw string) string {
 	return ""
 }
 
-func parseMemInfo(raw string) (totalBytes uint64, usedBytes uint64) {
+func parseMemInfo(raw string) (totalBytes, usedBytes uint64) {
 	var memTotalKB, memAvailableKB, memFreeKB uint64
 	var hasAvailable bool
 	for _, line := range strings.Split(raw, "\n") {

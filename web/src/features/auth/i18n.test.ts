@@ -1,15 +1,38 @@
 import { describe, expect, test } from "bun:test";
-import { describeAuthPosture, formatAuthError, formatUptime, getLoginCopy } from "./i18n";
+import { formatAuthError, getLoginCopy } from "./i18n";
+
+const EXPECTED_MINIMAL_KEYS = [
+  "signInHeading",
+  "pendingLabel",
+  "unreachableTitle",
+  "retryLabel",
+  "retryingLabel",
+  "uninitializedTitle",
+  "uninitializedBody",
+  "uninitializedCta",
+  "redirectTitle",
+  "redirectCta",
+  "passwordLabel",
+  "passwordPlaceholder",
+  "showPasswordLabel",
+  "hidePasswordLabel",
+  "capsLockWarning",
+  "submitLabel",
+  "submittingLabel",
+  "errorTitle",
+  "technicalDetailLabel",
+].sort();
 
 describe("auth/i18n", () => {
-  test("provides complete localized copy for en and id", () => {
+  test("provides only essential localized login copy for en and id", () => {
     const en = getLoginCopy("en");
     const id = getLoginCopy("id");
 
+    expect(Object.keys(en).sort()).toEqual(EXPECTED_MINIMAL_KEYS);
+    expect(Object.keys(id).sort()).toEqual(EXPECTED_MINIMAL_KEYS);
     expect(en.signInHeading).not.toBe(id.signInHeading);
     expect(en.passwordLabel).not.toBe(id.passwordLabel);
     expect(en.submitLabel).not.toBe(id.submitLabel);
-    expect(en.helpTitle).not.toBe(id.helpTitle);
   });
 
   test("maps invalid admin password error to friendly localized copy with technical detail", () => {
@@ -37,74 +60,5 @@ describe("auth/i18n", () => {
     expect(err?.detail).toBeUndefined();
     expect(formatAuthError(null, "en")).toBeNull();
     expect(formatAuthError("   ", "id")).toBeNull();
-  });
-
-  test("describes all auth postures with semantic variants in en and id", () => {
-    expect(describeAuthPosture({ isPending: true, isError: false }, "en").badgeVariant).toBe(
-      "secondary",
-    );
-    expect(describeAuthPosture({ isPending: false, isError: true }, "en").badgeVariant).toBe(
-      "destructive",
-    );
-    expect(
-      describeAuthPosture(
-        {
-          isPending: false,
-          isError: false,
-          session: {
-            authenticated: false,
-            subject: "",
-            require_login: true,
-            remote_enforced: true,
-            initialized: true,
-          },
-        },
-        "id",
-      ),
-    ).toMatchObject({
-      badgeVariant: "default",
-    });
-    expect(
-      describeAuthPosture(
-        {
-          isPending: false,
-          isError: false,
-          session: {
-            authenticated: false,
-            subject: "",
-            require_login: false,
-            remote_enforced: false,
-            initialized: true,
-          },
-        },
-        "en",
-      ).badgeVariant,
-    ).toBe("success");
-    expect(
-      describeAuthPosture(
-        {
-          isPending: false,
-          isError: false,
-          session: {
-            authenticated: false,
-            subject: "",
-            require_login: true,
-            remote_enforced: false,
-            initialized: false,
-          },
-        },
-        "en",
-      ).badgeVariant,
-    ).toBe("warning");
-  });
-
-  test("formats uptime deterministically across edge cases in en and id", () => {
-    expect(formatUptime(undefined, "en")).toBe("—");
-    expect(formatUptime(-5, "en")).toBe("< 1m");
-    expect(formatUptime(45, "id")).toBe("< 1 mnt");
-    expect(formatUptime(3660, "en")).toBe("1h 1m");
-    expect(formatUptime(3660, "id")).toBe("1j 1m");
-    expect(formatUptime(90061, "en")).toBe("1d 1h");
-    expect(formatUptime(90061, "id")).toBe("1h 1j");
   });
 });

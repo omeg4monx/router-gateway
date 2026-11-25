@@ -3,6 +3,7 @@ package providers
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"io/fs"
 	"log/slog"
@@ -249,4 +250,161 @@ func TestOAuthCallbackEmitsAutoCompletionBridge(t *testing.T) {
 	}
 }
 
+func TestFetchConnectionModelsPersistsAndMergesExistingModels(t *testing.T) {
+	modelCount := 300
+	upstreamModels := make([]map[string]string, 0, modelCount)
+	for i := 0; i < modelCount; i++ {
+		upstreamModels = append(upstreamModels, map[string]string{
+			"id": fmt.Sprintf("upstream-model-%03d", i),
+		})
+	}
+	// Duplicate entry and one matching an existing manual model to verify deduplication.
+	upstreamModels = append(upstreamModels,
+		map[string]string{"id": "manual-custom-model"},
+		map[string]string{"id": "upstream-model-000"},
+	)
 
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/v1/models" {
+			http.NotFound(w, r)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]any{"data": upstreamModels})
+	}))
+	defer upstream.Close()
+
+	dbPath := filepath.Join(t.TempDir(), "router.sqlite")
+	database, err := db.Open(dbPath)
+	if err != nil {
+		t.Fatalf("db.Open: %v", err)
+	}
+	t.Cleanup(func() { _ = database.Close() })
+
+	masterKey := make([]byte, crypto.MasterKeySize)
+	for i := range masterKey {
+		masterKey[i] = byte(i + 7)
+	}
+	vault, err := crypto.NewVault(masterKey)
+	if err != nil {
+		t.Fatalf("crypto.NewVault: %v", err)
+	}
+
+	bus := eventbus.New()
+	eventsCh, unsubscribe := bus.Subscribe("providers.changed", 16)
+	defer unsubscribe()
+	drainEvents := func() int {
+		count := 0
+		for {
+			select {
+			case <-eventsCh:
+				count++
+			default:
+				return count
+			}
+		}
+	}
+
+	mod := New(Options{
+		DB:         database,
+		Vault:      vault,
+		Bus:        bus,
+		HTTPClient: upstream.Client(),
+	})
+
+	reg := lifecycle.NewRegistry(nil)
+	if err := reg.Register(stubDiscoverySystemModule{}); err != nil {
+		t.Fatalf("register system: %v", err)
+	}
+	if err := reg.Register(mod); err != nil {
+		t.Fatalf("register providers: %v", err)
+	}
+	if err := reg.MigrateAll(context.Background(), database); err != nil {
+		t.Fatalf("migrate: %v", err)
+	}
+
+	srv := httpserver.New(httpserver.Options{
+		Config: config.Config{Host: "127.0.0.1", Port: 20128, APITimeout: 10 * time.Second},
+		Logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
+	})
+	mod.RegisterRoutes(srv.Mounts())
+
+	// Seed a connection with one pre-existing manual model.
+	createBody := `{"provider_id":"openai","name":"OpenAI Proxy","base_url":"` + upstream.URL + `/v1","api_key":"sk-persist-test","models":["manual-custom-model"]}`
+	createReq := httptest.NewRequest(http.MethodPost, "/api/providers/connections", strings.NewReader(createBody))
+	createReq.Header.Set("Content-Type", "application/json")
+	createRec := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(createRec, createReq)
+	if createRec.Code != http.StatusCreated {
+		t.Fatalf("create connection status=%d body=%s", createRec.Code, createRec.Body.String())
+	}
+
+	var created struct {
+		ID string `json:"id"`
+	}
+	if err := json.Unmarshal(createRec.Body.Bytes(), &created); err != nil {
+		t.Fatalf("decode created connection: %v", err)
+	}
+	_ = drainEvents()
+
+	// Fetch models — should persist merged upstream + manual models automatically.
+	fetchReq := httptest.NewRequest(http.MethodGet, "/api/providers/connections/"+created.ID+"/models", http.NoBody)
+	fetchRec := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(fetchRec, fetchReq)
+	if fetchRec.Code != http.StatusOK {
+		t.Fatalf("fetch models status=%d body=%s", fetchRec.Code, fetchRec.Body.String())
+	}
+
+	// Verify connection persisted all 301 unique models (1 manual + 300 upstream) via store contract.
+	conns, err := mod.ListEnabledConnections(context.Background())
+	if err != nil {
+		t.Fatalf("ListEnabledConnections: %v", err)
+	}
+	if len(conns) != 1 {
+		t.Fatalf("expected 1 connection, got %d", len(conns))
+	}
+	gotModels := conns[0].Models
+	wantCount := modelCount + 1
+	if len(gotModels) != wantCount {
+		t.Fatalf("expected %d persisted models (manual + upstream), got %d", wantCount, len(gotModels))
+	}
+	if gotModels[0] != "manual-custom-model" {
+		t.Fatalf("expected pre-existing manual model preserved first, got %q", gotModels[0])
+	}
+	if drainEvents() == 0 {
+		t.Fatalf("expected providers.changed event after persisting discovered models")
+	}
+
+	// Verify PATCH with 302 models (adding another manual model on top of 301) succeeds without hitting 256 limit.
+	nextModels := append(append([]string(nil), gotModels...), "manual-extra-model")
+	patchPayload, err := json.Marshal(map[string]any{"models": nextModels})
+	if err != nil {
+		t.Fatalf("marshal patch payload: %v", err)
+	}
+	patchReq := httptest.NewRequest(http.MethodPatch, "/api/providers/connections/"+created.ID, strings.NewReader(string(patchPayload)))
+	patchReq.Header.Set("Content-Type", "application/json")
+	patchRec := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(patchRec, patchReq)
+	if patchRec.Code != http.StatusOK {
+		t.Fatalf("patch connection with %d models failed: status=%d body=%s", len(nextModels), patchRec.Code, patchRec.Body.String())
+	}
+
+	// Re-fetching identical upstream models must preserve the newly added manual model and emit no redundant event.
+	_ = drainEvents()
+	fetchReq2 := httptest.NewRequest(http.MethodGet, "/api/providers/connections/"+created.ID+"/models", http.NoBody)
+	fetchRec2 := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(fetchRec2, fetchReq2)
+	if fetchRec2.Code != http.StatusOK {
+		t.Fatalf("second fetch status=%d body=%s", fetchRec2.Code, fetchRec2.Body.String())
+	}
+	conns2, err := mod.ListEnabledConnections(context.Background())
+	if err != nil {
+		t.Fatalf("ListEnabledConnections second: %v", err)
+	}
+	if len(conns2[0].Models) != modelCount+2 {
+		t.Fatalf("expected manual-extra-model preserved across re-fetch (%d models), got %d", modelCount+2, len(conns2[0].Models))
+	}
+	if delta := drainEvents(); delta != 0 {
+		t.Fatalf("expected no redundant providers.changed event when models are unchanged, got delta %d", delta)
+	}
+}

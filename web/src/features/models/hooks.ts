@@ -1,7 +1,6 @@
-"use client";
-
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient, extractErrorMessage } from "@/shared/api/client";
+import type { components } from "@/shared/api/schema";
 import {
   classifyTestError,
   comboTestResultKey,
@@ -204,6 +203,49 @@ export async function runSingleModelTest(
       error: msg,
       errorClass: classifyTestError(msg),
       testedAt,
+    };
+  }
+}
+
+export type ModelIdentityResult = components["schemas"]["ModelIdentityResult"];
+
+const FALLBACK_IDENTITY_LIMITATION =
+  "Detection combines upstream response metadata, vendor headers, and a neutral self-identification probe. Proxies that rewrite all metadata/headers and inject strict system prompts can still disguise the underlying model, so treat results as indicative evidence.";
+
+export async function runModelIdentityProbe(
+  providerId: string,
+  modelId: string,
+  signal?: AbortSignal,
+): Promise<ModelIdentityResult> {
+  try {
+    const { data, error, response } = await apiClient.POST("/api/models/identify", {
+      body: { providerId, modelId },
+      signal,
+    });
+    if (data) {
+      return data;
+    }
+    return {
+      ok: false,
+      claimedModel: modelId,
+      verdict: "error",
+      confidence: "low",
+      signals: [],
+      limitationNote: FALLBACK_IDENTITY_LIMITATION,
+      latencyMs: 0,
+      statusCode: response.status,
+      error: extractErrorMessage(error),
+    };
+  } catch (err) {
+    return {
+      ok: false,
+      claimedModel: modelId,
+      verdict: "error",
+      confidence: "low",
+      signals: [],
+      limitationNote: FALLBACK_IDENTITY_LIMITATION,
+      latencyMs: 0,
+      error: err instanceof Error ? err.message : "Network error",
     };
   }
 }

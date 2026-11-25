@@ -630,6 +630,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/models/identify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Probe a model for masking/aliasing using upstream metadata, headers, and self-identification */
+        post: operations["identifyCatalogModel"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/models/test-all": {
         parameters: {
             query?: never;
@@ -4680,6 +4697,29 @@ export interface components {
             isQuota?: boolean;
             isTimeout?: boolean;
         };
+        ModelIdentityResult: {
+            ok: boolean;
+            claimedModel: string;
+            claimedFamily?: string;
+            /** @enum {string} */
+            verdict: "verified" | "suspected_masked" | "inconclusive" | "error";
+            /** @enum {string} */
+            confidence: "high" | "medium" | "low";
+            detectedModel?: string;
+            detectedFamily?: string;
+            reportedModel?: string;
+            responseIdPrefix?: string;
+            systemFingerprint?: string;
+            vendorHeaders?: {
+                [key: string]: string;
+            };
+            selfReport?: string;
+            signals: string[];
+            limitationNote: string;
+            latencyMs: number;
+            statusCode?: number;
+            error?: string;
+        };
         TestAllModelsRequest: {
             providerId: string;
             modelIds: string[];
@@ -6932,6 +6972,48 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ModelTestResult"];
+                };
+            };
+            /** @description Missing providerId or modelId. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Administrative authentication is required. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    identifyCatalogModel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TestModelRequest"];
+            };
+        };
+        responses: {
+            /** @description Model identity probe result with evidence and detection limitations. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModelIdentityResult"];
                 };
             };
             /** @description Missing providerId or modelId. */

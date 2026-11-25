@@ -21,6 +21,7 @@ import (
 type catalogFakeProviderStore struct {
 	connections []contracts.ProviderConnection
 	creds       map[string]contracts.UpstreamCredentials
+	refreshFn   func(connectionID string) (contracts.UpstreamCredentials, error)
 }
 
 func (f *catalogFakeProviderStore) ListEnabledConnections(_ context.Context) ([]contracts.ProviderConnection, error) {
@@ -35,7 +36,10 @@ func (f *catalogFakeProviderStore) ResolveCredentials(_ context.Context, connect
 	return c, nil
 }
 
-func (f *catalogFakeProviderStore) RefreshOAuthToken(_ context.Context, _ string) (contracts.UpstreamCredentials, error) {
+func (f *catalogFakeProviderStore) RefreshOAuthToken(_ context.Context, connectionID string) (contracts.UpstreamCredentials, error) {
+	if f.refreshFn != nil {
+		return f.refreshFn(connectionID)
+	}
 	return contracts.UpstreamCredentials{}, contracts.ErrOAuthRefreshUnsupported
 }
 
@@ -340,5 +344,290 @@ func TestModelAndComboLiveProbeEndpoints(t *testing.T) {
 	_ = json.Unmarshal(comboTestRec.Body.Bytes(), &comboTestResp)
 	if comboTestResp.ResolvedBy != "openai/gpt-4o" || len(comboTestResp.Results) != 2 {
 		t.Errorf("expected resolvedBy=openai/gpt-4o with 2 results, got %+v", comboTestResp)
+	}
+}
+
+func TestModelProbeOpenAIResponsesAndOAuthRefresh(t *testing.T) {
+	var seenResponsesPath string
+	var seenResponsesPayload map[string]any
+	var oauthAttempts int
+
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case strings.HasSuffix(r.URL.Path, "/responses"):
+			seenResponsesPath = r.URL.Path
+			_ = json.NewDecoder(r.Body).Decode(&seenResponsesPayload)
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(`{"id":"resp_ok","output":[]}`))
+		case strings.HasSuffix(r.URL.Path, "/chat/completions"):
+			oauthAttempts++
+			if r.Header.Get("Authorization") != "Bearer fresh-token" {
+				w.WriteHeader(http.StatusUnauthorized)
+				_, _ = w.Write([]byte(`{"error":{"message":"expired token"}}`))
+				return
+			}
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(`{"id":"chat_ok","choices":[]}`))
+		default:
+			w.WriteHeader(http.StatusNotFound)
+			_, _ = w.Write([]byte(`{"error":{"message":"unexpected path ` + r.URL.Path + `"}}`))
+		}
+	}))
+	defer upstream.Close()
+
+	refreshCalls := 0
+	store := &catalogFakeProviderStore{
+		connections: []contracts.ProviderConnection{
+			{
+				ID:         "conn_responses",
+				ProviderID: "codex",
+				Name:       "Codex Responses",
+				Protocol:   "openai-responses",
+				BaseURL:    upstream.URL + "/v1",
+				Priority:   1,
+				Enabled:    true,
+			},
+			{
+				ID:         "conn_oauth",
+				ProviderID: "qwen",
+				Name:       "Qwen OAuth",
+				Protocol:   "openai-chat",
+				BaseURL:    upstream.URL + "/v1",
+				Priority:   1,
+				Enabled:    true,
+			},
+		},
+		creds: map[string]contracts.UpstreamCredentials{
+			"conn_responses": {
+				ConnectionID: "conn_responses",
+				ProviderID:   "codex",
+				Protocol:     "openai-responses",
+				BaseURL:      upstream.URL + "/v1",
+				AuthType:     "api_key",
+				APIKey:       "sk-responses",
+			},
+			"conn_oauth": {
+				ConnectionID: "conn_oauth",
+				ProviderID:   "qwen",
+				Protocol:     "openai-chat",
+				BaseURL:      upstream.URL + "/v1",
+				AuthType:     "oauth",
+				AccessToken:  "stale-token",
+			},
+		},
+		refreshFn: func(connectionID string) (contracts.UpstreamCredentials, error) {
+			refreshCalls++
+			return contracts.UpstreamCredentials{
+				ConnectionID: connectionID,
+				ProviderID:   "qwen",
+				Protocol:     "openai-chat",
+				BaseURL:      upstream.URL + "/v1",
+				AuthType:     "oauth",
+				AccessToken:  "fresh-token",
+			}, nil
+		},
+	}
+
+	_, router := setupCatalogTestModule(t, store, upstream.Client())
+
+	// 1. openai-responses protocol should target /v1/responses with "input" payload.
+	req1 := httptest.NewRequest(http.MethodPost, "/api/models/test", bytes.NewBufferString(`{"providerId":"codex","modelId":"gpt-5-codex"}`))
+	rec1 := httptest.NewRecorder()
+	router.ServeHTTP(rec1, req1)
+	if rec1.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rec1.Code, rec1.Body.String())
+	}
+	var resp1 struct {
+		OK         bool   `json:"ok"`
+		StatusCode int    `json:"statusCode"`
+		Error      string `json:"error"`
+	}
+	_ = json.Unmarshal(rec1.Body.Bytes(), &resp1)
+	if !resp1.OK || resp1.StatusCode != http.StatusOK {
+		t.Fatalf("expected openai-responses probe to succeed, got %+v", resp1)
+	}
+	if seenResponsesPath != "/v1/responses" {
+		t.Errorf("expected path /v1/responses, got %q", seenResponsesPath)
+	}
+	if seenResponsesPayload["model"] != "gpt-5-codex" || seenResponsesPayload["input"] == nil {
+		t.Errorf("expected model + input payload for openai-responses, got %+v", seenResponsesPayload)
+	}
+
+	// 2. OAuth connection getting 401 should refresh once and succeed on retry.
+	req2 := httptest.NewRequest(http.MethodPost, "/api/models/test", bytes.NewBufferString(`{"providerId":"qwen","modelId":"qwen3-coder-plus"}`))
+	rec2 := httptest.NewRecorder()
+	router.ServeHTTP(rec2, req2)
+	if rec2.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rec2.Code, rec2.Body.String())
+	}
+	var resp2 struct {
+		OK         bool   `json:"ok"`
+		StatusCode int    `json:"statusCode"`
+		Error      string `json:"error"`
+	}
+	_ = json.Unmarshal(rec2.Body.Bytes(), &resp2)
+	if !resp2.OK || resp2.StatusCode != http.StatusOK {
+		t.Fatalf("expected OAuth retry probe to succeed, got %+v", resp2)
+	}
+	if refreshCalls != 1 || oauthAttempts != 2 {
+		t.Errorf("expected 1 refresh and 2 upstream attempts, got refresh=%d attempts=%d", refreshCalls, oauthAttempts)
+	}
+}
+
+type stubUsageRecorder struct {
+	records []contracts.UsageRecord
+}
+
+func (s *stubUsageRecorder) Record(_ context.Context, rec contracts.UsageRecord) {
+	s.records = append(s.records, rec)
+}
+
+func TestProbeAndIdentifyRecordUsageTelemetry(t *testing.T) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch {
+		case r.URL.Path == "/v1/chat/completions":
+			var reqBody struct {
+				Model string `json:"model"`
+			}
+			_ = json.NewDecoder(r.Body).Decode(&reqBody)
+			if reqBody.Model == "rate-limited-model" {
+				w.WriteHeader(http.StatusTooManyRequests)
+				_, _ = w.Write([]byte(`{"error":{"message":"rate limit exceeded"}}`))
+				return
+			}
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(`{
+				"id":"chatcmpl-1",
+				"model":"gpt-4o",
+				"choices":[{"message":{"role":"assistant","content":"I am GPT-4o by OpenAI."}}],
+				"usage":{"prompt_tokens":18,"completion_tokens":7,"prompt_tokens_details":{"cached_tokens":4}}
+			}`))
+		case r.URL.Path == "/v1/responses":
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(`{
+				"id":"resp_1",
+				"model":"gpt-5-codex",
+				"output":[{"type":"message","content":[{"type":"output_text","text":"ok"}]}],
+				"usage":{"input_tokens":12,"output_tokens":5,"input_tokens_details":{"cached_tokens":2}}
+			}`))
+		case r.URL.Path == "/v1/messages":
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(`{
+				"id":"msg_1",
+				"model":"claude-sonnet-4",
+				"content":[{"type":"text","text":"ok"}],
+				"usage":{"input_tokens":22,"output_tokens":9,"cache_read_input_tokens":6}
+			}`))
+		case strings.Contains(r.URL.Path, ":generateContent"):
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(`{
+				"candidates":[{"content":{"parts":[{"text":"ok"}]}}],
+				"usageMetadata":{"promptTokenCount":15,"candidatesTokenCount":3,"cachedContentTokenCount":5}
+			}`))
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer upstream.Close()
+
+	store := &catalogFakeProviderStore{
+		connections: []contracts.ProviderConnection{
+			{ID: "conn_oai", ProviderID: "omeg4mon", Protocol: "openai-chat", BaseURL: upstream.URL + "/v1", Priority: 1, Enabled: true},
+			{ID: "conn_resp", ProviderID: "codex", Protocol: "openai-responses", BaseURL: upstream.URL + "/v1", Priority: 1, Enabled: true},
+			{ID: "conn_ant", ProviderID: "anthropic", Protocol: "anthropic", BaseURL: upstream.URL + "/v1", Priority: 1, Enabled: true},
+			{ID: "conn_gem", ProviderID: "gemini", Protocol: "gemini", BaseURL: upstream.URL + "/v1beta", Priority: 1, Enabled: true},
+		},
+		creds: map[string]contracts.UpstreamCredentials{
+			"conn_oai":  {ConnectionID: "conn_oai", ProviderID: "omeg4mon", Protocol: "openai-chat", BaseURL: upstream.URL + "/v1", AuthType: "api_key", APIKey: "sk-oai"},
+			"conn_resp": {ConnectionID: "conn_resp", ProviderID: "codex", Protocol: "openai-responses", BaseURL: upstream.URL + "/v1", AuthType: "api_key", APIKey: "sk-resp"},
+			"conn_ant":  {ConnectionID: "conn_ant", ProviderID: "anthropic", Protocol: "anthropic", BaseURL: upstream.URL + "/v1", AuthType: "api_key", APIKey: "sk-ant"},
+			"conn_gem":  {ConnectionID: "conn_gem", ProviderID: "gemini", Protocol: "gemini", BaseURL: upstream.URL + "/v1beta", AuthType: "api_key", APIKey: "sk-gem"},
+		},
+	}
+
+	database, err := db.Open(t.TempDir() + "/usage-probe-test.sqlite")
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	t.Cleanup(func() { _ = database.Close() })
+
+	recorder := &stubUsageRecorder{}
+	mod := combos.New(combos.Options{
+		DB:         database,
+		Providers:  store,
+		HTTPClient: upstream.Client(),
+		Usage:      recorder,
+		Now:        func() time.Time { return time.Date(2026, 11, 24, 12, 0, 0, 0, time.UTC) },
+	})
+	reg := lifecycle.NewRegistry(nil)
+	if err := reg.Register(stubModule{name: "system"}); err != nil {
+		t.Fatalf("register system: %v", err)
+	}
+	if err := reg.Register(stubModule{name: "providers", deps: []string{"system"}}); err != nil {
+		t.Fatalf("register providers: %v", err)
+	}
+	if err := reg.Register(mod); err != nil {
+		t.Fatalf("register combos: %v", err)
+	}
+	if err := reg.MigrateAll(context.Background(), database); err != nil {
+		t.Fatalf("apply migrations: %v", err)
+	}
+	if err := mod.Start(context.Background()); err != nil {
+		t.Fatalf("start module: %v", err)
+	}
+
+	router := chi.NewRouter()
+	router.Route("/api", func(r chi.Router) {
+		mod.RegisterRoutes(lifecycle.RouteMounts{AdminAPI: r})
+	})
+
+	calls := []struct {
+		path string
+		body string
+	}{
+		{"/api/models/test", `{"providerId":"omeg4mon","modelId":"gpt-4o"}`},
+		{"/api/models/test", `{"providerId":"codex","modelId":"gpt-5-codex"}`},
+		{"/api/models/test", `{"providerId":"anthropic","modelId":"claude-sonnet-4"}`},
+		{"/api/models/test", `{"providerId":"gemini","modelId":"gemini-2.5-flash"}`},
+		{"/api/models/test", `{"providerId":"omeg4mon","modelId":"rate-limited-model"}`},
+		{"/api/models/identify", `{"providerId":"omeg4mon","modelId":"gpt-4o"}`},
+	}
+
+	for _, c := range calls {
+		rec := httptest.NewRecorder()
+		router.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, c.path, bytes.NewBufferString(c.body)))
+		if rec.Code != http.StatusOK {
+			t.Fatalf("POST %s returned %d: %s", c.path, rec.Code, rec.Body.String())
+		}
+	}
+
+	if len(recorder.records) != len(calls) {
+		t.Fatalf("recorded %d usage entries, want %d", len(recorder.records), len(calls))
+	}
+
+	// OpenAI Chat probe
+	if r := recorder.records[0]; r.ProviderID != "omeg4mon" || r.Model != "gpt-4o" || r.InputTokens != 18 || r.OutputTokens != 7 || r.CachedTokens != 4 || r.StatusCode != 200 || r.KeyID != "admin-probe" || r.RequestID == "" {
+		t.Errorf("unexpected openai-chat probe usage record: %+v", r)
+	}
+	// OpenAI Responses probe
+	if r := recorder.records[1]; r.ProviderID != "codex" || r.Model != "gpt-5-codex" || r.InputTokens != 12 || r.OutputTokens != 5 || r.CachedTokens != 2 || r.StatusCode != 200 {
+		t.Errorf("unexpected openai-responses probe usage record: %+v", r)
+	}
+	// Anthropic probe
+	if r := recorder.records[2]; r.ProviderID != "anthropic" || r.Model != "claude-sonnet-4" || r.InputTokens != 22 || r.OutputTokens != 9 || r.CachedTokens != 6 || r.StatusCode != 200 {
+		t.Errorf("unexpected anthropic probe usage record: %+v", r)
+	}
+	// Gemini probe
+	if r := recorder.records[3]; r.ProviderID != "gemini" || r.Model != "gemini-2.5-flash" || r.InputTokens != 15 || r.OutputTokens != 3 || r.CachedTokens != 5 || r.StatusCode != 200 {
+		t.Errorf("unexpected gemini probe usage record: %+v", r)
+	}
+	// Rate-limited error probe
+	if r := recorder.records[4]; r.ProviderID != "omeg4mon" || r.Model != "rate-limited-model" || r.StatusCode != 429 || r.ErrorSummary == "" {
+		t.Errorf("unexpected error probe usage record: %+v", r)
+	}
+	// Identify probe
+	if r := recorder.records[5]; r.ProviderID != "omeg4mon" || r.Model != "gpt-4o" || r.InputTokens != 18 || r.OutputTokens != 7 || r.CachedTokens != 4 || r.StatusCode != 200 || r.KeyID != "admin-probe" {
+		t.Errorf("unexpected identify probe usage record: %+v", r)
 	}
 }

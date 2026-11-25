@@ -1,5 +1,3 @@
-"use client";
-
 import { Moon, Sun } from "lucide-react";
 import { useEffect } from "react";
 import { useUIStore } from "@/shared/store/uiStore";

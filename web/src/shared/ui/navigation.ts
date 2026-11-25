@@ -421,6 +421,10 @@ export interface ShellCopy {
   dismissMenuLabel: string;
   signOutLabel: string;
   signingOutLabel: string;
+  signOutConfirmTitle: string;
+  signOutConfirmMessage: string;
+  signOutCancelLabel: string;
+  signOutConfirmLabel: string;
   gatewayOnline: string;
   gatewayDegraded: string;
   gatewayOffline: string;
@@ -451,6 +455,11 @@ const SHELL_COPY: Record<UILocale, ShellCopy> = {
     dismissMenuLabel: "Dismiss navigation menu",
     signOutLabel: "Sign Out",
     signingOutLabel: "Signing out...",
+    signOutConfirmTitle: "Sign out?",
+    signOutConfirmMessage:
+      "You will need to enter your administrator password to access the dashboard again.",
+    signOutCancelLabel: "Cancel",
+    signOutConfirmLabel: "Sign Out",
     gatewayOnline: "Online",
     gatewayDegraded: "Degraded",
     gatewayOffline: "Offline",
@@ -479,6 +488,11 @@ const SHELL_COPY: Record<UILocale, ShellCopy> = {
     dismissMenuLabel: "Tutup latar navigasi",
     signOutLabel: "Keluar",
     signingOutLabel: "Keluar...",
+    signOutConfirmTitle: "Keluar dari sesi?",
+    signOutConfirmMessage:
+      "Anda perlu memasukkan kata sandi administrator lagi untuk mengakses dashboard.",
+    signOutCancelLabel: "Batal",
+    signOutConfirmLabel: "Ya, Keluar",
     gatewayOnline: "Aktif",
     gatewayDegraded: "Terdegradasi",
     gatewayOffline: "Offline",

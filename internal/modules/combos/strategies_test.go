@@ -37,11 +37,11 @@ func TestAllOmniRouteComboStrategiesCRUDAndPersistence(t *testing.T) {
 	_, router := setupCatalogTestModule(t, store, http.DefaultClient)
 
 	// Verify all 22 OmniRoute strategies can be created and retrieved cleanly.
-	for i, strat := range combos.OmniRouteRoutingStrategies {
+	for i, strategy := range combos.OmniRouteRoutingStrategies {
 		payload := map[string]any{
-			"name":        "combo-" + strat,
-			"description": "OmniRoute strategy " + strat,
-			"strategy":    strat,
+			"name":        "combo-" + strategy,
+			"description": "OmniRoute strategy " + strategy,
+			"strategy":    strategy,
 			"steps": []map[string]any{
 				{"kind": "model", "model": "openai/gpt-4o", "weight": 70, "label": "Primary"},
 				{"kind": "model", "model": "ollama/llama3.3", "weight": 30, "label": "Local"},
@@ -56,24 +56,24 @@ func TestAllOmniRouteComboStrategiesCRUDAndPersistence(t *testing.T) {
 		rec := httptest.NewRecorder()
 		router.ServeHTTP(rec, req)
 		if rec.Code != http.StatusCreated {
-			t.Fatalf("strategy[%d]=%q create failed: HTTP %d: %s", i, strat, rec.Code, rec.Body.String())
+			t.Fatalf("strategy[%d]=%q create failed: HTTP %d: %s", i, strategy, rec.Code, rec.Body.String())
 		}
 
 		var created combos.Combo
 		if err := json.Unmarshal(rec.Body.Bytes(), &created); err != nil {
 			t.Fatalf("unmarshal created combo: %v", err)
 		}
-		if created.Strategy != strat {
-			t.Errorf("expected strategy %q, got %q", strat, created.Strategy)
+		if created.Strategy != strategy {
+			t.Errorf("expected strategy %q, got %q", strategy, created.Strategy)
 		}
 		if len(created.Steps) != 2 || created.Steps[0].Weight != 70 || created.Steps[0].Label != "Primary" {
-			t.Errorf("expected structured steps preserved for %q, got %+v", strat, created.Steps)
+			t.Errorf("expected structured steps preserved for %q, got %+v", strategy, created.Steps)
 		}
 		if len(created.Targets) != 2 || created.Targets[0] != "openai/gpt-4o" {
-			t.Errorf("expected targets synced with steps for %q, got %+v", strat, created.Targets)
+			t.Errorf("expected targets synced with steps for %q, got %+v", strategy, created.Targets)
 		}
 		if created.Config["routerStrategy"] != "cost" {
-			t.Errorf("expected runtime config persisted for %q, got %+v", strat, created.Config)
+			t.Errorf("expected runtime config persisted for %q, got %+v", strategy, created.Config)
 		}
 	}
 

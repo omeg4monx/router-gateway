@@ -252,6 +252,20 @@ export function formatClockUptime(totalSeconds: number): string {
   return `${pad(hours)}h ${pad(minutes)}m ${pad(seconds)}s`;
 }
 
+export function formatActivityOriginLabel(
+  keyId: string,
+  keyNameMap: ReadonlyMap<string, string>,
+  isId: boolean,
+): string {
+  if (keyId === "admin-internal") {
+    return isId ? "Studio Admin" : "Admin Studio";
+  }
+  if (keyId === "admin-probe") {
+    return isId ? "Uji Model" : "Model Probe";
+  }
+  return keyNameMap.get(keyId) ?? keyId;
+}
+
 export type SnippetFormat = "openai" | "anthropic";
 export type SnippetLang = "curl" | "python" | "node";
 

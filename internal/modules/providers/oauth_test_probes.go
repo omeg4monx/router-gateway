@@ -83,7 +83,7 @@ func (m *Module) executeOAuthTestProbe(
 	connectionID string,
 	creds contracts.UpstreamCredentials,
 	spec oauthTestProbeSpec,
-) (testConnectionResponse, string) {
+) (result testConnectionResponse, healthStatus string) {
 	method := spec.Method
 	if method == "" {
 		method = http.MethodGet
@@ -105,7 +105,7 @@ func (m *Module) executeOAuthTestProbe(
 		for k, v := range spec.ExtraHeaders {
 			req.Header.Set(k, v)
 		}
-		resp, err := m.httpClient.Do(req) //nolint:gosec // G704: probe target is a curated provider endpoint
+		resp, err := m.httpClient.Do(req)
 		if err != nil {
 			return 0, err
 		}
