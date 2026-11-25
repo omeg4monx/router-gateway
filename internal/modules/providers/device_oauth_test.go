@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strings"
 	"sync/atomic"
 	"testing"
 
@@ -261,4 +262,178 @@ func containsJSONStatus(raw []byte, want string) bool {
 		Status string `json:"status"`
 	}
 	return json.Unmarshal(raw, &payload) == nil && payload.Status == want
+}
+
+func TestFreePIConsentFailureFailsStart(t *testing.T) {
+	t.Parallel()
+
+	t.Run("4xx_fails_fast_without_retry", func(t *testing.T) {
+		var consentHits atomic.Int32
+		mockFP := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			switch r.URL.Path {
+			case "/auth/github/device":
+				_, _ = w.Write([]byte(`{"session_id":"fp-4xx","user_code":"FREE-403","verification_uri":"https://github.com/login/device"}`))
+			case "/auth/consent":
+				consentHits.Add(1)
+				w.WriteHeader(http.StatusBadRequest)
+				_, _ = w.Write([]byte(`{"code":"invalid_session","message":"bad session"}`))
+			default:
+				http.NotFound(w, r)
+			}
+		}))
+		defer mockFP.Close()
+
+		h := newTestHarness(t, nil, map[string]providers.OAuthConfig{
+			"freepi": {TokenURL: mockFP.URL + "/auth/token"},
+		})
+
+		startRec := h.doRequest(t, http.MethodPost, "/api/providers/oauth/freepi/start", `{}`, false)
+		if startRec.Code == http.StatusOK {
+			t.Fatalf("expected start to fail when consent returns 400, got 200: %s", startRec.Body.String())
+		}
+		if got := consentHits.Load(); got != 1 {
+			t.Fatalf("consent attempts on 4xx = %d, want 1", got)
+		}
+		if !strings.Contains(startRec.Body.String(), "consent") {
+			t.Fatalf("expected error body to mention consent, got: %s", startRec.Body.String())
+		}
+	})
+
+	t.Run("5xx_retries_once_and_succeeds", func(t *testing.T) {
+		var consentHits atomic.Int32
+		mockFP := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			switch r.URL.Path {
+			case "/auth/github/device":
+				_, _ = w.Write([]byte(`{"session_id":"fp-5xx-ok","user_code":"FREE-503","verification_uri":"https://github.com/login/device"}`))
+			case "/auth/consent":
+				if consentHits.Add(1) == 1 {
+					w.WriteHeader(http.StatusServiceUnavailable)
+					_, _ = w.Write([]byte(`{"code":"unavailable","message":"try again"}`))
+					return
+				}
+				_, _ = w.Write([]byte(`{"ok":true}`))
+			default:
+				http.NotFound(w, r)
+			}
+		}))
+		defer mockFP.Close()
+
+		h := newTestHarness(t, nil, map[string]providers.OAuthConfig{
+			"freepi": {TokenURL: mockFP.URL + "/auth/token"},
+		})
+
+		startRec := h.doRequest(t, http.MethodPost, "/api/providers/oauth/freepi/start", `{}`, false)
+		if startRec.Code != http.StatusOK {
+			t.Fatalf("expected start to succeed after 5xx retry, got %d: %s", startRec.Code, startRec.Body.String())
+		}
+		if got := consentHits.Load(); got != 2 {
+			t.Fatalf("consent attempts = %d, want 2", got)
+		}
+	})
+}
+
+func TestFreePIPollSurfacesCodeMessageAndRetryAfter(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name         string
+		tokenStatus  int
+		tokenBody    string
+		wantStatus   string
+		wantInterval int
+		wantErrPart  string
+	}{
+		{
+			name:         "pending_honors_retry_after",
+			tokenStatus:  http.StatusOK,
+			tokenBody:    `{"status":"pending","retry_after":12}`,
+			wantStatus:   "pending",
+			wantInterval: 12,
+		},
+		{
+			name:         "pending_caps_retry_after_at_60s",
+			tokenStatus:  http.StatusOK,
+			tokenBody:    `{"status":"pending","retry_after":120}`,
+			wantStatus:   "pending",
+			wantInterval: 60,
+		},
+		{
+			name:        "surfaces_403_consent_required",
+			tokenStatus: http.StatusForbidden,
+			tokenBody:   `{"code":"consent_required","message":"Consent record missing"}`,
+			wantStatus:  "error",
+			wantErrPart: "consent_required",
+		},
+		{
+			name:        "surfaces_404_not_found",
+			tokenStatus: http.StatusNotFound,
+			tokenBody:   `{"code":"not_found","message":"unknown session"}`,
+			wantStatus:  "error",
+			wantErrPart: "not_found",
+		},
+		{
+			name:        "surfaces_429_rate_limited",
+			tokenStatus: http.StatusTooManyRequests,
+			tokenBody:   `{"code":"rate_limited","message":"too many polls"}`,
+			wantStatus:  "error",
+			wantErrPart: "rate_limited",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			mockFP := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				switch r.URL.Path {
+				case "/auth/github/device":
+					_, _ = w.Write([]byte(`{"session_id":"fp-poll-1","user_code":"FREE-POLL","verification_uri":"https://github.com/login/device"}`))
+				case "/auth/consent":
+					_, _ = w.Write([]byte(`{"ok":true}`))
+				case "/auth/token":
+					w.WriteHeader(tc.tokenStatus)
+					_, _ = w.Write([]byte(tc.tokenBody))
+				default:
+					http.NotFound(w, r)
+				}
+			}))
+			defer mockFP.Close()
+
+			h := newTestHarness(t, nil, map[string]providers.OAuthConfig{
+				"freepi": {TokenURL: mockFP.URL + "/auth/token"},
+			})
+
+			startRec := h.doRequest(t, http.MethodPost, "/api/providers/oauth/freepi/start", `{}`, false)
+			if startRec.Code != http.StatusOK {
+				t.Fatalf("start status = %d: %s", startRec.Code, startRec.Body.String())
+			}
+			var startResp struct {
+				State string `json:"state"`
+			}
+			_ = json.Unmarshal(startRec.Body.Bytes(), &startResp)
+
+			pollRec := h.doRequest(t, http.MethodGet, "/api/providers/oauth/freepi/status?state="+url.QueryEscape(startResp.State), "", false)
+			if pollRec.Code != http.StatusOK {
+				t.Fatalf("poll HTTP status = %d: %s", pollRec.Code, pollRec.Body.String())
+			}
+			var pollResp struct {
+				Status   string `json:"status"`
+				Interval int    `json:"interval"`
+				Error    string `json:"error"`
+			}
+			if err := json.Unmarshal(pollRec.Body.Bytes(), &pollResp); err != nil {
+				t.Fatalf("unmarshal poll response: %v", err)
+			}
+			if pollResp.Status != tc.wantStatus {
+				t.Fatalf("poll status = %q, want %q (body=%s)", pollResp.Status, tc.wantStatus, pollRec.Body.String())
+			}
+			if tc.wantInterval > 0 && pollResp.Interval != tc.wantInterval {
+				t.Fatalf("poll interval = %d, want %d", pollResp.Interval, tc.wantInterval)
+			}
+			if tc.wantErrPart != "" && !strings.Contains(pollResp.Error, tc.wantErrPart) {
+				t.Fatalf("poll error = %q, want substring %q", pollResp.Error, tc.wantErrPart)
+			}
+		})
+	}
 }

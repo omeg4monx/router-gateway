@@ -30,6 +30,11 @@ const (
 	freepiConsentURL        = "https://api.freepi.ai/auth/consent"
 	freepiTokenURL          = "https://api.freepi.ai/auth/token" //nolint:gosec // G101: public OAuth token endpoint URL
 	freepiConsentVersion    = "4"
+	freepiDeviceCodeTimeout = 10 * time.Second
+	freepiConsentTimeout    = 6 * time.Second
+	freepiConsentAttempts   = 2
+	freepiConsentRetryDelay = 300 * time.Millisecond
+	freepiMaxRetryAfterSec  = 60
 	defaultDevicePollSec    = 5
 	defaultDeviceSessionTTL = 15 * time.Minute
 )
@@ -380,7 +385,9 @@ func (m *Module) startFreePIDevice(ctx context.Context, state string, cfg OAuthC
 		}
 	}
 
-	status, body, err := m.postRawJSON(ctx, devURL, map[string]any{})
+	devCtx, devCancel := context.WithTimeout(ctx, freepiDeviceCodeTimeout)
+	status, body, err := m.postRawJSON(devCtx, devURL, map[string]any{})
+	devCancel()
 	if err != nil {
 		return nil, fmt.Errorf("freepi device code request failed (status %d): %w", status, err)
 	}
@@ -399,11 +406,9 @@ func (m *Module) startFreePIDevice(ctx context.Context, state string, cfg OAuthC
 		return nil, errors.New("freepi device code returned empty session_id")
 	}
 
-	// Best-effort automatic consent submission (matches xrouter freepi.js).
-	_, _, _ = m.postRawJSON(ctx, consentURL, map[string]any{
-		"session_id":      raw.SessionID,
-		"consent_version": freepiConsentVersion,
-	})
+	if err := m.submitFreePIConsent(ctx, consentURL, raw.SessionID); err != nil {
+		return nil, err
+	}
 
 	interval := raw.Interval
 	if interval <= 0 {
@@ -605,8 +610,46 @@ func (m *Module) pollKiroDevice(ctx context.Context, sess deviceOAuthSession) (r
 	}
 }
 
+func (m *Module) submitFreePIConsent(ctx context.Context, consentURL, sessionID string) error {
+	var lastErr error
+	for attempt := 1; attempt <= freepiConsentAttempts; attempt++ {
+		attemptCtx, cancel := context.WithTimeout(ctx, freepiConsentTimeout)
+		status, body, err := m.postRawJSON(attemptCtx, consentURL, map[string]any{
+			"session_id":      sessionID,
+			"consent_version": freepiConsentVersion,
+		})
+		cancel()
+		if err == nil && status >= 200 && status < 300 {
+			return nil
+		}
+		if err != nil {
+			lastErr = fmt.Errorf("freepi consent request failed: %w", err)
+		} else {
+			detail := strings.TrimSpace(string(body))
+			if detail == "" {
+				detail = "empty response"
+			}
+			lastErr = fmt.Errorf("freepi consent not recorded (status %d): %s", status, detail)
+			// 4xx is deterministic (bad/expired session) — retrying cannot help.
+			if status < 500 {
+				break
+			}
+		}
+		if attempt < freepiConsentAttempts {
+			timer := time.NewTimer(freepiConsentRetryDelay)
+			select {
+			case <-ctx.Done():
+				timer.Stop()
+				return ctx.Err()
+			case <-timer.C:
+			}
+		}
+	}
+	return lastErr
+}
+
 func (m *Module) pollFreePIDevice(ctx context.Context, sess deviceOAuthSession) (result *deviceOAuthResult, pending bool, nextInterval int, errMsg string) {
-	_, body, err := m.postRawJSON(ctx, sess.TokenURL, map[string]any{
+	status, body, err := m.postRawJSON(ctx, sess.TokenURL, map[string]any{
 		"session_id": sess.DeviceCode,
 		"timezone":   "UTC",
 		"locale":     "en-US",
@@ -622,8 +665,18 @@ func (m *Module) pollFreePIDevice(ctx context.Context, sess deviceOAuthSession) 
 		Handle           string `json:"handle"`
 		Error            string `json:"error"`
 		ErrorDescription string `json:"error_description"`
+		Code             string `json:"code"`
+		Message          string `json:"message"`
+		RetryAfter       int    `json:"retry_after"`
 	}
 	_ = json.Unmarshal(body, &raw)
+	if raw.Status == "pending" || raw.Error == "authorization_pending" {
+		interval := 0
+		if raw.RetryAfter > 0 {
+			interval = min(raw.RetryAfter, freepiMaxRetryAfterSec)
+		}
+		return nil, true, interval, ""
+	}
 	tok := raw.Token
 	if tok == "" {
 		tok = raw.AccessToken
@@ -631,7 +684,7 @@ func (m *Module) pollFreePIDevice(ctx context.Context, sess deviceOAuthSession) 
 	if tok == "" {
 		tok = raw.AccessTokenCamel
 	}
-	if tok != "" {
+	if tok != "" && status >= 200 && status < 300 {
 		label := ""
 		if raw.Handle != "" {
 			label = "FreePI (@" + raw.Handle + ")"
@@ -643,14 +696,25 @@ func (m *Module) pollFreePIDevice(ctx context.Context, sess deviceOAuthSession) 
 			DisplayLabel: label,
 		}, false, 0, ""
 	}
-	if raw.Status == "pending" || raw.Error == "authorization_pending" || raw.Error == "" {
-		return nil, true, 0, ""
+
+	errCode := strings.TrimSpace(raw.Error)
+	if errCode == "" {
+		errCode = strings.TrimSpace(raw.Code)
 	}
-	msg := raw.ErrorDescription
-	if msg == "" {
-		msg = raw.Error
+	errDesc := strings.TrimSpace(raw.ErrorDescription)
+	if errDesc == "" {
+		errDesc = strings.TrimSpace(raw.Message)
 	}
-	return nil, false, 0, msg
+	switch {
+	case errCode != "" && errDesc != "":
+		return nil, false, 0, errCode + ": " + errDesc
+	case errDesc != "":
+		return nil, false, 0, errDesc
+	case errCode != "":
+		return nil, false, 0, errCode
+	default:
+		return nil, false, 0, fmt.Sprintf("freepi token poll failed (status %d)", status)
+	}
 }
 
 func (m *Module) handleDeviceOAuthExchange(w http.ResponseWriter, r *http.Request, providerID string, adapter ProviderAdapter, req oauthExchangeRequest) {

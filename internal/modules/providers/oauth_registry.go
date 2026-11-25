@@ -16,8 +16,8 @@ const (
 	oauthFlowDeviceCode    = "device_code"
 	oauthFlowLoopbackProxy = "loopback_proxy"
 
-	antigravityIDEVersion     = "2.32.1"
-	antigravityIDEUserAgent   = "antigravity/hub/2.32.1 linux/x64"
+	antigravityIDEVersion     = "2.34.0"
+	antigravityIDEUserAgent   = "antigravity/hub/" + antigravityIDEVersion + " linux/x64"
 	antigravityClientMetadata = `{"ideType":"ANTIGRAVITY","platform":"PLATFORM_UNSPECIFIED","pluginType":"GEMINI"}`
 
 	googleUserInfoV1URL   = "https://www.googleapis.com/oauth2/v1/userinfo"

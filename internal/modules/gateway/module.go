@@ -937,6 +937,9 @@ func (m *Module) executeCandidateAttempt(
 
 	upCtx := httpclient.WithProviderID(ctx, cand.ProviderID)
 	curBody := upBody
+	if cand.ProviderID == "antigravity" {
+		curBody = rewriteAntigravitySystemInstruction(curBody)
+	}
 	retriedSystemToUser := false
 
 	var resp *http.Response

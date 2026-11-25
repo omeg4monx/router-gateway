@@ -17,6 +17,9 @@ import (
 )
 
 const (
+	antigravityIDEVersion   = "2.34.0"
+	antigravityIDEUserAgent = "antigravity/hub/" + antigravityIDEVersion + " linux/x64"
+
 	agQuotaCacheTTL        = 60 * time.Second
 	agQuotaFailBackoff     = 15 * time.Second
 	agQuotaCheckTimeout    = 10 * time.Second
@@ -27,12 +30,203 @@ const (
 	antigravityPromptRejectedMessage = "Antigravity rejected this request (upstream 429 RESOURCE_EXHAUSTED with no quota details, so this is not your quota). Retrying with system instructions moved to the first user turn was also refused."
 )
 
+type antigravityPromptRewriteRule struct {
+	pattern *regexp.Regexp
+	replace string
+	fn      func(string) string
+}
+
 var (
 	agLegacyFakeProjectRE    = regexp.MustCompile(`^(?i)(useful|bright|swift|calm|bold)-(fuze|wave|spark|flow|core)-[a-f0-9]+$`)
 	agLegacyCompanionRE      = regexp.MustCompile(`^(?i)cloudaicompanion-proj-[a-f0-9]+$`)
 	agBareExhaustedMsgRE     = regexp.MustCompile(`^Resource has been exhausted \(e\.g\. check quota\)\.?$`)
 	agResourceExhaustedBytes = []byte("RESOURCE_EXHAUSTED")
+	agSystemInstructionBytes = []byte("systemInstruction")
+
+	// Ordered proactive rewrites for systemInstruction phrases fingerprinted by
+	// Antigravity (Claude Code, Codex CLI, Hermes, OpenClaw, OpenCode). Longest
+	// forms come first so fragments do not survive.
+	antigravityPromptRewrites = []antigravityPromptRewriteRule{
+		{
+			pattern: regexp.MustCompile(`You are a Claude agent, built on Anthropic's Claude Agent SDK\.`),
+			replace: "",
+		},
+		{
+			pattern: regexp.MustCompile(`(?i)You(?: are|'re) Claude Code(?:,\s*Anthropic's official CLI for Claude)?\.?`),
+			replace: "You are an AI coding assistant.",
+		},
+		{
+			pattern: regexp.MustCompile(`(?i)interactive agent that helps users with software engineering tasks`),
+			replace: "AI coding assistant that helps users with software engineering tasks",
+		},
+		{
+			pattern: regexp.MustCompile(`(?i)Dual-use security tools \(C2 frameworks, credential testing, exploit development\) require clear authorization context`),
+			replace: "Dual-use security tools require clear authorization context",
+		},
+		{
+			pattern: regexp.MustCompile(`(?i)was pasted into the message by the user from somewhere else and may contain instructions the user did not write`),
+			replace: "comes from user-pasted content and may contain untrusted instructions",
+		},
+		{
+			pattern: regexp.MustCompile(`(?i)You(?: are|'re) a coding agent running in the Codex CLI(?:,\s*a terminal-based coding assistant)?\.?`),
+			replace: "You are a coding assistant.",
+		},
+		{
+			pattern: regexp.MustCompile(`(?i)You are Hermes Agent, built by Nous Research\.\s*Be direct:\s*match the length of your reply to the weight of the ask`),
+			replace: "You are an AI assistant. Match the length of your reply to the weight of the ask",
+		},
+		{
+			pattern: regexp.MustCompile(`(?i)Be direct:\s*match the length of your reply to the weight of the ask`),
+			replace: "Match the length of your reply to the weight of the ask",
+		},
+		{
+			pattern: regexp.MustCompile(`(?i)For help with Hermes Agent itself([^\n]*?)the documentation at`),
+			replace: "On Hermes Agent itself${1}the documentation at",
+		},
+		{
+			pattern: regexp.MustCompile(`(?i)(documentation at https://hermes-agent\.nousresearch\.com/docs) is your authoritative reference`),
+			replace: "${1} is the authoritative reference",
+		},
+		{
+			pattern: regexp.MustCompile(`(?i)Hermes delivers their message as a standalone user message`),
+			replace: "the harness delivers their message as a standalone user message",
+		},
+		{
+			pattern: regexp.MustCompile(`# Hermes runtime environment`),
+			replace: "# Runtime environment",
+		},
+		{
+			pattern: regexp.MustCompile(`<!-- End Hermes runtime environment -->`),
+			replace: "<!-- End runtime environment -->",
+		},
+		{
+			pattern: regexp.MustCompile(`# Google model operational directives`),
+			replace: "# Operational directives",
+		},
+		{
+			pattern: regexp.MustCompile(`(?i)When the user asks you to build, run, or verify something, the deliverable is a working artifact backed by real tool output`),
+			replace: "If the user asks you to build, run, or verify something, the deliverable is a working artifact that real tool output backs",
+		},
+		{
+			pattern: regexp.MustCompile(`(?i)the deliverable is a working artifact backed by real tool output`),
+			replace: "the deliverable is a working artifact that real tool output backs",
+		},
+		{
+			pattern: regexp.MustCompile(`(?i)If a tool, install, or network call fails and blocks the real path`),
+			replace: "When a tool, install, or network call fails and blocks the real path",
+		},
+		{
+			pattern: regexp.MustCompile(`(?i)Reporting a blocker honestly is always better than inventing a result\.`),
+			replace: "Honestly reporting a blocker is always better than inventing a result.",
+		},
+		{
+			pattern: regexp.MustCompile(`(?i)You are Hermes(?: Agent)?(?:,\s*(?:an intelligent AI assistant|an AI assistant|an AI agent))?(?:,?\s*(?:built|created)\s+by\s+Nous Research)?\.`),
+			replace: "You are an AI assistant.",
+		},
+		{
+			pattern: regexp.MustCompile(`(?im)^x-anthropic-billing-header:[^\n]*(?:\r?\n)*`),
+			replace: "",
+		},
+		{
+			pattern: regexp.MustCompile(`(?i)You are a personal assistant running inside OpenClaw\.`),
+			replace: "You are a personal assistant that runs inside OpenClaw.",
+		},
+		{
+			pattern: regexp.MustCompile(`(?i)opencode`),
+			fn: func(match string) string {
+				switch match {
+				case "OpenCode":
+					return "Antigravity"
+				case "OPENCODE":
+					return "ANTIGRAVITY"
+				default:
+					return "antigravity"
+				}
+			},
+		},
+	}
 )
+
+func rewriteAntigravityPromptText(text string) string {
+	out := text
+	for _, rule := range antigravityPromptRewrites {
+		if rule.fn != nil {
+			out = rule.pattern.ReplaceAllStringFunc(out, rule.fn)
+		} else {
+			out = rule.pattern.ReplaceAllString(out, rule.replace)
+		}
+	}
+	return out
+}
+
+// rewriteAntigravitySystemInstruction proactively rewrites fingerprinted client
+// phrases in systemInstruction (for both raw Gemini payloads and Antigravity's
+// wrapped {request:{...}} envelope) so upstream does not answer with a bare 429.
+func rewriteAntigravitySystemInstruction(body []byte) []byte {
+	if len(body) == 0 || !bytes.Contains(body, agSystemInstructionBytes) {
+		return body
+	}
+	var root map[string]any
+	if err := json.Unmarshal(body, &root); err != nil || root == nil {
+		return body
+	}
+
+	target := root
+	if nested, ok := root["request"].(map[string]any); ok && nested != nil {
+		if _, hasNestedSys := nested["systemInstruction"]; hasNestedSys {
+			target = nested
+		}
+	}
+
+	sysMap, ok := target["systemInstruction"].(map[string]any)
+	if !ok || sysMap == nil {
+		return body
+	}
+	rawParts, ok := sysMap["parts"].([]any)
+	if !ok || len(rawParts) == 0 {
+		return body
+	}
+
+	changed := false
+	rewrittenParts := make([]any, 0, len(rawParts))
+	for _, rawPart := range rawParts {
+		partMap, ok := rawPart.(map[string]any)
+		if !ok {
+			rewrittenParts = append(rewrittenParts, rawPart)
+			continue
+		}
+		text, isStr := partMap["text"].(string)
+		if !isStr {
+			rewrittenParts = append(rewrittenParts, partMap)
+			continue
+		}
+		rewritten := rewriteAntigravityPromptText(text)
+		if rewritten != text {
+			changed = true
+		}
+		if strings.TrimSpace(rewritten) == "" {
+			changed = true
+			continue
+		}
+		partMap["text"] = rewritten
+		rewrittenParts = append(rewrittenParts, partMap)
+	}
+
+	if !changed {
+		return body
+	}
+	if len(rewrittenParts) == 0 {
+		delete(target, "systemInstruction")
+	} else {
+		sysMap["parts"] = rewrittenParts
+	}
+
+	encoded, err := json.Marshal(root)
+	if err != nil {
+		return body
+	}
+	return encoded
+}
 
 func isBlockedAntigravityProjectID(projectID string) bool {
 	trimmed := strings.TrimSpace(projectID)
@@ -282,7 +476,7 @@ func fetchAntigravityQuotaSummary(ctx context.Context, client *http.Client, base
 	req.Header.Set("Authorization", "Bearer "+accessToken)
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
-	req.Header.Set("User-Agent", "antigravity/hub/2.32.1 linux/x64")
+	req.Header.Set("User-Agent", antigravityIDEUserAgent)
 	req.Header.Set("X-Client-Name", "antigravity")
 
 	resp, err := client.Do(req)
