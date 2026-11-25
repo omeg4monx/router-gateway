@@ -185,6 +185,9 @@ func (m *Module) RegisterRoutes(mounts lifecycle.RouteMounts) {
 	mounts.AdminAPI.Delete("/models/cooldowns/{connectionId}", m.handleDeleteCooldown)
 
 	mounts.AdminAPI.Get("/providers/health-matrix", m.handleProviderHealthMatrix)
+	mounts.AdminAPI.Get("/providers/strategies", m.handleListProviderStrategies)
+	mounts.AdminAPI.Get("/providers/{providerId}/strategy", m.handleGetProviderStrategy)
+	mounts.AdminAPI.Put("/providers/{providerId}/strategy", m.handlePutProviderStrategy)
 }
 
 // Start validates that required dependencies are wired.
@@ -212,11 +215,13 @@ func (m *Module) IsInCooldown(connectionID string, now time.Time) bool {
 // exponential cooldown window.
 func (m *Module) RecordFailure(connectionID string, statusCode int, retryAfter time.Duration) {
 	m.cooldown.RecordFailure(connectionID, statusCode, retryAfter)
+	m.stratState.recordFailure(connectionID)
 }
 
 // RecordSuccess clears any active cooldown and resets failure backoff immediately.
 func (m *Module) RecordSuccess(connectionID string) {
 	m.cooldown.RecordSuccess(connectionID)
+	m.stratState.recordSuccess(connectionID)
 }
 
 // ListCooldowns returns all currently active connection cooldown entries.
@@ -276,6 +281,65 @@ type deleteDisabledModelRequest struct {
 
 type listCooldownsResponse struct {
 	Cooldowns []CooldownEntry `json:"cooldowns"`
+}
+
+type listProviderStrategiesResponse struct {
+	DefaultStrategy string                  `json:"default_strategy"`
+	Strategies      []ProviderStrategyState `json:"strategies"`
+}
+
+type updateProviderStrategyRequest struct {
+	Strategy string `json:"strategy"`
+}
+
+func (m *Module) handleListProviderStrategies(w http.ResponseWriter, r *http.Request) {
+	items, err := m.repo.ListProviderStrategies(r.Context())
+	if err != nil {
+		httpserver.WriteError(w, r, http.StatusInternalServerError, "internal_error", "failed to list provider strategies")
+		return
+	}
+	httpserver.WriteJSON(w, http.StatusOK, listProviderStrategiesResponse{
+		DefaultStrategy: DefaultProviderStrategy,
+		Strategies:      items,
+	})
+}
+
+func (m *Module) handleGetProviderStrategy(w http.ResponseWriter, r *http.Request) {
+	providerID, err := decodePathModelParam(chi.URLParam(r, "providerId"), "providerId")
+	if err != nil {
+		httpserver.WriteError(w, r, http.StatusBadRequest, "invalid_request", err.Error())
+		return
+	}
+	item, err := m.repo.GetProviderStrategy(r.Context(), providerID)
+	if err != nil {
+		httpserver.WriteError(w, r, http.StatusInternalServerError, "internal_error", "failed to load provider strategy")
+		return
+	}
+	httpserver.WriteJSON(w, http.StatusOK, item)
+}
+
+func (m *Module) handlePutProviderStrategy(w http.ResponseWriter, r *http.Request) {
+	providerID, err := decodePathModelParam(chi.URLParam(r, "providerId"), "providerId")
+	if err != nil {
+		httpserver.WriteError(w, r, http.StatusBadRequest, "invalid_request", err.Error())
+		return
+	}
+	var req updateProviderStrategyRequest
+	if !decodeJSONBody(w, r, &req) {
+		return
+	}
+	strategy, err := validateProviderStrategy(req.Strategy)
+	if err != nil {
+		httpserver.WriteError(w, r, http.StatusBadRequest, "invalid_request", err.Error())
+		return
+	}
+	item, err := m.repo.UpsertProviderStrategy(r.Context(), providerID, strategy)
+	if err != nil {
+		httpserver.WriteError(w, r, http.StatusInternalServerError, "internal_error", "failed to save provider strategy")
+		return
+	}
+	m.publishChanged("upsert", "provider_strategy", providerID, actorFromContext(r.Context()), item.UpdatedAt)
+	httpserver.WriteJSON(w, http.StatusOK, item)
 }
 
 func (m *Module) handleListCombos(w http.ResponseWriter, r *http.Request) {

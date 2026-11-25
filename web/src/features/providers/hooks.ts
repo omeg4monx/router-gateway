@@ -1,5 +1,6 @@
 import { type QueryClient, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient, extractErrorMessage } from "@/shared/api/client";
+import type { ProviderAccountStrategy, ProviderStrategyState } from "./providerStrategy";
 import type {
   CreateProviderConnectionRequest,
   CreateProviderNodeRequest,
@@ -24,6 +25,8 @@ export const providersQueryKeys = {
   nodes: ["providers", "nodes"] as const,
   connections: ["providers", "connections"] as const,
   connection: (id: string) => ["providers", "connections", id] as const,
+  strategies: ["providers", "strategies"] as const,
+  strategy: (providerId: string) => ["providers", "strategies", providerId] as const,
 };
 
 const MODEL_CATALOG_QUERY_KEY = ["models", "catalog"] as const;
@@ -399,6 +402,53 @@ export function useStopProviderOAuthMutation() {
         return data;
       }
       throw new Error(extractErrorMessage(error));
+    },
+  });
+}
+
+export function useProviderStrategy(providerId: string) {
+  const trimmedId = providerId.trim();
+
+  return useQuery<ProviderStrategyState, Error>({
+    queryKey: providersQueryKeys.strategy(trimmedId),
+    enabled: trimmedId.length > 0,
+    queryFn: async () => {
+      const { data, error } = await apiClient.GET("/api/providers/{providerId}/strategy", {
+        params: { path: { providerId: trimmedId } },
+      });
+      if (data) {
+        return data;
+      }
+      throw new Error(extractErrorMessage(error));
+    },
+  });
+}
+
+export interface UpdateProviderStrategyVariables {
+  providerId: string;
+  strategy: ProviderAccountStrategy;
+}
+
+export function useUpdateProviderStrategyMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation<ProviderStrategyState, Error, UpdateProviderStrategyVariables>({
+    mutationFn: async ({ providerId, strategy }) => {
+      const { data, error } = await apiClient.PUT("/api/providers/{providerId}/strategy", {
+        params: { path: { providerId } },
+        body: { strategy },
+      });
+      if (data) {
+        return data;
+      }
+      throw new Error(extractErrorMessage(error));
+    },
+    onSuccess: async (updated, { providerId }) => {
+      queryClient.setQueryData(providersQueryKeys.strategy(providerId), updated);
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: providersQueryKeys.strategy(providerId) }),
+        queryClient.invalidateQueries({ queryKey: providersQueryKeys.strategies }),
+      ]);
     },
   });
 }

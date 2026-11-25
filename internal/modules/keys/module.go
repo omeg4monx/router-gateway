@@ -309,7 +309,7 @@ func (m *Module) ValidateKey(ctx context.Context, rawKey string) (contracts.KeyI
 		return contracts.KeyInfo{}, ErrKeyExpired
 	}
 
-	m.limiter.setLimits(entry.info.ID, keyLimitSnapshot{
+	m.limiter.ensureLimits(entry.info.ID, keyLimitSnapshot{
 		name:         entry.info.Name,
 		rateLimitRPM: entry.info.RateLimitRPM,
 		quotaUSD:     entry.info.QuotaUSD,

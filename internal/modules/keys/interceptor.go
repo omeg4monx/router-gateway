@@ -17,6 +17,7 @@ const (
 	interceptorPriority = 1
 	usageSubBufSize     = 256
 	lastUsedThrottle    = 5 * time.Second
+	limiterShardCount   = 32
 )
 
 type statusError struct {
@@ -33,8 +34,8 @@ type keyLimitSnapshot struct {
 	quotaUSD     float64
 }
 
-type keyLimiter struct {
-	mu          sync.Mutex
+type keyLimiterShard struct {
+	mu          sync.RWMutex
 	limits      map[string]keyLimitSnapshot
 	rpmWindows  map[string][]time.Time
 	spent       map[string]float64
@@ -42,55 +43,115 @@ type keyLimiter struct {
 	lastTouched map[string]time.Time
 }
 
+type keyLimiter struct {
+	shards [limiterShardCount]keyLimiterShard
+}
+
 func newKeyLimiter() *keyLimiter {
-	return &keyLimiter{
-		limits:      make(map[string]keyLimitSnapshot),
-		rpmWindows:  make(map[string][]time.Time),
-		spent:       make(map[string]float64),
-		spentSeeded: make(map[string]bool),
-		lastTouched: make(map[string]time.Time),
+	l := &keyLimiter{}
+	for i := range l.shards {
+		l.shards[i] = keyLimiterShard{
+			limits:      make(map[string]keyLimitSnapshot),
+			rpmWindows:  make(map[string][]time.Time),
+			spent:       make(map[string]float64),
+			spentSeeded: make(map[string]bool),
+			lastTouched: make(map[string]time.Time),
+		}
 	}
+	return l
+}
+
+func (l *keyLimiter) shardFor(id string) *keyLimiterShard {
+	const (
+		fnvOffset32 uint32 = 2166136261
+		fnvPrime32  uint32 = 16777619
+	)
+	h := fnvOffset32
+	for i := 0; i < len(id); i++ {
+		h ^= uint32(id[i])
+		h *= fnvPrime32
+	}
+	return &l.shards[h&(limiterShardCount-1)]
+}
+
+func (l *keyLimiter) getLimits(id string) (keyLimitSnapshot, bool) {
+	sh := l.shardFor(id)
+	sh.mu.RLock()
+	snap, ok := sh.limits[id]
+	sh.mu.RUnlock()
+	return snap, ok
 }
 
 func (l *keyLimiter) setLimits(id string, snap keyLimitSnapshot) {
-	l.mu.Lock()
-	l.limits[id] = snap
-	l.mu.Unlock()
+	sh := l.shardFor(id)
+	sh.mu.Lock()
+	sh.limits[id] = snap
+	sh.mu.Unlock()
+}
+
+// ensureLimits populates the cached limit snapshot only when absent, avoiding
+// write-lock contention on the ValidateKey cache-hit hot path.
+func (l *keyLimiter) ensureLimits(id string, snap keyLimitSnapshot) {
+	sh := l.shardFor(id)
+	sh.mu.RLock()
+	_, ok := sh.limits[id]
+	sh.mu.RUnlock()
+	if ok {
+		return
+	}
+	sh.mu.Lock()
+	if _, exists := sh.limits[id]; !exists {
+		sh.limits[id] = snap
+	}
+	sh.mu.Unlock()
 }
 
 func (l *keyLimiter) invalidateLimits(id string) {
-	l.mu.Lock()
-	delete(l.limits, id)
-	l.mu.Unlock()
+	sh := l.shardFor(id)
+	sh.mu.Lock()
+	delete(sh.limits, id)
+	sh.mu.Unlock()
 }
 
 func (l *keyLimiter) purgeKey(id string) {
-	l.mu.Lock()
-	delete(l.limits, id)
-	delete(l.rpmWindows, id)
-	delete(l.spent, id)
-	delete(l.spentSeeded, id)
-	delete(l.lastTouched, id)
-	l.mu.Unlock()
+	sh := l.shardFor(id)
+	sh.mu.Lock()
+	delete(sh.limits, id)
+	delete(sh.rpmWindows, id)
+	delete(sh.spent, id)
+	delete(sh.spentSeeded, id)
+	delete(sh.lastTouched, id)
+	sh.mu.Unlock()
 }
 
 func (l *keyLimiter) clear() {
-	l.mu.Lock()
-	l.limits = make(map[string]keyLimitSnapshot)
-	l.rpmWindows = make(map[string][]time.Time)
-	l.spent = make(map[string]float64)
-	l.spentSeeded = make(map[string]bool)
-	l.lastTouched = make(map[string]time.Time)
-	l.mu.Unlock()
+	for i := range l.shards {
+		sh := &l.shards[i]
+		sh.mu.Lock()
+		sh.limits = make(map[string]keyLimitSnapshot)
+		sh.rpmWindows = make(map[string][]time.Time)
+		sh.spent = make(map[string]float64)
+		sh.spentSeeded = make(map[string]bool)
+		sh.lastTouched = make(map[string]time.Time)
+		sh.mu.Unlock()
+	}
 }
 
 func (l *keyLimiter) shouldTouchLastUsed(id string, now time.Time) bool {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	if prev, ok := l.lastTouched[id]; ok && now.Sub(prev) < lastUsedThrottle {
+	sh := l.shardFor(id)
+	sh.mu.RLock()
+	if prev, ok := sh.lastTouched[id]; ok && now.Sub(prev) < lastUsedThrottle {
+		sh.mu.RUnlock()
 		return false
 	}
-	l.lastTouched[id] = now
+	sh.mu.RUnlock()
+
+	sh.mu.Lock()
+	defer sh.mu.Unlock()
+	if prev, ok := sh.lastTouched[id]; ok && now.Sub(prev) < lastUsedThrottle {
+		return false
+	}
+	sh.lastTouched[id] = now
 	return true
 }
 
@@ -98,9 +159,10 @@ func (l *keyLimiter) addSpend(id string, costUSD float64) {
 	if id == "" || costUSD <= 0 {
 		return
 	}
-	l.mu.Lock()
-	l.spent[id] += costUSD
-	l.mu.Unlock()
+	sh := l.shardFor(id)
+	sh.mu.Lock()
+	sh.spent[id] += costUSD
+	sh.mu.Unlock()
 }
 
 // Priority runs per-key RPM and USD quota enforcement before team/content interceptors.
@@ -123,17 +185,23 @@ func (m *Module) OnRequest(ctx context.Context, req *contracts.CanonicalRequest)
 		return nil
 	}
 
+	// Fast path: keys without RPM or USD quota limits need no mutex acquisition.
+	if snap.quotaUSD <= 0 && snap.rateLimitRPM <= 0 {
+		return nil
+	}
+
 	// Seed historical spend from usage_logs once per key when quota_usd is configured.
 	if snap.quotaUSD > 0 {
 		m.ensureSpendSeeded(ctx, keyID)
 	}
 
 	now := time.Now()
-	m.limiter.mu.Lock()
-	defer m.limiter.mu.Unlock()
+	sh := m.limiter.shardFor(keyID)
+	sh.mu.Lock()
+	defer sh.mu.Unlock()
 
 	if snap.quotaUSD > 0 {
-		spent := m.limiter.spent[keyID]
+		spent := sh.spent[keyID]
 		if spent >= snap.quotaUSD {
 			return statusError{
 				code: http.StatusTooManyRequests,
@@ -144,7 +212,7 @@ func (m *Module) OnRequest(ctx context.Context, req *contracts.CanonicalRequest)
 
 	if snap.rateLimitRPM > 0 {
 		cutoff := now.Add(-time.Minute)
-		window := m.limiter.rpmWindows[keyID]
+		window := sh.rpmWindows[keyID]
 		pruned := window[:0]
 		for _, ts := range window {
 			if ts.After(cutoff) {
@@ -152,13 +220,13 @@ func (m *Module) OnRequest(ctx context.Context, req *contracts.CanonicalRequest)
 			}
 		}
 		if len(pruned) >= snap.rateLimitRPM {
-			m.limiter.rpmWindows[keyID] = pruned
+			sh.rpmWindows[keyID] = pruned
 			return statusError{
 				code: http.StatusTooManyRequests,
 				msg:  fmt.Sprintf("API key %q rate limit exceeded (%d RPM)", snap.name, snap.rateLimitRPM),
 			}
 		}
-		m.limiter.rpmWindows[keyID] = append(pruned, now)
+		sh.rpmWindows[keyID] = append(pruned, now)
 	}
 
 	return nil
@@ -175,18 +243,18 @@ func (m *Module) OnStreamChunk(_ context.Context, _ *contracts.StreamEvent) erro
 }
 
 func (m *Module) resolveKeyLimits(ctx context.Context, keyID string) (keyLimitSnapshot, bool) {
-	m.limiter.mu.Lock()
-	snap, ok := m.limiter.limits[keyID]
-	m.limiter.mu.Unlock()
-	if ok {
+	if snap, ok := m.limiter.getLimits(keyID); ok {
 		return snap, true
 	}
 
+	if m.repo == nil {
+		return keyLimitSnapshot{}, false
+	}
 	summary, err := m.repo.GetByID(ctx, keyID)
 	if err != nil {
 		return keyLimitSnapshot{}, false
 	}
-	snap = keyLimitSnapshot{
+	snap := keyLimitSnapshot{
 		name:         summary.Name,
 		rateLimitRPM: summary.RateLimitRPM,
 		quotaUSD:     summary.QuotaUSD,
@@ -196,22 +264,23 @@ func (m *Module) resolveKeyLimits(ctx context.Context, keyID string) (keyLimitSn
 }
 
 func (m *Module) ensureSpendSeeded(ctx context.Context, keyID string) {
-	m.limiter.mu.Lock()
-	seeded := m.limiter.spentSeeded[keyID]
-	m.limiter.mu.Unlock()
-	if seeded {
+	sh := m.limiter.shardFor(keyID)
+	sh.mu.RLock()
+	seeded := sh.spentSeeded[keyID]
+	sh.mu.RUnlock()
+	if seeded || m.repo == nil {
 		return
 	}
 
 	historical, ok := m.repo.SumUsageCost(ctx, keyID)
-	m.limiter.mu.Lock()
-	if !m.limiter.spentSeeded[keyID] {
-		m.limiter.spentSeeded[keyID] = true
+	sh.mu.Lock()
+	if !sh.spentSeeded[keyID] {
+		sh.spentSeeded[keyID] = true
 		if ok && historical > 0 {
-			m.limiter.spent[keyID] += historical
+			sh.spent[keyID] += historical
 		}
 	}
-	m.limiter.mu.Unlock()
+	sh.mu.Unlock()
 }
 
 func (m *Module) recordLastUsed(ctx context.Context, keyID string) {

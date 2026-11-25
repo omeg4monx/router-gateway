@@ -775,6 +775,44 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/providers/strategies": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List configured per-provider account routing strategies and the active global default */
+        get: operations["listProviderStrategies"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/providers/{providerId}/strategy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Provider adapter or custom node identifier. */
+                providerId: string;
+            };
+            cookie?: never;
+        };
+        /** Retrieve the active account routing strategy for a provider (returns active default when unset) */
+        get: operations["getProviderStrategy"];
+        /** Set or update the active account routing strategy for a provider */
+        put: operations["updateProviderStrategy"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/usage/summary": {
         parameters: {
             query?: never;
@@ -4741,6 +4779,22 @@ export interface components {
         ProviderHealthMatrixResponse: {
             providers: components["schemas"]["ProviderHealthMatrixEntry"][];
         };
+        /** @enum {string} */
+        ProviderAccountStrategy: "fill-first" | "priority" | "round-robin" | "p2c" | "least-used" | "random" | "strict-random" | "lkgp" | "cache-optimized" | "headroom" | "reset-aware" | "reset-window" | "expiry-first";
+        ProviderStrategyState: {
+            provider_id: string;
+            strategy: components["schemas"]["ProviderAccountStrategy"];
+            default_strategy: components["schemas"]["ProviderAccountStrategy"];
+            is_default: boolean;
+            updated_at?: string;
+        };
+        ListProviderStrategiesResponse: {
+            default_strategy: components["schemas"]["ProviderAccountStrategy"];
+            strategies: components["schemas"]["ProviderStrategyState"][];
+        };
+        UpdateProviderStrategyRequest: {
+            strategy: components["schemas"]["ProviderAccountStrategy"];
+        };
     };
     responses: never;
     parameters: never;
@@ -7483,6 +7537,157 @@ export interface operations {
             };
             /** @description Administrative authentication is required. */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    listProviderStrategies: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Configured provider strategy overrides and default strategy. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListProviderStrategiesResponse"];
+                };
+            };
+            /** @description Administrative authentication is required. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Failed to load provider strategies. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    getProviderStrategy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Provider adapter or custom node identifier. */
+                providerId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Effective provider routing strategy. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProviderStrategyState"];
+                };
+            };
+            /** @description Invalid providerId path parameter. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Administrative authentication is required. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Failed to load provider strategy. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    updateProviderStrategy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Provider adapter or custom node identifier. */
+                providerId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateProviderStrategyRequest"];
+            };
+        };
+        responses: {
+            /** @description Updated provider routing strategy. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProviderStrategyState"];
+                };
+            };
+            /** @description Invalid providerId or unsupported account routing strategy. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Administrative authentication is required. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Request body exceeds maximum allowed size. */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Failed to save provider strategy. */
+            500: {
                 headers: {
                     [name: string]: unknown;
                 };

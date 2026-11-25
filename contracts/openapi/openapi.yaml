@@ -144,6 +144,10 @@ paths:
     $ref: './modules/combos.yaml#/paths/~1api~1models~1cooldowns~1{connectionId}'
   /api/providers/health-matrix:
     $ref: './modules/combos.yaml#/paths/~1api~1providers~1health-matrix'
+  /api/providers/strategies:
+    $ref: './modules/combos.yaml#/paths/~1api~1providers~1strategies'
+  /api/providers/{providerId}/strategy:
+    $ref: './modules/combos.yaml#/paths/~1api~1providers~1{providerId}~1strategy'
   /api/usage/summary:
     $ref: './modules/usage.yaml#/paths/~1api~1usage~1summary'
   /api/usage/logs:

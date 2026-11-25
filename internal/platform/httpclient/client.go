@@ -62,8 +62,9 @@ const (
 	defaultDialTimeout           = 10 * time.Second
 	defaultResponseHeaderTimeout = 30 * time.Second
 	defaultIdleConnTimeout       = 90 * time.Second
-	defaultMaxIdleConns          = 100
-	defaultMaxIdleConnsPerHost   = 20
+	defaultMaxIdleConns          = 256
+	defaultMaxIdleConnsPerHost   = 64
+	defaultMaxConnsPerHost       = 128
 	defaultKeepAlive             = 30 * time.Second
 	defaultTLSHandshakeTimeout   = 10 * time.Second
 	defaultExpectContinueTimeout = 1 * time.Second
@@ -77,6 +78,7 @@ type Options struct {
 	IdleConnTimeout       time.Duration
 	MaxIdleConns          int
 	MaxIdleConnsPerHost   int
+	MaxConnsPerHost       int
 	ProxyFunc             func(*http.Request) (*url.URL, error)
 }
 
@@ -95,6 +97,9 @@ func applyDefaults(opts Options) Options {
 	}
 	if opts.MaxIdleConnsPerHost <= 0 {
 		opts.MaxIdleConnsPerHost = defaultMaxIdleConnsPerHost
+	}
+	if opts.MaxConnsPerHost <= 0 {
+		opts.MaxConnsPerHost = defaultMaxConnsPerHost
 	}
 	if opts.ProxyFunc == nil {
 		opts.ProxyFunc = http.ProxyFromEnvironment
@@ -120,6 +125,7 @@ func NewClient(opts Options) *http.Client {
 		ForceAttemptHTTP2:     true,
 		MaxIdleConns:          cfg.MaxIdleConns,
 		MaxIdleConnsPerHost:   cfg.MaxIdleConnsPerHost,
+		MaxConnsPerHost:       cfg.MaxConnsPerHost,
 		IdleConnTimeout:       cfg.IdleConnTimeout,
 		TLSHandshakeTimeout:   defaultTLSHandshakeTimeout,
 		ExpectContinueTimeout: defaultExpectContinueTimeout,

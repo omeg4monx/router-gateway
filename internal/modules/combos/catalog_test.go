@@ -43,7 +43,7 @@ func (f *catalogFakeProviderStore) RefreshOAuthToken(_ context.Context, connecti
 	return contracts.UpstreamCredentials{}, contracts.ErrOAuthRefreshUnsupported
 }
 
-func setupCatalogTestModule(t *testing.T, store contracts.ProviderStore, client *http.Client) (*combos.Module, chi.Router) {
+func setupCatalogTestModule(t testing.TB, store contracts.ProviderStore, client *http.Client) (*combos.Module, chi.Router) {
 	t.Helper()
 	database, err := db.Open(t.TempDir() + "/catalog-test.sqlite")
 	if err != nil {

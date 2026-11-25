@@ -1,11 +1,10 @@
 package combos
 
 import (
-	"crypto/rand"
-	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math/rand/v2"
 	"sort"
 	"strings"
 	"sync"
@@ -13,7 +12,63 @@ import (
 	"github.com/omeg4monx/router-gateway/internal/contracts"
 )
 
-const defaultComboStrategy = "priority"
+const (
+	defaultComboStrategy = "priority"
+
+	// DefaultProviderStrategy is the active default account-selection strategy
+	// for every provider before any per-provider override is saved.
+	DefaultProviderStrategy = "fill-first"
+
+	maxStrategyStateEntries = 4096
+)
+
+// ProviderAccountStrategies lists the account-level routing strategies
+// supported on the Provider Detail page for distributing requests across
+// multiple connections belonging to a single provider.
+var ProviderAccountStrategies = []string{
+	"fill-first",
+	"priority",
+	"round-robin",
+	"p2c",
+	"least-used",
+	"random",
+	"strict-random",
+	"lkgp",
+	"cache-optimized",
+	"headroom",
+	"reset-aware",
+	"reset-window",
+	"expiry-first",
+}
+
+var validProviderAccountStrategies = func() map[string]struct{} {
+	m := make(map[string]struct{}, len(ProviderAccountStrategies))
+	for _, s := range ProviderAccountStrategies {
+		m[s] = struct{}{}
+	}
+	return m
+}()
+
+// ProviderStrategyState describes the effective routing strategy for a single
+// provider, including whether it is currently using the active default.
+type ProviderStrategyState struct {
+	ProviderID      string `json:"provider_id"`
+	Strategy        string `json:"strategy"`
+	DefaultStrategy string `json:"default_strategy"`
+	IsDefault       bool   `json:"is_default"`
+	UpdatedAt       string `json:"updated_at,omitempty"`
+}
+
+func validateProviderStrategy(raw string) (string, error) {
+	trimmed := strings.ToLower(strings.TrimSpace(raw))
+	if trimmed == "" {
+		return DefaultProviderStrategy, nil
+	}
+	if _, ok := validProviderAccountStrategies[trimmed]; !ok {
+		return "", fmt.Errorf("unsupported provider strategy %q", raw)
+	}
+	return trimmed, nil
+}
 
 // OmniRouteRoutingStrategies lists all 22 user-selectable OmniRoute v3.8.54 combo strategies.
 var OmniRouteRoutingStrategies = []string{
@@ -245,35 +300,33 @@ func cloneConfig(in map[string]any) map[string]any {
 	return out
 }
 
-// strategyState tracks lightweight in-memory routing counters for round-robin,
-// least-used, p2c, and last-known-good-provider (lkgp) combo strategies.
+// strategyState tracks lightweight, bounded in-memory routing counters for
+// round-robin, least-used, p2c, and last-known-good-provider (lkgp) strategies.
 type strategyState struct {
 	mu          sync.Mutex
 	rrCounters  map[string]uint64
 	usageCounts map[string]uint64
-	lkgpConn    map[string]string
+	lastGoodSeq map[string]uint64
+	goodSeq     uint64
 }
 
 func newStrategyState() *strategyState {
 	return &strategyState{
 		rrCounters:  make(map[string]uint64),
 		usageCounts: make(map[string]uint64),
-		lkgpConn:    make(map[string]string),
+		lastGoodSeq: make(map[string]uint64),
 	}
 }
 
-func (s *strategyState) nextRR(comboName string) uint64 {
+func (s *strategyState) nextRR(scopeKey string) uint64 {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	val := s.rrCounters[comboName]
-	s.rrCounters[comboName] = val + 1
+	if _, exists := s.rrCounters[scopeKey]; !exists && len(s.rrCounters) >= maxStrategyStateEntries {
+		clear(s.rrCounters)
+	}
+	val := s.rrCounters[scopeKey]
+	s.rrCounters[scopeKey] = val + 1
 	return val
-}
-
-func (s *strategyState) usageOf(connectionID string) uint64 {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	return s.usageCounts[connectionID]
 }
 
 func (s *strategyState) recordSelection(connectionID string) {
@@ -282,32 +335,73 @@ func (s *strategyState) recordSelection(connectionID string) {
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if _, exists := s.usageCounts[connectionID]; !exists && len(s.usageCounts) >= maxStrategyStateEntries {
+		clear(s.usageCounts)
+	}
 	s.usageCounts[connectionID]++
 }
 
-func (s *strategyState) getLKGP(comboName string) string {
+func (s *strategyState) recordSuccess(connectionID string) {
+	if connectionID == "" {
+		return
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return s.lkgpConn[comboName]
+	if _, exists := s.lastGoodSeq[connectionID]; !exists && len(s.lastGoodSeq) >= maxStrategyStateEntries {
+		clear(s.lastGoodSeq)
+	}
+	s.goodSeq++
+	s.lastGoodSeq[connectionID] = s.goodSeq
 }
 
-func cryptoRandIntn(n int) int {
+func (s *strategyState) recordFailure(connectionID string) {
+	if connectionID == "" {
+		return
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	delete(s.lastGoodSeq, connectionID)
+}
+
+func (s *strategyState) snapshotUsage(targets []contracts.ResolvedTarget) []uint64 {
+	counts := make([]uint64, len(targets))
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for i := range targets {
+		counts[i] = s.usageCounts[targets[i].ConnectionID]
+	}
+	return counts
+}
+
+func (s *strategyState) usagePair(connA, connB string) (usageA, usageB uint64) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.usageCounts[connA], s.usageCounts[connB]
+}
+
+func (s *strategyState) bestLKGPIndex(targets []contracts.ResolvedTarget) int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	bestIdx := -1
+	var bestSeq uint64
+	for i := range targets {
+		if seq := s.lastGoodSeq[targets[i].ConnectionID]; seq > bestSeq {
+			bestSeq = seq
+			bestIdx = i
+		}
+	}
+	return bestIdx
+}
+
+func fastRandIntN(n int) int {
 	if n <= 1 {
 		return 0
 	}
-	var b [8]byte
-	if _, err := rand.Read(b[:]); err != nil {
-		return 0
-	}
-	return int(binary.LittleEndian.Uint64(b[:]) % uint64(n)) //nolint:gosec // G115: modulo by positive int n guarantees result fits in int
+	return rand.IntN(n) //nolint:gosec // G404: non-cryptographic PRNG is intentional for high-throughput load-balancing selection
 }
 
-func cryptoRandFloat64() float64 {
-	var b [8]byte
-	if _, err := rand.Read(b[:]); err != nil {
-		return 0
-	}
-	return float64(binary.LittleEndian.Uint64(b[:])>>11) / (1 << 53)
+func fastRandFloat64() float64 {
+	return rand.Float64() //nolint:gosec // G404: non-cryptographic PRNG is intentional for high-throughput load-balancing selection
 }
 
 type weightedCandidate struct {
@@ -317,6 +411,43 @@ type weightedCandidate struct {
 
 func applyComboStrategy(
 	combo Combo,
+	items []weightedCandidate,
+	state *strategyState,
+) []contracts.ResolvedTarget {
+	return applyStrategy("combo:"+combo.Name, combo.Strategy, combo.Config, items, state)
+}
+
+func applyProviderStrategy(
+	providerID string,
+	strategy string,
+	targets []contracts.ResolvedTarget,
+	state *strategyState,
+) []contracts.ResolvedTarget {
+	if len(targets) == 0 {
+		return nil
+	}
+	normalized := strings.ToLower(strings.TrimSpace(strategy))
+	if normalized == "" {
+		normalized = DefaultProviderStrategy
+	}
+	// Fast path: single candidate or order-preserving strategies require zero reordering allocations.
+	if len(targets) == 1 || normalized == "fill-first" || normalized == "priority" {
+		if state != nil {
+			state.recordSelection(targets[0].ConnectionID)
+		}
+		return targets
+	}
+	items := make([]weightedCandidate, len(targets))
+	for i, target := range targets {
+		items[i] = weightedCandidate{target: target, weight: 1}
+	}
+	return applyStrategy("provider:"+providerID, normalized, nil, items, state)
+}
+
+func applyStrategy(
+	scopeKey string,
+	rawStrategy string,
+	config map[string]any,
 	items []weightedCandidate,
 	state *strategyState,
 ) []contracts.ResolvedTarget {
@@ -330,12 +461,12 @@ func applyComboStrategy(
 		return []contracts.ResolvedTarget{items[0].target}
 	}
 
-	strategy := strings.ToLower(strings.TrimSpace(combo.Strategy))
+	strategy := strings.ToLower(strings.TrimSpace(rawStrategy))
 	if strategy == "" || strategy == "ordered" {
 		strategy = defaultComboStrategy
 	}
 	if strategy == "auto" {
-		if rs, ok := combo.Config["routerStrategy"].(string); ok {
+		if rs, ok := config["routerStrategy"].(string); ok {
 			switch strings.ToLower(strings.TrimSpace(rs)) {
 			case "cost", "eco":
 				strategy = "cost-optimized"
@@ -361,7 +492,7 @@ func applyComboStrategy(
 	switch strategy {
 	case "round-robin":
 		if state != nil {
-			offset := int(state.nextRR(combo.Name) % uint64(len(out))) //nolint:gosec // G115: modulo by len(out) guarantees result fits in int
+			offset := int(state.nextRR(scopeKey) % uint64(len(out))) //nolint:gosec // G115: modulo by len(out) guarantees result fits in int
 			if offset > 0 {
 				rotated := make([]contracts.ResolvedTarget, 0, len(out))
 				rotated = append(rotated, out[offset:]...)
@@ -382,7 +513,7 @@ func applyComboStrategy(
 			totalWeight += w
 		}
 		pick := 0
-		r := cryptoRandFloat64() * totalWeight
+		r := fastRandFloat64() * totalWeight
 		acc := 0.0
 		for i, w := range weights {
 			acc += w
@@ -409,19 +540,22 @@ func applyComboStrategy(
 
 	case "random", "strict-random":
 		for i := len(out) - 1; i > 0; i-- {
-			j := cryptoRandIntn(i + 1)
+			j := fastRandIntN(i + 1)
 			out[i], out[j] = out[j], out[i]
 		}
 
 	case "p2c":
-		a := cryptoRandIntn(len(out))
-		b := cryptoRandIntn(len(out) - 1)
+		a := fastRandIntN(len(out))
+		b := fastRandIntN(len(out) - 1)
 		if b >= a {
 			b++
 		}
 		winner := a
-		if state != nil && state.usageOf(out[b].ConnectionID) < state.usageOf(out[a].ConnectionID) {
-			winner = b
+		if state != nil {
+			ua, ub := state.usagePair(out[a].ConnectionID, out[b].ConnectionID)
+			if ub < ua {
+				winner = b
+			}
 		}
 		if winner != 0 {
 			out[0], out[winner] = out[winner], out[0]
@@ -429,51 +563,78 @@ func applyComboStrategy(
 
 	case "least-used", "headroom", "reset-aware", "reset-window", "expiry-first":
 		if state != nil {
-			sort.SliceStable(out, func(i, j int) bool {
-				ui := state.usageOf(out[i].ConnectionID)
-				uj := state.usageOf(out[j].ConnectionID)
-				if ui != uj {
-					return ui < uj
+			usage := state.snapshotUsage(out)
+			type rankedTarget struct {
+				target contracts.ResolvedTarget
+				usage  uint64
+			}
+			ranked := make([]rankedTarget, len(out))
+			for i := range out {
+				ranked[i] = rankedTarget{target: out[i], usage: usage[i]}
+			}
+			sort.SliceStable(ranked, func(i, j int) bool {
+				if ranked[i].usage != ranked[j].usage {
+					return ranked[i].usage < ranked[j].usage
 				}
-				return out[i].Priority < out[j].Priority
+				return ranked[i].target.Priority < ranked[j].target.Priority
 			})
+			for i := range ranked {
+				out[i] = ranked[i].target
+			}
 		}
 
 	case "lkgp":
 		if state != nil {
-			if goodConn := state.getLKGP(combo.Name); goodConn != "" {
-				for i := range out {
-					if out[i].ConnectionID == goodConn {
-						if i > 0 {
-							chosen := out[i]
-							copy(out[1:i+1], out[0:i])
-							out[0] = chosen
-						}
-						break
-					}
-				}
+			if bestIdx := state.bestLKGPIndex(out); bestIdx > 0 {
+				chosen := out[bestIdx]
+				copy(out[1:bestIdx+1], out[0:bestIdx])
+				out[0] = chosen
 			}
 		}
 
 	case "cost-optimized":
-		sort.SliceStable(out, func(i, j int) bool {
-			fi := inferCatalogModel(out[i].ProviderID, out[i].UpstreamModel, out[i].ProviderType, false).Free
-			fj := inferCatalogModel(out[j].ProviderID, out[j].UpstreamModel, out[j].ProviderType, false).Free
-			if fi != fj {
-				return fi
+		type costRanked struct {
+			target contracts.ResolvedTarget
+			free   bool
+		}
+		ranked := make([]costRanked, len(out))
+		for i := range out {
+			ranked[i] = costRanked{
+				target: out[i],
+				free:   inferCatalogModel(out[i].ProviderID, out[i].UpstreamModel, out[i].ProviderType, false).Free,
 			}
-			return out[i].Priority < out[j].Priority
+		}
+		sort.SliceStable(ranked, func(i, j int) bool {
+			if ranked[i].free != ranked[j].free {
+				return ranked[i].free
+			}
+			return ranked[i].target.Priority < ranked[j].target.Priority
 		})
+		for i := range ranked {
+			out[i] = ranked[i].target
+		}
 
 	case "context-optimized":
-		sort.SliceStable(out, func(i, j int) bool {
-			ci := inferCatalogModel(out[i].ProviderID, out[i].UpstreamModel, out[i].ProviderType, false).ContextLength
-			cj := inferCatalogModel(out[j].ProviderID, out[j].UpstreamModel, out[j].ProviderType, false).ContextLength
-			if ci != cj {
-				return ci > cj
+		type ctxRanked struct {
+			target        contracts.ResolvedTarget
+			contextLength int
+		}
+		ranked := make([]ctxRanked, len(out))
+		for i := range out {
+			ranked[i] = ctxRanked{
+				target:        out[i],
+				contextLength: inferCatalogModel(out[i].ProviderID, out[i].UpstreamModel, out[i].ProviderType, false).ContextLength,
 			}
-			return out[i].Priority < out[j].Priority
+		}
+		sort.SliceStable(ranked, func(i, j int) bool {
+			if ranked[i].contextLength != ranked[j].contextLength {
+				return ranked[i].contextLength > ranked[j].contextLength
+			}
+			return ranked[i].target.Priority < ranked[j].target.Priority
 		})
+		for i := range ranked {
+			out[i] = ranked[i].target
+		}
 
 	case "cache-optimized":
 		sort.SliceStable(out, func(i, j int) bool {
