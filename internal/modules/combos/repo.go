@@ -540,6 +540,101 @@ func (r *repository) DeleteDisabledModel(ctx context.Context, model string) (str
 	return r.nowUTCString(), nil
 }
 
+func (r *repository) ListProviderStrategies(ctx context.Context) ([]ProviderStrategyState, error) {
+	if r == nil || r.db == nil {
+		return nil, errors.New("combos: database is not initialized")
+	}
+
+	rows, err := r.db.Reader().QueryContext(
+		ctx,
+		`SELECT provider_id, strategy, updated_at FROM provider_strategies ORDER BY provider_id ASC`,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("combos: list provider_strategies: %w", err)
+	}
+	defer func() {
+		_ = rows.Close()
+	}()
+
+	items := make([]ProviderStrategyState, 0)
+	for rows.Next() {
+		var item ProviderStrategyState
+		if err := rows.Scan(&item.ProviderID, &item.Strategy, &item.UpdatedAt); err != nil {
+			return nil, fmt.Errorf("combos: scan provider_strategy: %w", err)
+		}
+		item.DefaultStrategy = DefaultProviderStrategy
+		item.IsDefault = false
+		items = append(items, item)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("combos: iterate provider_strategies: %w", err)
+	}
+	return items, nil
+}
+
+func (r *repository) GetProviderStrategy(ctx context.Context, providerID string) (ProviderStrategyState, error) {
+	if r == nil || r.db == nil {
+		return ProviderStrategyState{}, errors.New("combos: database is not initialized")
+	}
+
+	var (
+		strategy  string
+		updatedAt string
+	)
+	err := r.db.Reader().QueryRowContext(
+		ctx,
+		`SELECT strategy, updated_at FROM provider_strategies WHERE provider_id = ?`,
+		providerID,
+	).Scan(&strategy, &updatedAt)
+	if errors.Is(err, sql.ErrNoRows) {
+		return ProviderStrategyState{
+			ProviderID:      providerID,
+			Strategy:        DefaultProviderStrategy,
+			DefaultStrategy: DefaultProviderStrategy,
+			IsDefault:       true,
+		}, nil
+	}
+	if err != nil {
+		return ProviderStrategyState{}, fmt.Errorf("combos: get provider_strategy %q: %w", providerID, err)
+	}
+	return ProviderStrategyState{
+		ProviderID:      providerID,
+		Strategy:        strategy,
+		DefaultStrategy: DefaultProviderStrategy,
+		IsDefault:       false,
+		UpdatedAt:       updatedAt,
+	}, nil
+}
+
+func (r *repository) UpsertProviderStrategy(ctx context.Context, providerID, strategy string) (ProviderStrategyState, error) {
+	if r == nil || r.db == nil {
+		return ProviderStrategyState{}, errors.New("combos: database is not initialized")
+	}
+
+	now := r.nowUTCString()
+	if _, err := r.db.Writer().ExecContext(
+		ctx,
+		`INSERT INTO provider_strategies (provider_id, strategy, updated_at)
+		 VALUES (?, ?, ?)
+		 ON CONFLICT(provider_id) DO UPDATE SET
+		     strategy = excluded.strategy,
+		     updated_at = excluded.updated_at`,
+		providerID,
+		strategy,
+		now,
+	); err != nil {
+		return ProviderStrategyState{}, fmt.Errorf("combos: upsert provider_strategy %q: %w", providerID, err)
+	}
+
+	return ProviderStrategyState{
+		ProviderID:      providerID,
+		Strategy:        strategy,
+		DefaultStrategy: DefaultProviderStrategy,
+		IsDefault:       false,
+		UpdatedAt:       now,
+	}, nil
+}
+
 func cloneStringSlice(items []string) []string {
 	if len(items) == 0 {
 		return []string{}

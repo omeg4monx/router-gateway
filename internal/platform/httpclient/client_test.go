@@ -133,11 +133,14 @@ func TestNewClientAppliesDefaults(t *testing.T) {
 	if tr.IdleConnTimeout != 90*time.Second {
 		t.Fatalf("IdleConnTimeout = %v, want 90s", tr.IdleConnTimeout)
 	}
-	if tr.MaxIdleConns != 100 {
-		t.Fatalf("MaxIdleConns = %d, want 100", tr.MaxIdleConns)
+	if tr.MaxIdleConns != 256 {
+		t.Fatalf("MaxIdleConns = %d, want 256", tr.MaxIdleConns)
 	}
-	if tr.MaxIdleConnsPerHost != 20 {
-		t.Fatalf("MaxIdleConnsPerHost = %d, want 20", tr.MaxIdleConnsPerHost)
+	if tr.MaxIdleConnsPerHost != 64 {
+		t.Fatalf("MaxIdleConnsPerHost = %d, want 64", tr.MaxIdleConnsPerHost)
+	}
+	if tr.MaxConnsPerHost != 128 {
+		t.Fatalf("MaxConnsPerHost = %d, want 128", tr.MaxConnsPerHost)
 	}
 	if tr.Proxy == nil {
 		t.Fatal("Proxy = nil, want default http.ProxyFromEnvironment")

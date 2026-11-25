@@ -223,7 +223,7 @@ export function AddCustomModelModal({
         tabIndex={-1}
         aria-label="Close modal backdrop"
         onClick={onClose}
-        className="fixed inset-0 bg-black/55 backdrop-blur-[2px]"
+        className="fixed inset-0 bg-black/55"
       />
       <div
         role="dialog"

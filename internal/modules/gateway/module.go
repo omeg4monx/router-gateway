@@ -41,17 +41,23 @@ var migrationsFS embed.FS
 
 // Options configures a new gateway Module instance.
 type Options struct {
-	DB           *db.DB
-	HTTPClient   *http.Client
-	Keys         contracts.KeyValidator
-	Resolver     contracts.ProviderResolver
-	Models       contracts.ModelLister
-	Providers    contracts.ProviderStore
-	Health       contracts.AccountHealthTracker
-	Interceptors []contracts.GatewayInterceptor
-	Usage        contracts.UsageRecorder
-	Logger       *slog.Logger
-	ChainTTL     time.Duration
+	DB                      *db.DB
+	HTTPClient              *http.Client
+	Keys                    contracts.KeyValidator
+	Resolver                contracts.ProviderResolver
+	Models                  contracts.ModelLister
+	Providers               contracts.ProviderStore
+	Health                  contracts.AccountHealthTracker
+	Interceptors            []contracts.GatewayInterceptor
+	Usage                   contracts.UsageRecorder
+	Logger                  *slog.Logger
+	ChainTTL                time.Duration
+	MaxGlobalInFlight       int
+	MaxConnInFlight         int
+	QueueTimeout            time.Duration
+	ResponseCacheMaxEntries int
+	ResponseCacheTTL        time.Duration
+	DisableResponseCache    bool
 }
 
 // Module implements lifecycle.Module and exposes multi-protocol AI gateway
@@ -69,6 +75,8 @@ type Module struct {
 	logger       *slog.Logger
 	chains       *chainStore
 	agQuota      *antigravityQuotaMonitor
+	shaper       *trafficShaper
+	coalescer    *responseCoalescer
 }
 
 var (
@@ -157,6 +165,11 @@ func New(opts Options) *Module {
 		return strings.Compare(a.Name(), b.Name())
 	})
 
+	var coalescer *responseCoalescer
+	if !opts.DisableResponseCache {
+		coalescer = newResponseCoalescer(opts.ResponseCacheMaxEntries, opts.ResponseCacheTTL, nil)
+	}
+
 	return &Module{
 		db:           opts.DB,
 		httpClient:   client,
@@ -170,6 +183,8 @@ func New(opts Options) *Module {
 		logger:       logger,
 		chains:       newChainStore(opts.DB, opts.ChainTTL),
 		agQuota:      newAntigravityQuotaMonitor(),
+		shaper:       newTrafficShaper(opts.MaxGlobalInFlight, opts.MaxConnInFlight, opts.QueueTimeout, nil),
+		coalescer:    coalescer,
 	}
 }
 
@@ -524,25 +539,145 @@ func (m *Module) handleInferenceWithKey(w http.ResponseWriter, r *http.Request, 
 		return
 	}
 
-	candidates, err := m.resolver.Resolve(r.Context(), icReq.Model, keyInfo.AllowedModels)
-	if err != nil {
-		writeResolutionError(w, r, inProto, err)
-		return
-	}
-
-	var (
-		lastStatus = http.StatusBadGateway
-		lastMsg    = "upstream request failed"
-		lastCand   contracts.ResolvedTarget
-	)
-
-	for _, cand := range candidates {
+	releaseGlobal, globalErr := m.shaper.acquireGlobal(r.Context())
+	if globalErr != nil {
 		if r.Context().Err() != nil {
 			return
 		}
+		w.Header().Set("Retry-After", "1")
+		writeGatewayError(w, r, inProto, http.StatusServiceUnavailable, "server_error", "overloaded", globalErr.Error())
+		m.emitUsage(r.Context(), contracts.UsageRecord{
+			RequestID:    reqID,
+			KeyID:        keyInfo.ID,
+			Model:        icReq.Model,
+			Protocol:     inProto,
+			Latency:      time.Since(startTime),
+			StatusCode:   http.StatusServiceUnavailable,
+			ErrorSummary: globalErr.Error(),
+			Stream:       icReq.Stream,
+			Timestamp:    time.Now().UTC(),
+		})
+		return
+	}
+	defer releaseGlobal()
+
+	if m.coalescer != nil && m.coalescer.isCacheableRequest(inProto, icReq.Stream, isCompact, icReq.Body) {
+		cKey := m.coalescer.cacheKey(keyInfo.ID, inProto, icReq.Model, icReq.Body)
+		cachedResp, cacheStatus, cErr := m.coalescer.do(r.Context(), cKey, func(callCtx context.Context) (cachedGatewayResponse, error) {
+			return m.executeCoalescedInference(callCtx, w, r, reqID, keyInfo, icReq, inProto, isCompact, startTime)
+		})
+		if cErr != nil {
+			if r.Context().Err() != nil {
+				return
+			}
+			var alreadyHandled *handledGatewayError
+			if errors.As(cErr, &alreadyHandled) {
+				if cacheStatus == cacheStatusCoalesced {
+					writeGatewayError(w, r, inProto, alreadyHandled.statusCode, alreadyHandled.errType, alreadyHandled.errCode, alreadyHandled.errMsg)
+				}
+				return
+			}
+			writeGatewayError(w, r, inProto, http.StatusBadGateway, "server_error", "upstream_failed", cErr.Error())
+			return
+		}
+
+		w.Header().Set("X-Router-Cache", cacheStatus)
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(cachedResp.statusCode)
+		_, _ = w.Write(cachedResp.body)
+
+		usageRec := contracts.UsageRecord{
+			RequestID:    reqID,
+			KeyID:        keyInfo.ID,
+			Model:        icReq.Model,
+			ProviderID:   cachedResp.providerID,
+			ConnectionID: cachedResp.connectionID,
+			Protocol:     inProto,
+			Latency:      time.Since(startTime),
+			TTFT:         time.Since(startTime),
+			StatusCode:   cachedResp.statusCode,
+			Stream:       false,
+			Timestamp:    time.Now().UTC(),
+		}
+		if cacheStatus == cacheStatusMiss {
+			usageRec.InputTokens = cachedResp.usage.InputTokens
+			usageRec.OutputTokens = cachedResp.usage.OutputTokens
+			usageRec.CachedTokens = cachedResp.usage.CachedTokens
+		} else {
+			usageRec.CachedTokens = cachedResp.usage.InputTokens
+		}
+		m.emitUsage(r.Context(), usageRec)
+		return
+	}
+
+	_ = m.executeInferenceCandidates(r.Context(), w, r, reqID, keyInfo, icReq, inProto, isCompact, startTime, nil)
+}
+
+type handledGatewayError struct {
+	statusCode int
+	errType    string
+	errCode    string
+	errMsg     string
+}
+
+func (e *handledGatewayError) Error() string { return e.errMsg }
+
+func (m *Module) executeCoalescedInference(
+	ctx context.Context,
+	w http.ResponseWriter,
+	r *http.Request,
+	reqID string,
+	keyInfo contracts.KeyInfo,
+	icReq *contracts.CanonicalRequest,
+	inProto string,
+	isCompact bool,
+	startTime time.Time,
+) (cachedGatewayResponse, error) {
+	var captured cachedGatewayResponse
+	err := m.executeInferenceCandidates(ctx, w, r, reqID, keyInfo, icReq, inProto, isCompact, startTime, &captured)
+	if err != nil {
+		return cachedGatewayResponse{}, err
+	}
+	return captured, nil
+}
+
+func (m *Module) executeInferenceCandidates(
+	ctx context.Context,
+	w http.ResponseWriter,
+	r *http.Request,
+	reqID string,
+	keyInfo contracts.KeyInfo,
+	icReq *contracts.CanonicalRequest,
+	inProto string,
+	isCompact bool,
+	startTime time.Time,
+	capture *cachedGatewayResponse,
+) error {
+	candidates, err := m.resolver.Resolve(ctx, icReq.Model, keyInfo.AllowedModels)
+	if err != nil {
+		writeResolutionError(w, r, inProto, err)
+		return &handledGatewayError{
+			statusCode: http.StatusNotFound,
+			errType:    "invalid_request_error",
+			errCode:    "model_not_found",
+			errMsg:     err.Error(),
+		}
+	}
+
+	var (
+		lastStatus      = http.StatusBadGateway
+		lastMsg         = "upstream request failed"
+		lastCand        contracts.ResolvedTarget
+		singleCandidate = len(candidates) == 1
+	)
+
+	for _, cand := range candidates {
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
 		lastCand = cand
 
-		creds, credErr := m.providers.ResolveCredentials(r.Context(), cand.ConnectionID)
+		creds, credErr := m.providers.ResolveCredentials(ctx, cand.ConnectionID)
 		if credErr != nil {
 			m.health.RecordFailure(cand.ConnectionID, http.StatusBadGateway, 0)
 			lastStatus = http.StatusBadGateway
@@ -566,16 +701,33 @@ func (m *Module) handleInferenceWithKey(w http.ResponseWriter, r *http.Request, 
 			upstreamModel = cand.Model
 		}
 
-		upBody, chainInputMsgs, prepErr := m.prepareUpstreamBody(r.Context(), inProto, outProto, keyInfo.ID, upstreamModel, icReq.Stream, isCompact, icReq.Body)
+		upBody, chainInputMsgs, prepErr := m.prepareUpstreamBody(ctx, inProto, outProto, keyInfo.ID, upstreamModel, icReq.Stream, isCompact, icReq.Body)
 		if prepErr != nil {
 			writeGatewayError(w, r, inProto, http.StatusBadRequest, "invalid_request_error", "invalid_payload", prepErr.Error())
-			return
+			return &handledGatewayError{
+				statusCode: http.StatusBadRequest,
+				errType:    "invalid_request_error",
+				errCode:    "invalid_payload",
+				errMsg:     prepErr.Error(),
+			}
 		}
 
 		refreshed := false
+		transientRetries := 0
 		for {
+			releaseConn, connErr := m.shaper.acquireConnection(ctx, cand.ConnectionID)
+			if connErr != nil {
+				if ctx.Err() != nil {
+					return ctx.Err()
+				}
+				lastStatus = http.StatusServiceUnavailable
+				lastMsg = connErr.Error()
+				break
+			}
+
+			canRetryTransient := singleCandidate && transientRetries < singleCandidateRetryMax
 			outcome := m.executeCandidateAttempt(
-				r.Context(),
+				ctx,
 				w,
 				r,
 				reqID,
@@ -594,16 +746,28 @@ func (m *Module) handleInferenceWithKey(w http.ResponseWriter, r *http.Request, 
 				chainInputMsgs,
 				startTime,
 				!refreshed,
+				canRetryTransient,
+				capture,
 			)
+			releaseConn()
+
 			if outcome.handled {
-				return
+				if capture != nil && outcome.statusCode >= 400 {
+					return &handledGatewayError{
+						statusCode: outcome.statusCode,
+						errType:    "invalid_request_error",
+						errCode:    "upstream_client_error",
+						errMsg:     outcome.errMsg,
+					}
+				}
+				return nil
 			}
 			if outcome.needsRefresh {
 				refreshed = true
-				newCreds, refErr := m.providers.RefreshOAuthToken(r.Context(), cand.ConnectionID)
+				newCreds, refErr := m.providers.RefreshOAuthToken(ctx, cand.ConnectionID)
 				if refErr != nil {
-					if r.Context().Err() != nil || errors.Is(refErr, context.Canceled) {
-						return
+					if ctx.Err() != nil || errors.Is(refErr, context.Canceled) {
+						return ctx.Err()
 					}
 					m.health.RecordFailure(cand.ConnectionID, http.StatusUnauthorized, 0)
 					lastStatus = http.StatusUnauthorized
@@ -617,7 +781,19 @@ func (m *Module) handleInferenceWithKey(w http.ResponseWriter, r *http.Request, 
 				continue
 			}
 			if outcome.clientCanceled {
-				return
+				return context.Canceled
+			}
+			if canRetryTransient && isTransientSingleCandidateStatus(outcome.statusCode) {
+				if delay := computeJitteredRetryDelay(transientRetries, outcome.retryAfter); delay > 0 {
+					transientRetries++
+					if err := sleepContext(ctx, delay); err != nil {
+						return err
+					}
+					continue
+				}
+			}
+			if outcome.deferredHealthFail {
+				m.health.RecordFailure(cand.ConnectionID, outcome.statusCode, outcome.retryAfter)
 			}
 			lastStatus = outcome.statusCode
 			lastMsg = outcome.errMsg
@@ -625,7 +801,7 @@ func (m *Module) handleInferenceWithKey(w http.ResponseWriter, r *http.Request, 
 		}
 	}
 
-	m.emitUsage(r.Context(), contracts.UsageRecord{
+	m.emitUsage(ctx, contracts.UsageRecord{
 		RequestID:    reqID,
 		KeyID:        keyInfo.ID,
 		Model:        icReq.Model,
@@ -639,14 +815,22 @@ func (m *Module) handleInferenceWithKey(w http.ResponseWriter, r *http.Request, 
 		Timestamp:    time.Now().UTC(),
 	})
 	writeGatewayError(w, r, inProto, lastStatus, "server_error", "upstream_failed", lastMsg)
+	return &handledGatewayError{
+		statusCode: lastStatus,
+		errType:    "server_error",
+		errCode:    "upstream_failed",
+		errMsg:     lastMsg,
+	}
 }
 
 type attemptOutcome struct {
-	handled        bool
-	needsRefresh   bool
-	clientCanceled bool
-	statusCode     int
-	errMsg         string
+	handled            bool
+	needsRefresh       bool
+	clientCanceled     bool
+	deferredHealthFail bool
+	statusCode         int
+	retryAfter         time.Duration
+	errMsg             string
 }
 
 func (m *Module) prepareUpstreamBody(
@@ -729,6 +913,8 @@ func (m *Module) executeCandidateAttempt(
 	chainInputMsgs []CanonicalMessage,
 	startTime time.Time,
 	allowOAuthRefresh bool,
+	deferHealthFailure bool,
+	capture *cachedGatewayResponse,
 ) attemptOutcome {
 	upURL, err := buildUpstreamURL(baseURL, outProto, upstreamModel, stream, false, isCompact)
 	if err != nil {
@@ -768,9 +954,17 @@ func (m *Module) executeCandidateAttempt(
 			if ctx.Err() != nil {
 				return attemptOutcome{clientCanceled: true}
 			}
-			m.health.RecordFailure(cand.ConnectionID, http.StatusBadGateway, 0)
-			return attemptOutcome{statusCode: http.StatusBadGateway, errMsg: doErr.Error()}
+			if !deferHealthFailure {
+				m.health.RecordFailure(cand.ConnectionID, http.StatusBadGateway, 0)
+			}
+			return attemptOutcome{
+				deferredHealthFail: deferHealthFailure,
+				statusCode:         http.StatusBadGateway,
+				errMsg:             doErr.Error(),
+			}
 		}
+
+		m.shaper.observeRateLimitHeaders(cand.ConnectionID, resp.Header)
 
 		if resp.StatusCode == http.StatusTooManyRequests && cand.ProviderID == "antigravity" {
 			errBody, _ = io.ReadAll(io.LimitReader(resp.Body, maxErrorBodyBytes))
@@ -918,6 +1112,17 @@ func (m *Module) executeCandidateAttempt(
 			}
 		}
 
+		if capture != nil {
+			*capture = cachedGatewayResponse{
+				statusCode:   resp.StatusCode,
+				body:         bytes.Clone(outBytes),
+				usage:        usage,
+				providerID:   cand.ProviderID,
+				connectionID: cand.ConnectionID,
+			}
+			return attemptOutcome{handled: true, statusCode: resp.StatusCode}
+		}
+
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(resp.StatusCode)
 		_, _ = w.Write(outBytes)
@@ -968,17 +1173,22 @@ func (m *Module) executeCandidateAttempt(
 			w.Header().Set("Content-Type", "application/json; charset=utf-8")
 			w.WriteHeader(resp.StatusCode)
 			_, _ = w.Write(errBody)
-			return attemptOutcome{handled: true}
+			return attemptOutcome{handled: true, statusCode: resp.StatusCode, errMsg: errMsg}
 		}
 		writeGatewayError(w, r, inProto, resp.StatusCode, "invalid_request_error", "upstream_client_error", errMsg)
-		return attemptOutcome{handled: true}
+		return attemptOutcome{handled: true, statusCode: resp.StatusCode, errMsg: errMsg}
 	}
 
 	retryAfter := parseRetryAfter(resp.Header.Get("Retry-After"), time.Now().UTC())
-	m.health.RecordFailure(cand.ConnectionID, resp.StatusCode, retryAfter)
+	shouldDefer := deferHealthFailure && isTransientSingleCandidateStatus(resp.StatusCode)
+	if !shouldDefer {
+		m.health.RecordFailure(cand.ConnectionID, resp.StatusCode, retryAfter)
+	}
 	return attemptOutcome{
-		statusCode: resp.StatusCode,
-		errMsg:     errMsg,
+		deferredHealthFail: shouldDefer,
+		statusCode:         resp.StatusCode,
+		retryAfter:         retryAfter,
+		errMsg:             errMsg,
 	}
 }
 

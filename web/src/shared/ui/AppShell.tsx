@@ -735,7 +735,7 @@ export function AppShell({ children }: AppShellProps) {
           </div>
           <button
             type="button"
-            className="fixed inset-0 bg-black/45 backdrop-blur-[2px]"
+            className="fixed inset-0 bg-black/45"
             aria-label={copy.dismissMenuLabel}
             onClick={closeMobileNav}
           />
@@ -744,7 +744,7 @@ export function AppShell({ children }: AppShellProps) {
 
       {/* Main content area */}
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-20 bg-[var(--bg-canvas)]/90 backdrop-blur-md">
+        <header className="sticky top-0 z-20 bg-[var(--bg-canvas)]">
           <div className="flex h-16 items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
             <div className="flex min-w-0 items-center gap-3">
               <Button

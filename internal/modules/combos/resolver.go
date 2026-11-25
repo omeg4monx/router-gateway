@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/omeg4monx/router-gateway/internal/contracts"
 )
@@ -13,10 +14,11 @@ import (
 const maxResolveDepth = 16
 
 type resolveSnapshot struct {
-	activeCombos map[string]Combo
-	aliases      map[string]string
-	disabled     map[string]struct{}
-	connections  []contracts.ProviderConnection
+	activeCombos       map[string]Combo
+	aliases            map[string]string
+	disabled           map[string]struct{}
+	providerStrategies map[string]string
+	connections        []contracts.ProviderConnection
 }
 
 type targetKey struct {
@@ -28,8 +30,8 @@ type targetKey struct {
 // precedence:
 //  1. Active Combo (combos.name == model && enabled)
 //  2. Model Alias (model_aliases.alias == model)
-//  3. Explicit <provider>/<model>
-//  4. Bare <model> ordered by (Priority ASC, ID ASC)
+//  3. Explicit <provider>/<model> (ordered by provider's active routing strategy)
+//  4. Bare <model> (ordered by provider priority & each provider's active strategy)
 func (m *Module) Resolve(ctx context.Context, model string, allowed []string) ([]contracts.ResolvedTarget, error) {
 	requested := strings.TrimSpace(model)
 	if requested == "" {
@@ -44,9 +46,10 @@ func (m *Module) Resolve(ctx context.Context, model string, allowed []string) ([
 		return nil, err
 	}
 
+	now := m.now().UTC()
 	visited := make(map[string]bool)
-	rawCandidates := m.resolveIdentifier(requested, requested, snap, visited, 0)
-	if len(rawCandidates) == 0 {
+	rawCandidates, matchedAny := m.resolveIdentifier(requested, requested, snap, now, visited, 0)
+	if !matchedAny {
 		return nil, contracts.ErrModelNotFound
 	}
 
@@ -65,18 +68,10 @@ func (m *Module) Resolve(ctx context.Context, model string, allowed []string) ([
 		deduped = append(deduped, cand)
 	}
 
-	now := m.now().UTC()
-	available := make([]contracts.ResolvedTarget, 0, len(deduped))
-	for _, cand := range deduped {
-		if m.cooldown.IsInCooldown(cand.ConnectionID, now) {
-			continue
-		}
-		available = append(available, cand)
-	}
-	if len(available) == 0 {
+	if len(deduped) == 0 {
 		return nil, contracts.ErrAllAccountsCoolingDown
 	}
-	return available, nil
+	return deduped, nil
 }
 
 // ListModels implements contracts.ModelLister returning a deduplicated,
@@ -194,6 +189,10 @@ func (m *Module) loadSnapshot(ctx context.Context) (*resolveSnapshot, error) {
 	if err != nil {
 		return nil, fmt.Errorf("combos: load disabled models: %w", err)
 	}
+	providerStratList, err := m.repo.ListProviderStrategies(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("combos: load provider strategies: %w", err)
+	}
 	conns, err := m.providers.ListEnabledConnections(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("combos: list enabled provider connections: %w", err)
@@ -216,6 +215,11 @@ func (m *Module) loadSnapshot(ctx context.Context) (*resolveSnapshot, error) {
 		disabled[d.Model] = struct{}{}
 	}
 
+	providerStrategies := make(map[string]string, len(providerStratList))
+	for _, ps := range providerStratList {
+		providerStrategies[ps.ProviderID] = ps.Strategy
+	}
+
 	enabledConns := make([]contracts.ProviderConnection, 0, len(conns))
 	for _, c := range conns {
 		if c.Enabled {
@@ -230,10 +234,11 @@ func (m *Module) loadSnapshot(ctx context.Context) (*resolveSnapshot, error) {
 	})
 
 	return &resolveSnapshot{
-		activeCombos: activeCombos,
-		aliases:      aliases,
-		disabled:     disabled,
-		connections:  enabledConns,
+		activeCombos:       activeCombos,
+		aliases:            aliases,
+		disabled:           disabled,
+		providerStrategies: providerStrategies,
+		connections:        enabledConns,
 	}, nil
 }
 
@@ -241,12 +246,13 @@ func (m *Module) resolveIdentifier(
 	ident string,
 	logicalModel string,
 	snap *resolveSnapshot,
+	now time.Time,
 	visited map[string]bool,
 	depth int,
-) []contracts.ResolvedTarget {
+) ([]contracts.ResolvedTarget, bool) {
 	clean := strings.TrimSpace(ident)
 	if clean == "" || depth >= maxResolveDepth || visited[clean] {
-		return nil
+		return nil, false
 	}
 	visited[clean] = true
 	defer delete(visited, clean)
@@ -258,12 +264,16 @@ func (m *Module) resolveIdentifier(
 			steps = stepsFromTargets(combo.Targets)
 		}
 		weighted := make([]weightedCandidate, 0, len(steps))
+		matchedAny := false
 		for _, step := range steps {
 			targetID := step.targetIdentifier()
 			if targetID == "" {
 				continue
 			}
-			resolved := m.resolveIdentifier(targetID, logicalModel, snap, visited, depth+1)
+			resolved, stepMatched := m.resolveIdentifier(targetID, logicalModel, snap, now, visited, depth+1)
+			if stepMatched {
+				matchedAny = true
+			}
 			for _, cand := range resolved {
 				if step.ConnectionID != "" && cand.ConnectionID != step.ConnectionID {
 					continue
@@ -274,20 +284,24 @@ func (m *Module) resolveIdentifier(
 				})
 			}
 		}
-		return applyComboStrategy(combo, weighted, m.stratState)
+		if len(weighted) == 0 {
+			return nil, matchedAny
+		}
+		return applyComboStrategy(combo, weighted, m.stratState), true
 	}
 
 	// Tier 2: Model Alias.
 	if aliasTarget, ok := snap.aliases[clean]; ok {
-		return m.resolveIdentifier(aliasTarget, logicalModel, snap, visited, depth+1)
+		return m.resolveIdentifier(aliasTarget, logicalModel, snap, now, visited, depth+1)
 	}
 
-	// Tier 3: Explicit <provider>/<model>.
+	// Tier 3: Explicit <provider>/<model> using the provider's active strategy.
 	if providerID, upstreamModel, hasSlash := strings.Cut(clean, "/"); hasSlash {
 		if providerID == "" || upstreamModel == "" {
-			return nil
+			return nil, false
 		}
-		var out []contracts.ResolvedTarget
+		var available []contracts.ResolvedTarget
+		matchedAny := false
 		for _, conn := range snap.connections {
 			if conn.ProviderID != providerID {
 				continue
@@ -298,13 +312,23 @@ func (m *Module) resolveIdentifier(
 			if isModelDisabled(snap.disabled, conn.ProviderID, upstreamModel) {
 				continue
 			}
-			out = append(out, buildResolvedTarget(conn, logicalModel, upstreamModel))
+			matchedAny = true
+			if m.cooldown.IsInCooldown(conn.ID, now) {
+				continue
+			}
+			available = append(available, buildResolvedTarget(conn, logicalModel, upstreamModel))
 		}
-		return out
+		if len(available) == 0 {
+			return nil, matchedAny
+		}
+		strategy := snap.providerStrategies[providerID]
+		return applyProviderStrategy(providerID, strategy, available, m.stratState), true
 	}
 
-	// Tier 4: Bare <model> ordered by (Priority ASC, ID ASC).
-	var out []contracts.ResolvedTarget
+	// Tier 4: Bare <model> ordered by provider priority, applying each
+	// provider's active strategy across its own matching connections.
+	var available []contracts.ResolvedTarget
+	matchedAny := false
 	for _, conn := range snap.connections {
 		if !connectionSupportsBare(conn, clean) {
 			continue
@@ -312,9 +336,36 @@ func (m *Module) resolveIdentifier(
 		if isModelDisabled(snap.disabled, conn.ProviderID, clean) {
 			continue
 		}
-		out = append(out, buildResolvedTarget(conn, logicalModel, clean))
+		matchedAny = true
+		if m.cooldown.IsInCooldown(conn.ID, now) {
+			continue
+		}
+		available = append(available, buildResolvedTarget(conn, logicalModel, clean))
 	}
-	return out
+	if len(available) <= 1 {
+		if len(available) == 1 && m.stratState != nil {
+			m.stratState.recordSelection(available[0].ConnectionID)
+		}
+		return available, matchedAny
+	}
+
+	// Group available candidates by provider while preserving first-seen provider
+	// priority order, then apply each provider's active strategy to its pool.
+	providerOrder := make([]string, 0, 4)
+	byProvider := make(map[string][]contracts.ResolvedTarget, 4)
+	for _, cand := range available {
+		if _, exists := byProvider[cand.ProviderID]; !exists {
+			providerOrder = append(providerOrder, cand.ProviderID)
+		}
+		byProvider[cand.ProviderID] = append(byProvider[cand.ProviderID], cand)
+	}
+	ordered := make([]contracts.ResolvedTarget, 0, len(available))
+	for _, providerID := range providerOrder {
+		group := byProvider[providerID]
+		strategy := snap.providerStrategies[providerID]
+		ordered = append(ordered, applyProviderStrategy(providerID, strategy, group, m.stratState)...)
+	}
+	return ordered, true
 }
 
 func connectionSupportsExplicit(conn contracts.ProviderConnection, upstreamModel, fullSpec string) bool {

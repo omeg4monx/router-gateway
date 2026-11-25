@@ -635,6 +635,111 @@ paths:
             application/json:
               schema:
                 $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+  /api/providers/strategies:
+    get:
+      operationId: listProviderStrategies
+      summary: List configured per-provider account routing strategies and the active global default
+      tags:
+        - combos
+      responses:
+        '200':
+          description: Configured provider strategy overrides and default strategy.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListProviderStrategiesResponse'
+        '401':
+          description: Administrative authentication is required.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '500':
+          description: Failed to load provider strategies.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+  /api/providers/{providerId}/strategy:
+    parameters:
+      - name: providerId
+        in: path
+        required: true
+        description: Provider adapter or custom node identifier.
+        schema:
+          type: string
+    get:
+      operationId: getProviderStrategy
+      summary: Retrieve the active account routing strategy for a provider (returns active default when unset)
+      tags:
+        - combos
+      responses:
+        '200':
+          description: Effective provider routing strategy.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProviderStrategyState'
+        '400':
+          description: Invalid providerId path parameter.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Administrative authentication is required.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '500':
+          description: Failed to load provider strategy.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+    put:
+      operationId: updateProviderStrategy
+      summary: Set or update the active account routing strategy for a provider
+      tags:
+        - combos
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateProviderStrategyRequest'
+      responses:
+        '200':
+          description: Updated provider routing strategy.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProviderStrategyState'
+        '400':
+          description: Invalid providerId or unsupported account routing strategy.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Administrative authentication is required.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '413':
+          description: Request body exceeds maximum allowed size.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '500':
+          description: Failed to save provider strategy.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
 components:
   schemas:
     ComboStrategy:
@@ -1190,3 +1295,59 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/ProviderHealthMatrixEntry'
+    ProviderAccountStrategy:
+      type: string
+      enum:
+        - fill-first
+        - priority
+        - round-robin
+        - p2c
+        - least-used
+        - random
+        - strict-random
+        - lkgp
+        - cache-optimized
+        - headroom
+        - reset-aware
+        - reset-window
+        - expiry-first
+    ProviderStrategyState:
+      type: object
+      additionalProperties: false
+      required:
+        - provider_id
+        - strategy
+        - default_strategy
+        - is_default
+      properties:
+        provider_id:
+          type: string
+        strategy:
+          $ref: '#/components/schemas/ProviderAccountStrategy'
+        default_strategy:
+          $ref: '#/components/schemas/ProviderAccountStrategy'
+        is_default:
+          type: boolean
+        updated_at:
+          type: string
+    ListProviderStrategiesResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - default_strategy
+        - strategies
+      properties:
+        default_strategy:
+          $ref: '#/components/schemas/ProviderAccountStrategy'
+        strategies:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProviderStrategyState'
+    UpdateProviderStrategyRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - strategy
+      properties:
+        strategy:
+          $ref: '#/components/schemas/ProviderAccountStrategy'

@@ -72,6 +72,7 @@ import {
   sortProviderModels,
 } from "./modelIntelligence";
 import { ProviderLogo } from "./ProviderLogo";
+import { ProviderStrategyCard } from "./ProviderStrategyCard";
 import { AddApiKeyModal, EditConnectionModal, OAuthWizardModal } from "./ProvidersModals";
 import {
   connectionToEditFormValues,
@@ -1122,6 +1123,13 @@ function ProviderStudioDetail({ providerId }: { providerId: string }) {
           )}
         </CardContent>
       </Card>
+
+      {/* OmniRoute Account Routing Strategy Card */}
+      <ProviderStrategyCard
+        providerId={entry.id}
+        enabledConnectionCount={enabledCount}
+        isId={isId}
+      />
 
       {/* OmniRoute Available Models Card (ModelRow compact chip styling + Load Models) */}
       <Card>

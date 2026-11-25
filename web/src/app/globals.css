@@ -470,9 +470,7 @@ input:focus-visible {
   border-radius: inherit;
   z-index: -1;
   pointer-events: none;
-  background-color: color-mix(in srgb, var(--color-surface) 92%, transparent);
-  -webkit-backdrop-filter: blur(14px);
-  backdrop-filter: blur(14px);
+  background-color: var(--color-surface);
 }
 
 [data-theme="dark"] .shell-rail {
@@ -484,7 +482,7 @@ input:focus-visible {
 }
 
 [data-theme="dark"] .shell-rail::before {
-  background-color: color-mix(in srgb, var(--color-surface) 92%, transparent);
+  background-color: var(--color-surface);
 }
 
 /* Provider card & neutral-contrast logo tile (prevents light/dark logos from blending in) */
