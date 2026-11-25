@@ -18,16 +18,16 @@
     "semantic_hash": ""
   },
   "internal/platform/config/config.go": {
-    "mtime": 1795371333.0196135,
-    "seen": 1795454269.4712157,
-    "ast_hash": "1b518f28faf215b69c9b75a767be629c",
-    "semantic_hash": "1b518f28faf215b69c9b75a767be629c"
+    "mtime": 1795624707.7166383,
+    "seen": 1795624908.4652572,
+    "ast_hash": "48a62b3118e9717186ae2cb02a895c19",
+    "semantic_hash": ""
   },
   "internal/platform/config/config_test.go": {
-    "mtime": 1795371333.0197804,
-    "seen": 1795454269.4712172,
-    "ast_hash": "4fbcd8f21198e01e0ed6d64a540da11d",
-    "semantic_hash": "4fbcd8f21198e01e0ed6d64a540da11d"
+    "mtime": 1795624656.8259673,
+    "seen": 1795624908.4652605,
+    "ast_hash": "462755684e670909ecfda6967c547d88",
+    "semantic_hash": ""
   },
   "internal/platform/crypto/crypto_test.go": {
     "mtime": 1795381385.550771,
@@ -102,15 +102,15 @@
     "semantic_hash": "d7652d4bba890f93d897d9c0a67dabc1"
   },
   "internal/platform/httpserver/server.go": {
-    "mtime": 1795414552.8683548,
-    "seen": 1795454269.471236,
-    "ast_hash": "45c39b73ccba1a25ad166404268ea715",
+    "mtime": 1795624715.000722,
+    "seen": 1795624908.4657452,
+    "ast_hash": "244bdf8f8f9c92e9da7bc1c63d3b1f14",
     "semantic_hash": ""
   },
   "internal/platform/httpserver/server_test.go": {
-    "mtime": 1795516537.0896862,
-    "seen": 1795516549.6644769,
-    "ast_hash": "0c60f1281cde6cba7c71664419a922ae",
+    "mtime": 1795624659.897008,
+    "seen": 1795624908.4657474,
+    "ast_hash": "c7a534fe08e3fd140b0ec1c1e86c7fb6",
     "semantic_hash": ""
   },
   "internal/platform/httpserver/static_ui.go": {
@@ -180,9 +180,9 @@
     "semantic_hash": ""
   },
   "cmd/omeg4mon-router/main.go": {
-    "mtime": 1795544653.5375533,
-    "seen": 1795544738.4171832,
-    "ast_hash": "c36b30068903906a07698c9cd57e4ee1",
+    "mtime": 1795624767.2173212,
+    "seen": 1795624908.45783,
+    "ast_hash": "f52fb35b85ecf10dadca20d445b22728",
     "semantic_hash": ""
   },
   "cmd/omeg4mon-router/main_test.go": {
@@ -438,27 +438,27 @@
     "semantic_hash": ""
   },
   "internal/modules/auth/cookie.go": {
-    "mtime": 1795381385.5486386,
-    "seen": 1795454269.4710252,
-    "ast_hash": "c66ccfabec00201c700a4d19a076b7eb",
+    "mtime": 1795624754.6711771,
+    "seen": 1795624908.4592965,
+    "ast_hash": "d16b76311a6537633b44a1239d4b36d2",
     "semantic_hash": ""
   },
   "internal/modules/auth/handlers.go": {
-    "mtime": 1795381385.5489864,
-    "seen": 1795454269.4710267,
-    "ast_hash": "d86ca1f7911660ddcf92754db328783e",
+    "mtime": 1795624764.0902853,
+    "seen": 1795624908.4592993,
+    "ast_hash": "bec407cf16429b822e6f33154f332964",
     "semantic_hash": ""
   },
   "internal/modules/auth/module.go": {
-    "mtime": 1795381385.5489864,
-    "seen": 1795454269.4710279,
-    "ast_hash": "6831895fd37a1d75afde21a359b4217e",
+    "mtime": 1795624758.7102237,
+    "seen": 1795624908.4593015,
+    "ast_hash": "fc49e8129190830ac98a5275cb37ee86",
     "semantic_hash": ""
   },
   "internal/modules/auth/module_test.go": {
-    "mtime": 1795381385.5489864,
-    "seen": 1795454269.4710293,
-    "ast_hash": "d9e7c3ef8e9399357c615203c82fcb12",
+    "mtime": 1795624661.6480312,
+    "seen": 1795624908.4593031,
+    "ast_hash": "b38ab51c649ce209595d9355c78fd040",
     "semantic_hash": ""
   },
   "contracts/openapi/modules/settings.yaml": {
@@ -630,9 +630,9 @@
     "semantic_hash": ""
   },
   "internal/modules/providers/handlers.go": {
-    "mtime": 1795545730.3601985,
-    "seen": 1795546012.7563899,
-    "ast_hash": "03716829672a0d547e59df5b7415bb97",
+    "mtime": 1795624765.6103027,
+    "seen": 1795624908.4626493,
+    "ast_hash": "4cf62913cf2f6517a62ca9755428b23e",
     "semantic_hash": ""
   },
   "internal/modules/providers/module.go": {
@@ -3360,9 +3360,9 @@
     "semantic_hash": ""
   },
   "internal/modules/providers/oauth_flow_integration_test.go": {
-    "mtime": 1795504844.8014143,
-    "seen": 1795504934.7949955,
-    "ast_hash": "1a0b1e300ce3aae89cd9b2778f01e0bc",
+    "mtime": 1795624751.863145,
+    "seen": 1795624908.4628813,
+    "ast_hash": "a91783b191353403b8481db3953aafc1",
     "semantic_hash": ""
   },
   "internal/modules/providers/oauth_proxy.go": {
@@ -3759,6 +3759,12 @@
     "mtime": 1795604357.3660998,
     "seen": 1795605101.6536992,
     "ast_hash": "9e0c4204bfe8d39abd72346ae4685f15",
+    "semantic_hash": ""
+  },
+  "internal/modules/auth/ratelimit.go": {
+    "mtime": 1795624820.6131535,
+    "seen": 1795624908.4593062,
+    "ast_hash": "9ad77d554f2ee717a71fae3ab22a1420",
     "semantic_hash": ""
   }
 }

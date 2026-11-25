@@ -2,12 +2,23 @@ package httpserver_test
 
 import (
 	"context"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"crypto/tls"
+	"crypto/x509"
+	"crypto/x509/pkix"
 	"encoding/json"
+	"encoding/pem"
 	"errors"
 	"io"
 	"log/slog"
+	"math/big"
+	"net"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -763,5 +774,222 @@ func TestServerStartAndGracefulShutdown(t *testing.T) {
 	}
 	if err := <-startErrCh; err != nil {
 		t.Fatalf("Start returned error after Shutdown: %v", err)
+	}
+}
+
+func TestIsHTTPSDetection(t *testing.T) {
+	cases := []struct {
+		name    string
+		tls     bool
+		headers map[string]string
+		want    bool
+	}{
+		{name: "plain http", want: false},
+		{name: "direct tls", tls: true, want: true},
+		{name: "x-forwarded-proto https", headers: map[string]string{"X-Forwarded-Proto": "https"}, want: true},
+		{name: "x-forwarded-proto list", headers: map[string]string{"X-Forwarded-Proto": "HTTPS, http"}, want: true},
+		{name: "x-forwarded-proto http", headers: map[string]string{"X-Forwarded-Proto": "http"}, want: false},
+		{name: "rfc7239 forwarded proto https", headers: map[string]string{"Forwarded": `for=192.0.2.60;proto=https;by=203.0.113.43`}, want: true},
+		{name: "rfc7239 forwarded quoted https", headers: map[string]string{"Forwarded": `proto="https", for=192.0.2.60`}, want: true},
+		{name: "rfc7239 forwarded proto http", headers: map[string]string{"Forwarded": `for=192.0.2.60;proto=http`}, want: false},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, "/api/health", nil)
+			if tc.tls {
+				req.TLS = &tls.ConnectionState{}
+			}
+			for k, v := range tc.headers {
+				req.Header.Set(k, v)
+			}
+			if got := httpserver.IsHTTPS(req); got != tc.want {
+				t.Fatalf("IsHTTPS() = %v, want %v", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestSecurityHeadersMiddleware(t *testing.T) {
+	srv := httpserver.New(httpserver.Options{
+		Config: config.Config{Host: "127.0.0.1", Port: 20128, APITimeout: time.Second},
+		Logger: testLogger(),
+	})
+	srv.Mounts().PublicAPI.Get("/ping", func(w http.ResponseWriter, r *http.Request) {
+		httpserver.WriteJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+	})
+
+	// Plain HTTP: baseline headers without HSTS.
+	req := httptest.NewRequest(http.MethodGet, "/api/ping", nil)
+	rec := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, req)
+	if rec.Header().Get("X-Content-Type-Options") != "nosniff" {
+		t.Fatalf("X-Content-Type-Options = %q, want nosniff", rec.Header().Get("X-Content-Type-Options"))
+	}
+	if rec.Header().Get("X-Frame-Options") != "DENY" {
+		t.Fatalf("X-Frame-Options = %q, want DENY", rec.Header().Get("X-Frame-Options"))
+	}
+	if rec.Header().Get("Referrer-Policy") != "strict-origin-when-cross-origin" {
+		t.Fatalf("Referrer-Policy = %q, want strict-origin-when-cross-origin", rec.Header().Get("Referrer-Policy"))
+	}
+	if hsts := rec.Header().Get("Strict-Transport-Security"); hsts != "" {
+		t.Fatalf("expected no HSTS on plain HTTP, got %q", hsts)
+	}
+
+	// HTTPS via X-Forwarded-Proto: includes HSTS.
+	httpsReq := httptest.NewRequest(http.MethodGet, "/api/ping", nil)
+	httpsReq.Header.Set("X-Forwarded-Proto", "https")
+	httpsRec := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(httpsRec, httpsReq)
+	if hsts := httpsRec.Header().Get("Strict-Transport-Security"); !strings.Contains(hsts, "max-age=") {
+		t.Fatalf("expected HSTS header on HTTPS request, got %q", hsts)
+	}
+}
+
+func TestAdminAuthEnforcedOverHTTPSOnLoopback(t *testing.T) {
+	srv := httpserver.New(httpserver.Options{
+		Config: config.Config{Host: "127.0.0.1", Port: 20128, APITimeout: time.Second},
+		Logger: testLogger(),
+		Auth:   &stubAuthVerifier{requireLogin: false, validToken: "secret"},
+	})
+	srv.Mounts().AdminAPI.Get("/secret", func(w http.ResponseWriter, r *http.Request) {
+		httpserver.WriteJSON(w, http.StatusOK, map[string]string{"ok": "true"})
+	})
+
+	// Local plain HTTP with requireLogin=false is allowed.
+	httpReq := httptest.NewRequest(http.MethodGet, "/api/secret", nil)
+	httpRec := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(httpRec, httpReq)
+	if httpRec.Code != http.StatusOK {
+		t.Fatalf("plain HTTP loopback status = %d, want 200", httpRec.Code)
+	}
+
+	// Reverse-proxied HTTPS to loopback must enforce login.
+	httpsReq := httptest.NewRequest(http.MethodGet, "/api/secret", nil)
+	httpsReq.Header.Set("X-Forwarded-Proto", "https")
+	httpsRec := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(httpsRec, httpsReq)
+	if httpsRec.Code != http.StatusUnauthorized {
+		t.Fatalf("proxied HTTPS without token status = %d, want 401", httpsRec.Code)
+	}
+
+	// Valid token over proxied HTTPS succeeds.
+	authedReq := httptest.NewRequest(http.MethodGet, "/api/secret", nil)
+	authedReq.Header.Set("X-Forwarded-Proto", "https")
+	authedReq.Header.Set("Authorization", "Bearer secret")
+	authedRec := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(authedRec, authedReq)
+	if authedRec.Code != http.StatusOK {
+		t.Fatalf("proxied HTTPS with valid token status = %d, want 200", authedRec.Code)
+	}
+}
+
+func generateSelfSignedCertFiles(t *testing.T) (certPath, keyPath string, certPool *x509.CertPool) {
+	t.Helper()
+	priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatalf("generate key: %v", err)
+	}
+	tmpl := &x509.Certificate{
+		SerialNumber: big.NewInt(1),
+		Subject:      pkix.Name{CommonName: "127.0.0.1"},
+		NotBefore:    time.Now().Add(-time.Hour),
+		NotAfter:     time.Now().Add(time.Hour),
+		KeyUsage:     x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
+		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+		IPAddresses:  []net.IP{net.ParseIP("127.0.0.1")},
+	}
+	der, err := x509.CreateCertificate(rand.Reader, tmpl, tmpl, &priv.PublicKey, priv)
+	if err != nil {
+		t.Fatalf("create certificate: %v", err)
+	}
+	certPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der})
+	keyBytes, err := x509.MarshalECPrivateKey(priv)
+	if err != nil {
+		t.Fatalf("marshal key: %v", err)
+	}
+	keyPEM := pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: keyBytes})
+
+	dir := t.TempDir()
+	certPath = filepath.Join(dir, "server.crt")
+	keyPath = filepath.Join(dir, "server.key")
+	if err := os.WriteFile(certPath, certPEM, 0o600); err != nil {
+		t.Fatalf("write cert: %v", err)
+	}
+	if err := os.WriteFile(keyPath, keyPEM, 0o600); err != nil {
+		t.Fatalf("write key: %v", err)
+	}
+	pool := x509.NewCertPool()
+	if !pool.AppendCertsFromPEM(certPEM) {
+		t.Fatal("failed to add cert to pool")
+	}
+	return certPath, keyPath, pool
+}
+
+func TestServerStartNativeTLS(t *testing.T) {
+	certPath, keyPath, pool := generateSelfSignedCertFiles(t)
+
+	srv := httpserver.New(httpserver.Options{
+		Config: config.Config{
+			Host:        "127.0.0.1",
+			Port:        0,
+			APITimeout:  time.Second,
+			TLSCertFile: certPath,
+			TLSKeyFile:  keyPath,
+		},
+		Logger: testLogger(),
+	})
+	srv.Mounts().PublicAPI.Get("/health", func(w http.ResponseWriter, r *http.Request) {
+		httpserver.WriteJSON(w, http.StatusOK, map[string]bool{"tls": r.TLS != nil})
+	})
+
+	startErrCh := make(chan error, 1)
+	go func() {
+		startErrCh <- srv.Start(context.Background())
+	}()
+
+	var addr string
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		a := srv.Addr()
+		if a != "" && !strings.HasSuffix(a, ":0") {
+			addr = a
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	if addr == "" {
+		t.Fatal("TLS server did not bind ephemeral port in time")
+	}
+
+	client := &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{
+				RootCAs:    pool,
+				MinVersion: tls.VersionTLS12,
+			},
+		},
+	}
+	t.Cleanup(client.CloseIdleConnections)
+
+	resp, err := client.Get("https://" + addr + "/api/health")
+	if err != nil {
+		t.Fatalf("HTTPS GET /api/health: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("HTTPS GET /api/health status = %d, want 200", resp.StatusCode)
+	}
+	if hsts := resp.Header.Get("Strict-Transport-Security"); !strings.Contains(hsts, "max-age=") {
+		t.Fatalf("expected HSTS header on native TLS response, got %q", hsts)
+	}
+
+	shutCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	if err := srv.Shutdown(shutCtx); err != nil {
+		t.Fatalf("Shutdown TLS server: %v", err)
+	}
+	if err := <-startErrCh; err != nil {
+		t.Fatalf("Start TLS server returned error: %v", err)
 	}
 }

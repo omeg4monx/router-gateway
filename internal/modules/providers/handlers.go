@@ -1264,7 +1264,7 @@ func (m *Module) handleOAuthCallback(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 
 	scheme := "http"
-	if r.TLS != nil {
+	if httpserver.IsHTTPS(r) {
 		scheme = "https"
 	}
 	host := r.Host

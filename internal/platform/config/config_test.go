@@ -189,3 +189,51 @@ func TestLoadEnvAndFlagOverrides(t *testing.T) {
 		t.Fatalf("APITimeout = %v, want %v", cfg.APITimeout, 45*time.Second)
 	}
 }
+
+func TestLoadTLSConfigAndValidation(t *testing.T) {
+	t.Run("default TLS disabled", func(t *testing.T) {
+		cfg, err := Load(nil, func(string) string { return "" })
+		if err != nil {
+			t.Fatalf("Load() unexpected error: %v", err)
+		}
+		if cfg.TLSEnabled() {
+			t.Fatal("TLSEnabled() = true, want false")
+		}
+	})
+
+	t.Run("rejects cert without key", func(t *testing.T) {
+		_, err := Load(nil, func(k string) string {
+			if k == "OMEG4MON_TLS_CERT_FILE" {
+				return "/etc/ssl/cert.pem"
+			}
+			return ""
+		})
+		if err == nil {
+			t.Fatal("expected error when only OMEG4MON_TLS_CERT_FILE is set")
+		}
+	})
+
+	t.Run("rejects key without cert", func(t *testing.T) {
+		_, err := Load([]string{"--tls-key-file", "/etc/ssl/key.pem"}, func(string) string { return "" })
+		if err == nil {
+			t.Fatal("expected error when only --tls-key-file is set")
+		}
+	})
+
+	t.Run("loads from env and allows flag override", func(t *testing.T) {
+		env := map[string]string{
+			"OMEG4MON_TLS_CERT_FILE": "/env/cert.pem",
+			"OMEG4MON_TLS_KEY_FILE":  "/env/key.pem",
+		}
+		cfg, err := Load([]string{"--tls-cert-file", "/flag/cert.pem"}, func(k string) string { return env[k] })
+		if err != nil {
+			t.Fatalf("Load() unexpected error: %v", err)
+		}
+		if !cfg.TLSEnabled() {
+			t.Fatal("TLSEnabled() = false, want true")
+		}
+		if cfg.TLSCertFile != "/flag/cert.pem" || cfg.TLSKeyFile != "/env/key.pem" {
+			t.Fatalf("TLS files = (%q, %q), want (/flag/cert.pem, /env/key.pem)", cfg.TLSCertFile, cfg.TLSKeyFile)
+		}
+	})
+}

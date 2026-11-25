@@ -696,3 +696,66 @@ func TestAuthPasswordChange(t *testing.T) {
 		t.Fatalf("login with new password status = %d, want 200 (body: %s)", rec.Code, rec.Body.String())
 	}
 }
+
+func TestLoginForwardedHeaderAndRateLimit(t *testing.T) {
+	t.Parallel()
+
+	h := newAuthHarness(t, config.Config{Host: "127.0.0.1"}, "correct-password-123", false)
+
+	// 1. Forwarded: proto=https enforces remote login on /api/auth/me and sets Secure cookie.
+	rec := doRequest(t, h.srv.Handler(), http.MethodGet, "/api/auth/me", "", nil, map[string]string{
+		"Forwarded": "for=203.0.113.10;proto=https",
+	})
+	if rec.Code != http.StatusOK {
+		t.Fatalf("GET /api/auth/me forwarded status = %d, want 200", rec.Code)
+	}
+	var meResp struct {
+		RequireLogin   bool `json:"require_login"`
+		RemoteEnforced bool `json:"remote_enforced"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &meResp); err != nil {
+		t.Fatalf("unmarshal me: %v", err)
+	}
+	if !meResp.RemoteEnforced || !meResp.RequireLogin {
+		t.Fatalf("expected remote_enforced=true and require_login=true over HTTPS proxy, got %+v", meResp)
+	}
+
+	rec = doRequest(t, h.srv.Handler(), http.MethodPost, "/api/auth/login", `{"password":"correct-password-123"}`, nil, map[string]string{
+		"Forwarded":       "for=203.0.113.10;proto=https",
+		"X-Forwarded-For": "203.0.113.10",
+	})
+	if rec.Code != http.StatusOK {
+		t.Fatalf("login with Forwarded proto=https status = %d, want 200", rec.Code)
+	}
+	if c := findCookie(rec.Result().Cookies(), auth.SessionCookieName); c == nil || !c.Secure {
+		t.Fatalf("expected Secure=true cookie with Forwarded: proto=https, got %+v", c)
+	}
+
+	// 2. Repeated failed logins from one IP trigger 429 Too Many Requests.
+	for i := 0; i < 10; i++ {
+		failRec := doRequest(t, h.srv.Handler(), http.MethodPost, "/api/auth/login", `{"password":"wrong-password"}`, nil, map[string]string{
+			"X-Forwarded-For": "198.51.100.5",
+		})
+		if failRec.Code != http.StatusUnauthorized {
+			t.Fatalf("attempt %d status = %d, want 401", i+1, failRec.Code)
+		}
+	}
+
+	throttled := doRequest(t, h.srv.Handler(), http.MethodPost, "/api/auth/login", `{"password":"correct-password-123"}`, nil, map[string]string{
+		"X-Forwarded-For": "198.51.100.5",
+	})
+	if throttled.Code != http.StatusTooManyRequests {
+		t.Fatalf("11th attempt status = %d, want 429 (body: %s)", throttled.Code, throttled.Body.String())
+	}
+	if throttled.Header().Get("Retry-After") == "" {
+		t.Fatal("expected Retry-After header on 429 response")
+	}
+
+	// Different IP is unaffected.
+	otherIP := doRequest(t, h.srv.Handler(), http.MethodPost, "/api/auth/login", `{"password":"correct-password-123"}`, nil, map[string]string{
+		"X-Forwarded-For": "198.51.100.99",
+	})
+	if otherIP.Code != http.StatusOK {
+		t.Fatalf("login from other IP status = %d, want 200", otherIP.Code)
+	}
+}

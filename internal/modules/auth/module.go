@@ -14,6 +14,7 @@ import (
 	"github.com/omeg4monx/router-gateway/internal/platform/config"
 	"github.com/omeg4monx/router-gateway/internal/platform/crypto"
 	"github.com/omeg4monx/router-gateway/internal/platform/eventbus"
+	"github.com/omeg4monx/router-gateway/internal/platform/httpserver"
 	"github.com/omeg4monx/router-gateway/internal/platform/lifecycle"
 )
 
@@ -51,11 +52,12 @@ type Options struct {
 // Module implements lifecycle.Module and contracts.AuthVerifier for the
 // single-admin dashboard control plane.
 type Module struct {
-	store      contracts.AdminCredentialStore
-	sessions   *crypto.SessionSigner
-	cfg        config.Config
-	bus        *eventbus.Bus
-	sessionTTL time.Duration
+	store        contracts.AdminCredentialStore
+	sessions     *crypto.SessionSigner
+	cfg          config.Config
+	bus          *eventbus.Bus
+	sessionTTL   time.Duration
+	loginLimiter *loginRateLimiter
 }
 
 var (
@@ -71,11 +73,12 @@ func New(opts Options) *Module {
 		ttl = DefaultSessionTTL
 	}
 	return &Module{
-		store:      opts.Store,
-		sessions:   opts.Sessions,
-		cfg:        opts.Config,
-		bus:        opts.Bus,
-		sessionTTL: ttl,
+		store:        opts.Store,
+		sessions:     opts.Sessions,
+		cfg:          opts.Config,
+		bus:          opts.Bus,
+		sessionTTL:   ttl,
+		loginLimiter: newLoginRateLimiter(defaultLoginMaxFailures, defaultLoginWindow),
 	}
 }
 
@@ -160,5 +163,9 @@ func (m *Module) RequireLogin(ctx context.Context) bool {
 }
 
 func (m *Module) remoteEnforced() bool {
-	return !m.cfg.IsLoopback() && !m.cfg.AllowInsecureRemote
+	return !m.cfg.AllowInsecureRemote && (!m.cfg.IsLoopback() || m.cfg.TLSEnabled())
+}
+
+func (m *Module) remoteEnforcedForRequest(r *http.Request) bool {
+	return m.remoteEnforced() || (!m.cfg.AllowInsecureRemote && httpserver.IsHTTPS(r))
 }

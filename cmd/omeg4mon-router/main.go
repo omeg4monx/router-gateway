@@ -688,7 +688,7 @@ func runMain(args []string, getenv func(string) string) int {
 	cfg, err := config.Load(args, getenv)
 	if err != nil {
 		if errors.Is(err, flag.ErrHelp) {
-			fmt.Fprintln(os.Stderr, "Usage: omeg4mon-router [--host 127.0.0.1] [--port 20128] [--data-dir PATH] [--log-level info]")
+			fmt.Fprintln(os.Stderr, "Usage: omeg4mon-router [--host 127.0.0.1] [--port 20128] [--data-dir PATH] [--log-level info] [--tls-cert-file CERT.PEM --tls-key-file KEY.PEM]")
 			return 0
 		}
 		fmt.Fprintf(os.Stderr, "omeg4mon-router: configuration error: %v\n", err)

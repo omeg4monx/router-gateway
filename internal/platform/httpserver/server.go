@@ -2,12 +2,14 @@ package httpserver
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"io/fs"
 	"log/slog"
 	"net"
 	"net/http"
 	"runtime/debug"
+	"strings"
 	"sync"
 	"time"
 
@@ -88,6 +90,7 @@ func New(opts Options) *Server {
 
 	root := chi.NewRouter()
 	root.Use(middleware.RequestID)
+	root.Use(securityHeadersMiddleware)
 
 	// Control plane router mounted under /api with panic recovery. Standard
 	// PublicAPI and AdminAPI mounts enforce APITimeout, while AdminStreamAPI
@@ -156,6 +159,11 @@ func New(opts Options) *Server {
 		WriteTimeout:      0,
 		ErrorLog:          slog.NewLogLogger(logger.Handler(), slog.LevelError),
 	}
+	if opts.Config.TLSEnabled() {
+		s.httpServer.TLSConfig = &tls.Config{
+			MinVersion: tls.VersionTLS12,
+		}
+	}
 
 	return s
 }
@@ -223,7 +231,7 @@ func (s *Server) Start(ctx context.Context) error {
 	s.boundAddr = ln.Addr().String()
 	s.mu.Unlock()
 
-	s.logger.Info("http server listening", "addr", ln.Addr().String())
+	s.logger.Info("http server listening", "addr", ln.Addr().String(), "tls", s.cfg.TLSEnabled())
 
 	serveDone := make(chan struct{})
 	watcherDone := make(chan struct{})
@@ -239,7 +247,11 @@ func (s *Server) Start(ctx context.Context) error {
 		}
 	}()
 
-	err = s.httpServer.Serve(ln)
+	if s.cfg.TLSEnabled() {
+		err = s.httpServer.ServeTLS(ln, s.cfg.TLSCertFile, s.cfg.TLSKeyFile)
+	} else {
+		err = s.httpServer.Serve(ln)
+	}
 	close(serveDone)
 	<-watcherDone
 	if errors.Is(err, http.ErrServerClosed) {
@@ -261,9 +273,55 @@ func (s *Server) Shutdown(ctx context.Context) error {
 	return s.httpServer.Shutdown(ctx)
 }
 
+// IsHTTPS reports whether r arrived over direct TLS or behind an HTTPS reverse
+// proxy (via X-Forwarded-Proto or RFC 7239 Forwarded proto=https).
+func IsHTTPS(r *http.Request) bool {
+	if r == nil {
+		return false
+	}
+	if r.TLS != nil {
+		return true
+	}
+	if proto := r.Header.Get("X-Forwarded-Proto"); proto != "" {
+		first, _, _ := strings.Cut(proto, ",")
+		if strings.EqualFold(strings.TrimSpace(first), "https") {
+			return true
+		}
+	}
+	if fwd := r.Header.Get("Forwarded"); fwd != "" {
+		firstEntry, _, _ := strings.Cut(fwd, ",")
+		for _, part := range strings.Split(firstEntry, ";") {
+			k, v, ok := strings.Cut(part, "=")
+			if !ok {
+				continue
+			}
+			if strings.EqualFold(strings.TrimSpace(k), "proto") {
+				val := strings.Trim(strings.TrimSpace(v), `"`)
+				if strings.EqualFold(val, "https") {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
+func securityHeadersMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		h := w.Header()
+		h.Set("X-Content-Type-Options", "nosniff")
+		h.Set("X-Frame-Options", "DENY")
+		h.Set("Referrer-Policy", "strict-origin-when-cross-origin")
+		if IsHTTPS(r) {
+			h.Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
 func (s *Server) adminAuthMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		remoteEnforced := !s.cfg.IsLoopback() && !s.cfg.AllowInsecureRemote
+		remoteEnforced := !s.cfg.AllowInsecureRemote && (!s.cfg.IsLoopback() || s.cfg.TLSEnabled() || IsHTTPS(r))
 		if s.auth == nil {
 			if remoteEnforced {
 				WriteError(w, r, http.StatusUnauthorized, "unauthorized", "authentication required")
