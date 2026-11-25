@@ -1,38 +1,42 @@
 import {
   AlertCircle,
+  BookOpen,
   Check,
   CheckCircle2,
   Copy,
   CopyPlus,
   FlaskConical,
+  KeyRound,
   Layers,
   Pencil,
-  Plus,
   Power,
   RefreshCw,
   Search,
+  Sparkles,
   Trash2,
   X,
   XCircle,
 } from "lucide-react";
-import { useMemo, useState } from "react";
-import { runSingleComboTest } from "@/features/models/hooks";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { runSingleComboTest, useModelCatalog } from "@/features/models/hooks";
 import type { CatalogTestResult } from "@/features/models/types";
-import { useProviderConnections } from "@/features/providers/hooks";
+import { useProviderConnections, useProvidersCatalog } from "@/features/providers/hooks";
 import { useUIStore } from "@/shared/store/uiStore";
 import { Alert, AlertDescription, AlertTitle } from "@/shared/ui/alert";
 import { Badge } from "@/shared/ui/badge";
 import { Button } from "@/shared/ui/button";
 import { Card } from "@/shared/ui/card";
 import { Input } from "@/shared/ui/input";
-import { ComboBuilderModal } from "./ComboBuilderModal";
+import { ComboRegistrationForm } from "./ComboRegistrationForm";
+import { formatStepAccountLabel } from "./comboHelpers";
 import {
   useCombos,
   useCreateComboMutation,
   useDeleteComboMutation,
   useUpdateComboMutation,
 } from "./hooks";
-import type { Combo, ComboStep, CreateComboRequest } from "./schemas";
+import { StrategyGuideModal } from "./StrategyGuideModal";
+import type { Combo, ComboStep, ComboStrategy, CreateComboRequest } from "./schemas";
 import { COMBO_STRATEGY_OPTIONS, getStrategyMeta } from "./strategies";
 
 export function CombosConsole() {
@@ -41,6 +45,8 @@ export function CombosConsole() {
 
   const combosQuery = useCombos();
   const connectionsQuery = useProviderConnections();
+  const catalogQuery = useProvidersCatalog();
+  const modelCatalogQuery = useModelCatalog();
 
   const createMutation = useCreateComboMutation();
   const updateMutation = useUpdateComboMutation();
@@ -50,39 +56,82 @@ export function CombosConsole() {
   const [strategyFilter, setStrategyFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "paused">("all");
 
-  const [modalOpen, setModalOpen] = useState(false);
-  const [modalMode, setModalMode] = useState<"create" | "edit">("create");
+  // Inline registration form state
+  const [formMode, setFormMode] = useState<"create" | "edit">("create");
   const [editingCombo, setEditingCombo] = useState<Combo | null>(null);
-  const [modalError, setModalError] = useState<string | null>(null);
+  const [formSubmitError, setFormSubmitError] = useState<string | null>(null);
+  const [strategyOverride, setStrategyOverride] = useState<ComboStrategy | null>(null);
+  const formContainerRef = useRef<HTMLDivElement | null>(null);
+
+  // Strategy guide helper modal
+  const [guideOpen, setGuideOpen] = useState(false);
+  const [guideStrategy, setGuideStrategy] = useState<ComboStrategy>("priority");
 
   const [busyComboId, setBusyComboId] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [rowError, setRowError] = useState<string | null>(null);
   const [copiedName, setCopiedName] = useState<string | null>(null);
+  const copyTimerRef = useRef<number | null>(null);
 
   const [testingNames, setTestingNames] = useState<Set<string>>(() => new Set());
   const [testResults, setTestResults] = useState<Record<string, CatalogTestResult>>({});
 
+  useEffect(() => {
+    return () => {
+      if (copyTimerRef.current !== null) {
+        window.clearTimeout(copyTimerRef.current);
+      }
+    };
+  }, []);
+
   const combos = combosQuery.data ?? [];
   const connections = connectionsQuery.data ?? [];
 
-  const availableModels = useMemo(() => {
-    const seen = new Set<string>();
-    const out: string[] = [];
-    for (const conn of connections) {
-      if (!conn.enabled) continue;
-      for (const raw of conn.models) {
-        const trimmed = raw.trim();
-        if (!trimmed) continue;
-        const qualified = trimmed.includes("/") ? trimmed : `${conn.provider_id}/${trimmed}`;
-        if (!seen.has(qualified)) {
-          seen.add(qualified);
-          out.push(qualified);
-        }
+  const connectionsById = useMemo(
+    () => new Map(connections.map((conn) => [conn.id, conn])),
+    [connections],
+  );
+
+  const providerLabels = useMemo(() => {
+    const labels: Record<string, string> = {};
+    for (const item of catalogQuery.data?.adapters ?? []) {
+      labels[item.id] = item.display_name;
+    }
+    return labels;
+  }, [catalogQuery.data]);
+
+  const providerCatalogModels = useMemo(() => {
+    const grouped: Record<string, string[]> = {};
+    const seenByProvider = new Map<string, Set<string>>();
+
+    const add = (providerId: string, modelId: string) => {
+      const cleanProvider = providerId.trim();
+      const cleanModel = modelId.trim();
+      if (!cleanProvider || !cleanModel) return;
+      let seen = seenByProvider.get(cleanProvider);
+      if (!seen) {
+        seen = new Set<string>();
+        seenByProvider.set(cleanProvider, seen);
+        grouped[cleanProvider] = [];
+      }
+      if (!seen.has(cleanModel)) {
+        seen.add(cleanModel);
+        grouped[cleanProvider]?.push(cleanModel);
+      }
+    };
+
+    for (const row of modelCatalogQuery.data ?? []) {
+      if (row.hidden) continue;
+      add(row.providerId, row.id);
+    }
+    for (const adapter of catalogQuery.data?.adapters ?? []) {
+      for (const modelId of adapter.default_models ?? []) {
+        add(adapter.id, modelId);
       }
     }
-    return out.sort();
-  }, [connections]);
+
+    return grouped;
+  }, [modelCatalogQuery.data, catalogQuery.data]);
 
   const filteredCombos = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -102,35 +151,56 @@ export function CombosConsole() {
 
   const activeCount = useMemo(() => combos.filter((c) => c.enabled).length, [combos]);
 
-  const openCreateModal = (duplicateFrom?: Combo) => {
-    setModalMode("create");
-    setEditingCombo(duplicateFrom ?? null);
-    setModalError(null);
-    setModalOpen(true);
+  const scrollToForm = () => {
+    formContainerRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
-  const openEditModal = (combo: Combo) => {
-    setModalMode("edit");
+  const handleEditCombo = (combo: Combo) => {
+    setFormMode("edit");
     setEditingCombo(combo);
-    setModalError(null);
-    setModalOpen(true);
+    setFormSubmitError(null);
+    scrollToForm();
   };
 
-  const handleModalSubmit = (payload: CreateComboRequest, editComboId?: string) => {
-    setModalError(null);
+  const handleDuplicateCombo = (combo: Combo) => {
+    setFormMode("create");
+    setEditingCombo(combo);
+    setFormSubmitError(null);
+    scrollToForm();
+  };
+
+  const handleCancelEdit = () => {
+    setFormMode("create");
+    setEditingCombo(null);
+    setFormSubmitError(null);
+  };
+
+  const handleFormSubmit = (
+    payload: CreateComboRequest,
+    editComboId?: string,
+    onDone?: () => void,
+  ) => {
+    setFormSubmitError(null);
     if (editComboId) {
       updateMutation.mutate(
         { id: editComboId, body: payload },
         {
-          onSuccess: () => setModalOpen(false),
-          onError: (err) => setModalError(err.message),
+          onSuccess: () => {
+            setFormMode("create");
+            setEditingCombo(null);
+            onDone?.();
+          },
+          onError: (err) => setFormSubmitError(err.message),
         },
       );
       return;
     }
     createMutation.mutate(payload, {
-      onSuccess: () => setModalOpen(false),
-      onError: (err) => setModalError(err.message),
+      onSuccess: () => {
+        setEditingCombo(null);
+        onDone?.();
+      },
+      onError: (err) => setFormSubmitError(err.message),
     });
   };
 
@@ -152,7 +222,12 @@ export function CombosConsole() {
     setRowError(null);
     setBusyComboId(combo.id);
     deleteMutation.mutate(combo.id, {
-      onSuccess: () => setConfirmDeleteId(null),
+      onSuccess: () => {
+        setConfirmDeleteId(null);
+        if (editingCombo?.id === combo.id) {
+          handleCancelEdit();
+        }
+      },
       onError: (err) => setRowError(err.message),
       onSettled: () => setBusyComboId(null),
     });
@@ -177,13 +252,28 @@ export function CombosConsole() {
     try {
       await navigator.clipboard.writeText(comboName);
       setCopiedName(comboName);
-      window.setTimeout(() => setCopiedName((cur) => (cur === comboName ? null : cur)), 1800);
+      if (copyTimerRef.current !== null) {
+        window.clearTimeout(copyTimerRef.current);
+      }
+      copyTimerRef.current = window.setTimeout(() => {
+        setCopiedName((cur) => (cur === comboName ? null : cur));
+      }, 1800);
     } catch {
-      // Ignore clipboard errors
+      // Ignore clipboard permission errors
     }
   };
 
-  const isRefreshing = combosQuery.isFetching || connectionsQuery.isFetching;
+  const openStrategyGuide = useCallback((strategy: ComboStrategy) => {
+    setGuideStrategy(strategy);
+    setGuideOpen(true);
+  }, []);
+
+  const handleStrategyOverrideApplied = useCallback(() => {
+    setStrategyOverride(null);
+  }, []);
+
+  const isRefreshing =
+    combosQuery.isFetching || connectionsQuery.isFetching || modelCatalogQuery.isFetching;
 
   return (
     <div className="space-y-5">
@@ -198,8 +288,8 @@ export function CombosConsole() {
           </h2>
           <p className="mt-1 text-sm text-[var(--text-secondary)]">
             {isId
-              ? "Buat dan kelola combo multi-model dengan 22 strategi routing (priority, weighted, round-robin, p2c, cost-optimized, auto, fusion, pipeline, dll.) beserta nested combo-ref."
-              : "Create and orchestrate multi-model combos across all 22 routing strategies (priority, weighted, round-robin, p2c, cost-optimized, auto, fusion, pipeline, and more) with nested combo-ref steps."}
+              ? "Gabungkan model lintas provider dalam satu endpoint, pilih akun tertentu atau Dynamic, dan atur strategi routingnya."
+              : "Combine models across providers into one endpoint, pin specific accounts or stay Dynamic, and pick your routing strategy."}
           </p>
         </div>
 
@@ -207,9 +297,15 @@ export function CombosConsole() {
           <Badge variant="outline" className="tabular-nums">
             {activeCount}/{combos.length} {isId ? "Aktif" : "Active"}
           </Badge>
-          <Badge variant="secondary" className="tabular-nums">
-            {COMBO_STRATEGY_OPTIONS.length} {isId ? "Strategi" : "Strategies"}
-          </Badge>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => openStrategyGuide(guideStrategy)}
+          >
+            <BookOpen className="h-3.5 w-3.5 text-[var(--accent-primary)]" aria-hidden="true" />
+            <span>{isId ? "Panduan Strategy" : "Strategy Guide"}</span>
+          </Button>
           <Button
             type="button"
             variant="outline"
@@ -217,378 +313,422 @@ export function CombosConsole() {
             onClick={() => {
               void combosQuery.refetch();
               void connectionsQuery.refetch();
+              void modelCatalogQuery.refetch();
             }}
             disabled={isRefreshing}
           >
             <RefreshCw
               className={`h-3.5 w-3.5 text-[var(--accent-primary)] ${isRefreshing ? "animate-spin" : ""}`}
+              aria-hidden="true"
             />
             <span>{isId ? "Segarkan" : "Refresh"}</span>
-          </Button>
-          <Button
-            type="button"
-            size="sm"
-            data-testid="create-combo-btn"
-            onClick={() => openCreateModal()}
-          >
-            <Plus className="h-3.5 w-3.5" aria-hidden="true" />
-            <span>{isId ? "Buat Combo" : "Create Combo"}</span>
           </Button>
         </div>
       </section>
 
-      {/* Filter Bar */}
-      <Card className="p-4">
-        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-4">
-          <div className="relative sm:col-span-2">
-            <Search className="pointer-events-none absolute top-1/2 left-2.5 h-3.5 w-3.5 -translate-y-1/2 text-[var(--text-muted)]" />
-            <Input
-              type="text"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder={
-                isId
-                  ? "Cari nama combo, strategi, atau model..."
-                  : "Search combo name, strategy, or target model..."
-              }
-              className="h-9 pl-8 text-xs"
-            />
-          </div>
-
-          <select
-            aria-label={isId ? "Filter strategi" : "Filter strategy"}
-            value={strategyFilter}
-            onChange={(e) => setStrategyFilter(e.target.value)}
-            className="h-9 rounded-md border border-[var(--border-subtle)] bg-[var(--bg-canvas)] px-2.5 font-mono text-xs text-[var(--text-primary)]"
-          >
-            <option value="all">{isId ? "Semua Strategi (22)" : "All Strategies (22)"}</option>
-            {COMBO_STRATEGY_OPTIONS.map((s) => (
-              <option key={s.value} value={s.value}>
-                {s.value}
-              </option>
-            ))}
-          </select>
-
-          <select
-            aria-label={isId ? "Filter status" : "Filter status"}
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value as "all" | "active" | "paused")}
-            className="h-9 rounded-md border border-[var(--border-subtle)] bg-[var(--bg-canvas)] px-2.5 text-xs text-[var(--text-primary)]"
-          >
-            <option value="all">{isId ? "Semua Status" : "All Statuses"}</option>
-            <option value="active">{isId ? "Aktif" : "Active"}</option>
-            <option value="paused">{isId ? "Dijeda" : "Paused"}</option>
-          </select>
+      {/* Main 2-Column Workspace: Registration Form (Left) + Registered Combos (Right) */}
+      <div className="grid grid-cols-1 items-start gap-5 xl:grid-cols-12">
+        <div ref={formContainerRef} className="xl:sticky xl:top-4 xl:col-span-5">
+          <ComboRegistrationForm
+            mode={formMode}
+            initialCombo={editingCombo}
+            existingCombos={combos}
+            connections={connections}
+            providerLabels={providerLabels}
+            providerCatalogModels={providerCatalogModels}
+            modelsLoading={modelCatalogQuery.isPending}
+            submitting={createMutation.isPending || updateMutation.isPending}
+            submitError={formSubmitError}
+            strategyOverride={strategyOverride}
+            onStrategyOverrideApplied={handleStrategyOverrideApplied}
+            onOpenStrategyGuide={openStrategyGuide}
+            onCancelEdit={handleCancelEdit}
+            onSubmit={handleFormSubmit}
+            isId={isId}
+          />
         </div>
-      </Card>
 
-      {rowError ? (
-        <Alert variant="destructive">
-          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-[var(--status-error)]" />
-          <div className="flex-1">
-            <AlertTitle>{isId ? "Operasi combo gagal" : "Combo operation failed"}</AlertTitle>
-            <AlertDescription className="font-mono">{rowError}</AlertDescription>
-          </div>
-          <Button type="button" variant="ghost" size="icon-sm" onClick={() => setRowError(null)}>
-            <X className="h-3.5 w-3.5" />
-          </Button>
-        </Alert>
-      ) : null}
+        <div className="space-y-4 xl:col-span-7">
+          {/* Filter Bar */}
+          <Card className="p-3.5">
+            <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-4">
+              <div className="relative sm:col-span-2">
+                <Search
+                  className="pointer-events-none absolute top-1/2 left-2.5 h-3.5 w-3.5 -translate-y-1/2 text-[var(--text-muted)]"
+                  aria-hidden="true"
+                />
+                <Input
+                  type="text"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder={
+                    isId
+                      ? "Cari nama combo, strategi, atau model..."
+                      : "Search combo name, strategy, or model..."
+                  }
+                  className="h-9 pl-8 text-xs"
+                />
+              </div>
 
-      {/* Combos List */}
-      {combosQuery.isError ? (
-        <Alert variant="destructive">
-          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-[var(--status-error)]" />
-          <AlertDescription className="font-mono">{combosQuery.error.message}</AlertDescription>
-        </Alert>
-      ) : combosQuery.isPending ? (
-        <Card className="p-10 text-center text-sm text-[var(--text-muted)]">
-          {isId ? "Memuat daftar combo..." : "Loading combos..."}
-        </Card>
-      ) : filteredCombos.length === 0 ? (
-        <Card className="p-12 text-center">
-          <Layers className="mx-auto h-8 w-8 text-[var(--text-muted)]" aria-hidden="true" />
-          <p className="mt-3 text-sm font-medium text-[var(--text-primary)]">
-            {combos.length === 0
-              ? isId
-                ? "Belum ada combo dikonfigurasi"
-                : "No combos configured yet"
-              : isId
-                ? "Tidak ada combo yang cocok dengan filter"
-                : "No combos match the current filters"}
-          </p>
-          <p className="mt-1 text-xs text-[var(--text-muted)]">
-            {isId
-              ? "Klik Buat Combo untuk membuat rantai failover, load balancing, cost-optimized, auto, fusion, atau pipeline."
-              : "Click Create Combo to build priority failover, weighted, round-robin, cost-optimized, auto, fusion, or pipeline chains."}
-          </p>
-          <div className="mt-4">
-            <Button type="button" size="sm" onClick={() => openCreateModal()}>
-              <Plus className="h-3.5 w-3.5" />
-              <span>{isId ? "Buat Combo Pertama" : "Create First Combo"}</span>
-            </Button>
-          </div>
-        </Card>
-      ) : (
-        <div className="grid grid-cols-1 gap-4">
-          {filteredCombos.map((combo) => {
-            const stratMeta = getStrategyMeta(combo.strategy);
-            const steps: ComboStep[] =
-              combo.steps && combo.steps.length > 0
-                ? combo.steps
-                : combo.targets.map((t): ComboStep => ({ kind: "model", model: t }));
-            const cfg = (combo.config ?? {}) as Record<string, unknown>;
-            const cfgEntries = Object.entries(cfg).filter(
-              ([, v]) => v !== undefined && v !== null && v !== "",
-            );
-            const testRes = testResults[combo.name];
-            const isTesting = testingNames.has(combo.name);
-            const isBusy = busyComboId === combo.id;
-            const confirmingDelete = confirmDeleteId === combo.id;
+              <select
+                aria-label={isId ? "Filter strategi" : "Filter strategy"}
+                value={strategyFilter}
+                onChange={(e) => setStrategyFilter(e.target.value)}
+                className="h-9 rounded-md border border-[var(--border-strong)] bg-[var(--bg-canvas)] px-2.5 font-mono text-xs text-[var(--text-primary)]"
+              >
+                <option value="all">{isId ? "Semua Strategi" : "All Strategies"}</option>
+                {COMBO_STRATEGY_OPTIONS.map((s) => (
+                  <option key={s.value} value={s.value}>
+                    {s.value}
+                  </option>
+                ))}
+              </select>
 
-            return (
-              <Card key={combo.id} className="overflow-hidden">
-                <div className="h-[2px] w-full bg-[var(--border-subtle)]">
-                  <div
-                    className={`h-full transition-all ${
-                      combo.enabled
-                        ? "w-full bg-[var(--accent-primary)]"
-                        : "w-1/3 bg-[var(--status-warn)]"
+              <select
+                aria-label={isId ? "Filter status" : "Filter status"}
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value as "all" | "active" | "paused")}
+                className="h-9 rounded-md border border-[var(--border-strong)] bg-[var(--bg-canvas)] px-2.5 text-xs text-[var(--text-primary)]"
+              >
+                <option value="all">{isId ? "Semua Status" : "All Statuses"}</option>
+                <option value="active">{isId ? "Aktif" : "Active"}</option>
+                <option value="paused">{isId ? "Dijeda" : "Paused"}</option>
+              </select>
+            </div>
+          </Card>
+
+          {rowError ? (
+            <Alert variant="destructive">
+              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-[var(--status-error)]" />
+              <div className="flex-1">
+                <AlertTitle>{isId ? "Operasi combo gagal" : "Combo operation failed"}</AlertTitle>
+                <AlertDescription className="font-mono">{rowError}</AlertDescription>
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                onClick={() => setRowError(null)}
+              >
+                <X className="h-3.5 w-3.5" />
+              </Button>
+            </Alert>
+          ) : null}
+
+          {/* Registered Combos List */}
+          {combosQuery.isError ? (
+            <Alert variant="destructive">
+              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-[var(--status-error)]" />
+              <AlertDescription className="font-mono">{combosQuery.error.message}</AlertDescription>
+            </Alert>
+          ) : combosQuery.isPending ? (
+            <Card className="p-10 text-center text-sm text-[var(--text-muted)]">
+              {isId ? "Memuat daftar combo..." : "Loading combos..."}
+            </Card>
+          ) : filteredCombos.length === 0 ? (
+            <Card className="p-10 text-center">
+              <Layers className="mx-auto h-8 w-8 text-[var(--text-muted)]" aria-hidden="true" />
+              <p className="mt-3 text-sm font-medium text-[var(--text-primary)]">
+                {combos.length === 0
+                  ? isId
+                    ? "Belum ada combo terdaftar"
+                    : "No combos registered yet"
+                  : isId
+                    ? "Tidak ada combo yang cocok dengan filter"
+                    : "No combos match the current filters"}
+              </p>
+              <p className="mt-1 text-xs text-[var(--text-muted)]">
+                {isId
+                  ? "Isi form registrasi di sebelah kiri untuk membuat combo pertamamu."
+                  : "Use the registration form on the left to create your first combo."}
+              </p>
+            </Card>
+          ) : (
+            <div className="space-y-3">
+              {filteredCombos.map((combo) => {
+                const stratMeta = getStrategyMeta(combo.strategy);
+                const steps: ComboStep[] =
+                  combo.steps && combo.steps.length > 0
+                    ? combo.steps
+                    : combo.targets.map((t): ComboStep => ({ kind: "model", model: t }));
+                const testRes = testResults[combo.name];
+                const isTesting = testingNames.has(combo.name);
+                const isBusy = busyComboId === combo.id;
+                const confirmingDelete = confirmDeleteId === combo.id;
+                const isCurrentlyEditing = formMode === "edit" && editingCombo?.id === combo.id;
+
+                return (
+                  <Card
+                    key={combo.id}
+                    className={`overflow-hidden transition-colors ${
+                      isCurrentlyEditing ? "border-[var(--accent-primary)]" : ""
                     }`}
-                  />
-                </div>
-
-                <div className="flex flex-col gap-4 p-5 lg:flex-row lg:items-start lg:justify-between">
-                  <div className="min-w-0 flex-1 space-y-2.5">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="font-mono text-base font-semibold text-[var(--text-primary)]">
-                        {combo.name}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => void handleCopyName(combo.name)}
-                        className="rounded p-1 text-[var(--text-muted)] hover:bg-[var(--bg-canvas)] hover:text-[var(--text-primary)]"
-                        title={isId ? "Salin nama combo" : "Copy combo name"}
-                      >
-                        {copiedName === combo.name ? (
-                          <Check className="h-3.5 w-3.5 text-[var(--status-ok)]" />
-                        ) : (
-                          <Copy className="h-3.5 w-3.5" />
-                        )}
-                      </button>
-                      <Badge variant={combo.enabled ? "success" : "warning"}>
-                        {combo.enabled ? (isId ? "Aktif" : "Active") : isId ? "Dijeda" : "Paused"}
-                      </Badge>
-                      <Badge variant="outline" className="font-mono">
-                        {combo.strategy}
-                      </Badge>
-                      <span className="text-xs text-[var(--text-muted)]">
-                        {isId ? stratMeta.labelId : stratMeta.labelEn}
-                      </span>
+                  >
+                    <div className="h-[2px] w-full bg-[var(--border-subtle)]">
+                      <div
+                        className={`h-full transition-all ${
+                          combo.enabled
+                            ? "w-full bg-[var(--accent-primary)]"
+                            : "w-1/3 bg-[var(--status-warn)]"
+                        }`}
+                      />
                     </div>
 
-                    {combo.description ? (
-                      <p className="text-xs text-[var(--text-secondary)]">{combo.description}</p>
-                    ) : null}
-
-                    {/* Steps Chain */}
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      {steps.map((step, idx) => {
-                        const ident = step.kind === "combo-ref" ? step.comboName : step.model;
-                        return (
-                          <div
-                            key={`${step.kind}-${ident}`}
-                            className="inline-flex items-center gap-1.5 rounded border border-[var(--border-subtle)] bg-[var(--bg-canvas)] px-2 py-1 text-xs"
-                          >
-                            <span className="font-mono text-[10px] text-[var(--text-muted)]">
-                              #{idx + 1}
+                    <div className="space-y-3 p-4">
+                      {/* Top Row: Name + Badges + Actions */}
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                        <div className="min-w-0 flex-1 space-y-1">
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <span className="font-mono text-sm font-semibold text-[var(--text-primary)]">
+                              {combo.name}
                             </span>
-                            {step.kind === "combo-ref" ? (
-                              <Badge variant="default" className="px-1 py-0 text-[9px]">
-                                ref
-                              </Badge>
-                            ) : null}
-                            <span className="font-mono font-medium text-[var(--text-primary)]">
-                              {ident}
-                            </span>
-                            {step.weight && step.weight > 0 ? (
-                              <span className="font-mono text-[10px] text-[var(--accent-text)]">
-                                {step.weight}%
+                            <button
+                              type="button"
+                              onClick={() => void handleCopyName(combo.name)}
+                              className="rounded p-1 text-[var(--text-muted)] hover:bg-[var(--bg-canvas)] hover:text-[var(--text-primary)]"
+                              title={isId ? "Salin nama combo" : "Copy combo name"}
+                            >
+                              {copiedName === combo.name ? (
+                                <Check className="h-3.5 w-3.5 text-[var(--status-ok)]" />
+                              ) : (
+                                <Copy className="h-3.5 w-3.5" />
+                              )}
+                            </button>
+                            <Badge variant={combo.enabled ? "success" : "warning"}>
+                              {combo.enabled
+                                ? isId
+                                  ? "Aktif"
+                                  : "Active"
+                                : isId
+                                  ? "Dijeda"
+                                  : "Paused"}
+                            </Badge>
+                            <button
+                              type="button"
+                              onClick={() => openStrategyGuide(combo.strategy)}
+                              title={
+                                isId
+                                  ? "Klik untuk lihat penjelasan strategi ini"
+                                  : "Click to view guide for this strategy"
+                              }
+                              className="inline-flex items-center gap-1 rounded-full border border-[var(--border-strong)] bg-[var(--bg-canvas)] px-2 py-0.5 font-mono text-[11px] text-[var(--text-primary)] transition-colors hover:border-[var(--accent-primary)] hover:text-[var(--accent-text)]"
+                            >
+                              <span>{combo.strategy}</span>
+                              <span className="font-sans text-[10px] text-[var(--text-muted)]">
+                                · {isId ? stratMeta.labelId : stratMeta.labelEn}
                               </span>
-                            ) : null}
-                            {step.label ? (
-                              <span className="text-[10px] text-[var(--text-muted)]">
-                                ({step.label})
-                              </span>
-                            ) : null}
+                            </button>
                           </div>
-                        );
-                      })}
-                    </div>
 
-                    {/* Runtime Config Chips */}
-                    {cfgEntries.length > 0 ? (
+                          {combo.description ? (
+                            <p className="text-xs text-[var(--text-secondary)]">
+                              {combo.description}
+                            </p>
+                          ) : null}
+                        </div>
+
+                        {/* Actions */}
+                        <div className="flex shrink-0 flex-wrap items-center gap-1">
+                          {confirmingDelete ? (
+                            <>
+                              <Button
+                                type="button"
+                                variant="destructive"
+                                size="xs"
+                                disabled={isBusy}
+                                onClick={() => handleDelete(combo)}
+                              >
+                                {isBusy
+                                  ? isId
+                                    ? "Menghapus..."
+                                    : "Deleting..."
+                                  : isId
+                                    ? "Konfirmasi Hapus"
+                                    : "Confirm Delete"}
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="secondary"
+                                size="xs"
+                                disabled={isBusy}
+                                onClick={() => setConfirmDeleteId(null)}
+                              >
+                                {isId ? "Batal" : "Cancel"}
+                              </Button>
+                            </>
+                          ) : (
+                            <>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="xs"
+                                disabled={isTesting}
+                                onClick={() => void handleTestCombo(combo)}
+                              >
+                                <FlaskConical className="h-3 w-3" />
+                                <span>
+                                  {isTesting
+                                    ? isId
+                                      ? "Menguji..."
+                                      : "Testing..."
+                                    : isId
+                                      ? "Uji"
+                                      : "Test"}
+                                </span>
+                              </Button>
+                              <Button
+                                type="button"
+                                variant={isCurrentlyEditing ? "default" : "outline"}
+                                size="xs"
+                                disabled={isBusy}
+                                onClick={() => handleEditCombo(combo)}
+                              >
+                                <Pencil className="h-3 w-3" />
+                                <span>Edit</span>
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="xs"
+                                disabled={isBusy}
+                                onClick={() => handleDuplicateCombo(combo)}
+                                title={isId ? "Duplikat ke form" : "Duplicate into form"}
+                              >
+                                <CopyPlus className="h-3.5 w-3.5" />
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="secondary"
+                                size="xs"
+                                disabled={isBusy}
+                                onClick={() => handleToggleEnabled(combo)}
+                                title={
+                                  combo.enabled
+                                    ? isId
+                                      ? "Jeda combo"
+                                      : "Pause combo"
+                                    : isId
+                                      ? "Aktifkan combo"
+                                      : "Enable combo"
+                                }
+                              >
+                                <Power className="h-3 w-3" />
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="destructive"
+                                size="xs"
+                                disabled={isBusy}
+                                onClick={() => setConfirmDeleteId(combo.id)}
+                                title={isId ? "Hapus combo" : "Delete combo"}
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </Button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Steps Chain */}
                       <div className="flex flex-wrap items-center gap-1.5">
-                        {cfgEntries.map(([k, v]) => (
-                          <Badge key={k} variant="secondary" className="font-mono text-[10px]">
-                            {k}={String(v)}
-                          </Badge>
-                        ))}
-                      </div>
-                    ) : null}
+                        {steps.map((step, idx) => {
+                          const isRef = step.kind === "combo-ref";
+                          const ident = isRef ? (step.comboName ?? "") : (step.model ?? "");
+                          const isPinned = Boolean(step.connectionId?.trim());
+                          const accountLabel = isRef
+                            ? null
+                            : formatStepAccountLabel(step.connectionId, connectionsById, isId);
 
-                    {/* Inline Live Test Result */}
-                    {testRes ? (
-                      <div className="flex flex-wrap items-center gap-2 pt-1 text-xs">
-                        {testRes.status === "ok" || testRes.status === "slow" ? (
-                          <Badge
-                            variant={testRes.status === "ok" ? "success" : "warning"}
-                            className="gap-1"
-                          >
-                            <CheckCircle2 className="h-3 w-3" />
-                            <span>
-                              {testRes.status.toUpperCase()}
-                              {typeof testRes.latencyMs === "number"
-                                ? ` · ${testRes.latencyMs}ms`
-                                : ""}
+                          return (
+                            <div
+                              key={`${step.kind}-${ident}-${step.connectionId ?? "dynamic"}`}
+                              className="inline-flex flex-wrap items-center gap-1.5 rounded-md border border-[var(--border-subtle)] bg-[var(--bg-canvas)] px-2.5 py-1 text-xs"
+                            >
+                              <span className="font-mono text-[10px] text-[var(--text-muted)]">
+                                #{idx + 1}
+                              </span>
+                              {isRef ? (
+                                <Badge variant="default" className="px-1 py-0 text-[9px]">
+                                  ref
+                                </Badge>
+                              ) : null}
+                              <span className="font-mono font-medium text-[var(--text-primary)]">
+                                {ident}
+                              </span>
+                              {accountLabel ? (
+                                <span
+                                  className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] ${
+                                    isPinned
+                                      ? "bg-[var(--bg-surface-raised)] text-[var(--accent-text)]"
+                                      : "bg-[var(--bg-surface)] text-[var(--text-muted)]"
+                                  }`}
+                                >
+                                  {isPinned ? (
+                                    <KeyRound className="h-2.5 w-2.5" aria-hidden="true" />
+                                  ) : (
+                                    <Sparkles className="h-2.5 w-2.5" aria-hidden="true" />
+                                  )}
+                                  <span>{isPinned ? accountLabel : "Dynamic"}</span>
+                                </span>
+                              ) : null}
+                              {step.weight && step.weight > 0 ? (
+                                <span className="font-mono text-[10px] font-semibold text-[var(--accent-text)]">
+                                  {step.weight}%
+                                </span>
+                              ) : null}
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {/* Inline Live Test Result */}
+                      {testRes ? (
+                        <div className="flex flex-wrap items-center gap-2 border-t border-[var(--border-subtle)] pt-2 text-xs">
+                          {testRes.status === "ok" || testRes.status === "slow" ? (
+                            <Badge
+                              variant={testRes.status === "ok" ? "success" : "warning"}
+                              className="gap-1"
+                            >
+                              <CheckCircle2 className="h-3 w-3" />
+                              <span>
+                                {testRes.status.toUpperCase()}
+                                {typeof testRes.latencyMs === "number"
+                                  ? ` · ${testRes.latencyMs}ms`
+                                  : ""}
+                              </span>
+                            </Badge>
+                          ) : (
+                            <Badge variant="destructive" className="gap-1">
+                              <XCircle className="h-3 w-3" />
+                              <span>ERROR</span>
+                            </Badge>
+                          )}
+                          {testRes.resolvedBy ? (
+                            <span className="font-mono text-[11px] text-[var(--text-secondary)]">
+                              resolvedBy: {testRes.resolvedBy}
                             </span>
-                          </Badge>
-                        ) : (
-                          <Badge variant="destructive" className="gap-1">
-                            <XCircle className="h-3 w-3" />
-                            <span>ERROR</span>
-                          </Badge>
-                        )}
-                        {testRes.resolvedBy ? (
-                          <span className="font-mono text-[11px] text-[var(--text-secondary)]">
-                            resolvedBy: {testRes.resolvedBy}
-                          </span>
-                        ) : null}
-                        {testRes.error ? (
-                          <span className="font-mono text-[11px] text-[var(--status-error)]">
-                            {testRes.error}
-                          </span>
-                        ) : null}
-                      </div>
-                    ) : null}
-                  </div>
-
-                  {/* Action Buttons */}
-                  <div className="flex shrink-0 flex-wrap items-center gap-1.5">
-                    {confirmingDelete ? (
-                      <>
-                        <Button
-                          type="button"
-                          variant="destructive"
-                          size="xs"
-                          disabled={isBusy}
-                          onClick={() => handleDelete(combo)}
-                        >
-                          {isBusy
-                            ? isId
-                              ? "Menghapus..."
-                              : "Deleting..."
-                            : isId
-                              ? "Konfirmasi Hapus"
-                              : "Confirm Delete"}
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="secondary"
-                          size="xs"
-                          disabled={isBusy}
-                          onClick={() => setConfirmDeleteId(null)}
-                        >
-                          {isId ? "Batal" : "Cancel"}
-                        </Button>
-                      </>
-                    ) : (
-                      <>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="xs"
-                          disabled={isTesting}
-                          onClick={() => void handleTestCombo(combo)}
-                        >
-                          <FlaskConical className="h-3 w-3" />
-                          <span>
-                            {isTesting
-                              ? isId
-                                ? "Menguji..."
-                                : "Testing..."
-                              : isId
-                                ? "Uji"
-                                : "Test"}
-                          </span>
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="xs"
-                          disabled={isBusy}
-                          onClick={() => openEditModal(combo)}
-                        >
-                          <Pencil className="h-3 w-3" />
-                          <span>Edit</span>
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="xs"
-                          disabled={isBusy}
-                          onClick={() => openCreateModal(combo)}
-                          title={isId ? "Duplikat combo" : "Duplicate combo"}
-                        >
-                          <CopyPlus className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="secondary"
-                          size="xs"
-                          disabled={isBusy}
-                          onClick={() => handleToggleEnabled(combo)}
-                        >
-                          <Power className="h-3 w-3" />
-                          <span>
-                            {combo.enabled
-                              ? isId
-                                ? "Jeda"
-                                : "Pause"
-                              : isId
-                                ? "Aktifkan"
-                                : "Enable"}
-                          </span>
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="destructive"
-                          size="xs"
-                          disabled={isBusy}
-                          onClick={() => setConfirmDeleteId(combo.id)}
-                        >
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
-                      </>
-                    )}
-                  </div>
-                </div>
-              </Card>
-            );
-          })}
+                          ) : null}
+                          {testRes.error ? (
+                            <span className="font-mono text-[11px] text-[var(--status-error)]">
+                              {testRes.error}
+                            </span>
+                          ) : null}
+                        </div>
+                      ) : null}
+                    </div>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
         </div>
-      )}
+      </div>
 
-      <ComboBuilderModal
-        open={modalOpen}
-        mode={modalMode}
-        initialCombo={editingCombo}
-        existingCombos={combos}
-        availableModels={availableModels}
-        submitting={createMutation.isPending || updateMutation.isPending}
-        submitError={modalError}
-        onClose={() => setModalOpen(false)}
-        onSubmit={handleModalSubmit}
+      <StrategyGuideModal
+        open={guideOpen}
+        selectedStrategy={guideStrategy}
+        onSelectStrategy={(chosen) => setStrategyOverride(chosen)}
+        onClose={() => setGuideOpen(false)}
         isId={isId}
       />
     </div>

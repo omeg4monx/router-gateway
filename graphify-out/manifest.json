@@ -3258,9 +3258,9 @@
     "semantic_hash": ""
   },
   "web/src/features/models/omnirouteModelsParity.test.ts": {
-    "mtime": 1795516432.7458398,
-    "seen": 1795516549.6659834,
-    "ast_hash": "a4bdcf6dd9676a2398f37304f5a7d458",
+    "mtime": 1795635332.8952036,
+    "seen": 1795635463.8836317,
+    "ast_hash": "b337eacdfda368b2c7019ff3d0881460",
     "semantic_hash": ""
   },
   "web/src/features/models/types.ts": {
@@ -3293,22 +3293,16 @@
     "ast_hash": "c61b2ac0ed440b4b98787dc309177213",
     "semantic_hash": ""
   },
-  "web/src/features/combos/ComboBuilderModal.tsx": {
-    "mtime": 1795606078.3178322,
-    "seen": 1795606118.8023736,
-    "ast_hash": "7efd8f2381ba1726bb2c40c900f79751",
-    "semantic_hash": ""
-  },
   "web/src/features/combos/strategies.ts": {
-    "mtime": 1795515384.056612,
-    "seen": 1795515476.0877786,
-    "ast_hash": "6428a9d60ee48c8c73d8e30109168d08",
+    "mtime": 1795635341.2742865,
+    "seen": 1795635463.8815756,
+    "ast_hash": "bd5b94d87bb422fa5b72ab6b9c3db2ed",
     "semantic_hash": ""
   },
   "web/src/features/combos/CombosConsole.tsx": {
-    "mtime": 1795534161.0031083,
-    "seen": 1795534217.6872857,
-    "ast_hash": "3cc4323b267d62b57f715117bb69ebe4",
+    "mtime": 1795635973.0028365,
+    "seen": 1795636033.2892425,
+    "ast_hash": "76a18661dfc2f9c6fb3117226b05af5b",
     "semantic_hash": ""
   },
   "web/src/App.test.ts": {
@@ -3378,9 +3372,9 @@
     "semantic_hash": ""
   },
   ".agents/rules/project-standards.md": {
-    "mtime": 1795534972.917646,
-    "seen": 1795535651.0359428,
-    "ast_hash": "a4a059fd362af8a664fa0d8cb9259774",
+    "mtime": 1795633540.7726617,
+    "seen": 1795635463.893506,
+    "ast_hash": "f8a7a3443cbe89760237969257e48937",
     "semantic_hash": ""
   },
   ".agents/skills/omeg4mon-verify/SKILL.md": {
@@ -3597,6 +3591,36 @@
     "mtime": 1795632893.1875432,
     "seen": 1795632996.6023753,
     "ast_hash": "a7df31210006d55e39cc6b7c9ee18d86",
+    "semantic_hash": ""
+  },
+  "web/src/features/combos/ComboRegistrationForm.tsx": {
+    "mtime": 1795635985.581005,
+    "seen": 1795636033.2892349,
+    "ast_hash": "a2d87851bab2c29a40c073208068fd67",
+    "semantic_hash": ""
+  },
+  "web/src/features/combos/StrategyGuideModal.tsx": {
+    "mtime": 1795635366.5736618,
+    "seen": 1795635463.8813667,
+    "ast_hash": "297babed524280a3a620056a4c31aebe",
+    "semantic_hash": ""
+  },
+  "web/src/features/combos/comboHelpers.test.ts": {
+    "mtime": 1795635957.3156261,
+    "seen": 1795636033.2893147,
+    "ast_hash": "ac0789d38c9977ea481d4c395b4e7d49",
+    "semantic_hash": ""
+  },
+  "web/src/features/combos/comboHelpers.ts": {
+    "mtime": 1795635955.7866056,
+    "seen": 1795636033.2893186,
+    "ast_hash": "24c8682539fff27a071317800525c92a",
+    "semantic_hash": ""
+  },
+  ".agents/skills/omeg4mon-versioning/SKILL.md": {
+    "mtime": 1795633457.6104999,
+    "seen": 1795635463.89358,
+    "ast_hash": "773ac90946b6dea48bd052a4192992d5",
     "semantic_hash": ""
   }
 }
