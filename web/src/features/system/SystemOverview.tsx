@@ -131,7 +131,6 @@ export function SystemOverview() {
   const proxyPools = proxyPoolsQuery.data?.pools ?? [];
   const summary = usageQuery.data;
   const totals = summary?.totals;
-  const series = summary?.series ?? [];
   const logs = recentLogsQuery.data?.logs ?? [];
 
   const activeProvidersCount = providers.filter((p) => p.enabled).length;
@@ -920,15 +919,11 @@ export function SystemOverview() {
         </Link>
       </section>
 
-      {/* Row 4: Realtime React Flow Provider Topology, Recent Requests & Activity Chart */}
+      {/* Row 4: Realtime React Flow Provider Topology & Recent Requests */}
       <OverviewRealtimeTraffic
         topologyProviders={topologyProviders}
-        series={series}
         logs={logs}
         keyNameMap={keyNameMap}
-        range={range}
-        rangeLabel={rangeLabels[range]}
-        isLoadingChart={usageQuery.isPending}
         isLoadingLogs={recentLogsQuery.isPending}
         streamStatus={usageStream.status}
         streamEventCount={usageStream.eventCount}

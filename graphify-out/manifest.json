@@ -264,9 +264,9 @@
     "semantic_hash": ""
   },
   "web/src/features/system/SystemOverview.tsx": {
-    "mtime": 1795549014.1356058,
-    "seen": 1795549077.6710954,
-    "ast_hash": "5bb32631e115524f480cf6a51742a35f",
+    "mtime": 1795601147.8837585,
+    "seen": 1795601302.1941974,
+    "ast_hash": "181a2c64c74e8b4d1fbbd84bbe1bdb3e",
     "semantic_hash": ""
   },
   "web/src/features/system/hooks.ts": {
@@ -306,8 +306,8 @@
     "semantic_hash": ""
   },
   "web/src/shared/api/schema.d.ts": {
-    "mtime": 1795547127.1398168,
-    "seen": 1795547655.9143903,
+    "mtime": 1795600959.5333607,
+    "seen": 1795601302.195364,
     "ast_hash": "3120408cae13439644da878cb849edc6",
     "semantic_hash": ""
   },
@@ -2070,15 +2070,15 @@
     "semantic_hash": ""
   },
   "web/src/features/system/overview.test.ts": {
-    "mtime": 1795547601.0661128,
-    "seen": 1795547655.9130745,
-    "ast_hash": "a2a10573026472f280de793f81cc7bc2",
+    "mtime": 1795601165.069139,
+    "seen": 1795601302.194228,
+    "ast_hash": "b08539db9e35406c9c7f73ed5d1327d2",
     "semantic_hash": ""
   },
   "web/src/features/system/overview.ts": {
-    "mtime": 1795542675.1056836,
-    "seen": 1795542837.6759036,
-    "ast_hash": "b97d30de23186d6691c70998f523838d",
+    "mtime": 1795601157.127963,
+    "seen": 1795601302.1942298,
+    "ast_hash": "b4676b514cd27a15ee072c97ddf7ad34",
     "semantic_hash": ""
   },
   "docs/superpowers/specs/2026-11-24-dashboard-overview-design.md": {
@@ -3666,21 +3666,9 @@
     "semantic_hash": ""
   },
   "web/src/features/system/OverviewRealtimeTraffic.tsx": {
-    "mtime": 1795548989.9724808,
-    "seen": 1795549077.6710713,
-    "ast_hash": "77264de65ccbee8acd28dc04e7277c47",
-    "semantic_hash": ""
-  },
-  "web/src/features/system/overviewChart.test.ts": {
-    "mtime": 1795547056.5658784,
-    "seen": 1795547080.1915715,
-    "ast_hash": "4dbbe302ee107ac9880010c4ba9160dd",
-    "semantic_hash": ""
-  },
-  "web/src/features/system/overviewChart.ts": {
-    "mtime": 1795547052.5858254,
-    "seen": 1795547080.191573,
-    "ast_hash": "88b244dd9ec2d5ea38af9bb1e31fb9df",
+    "mtime": 1795601224.1125748,
+    "seen": 1795601302.194166,
+    "ast_hash": "6521aadf17904d0fa1542d4b4211662a",
     "semantic_hash": ""
   },
   "web/src/features/system/ProviderTopology.tsx": {
@@ -3711,6 +3699,18 @@
     "mtime": 1795549004.6684422,
     "seen": 1795549077.671798,
     "ast_hash": "641bfbd4edef2983b7ae6e05e36c0b9b",
+    "semantic_hash": ""
+  },
+  "web/src/features/system/recentRequests.test.ts": {
+    "mtime": 1795601169.8682451,
+    "seen": 1795601302.1942894,
+    "ast_hash": "7a0e6bf51ce2442f0801b5ec97841ede",
+    "semantic_hash": ""
+  },
+  "web/src/features/system/recentRequests.ts": {
+    "mtime": 1795601166.8961794,
+    "seen": 1795601302.194291,
+    "ast_hash": "3a47e13b43a20fec8680c9b31a1912c7",
     "semantic_hash": ""
   }
 }

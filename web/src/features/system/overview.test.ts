@@ -5,7 +5,6 @@ import {
   filterModules,
   formatActivityOriginLabel,
   formatClockUptime,
-  formatUsageBucketLabel,
   generateEndpointSnippet,
   getModuleMetadata,
   getOverviewCopy,
@@ -70,15 +69,6 @@ describe("features/system/overview", () => {
     expect(claudePy).toContain("claude-sonnet-4-5");
   });
 
-  test("formats 24h hourly buckets with time and multi-day buckets with date", () => {
-    const hourly = formatUsageBucketLabel("2026-11-24T17:00:00Z", "24h");
-    expect(hourly).toMatch(/\d{1,2}[:.]\d{2}/);
-
-    const daily = formatUsageBucketLabel("2026-11-24", "7d");
-    expect(daily).not.toMatch(/^\d{1,2}[:.]\d{2}$/);
-    expect(daily.length).toBeGreaterThan(2);
-  });
-
   test("labels internal admin/probe usage origins and falls back to API key names", () => {
     const keyMap = new Map([["key_abc", "Production CLI"]]);
     expect(formatActivityOriginLabel("key_abc", keyMap, false)).toBe("Production CLI");
@@ -101,5 +91,7 @@ describe("features/system/overview", () => {
     expect(overviewSource).toContain("OverviewRealtimeTraffic");
     expect(overviewSource).toContain("groupTopologyProviders");
     expect(realtimeSource).toContain("./ProviderTopology");
+    expect(realtimeSource).not.toContain("Activity Trend");
+    expect(realtimeSource).not.toContain("Tren Aktivitas");
   });
 });
