@@ -2,8 +2,6 @@ import {
   Activity,
   ArrowRightLeft,
   Bell,
-  BookOpen,
-  Cloud,
   Cpu,
   Database,
   Image,
@@ -23,8 +21,6 @@ import {
   Sparkles,
   Swords,
   Terminal,
-  Ticket,
-  Users,
   Workflow,
   Wrench,
   Zap,
@@ -103,25 +99,18 @@ export const OPERATIONS_ITEMS: readonly NavItem[] = [
     keywords: ["telemetry", "billing", "cost", "metrics", "tokens", "analytics", "biaya"],
   },
   {
+    href: "/dashboard/monitor/",
+    moduleId: "usage",
+    icon: Terminal,
+    labels: { en: "Live Monitor", id: "Monitor Langsung" },
+    keywords: ["terminal", "realtime", "stream", "logs", "provider", "model", "aktifitas", "live"],
+  },
+  {
     href: "/dashboard/token-saver/",
     moduleId: "tokensaver",
     icon: Zap,
     labels: { en: "Token Saver", id: "Penghemat Token" },
     keywords: ["compress", "cache", "headroom", "hemat", "optimasi"],
-  },
-  {
-    href: "/dashboard/cli-tools/",
-    moduleId: "clitools",
-    icon: Terminal,
-    labels: { en: "CLI Tools", id: "Alat CLI" },
-    keywords: ["claude", "codex", "cursor", "setup", "terminal"],
-  },
-  {
-    href: "/dashboard/vouchers/",
-    moduleId: "vouchers",
-    icon: Ticket,
-    labels: { en: "Vouchers", id: "Voucher" },
-    keywords: ["redeem", "credits", "codes", "kupon", "kredit"],
   },
 ];
 
@@ -132,13 +121,6 @@ export const EXTENSION_GROUPS: readonly NavAccordionGroup[] = [
     labels: { en: "Features", id: "Fitur" },
     defaultExpanded: true,
     items: [
-      {
-        href: "/dashboard/teams/",
-        moduleId: "teams",
-        icon: Users,
-        labels: { en: "Teams", id: "Tim" },
-        keywords: ["org", "members", "budget", "quota", "anggota"],
-      },
       {
         href: "/dashboard/arena/",
         moduleId: "arena",
@@ -173,13 +155,6 @@ export const EXTENSION_GROUPS: readonly NavAccordionGroup[] = [
         icon: Puzzle,
         labels: { en: "Plugins", id: "Plugin" },
         keywords: ["extensions", "addons", "modules", "ekstensi"],
-      },
-      {
-        href: "/dashboard/skills/",
-        moduleId: "plugins",
-        icon: BookOpen,
-        labels: { en: "Skills", id: "Skill" },
-        keywords: ["agents", "prompts", "playbooks", "panduan"],
       },
       {
         href: "/dashboard/telegram/",
@@ -251,13 +226,6 @@ export const EXTENSION_GROUPS: readonly NavAccordionGroup[] = [
         icon: Bell,
         labels: { en: "Notifications & Jobs", id: "Notifikasi & Tugas" },
         keywords: ["alerts", "cron", "background", "events", "peringatan"],
-      },
-      {
-        href: "/dashboard/cloud-sync/",
-        moduleId: "cloudsync",
-        icon: Cloud,
-        labels: { en: "Cloud Sync", id: "Sinkronisasi Cloud" },
-        keywords: ["backup", "snapshot", "restore", "cadangan"],
       },
       {
         href: "/dashboard/importer/",

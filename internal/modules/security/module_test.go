@@ -361,3 +361,70 @@ func TestSecurityWave2BTopicParityAndExtendedRedaction(t *testing.T) {
 		}
 	}
 }
+
+func TestSecurityAuditPaginationOffset(t *testing.T) {
+	t.Parallel()
+
+	_, router, _, _ := setupSecurityTest(t, config.Config{
+		Host: "127.0.0.1",
+		Port: 20128,
+	}, &stubCredentialStore{requireLogin: true})
+
+	for i := 1; i <= 5; i++ {
+		body := `{"category":"security","action":"page.item","severity":"info","summary":"event-` + string(rune('0'+i)) + `"}`
+		req := httptest.NewRequest(http.MethodPost, "/api/security/audit", strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		rec := httptest.NewRecorder()
+		router.ServeHTTP(rec, req)
+		if rec.Code != http.StatusCreated {
+			t.Fatalf("seed event %d status = %d: %s", i, rec.Code, rec.Body.String())
+		}
+	}
+
+	// Page 1 (limit=2, offset=0)
+	req1 := httptest.NewRequest(http.MethodGet, "/api/security/audit?limit=2&offset=0", nil)
+	rec1 := httptest.NewRecorder()
+	router.ServeHTTP(rec1, req1)
+	if rec1.Code != http.StatusOK {
+		t.Fatalf("page 1 status = %d: %s", rec1.Code, rec1.Body.String())
+	}
+	var page1 struct {
+		Items []struct {
+			ID string `json:"id"`
+		} `json:"items"`
+		Total int `json:"total"`
+	}
+	_ = json.Unmarshal(rec1.Body.Bytes(), &page1)
+	if page1.Total != 5 || len(page1.Items) != 2 {
+		t.Fatalf("page 1 = total %d len %d, want 5 and 2", page1.Total, len(page1.Items))
+	}
+
+	// Page 2 (limit=2, offset=2) must return distinct items.
+	req2 := httptest.NewRequest(http.MethodGet, "/api/security/audit?limit=2&offset=2", nil)
+	rec2 := httptest.NewRecorder()
+	router.ServeHTTP(rec2, req2)
+	if rec2.Code != http.StatusOK {
+		t.Fatalf("page 2 status = %d: %s", rec2.Code, rec2.Body.String())
+	}
+	var page2 struct {
+		Items []struct {
+			ID string `json:"id"`
+		} `json:"items"`
+		Total int `json:"total"`
+	}
+	_ = json.Unmarshal(rec2.Body.Bytes(), &page2)
+	if page2.Total != 5 || len(page2.Items) != 2 {
+		t.Fatalf("page 2 = total %d len %d, want 5 and 2", page2.Total, len(page2.Items))
+	}
+	if page2.Items[0].ID == page1.Items[0].ID || page2.Items[0].ID == page1.Items[1].ID {
+		t.Fatalf("page 2 overlapped with page 1: page1=%+v page2=%+v", page1.Items, page2.Items)
+	}
+
+	// Negative offset must return 400.
+	badReq := httptest.NewRequest(http.MethodGet, "/api/security/audit?limit=2&offset=-1", nil)
+	badRec := httptest.NewRecorder()
+	router.ServeHTTP(badRec, badReq)
+	if badRec.Code != http.StatusBadRequest {
+		t.Fatalf("negative offset status = %d, want 400", badRec.Code)
+	}
+}

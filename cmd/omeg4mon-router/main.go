@@ -20,8 +20,6 @@ import (
 	"github.com/omeg4monx/router-gateway/internal/contracts"
 	"github.com/omeg4monx/router-gateway/internal/modules/arena"
 	"github.com/omeg4monx/router-gateway/internal/modules/auth"
-	"github.com/omeg4monx/router-gateway/internal/modules/clitools"
-	"github.com/omeg4monx/router-gateway/internal/modules/cloudsync"
 	"github.com/omeg4monx/router-gateway/internal/modules/combos"
 	"github.com/omeg4monx/router-gateway/internal/modules/gateway"
 	"github.com/omeg4monx/router-gateway/internal/modules/importer"
@@ -38,13 +36,11 @@ import (
 	"github.com/omeg4monx/router-gateway/internal/modules/security"
 	"github.com/omeg4monx/router-gateway/internal/modules/settings"
 	"github.com/omeg4monx/router-gateway/internal/modules/system"
-	"github.com/omeg4monx/router-gateway/internal/modules/teams"
 	"github.com/omeg4monx/router-gateway/internal/modules/telegram"
 	"github.com/omeg4monx/router-gateway/internal/modules/tokensaver"
 	"github.com/omeg4monx/router-gateway/internal/modules/translator"
 	"github.com/omeg4monx/router-gateway/internal/modules/tunnel"
 	"github.com/omeg4monx/router-gateway/internal/modules/usage"
-	"github.com/omeg4monx/router-gateway/internal/modules/vouchers"
 	"github.com/omeg4monx/router-gateway/internal/platform/config"
 	"github.com/omeg4monx/router-gateway/internal/platform/crypto"
 	"github.com/omeg4monx/router-gateway/internal/platform/db"
@@ -316,28 +312,9 @@ func buildApp(ctx context.Context, cfg config.Config, build system.BuildInfo) (*
 		Bus:    bus,
 		Logger: logger,
 	})
-	teamsMod := teams.New(teams.Options{
-		DB:     database,
-		Bus:    bus,
-		Logger: logger,
-	})
-	var teamAssigner contracts.TeamAssigner
-	if !cfg.DisabledModules[teamsMod.Name()] {
-		teamAssigner = teamsMod
-	}
-	vouchersMod := vouchers.New(vouchers.Options{
-		DB:             database,
-		Bus:            bus,
-		Logger:         logger,
-		KeyProvisioner: keysMod,
-		TeamAssigner:   teamAssigner,
-	})
-	interceptors := make([]contracts.GatewayInterceptor, 0, 7)
+	interceptors := make([]contracts.GatewayInterceptor, 0, 6)
 	if !cfg.DisabledModules[keysMod.Name()] {
 		interceptors = append(interceptors, keysMod)
-	}
-	if !cfg.DisabledModules[teamsMod.Name()] {
-		interceptors = append(interceptors, teamsMod)
 	}
 	if !cfg.DisabledModules[promptGuardMod.Name()] {
 		interceptors = append(interceptors, promptGuardMod)
@@ -365,9 +342,6 @@ func buildApp(ctx context.Context, cfg config.Config, build system.BuildInfo) (*
 		Interceptors: interceptors,
 		Usage:        usageMod,
 		Logger:       logger,
-	})
-	clitoolsMod := clitools.New(clitools.Options{
-		Config: cfg,
 	})
 	proxypoolsMod := proxypools.New(proxypools.Options{
 		DB:     database,
@@ -432,15 +406,6 @@ func buildApp(ctx context.Context, cfg config.Config, build system.BuildInfo) (*
 		Bus:       bus,
 		Logger:    logger,
 	})
-	cloudsyncMod := cloudsync.New(cloudsync.Options{
-		DB:         database,
-		Vault:      vault,
-		HTTPClient: httpClient,
-		Bus:        bus,
-		Logger:     logger,
-		Settings:   settingsMod,
-		Combos:     combosMod,
-	})
 	importerMod := importer.New(importer.Options{
 		DB:             database,
 		Bus:            bus,
@@ -474,9 +439,6 @@ func buildApp(ctx context.Context, cfg config.Config, build system.BuildInfo) (*
 	if err := registry.Register(gatewayMod); err != nil {
 		return nil, fmt.Errorf("register gateway module: %w", err)
 	}
-	if err := registry.Register(clitoolsMod); err != nil {
-		return nil, fmt.Errorf("register clitools module: %w", err)
-	}
 	if err := registry.Register(proxypoolsMod); err != nil {
 		return nil, fmt.Errorf("register proxypools module: %w", err)
 	}
@@ -498,12 +460,6 @@ func buildApp(ctx context.Context, cfg config.Config, build system.BuildInfo) (*
 	if err := registry.Register(notificationsMod); err != nil {
 		return nil, fmt.Errorf("register notifications module: %w", err)
 	}
-	if err := registry.Register(teamsMod); err != nil {
-		return nil, fmt.Errorf("register teams module: %w", err)
-	}
-	if err := registry.Register(vouchersMod); err != nil {
-		return nil, fmt.Errorf("register vouchers module: %w", err)
-	}
 	if err := registry.Register(mediaMod); err != nil {
 		return nil, fmt.Errorf("register media module: %w", err)
 	}
@@ -524,9 +480,6 @@ func buildApp(ctx context.Context, cfg config.Config, build system.BuildInfo) (*
 	}
 	if err := registry.Register(pluginsMod); err != nil {
 		return nil, fmt.Errorf("register plugins module: %w", err)
-	}
-	if err := registry.Register(cloudsyncMod); err != nil {
-		return nil, fmt.Errorf("register cloudsync module: %w", err)
 	}
 	if err := registry.Register(importerMod); err != nil {
 		return nil, fmt.Errorf("register importer module: %w", err)

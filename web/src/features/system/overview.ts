@@ -67,13 +67,6 @@ const MODULE_REGISTRY: Record<string, RawModuleEntry> = {
       id: "Pencatatan token asinkron, tarif model & telemetri permintaan",
     },
   },
-  clitools: {
-    href: "/dashboard/cli-tools/",
-    descriptions: {
-      en: "CLI client integrations & local developer profiles",
-      id: "Integrasi klien CLI & profil developer lokal",
-    },
-  },
   proxypools: {
     href: "/dashboard/proxy-pools/",
     descriptions: {
@@ -123,20 +116,6 @@ const MODULE_REGISTRY: Record<string, RawModuleEntry> = {
       id: "Kotak notifikasi sistem, peringatan SSE & kontrol tugas latar",
     },
   },
-  teams: {
-    href: "/dashboard/teams/",
-    descriptions: {
-      en: "API-key grouping with shared USD budgets & RPM limits",
-      id: "Pengelompokan kunci API dengan anggaran USD & batas RPM bersama",
-    },
-  },
-  vouchers: {
-    href: "/dashboard/vouchers/",
-    descriptions: {
-      en: "Redeemable voucher lifecycle & atomic key provisioning",
-      id: "Siklus voucher tukar & provisi kunci API atomik",
-    },
-  },
   media: {
     href: "/dashboard/media/",
     descriptions: {
@@ -184,13 +163,6 @@ const MODULE_REGISTRY: Record<string, RawModuleEntry> = {
     descriptions: {
       en: "Extensible runtime plugin registry & lifecycle controls",
       id: "Registri plugin runtime ekstensibel & kontrol siklus hidup",
-    },
-  },
-  cloudsync: {
-    href: "/dashboard/cloud-sync/",
-    descriptions: {
-      en: "Encrypted configuration snapshots & cloud state sync",
-      id: "Snapshot konfigurasi terenkripsi & sinkronisasi state cloud",
     },
   },
   importer: {

@@ -19,12 +19,6 @@ const ArenaConsole = lazy(() =>
 const ChatConsole = lazy(() =>
   import("@/features/arena/ChatConsole").then((m) => ({ default: m.ChatConsole })),
 );
-const CliToolsConsole = lazy(() =>
-  import("@/features/clitools/CliToolsConsole").then((m) => ({ default: m.CliToolsConsole })),
-);
-const CloudSyncStudio = lazy(() =>
-  import("@/features/cloudsync/CloudSyncStudio").then((m) => ({ default: m.CloudSyncStudio })),
-);
 const CombosConsole = lazy(() =>
   import("@/features/combos/CombosConsole").then((m) => ({ default: m.CombosConsole })),
 );
@@ -33,6 +27,9 @@ const ImporterStudio = lazy(() =>
 );
 const KeysConsole = lazy(() =>
   import("@/features/keys/KeysConsole").then((m) => ({ default: m.KeysConsole })),
+);
+const LiveMonitorConsole = lazy(() =>
+  import("@/features/monitor/LiveMonitorConsole").then((m) => ({ default: m.LiveMonitorConsole })),
 );
 const MediaConsole = lazy(() =>
   import("@/features/media/MediaConsole").then((m) => ({ default: m.MediaConsole })),
@@ -57,9 +54,6 @@ const NotificationsConsole = lazy(() =>
 );
 const PluginsStudio = lazy(() =>
   import("@/features/plugins/PluginsStudio").then((m) => ({ default: m.PluginsStudio })),
-);
-const SkillsStudio = lazy(() =>
-  import("@/features/plugins/SkillsStudio").then((m) => ({ default: m.SkillsStudio })),
 );
 const PromptGuardConsole = lazy(() =>
   import("@/features/promptinjection/PromptGuardConsole").then((m) => ({
@@ -88,9 +82,6 @@ const SecurityConsole = lazy(() =>
 const SettingsConsole = lazy(() =>
   import("@/features/settings/SettingsConsole").then((m) => ({ default: m.SettingsConsole })),
 );
-const TeamsConsole = lazy(() =>
-  import("@/features/teams/TeamsConsole").then((m) => ({ default: m.TeamsConsole })),
-);
 const TelegramConsole = lazy(() =>
   import("@/features/telegram/TelegramConsole").then((m) => ({ default: m.TelegramConsole })),
 );
@@ -109,9 +100,6 @@ const TunnelConsole = lazy(() =>
 );
 const UsageConsole = lazy(() =>
   import("@/features/usage/UsageConsole").then((m) => ({ default: m.UsageConsole })),
-);
-const VouchersConsole = lazy(() =>
-  import("@/features/vouchers/VouchersConsole").then((m) => ({ default: m.VouchersConsole })),
 );
 
 function RouteFallback() {
@@ -148,13 +136,12 @@ function DashboardLayout() {
 export const DASHBOARD_ROUTE_PATHS = [
   "arena",
   "chat",
-  "cli-tools",
-  "cloud-sync",
   "combos",
   "importer",
   "keys",
   "media",
   "mitm",
+  "monitor",
   "model-editor",
   "models",
   "notifications",
@@ -166,14 +153,11 @@ export const DASHBOARD_ROUTE_PATHS = [
   "pxpipe",
   "security",
   "settings",
-  "skills",
-  "teams",
   "telegram",
   "token-saver",
   "translator",
   "tunnel",
   "usage",
-  "vouchers",
 ] as const;
 
 export function App() {
@@ -191,13 +175,12 @@ export function App() {
                 <Route index element={<SystemOverview />} />
                 <Route path="arena" element={<ArenaConsole />} />
                 <Route path="chat" element={<ChatConsole />} />
-                <Route path="cli-tools" element={<CliToolsConsole />} />
-                <Route path="cloud-sync" element={<CloudSyncStudio />} />
                 <Route path="combos" element={<CombosConsole />} />
                 <Route path="importer" element={<ImporterStudio />} />
                 <Route path="keys" element={<KeysConsole />} />
                 <Route path="media" element={<MediaConsole />} />
                 <Route path="mitm" element={<MitmConsole />} />
+                <Route path="monitor" element={<LiveMonitorConsole />} />
                 <Route path="model-editor" element={<ModelEditorConsole />} />
                 <Route path="models" element={<ModelCatalogConsole />} />
                 <Route path="notifications" element={<NotificationsConsole />} />
@@ -209,14 +192,11 @@ export function App() {
                 <Route path="pxpipe" element={<PxpipeConsole />} />
                 <Route path="security" element={<SecurityConsole />} />
                 <Route path="settings" element={<SettingsConsole />} />
-                <Route path="skills" element={<SkillsStudio />} />
-                <Route path="teams" element={<TeamsConsole />} />
                 <Route path="telegram" element={<TelegramConsole />} />
                 <Route path="token-saver" element={<TokenSaverConsole />} />
                 <Route path="translator" element={<TranslatorConsole />} />
                 <Route path="tunnel" element={<TunnelConsole />} />
                 <Route path="usage" element={<UsageConsole />} />
-                <Route path="vouchers" element={<VouchersConsole />} />
               </Route>
 
               <Route path="*" element={<Navigate to="/dashboard/" replace />} />

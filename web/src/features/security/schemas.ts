@@ -8,6 +8,43 @@ export type SecurityAuditListResponse = components["schemas"]["SecurityAuditList
 export type ClearSecurityAuditResponse = components["schemas"]["ClearSecurityAuditResponse"];
 
 export const AUDIT_SEVERITIES = ["info", "warning", "critical"] as const;
+export const AUDIT_PAGE_LIMIT = 10;
+
+export interface AuditPaginationState {
+  currentPage: number;
+  totalPages: number;
+  showingFrom: number;
+  showingTo: number;
+  canPrev: boolean;
+  canNext: boolean;
+}
+
+export function computeAuditPagination(params: {
+  total: number;
+  pageSize: number;
+  offset: number;
+  itemCount: number;
+}): AuditPaginationState {
+  const safePageSize = Math.max(1, params.pageSize);
+  const safeTotal = Math.max(0, params.total);
+  const safeOffset = Math.max(0, params.offset);
+  const totalPages = Math.max(1, Math.ceil(safeTotal / safePageSize));
+  const currentPage = Math.min(totalPages, Math.floor(safeOffset / safePageSize) + 1);
+  const showingFrom = safeTotal === 0 || params.itemCount === 0 ? 0 : safeOffset + 1;
+  const showingTo =
+    safeTotal === 0 || params.itemCount === 0
+      ? 0
+      : Math.min(safeOffset + params.itemCount, safeTotal);
+
+  return {
+    currentPage,
+    totalPages,
+    showingFrom,
+    showingTo,
+    canPrev: safeOffset > 0,
+    canNext: safeOffset + safePageSize < safeTotal,
+  };
+}
 
 export function parseAuditMetadataJson(raw: string): Record<string, unknown> {
   const trimmed = raw.trim();

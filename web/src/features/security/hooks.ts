@@ -1,18 +1,24 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient, extractErrorMessage } from "@/shared/api/client";
-import type {
-  ClearSecurityAuditResponse,
-  CreateSecurityAuditRequest,
-  SecurityAuditEvent,
-  SecurityAuditListResponse,
-  SecurityPostureReport,
+import {
+  AUDIT_PAGE_LIMIT,
+  type ClearSecurityAuditResponse,
+  type CreateSecurityAuditRequest,
+  type SecurityAuditEvent,
+  type SecurityAuditListResponse,
+  type SecurityPostureReport,
 } from "./schemas";
 
 export const securityQueryKeys = {
   all: ["security"] as const,
   posture: ["security", "posture"] as const,
-  audit: (filters: { category?: string; severity?: string; q?: string; limit?: number }) =>
-    ["security", "audit", filters] as const,
+  audit: (filters: {
+    category?: string;
+    severity?: string;
+    q?: string;
+    limit?: number;
+    offset?: number;
+  }) => ["security", "audit", filters] as const,
 };
 
 export function useSecurityPosture() {
@@ -33,9 +39,11 @@ export function useSecurityAuditEvents(filters: {
   severity?: "info" | "warning" | "critical";
   q?: string;
   limit?: number;
+  offset?: number;
 }) {
   return useQuery<SecurityAuditListResponse, Error>({
     queryKey: securityQueryKeys.audit(filters),
+    placeholderData: (previousData) => previousData,
     queryFn: async () => {
       const { data, error } = await apiClient.GET("/api/security/audit", {
         params: {
@@ -43,7 +51,8 @@ export function useSecurityAuditEvents(filters: {
             category: filters.category || undefined,
             severity: filters.severity || undefined,
             q: filters.q || undefined,
-            limit: filters.limit ?? 100,
+            limit: filters.limit ?? AUDIT_PAGE_LIMIT,
+            offset: filters.offset ?? 0,
           },
         },
       });

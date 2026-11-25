@@ -1,5 +1,5 @@
 // Package plugins implements configurable gateway request-enhancement plugins
-// (via contracts.GatewayInterceptor) and the reusable agent/IDE Skills catalog.
+// (via contracts.GatewayInterceptor).
 package plugins
 
 import (
@@ -12,7 +12,6 @@ import (
 	"io/fs"
 	"log/slog"
 	"net/http"
-	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -28,7 +27,7 @@ import (
 const (
 	moduleName = "plugins"
 
-	// TopicPluginsChanged is published when a plugin configuration or skill changes.
+	// TopicPluginsChanged is published when a plugin configuration changes.
 	TopicPluginsChanged = "plugins.changed"
 
 	maxBodyBytes = 128 << 10 // 128 KiB
@@ -36,8 +35,6 @@ const (
 
 //go:embed migrations/*.sql
 var migrationsFS embed.FS
-
-var slugRe = regexp.MustCompile(`^[a-z0-9][a-z0-9_-]{1,63}$`)
 
 // Options configures a new plugins Module instance.
 type Options struct {
@@ -89,7 +86,7 @@ func (m *Module) Migrations() fs.FS {
 	return sub
 }
 
-// RegisterRoutes mounts the plugins and skills endpoints on AdminAPI.
+// RegisterRoutes mounts the plugins endpoints on AdminAPI.
 func (m *Module) RegisterRoutes(mounts lifecycle.RouteMounts) {
 	if mounts.AdminAPI == nil {
 		return
@@ -97,22 +94,12 @@ func (m *Module) RegisterRoutes(mounts lifecycle.RouteMounts) {
 	mounts.AdminAPI.Get("/plugins", m.handleListPlugins)
 	mounts.AdminAPI.Put("/plugins/{key}", m.handleUpdatePlugin)
 	mounts.AdminAPI.Post("/plugins/preview", m.handlePreviewPlugins)
-
-	mounts.AdminAPI.Get("/skills", m.handleListSkills)
-	mounts.AdminAPI.Post("/skills", m.handleCreateSkill)
-	mounts.AdminAPI.Get("/skills/{id}", m.handleGetSkill)
-	mounts.AdminAPI.Patch("/skills/{id}", m.handleUpdateSkill)
-	mounts.AdminAPI.Delete("/skills/{id}", m.handleDeleteSkill)
-	mounts.AdminAPI.Get("/skills/{id}/export", m.handleExportSkill)
 }
 
-// Start seeds built-in skills and warms the in-memory plugin cache.
+// Start warms the in-memory plugin cache.
 func (m *Module) Start(ctx context.Context) error {
 	if m.db == nil {
 		return errors.New("plugins: database is required")
-	}
-	if err := m.repo.SeedBuiltins(ctx); err != nil {
-		return err
 	}
 	_, err := m.refreshCache(ctx)
 	return err
@@ -223,149 +210,6 @@ func (m *Module) handlePreviewPlugins(w http.ResponseWriter, r *http.Request) {
 		"applied_plugins": applied,
 		"payload":         outPayload,
 	})
-}
-
-func (m *Module) handleListSkills(w http.ResponseWriter, r *http.Request) {
-	skills, err := m.repo.ListSkills(r.Context())
-	if err != nil {
-		httpserver.WriteError(w, r, http.StatusInternalServerError, "skills_list_failed", "Failed to list skills")
-		return
-	}
-	httpserver.WriteJSON(w, http.StatusOK, map[string]any{"skills": skills})
-}
-
-type createSkillRequest struct {
-	Slug        string `json:"slug"`
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	Category    string `json:"category"`
-	Content     string `json:"content"`
-	Enabled     *bool  `json:"enabled"`
-}
-
-func (m *Module) handleCreateSkill(w http.ResponseWriter, r *http.Request) {
-	var req createSkillRequest
-	if err := decodeJSON(r, &req); err != nil {
-		httpserver.WriteError(w, r, http.StatusBadRequest, "invalid_json", err.Error())
-		return
-	}
-	slug := strings.ToLower(strings.TrimSpace(req.Slug))
-	name := strings.TrimSpace(req.Name)
-	content := strings.TrimSpace(req.Content)
-	if !slugRe.MatchString(slug) {
-		httpserver.WriteError(w, r, http.StatusBadRequest, "invalid_slug", "Slug must match ^[a-z0-9][a-z0-9_-]{1,63}$")
-		return
-	}
-	if name == "" || content == "" {
-		httpserver.WriteError(w, r, http.StatusBadRequest, "invalid_skill", "Name and content are required")
-		return
-	}
-	category := strings.TrimSpace(req.Category)
-	if category == "" {
-		category = "general"
-	}
-	enabled := true
-	if req.Enabled != nil {
-		enabled = *req.Enabled
-	}
-	created, err := m.repo.CreateSkill(r.Context(), slug, name, strings.TrimSpace(req.Description), category, req.Content, enabled)
-	if err != nil {
-		if errors.Is(err, ErrSkillSlugExists) {
-			httpserver.WriteError(w, r, http.StatusConflict, "skill_slug_exists", "A skill with this slug already exists")
-			return
-		}
-		httpserver.WriteError(w, r, http.StatusInternalServerError, "skill_create_failed", "Failed to create skill")
-		return
-	}
-	if m.bus != nil {
-		m.bus.Publish(TopicPluginsChanged, map[string]any{"action": "skill.created", "id": created.ID})
-	}
-	httpserver.WriteJSON(w, http.StatusCreated, created)
-}
-
-func (m *Module) handleGetSkill(w http.ResponseWriter, r *http.Request) {
-	id := strings.TrimSpace(chi.URLParam(r, "id"))
-	skill, err := m.repo.GetSkill(r.Context(), id)
-	if err != nil {
-		if errors.Is(err, ErrSkillNotFound) {
-			httpserver.WriteError(w, r, http.StatusNotFound, "skill_not_found", "Skill not found")
-			return
-		}
-		httpserver.WriteError(w, r, http.StatusInternalServerError, "skill_get_failed", "Failed to load skill")
-		return
-	}
-	httpserver.WriteJSON(w, http.StatusOK, skill)
-}
-
-type updateSkillRequest struct {
-	Name        *string `json:"name"`
-	Description *string `json:"description"`
-	Category    *string `json:"category"`
-	Content     *string `json:"content"`
-	Enabled     *bool   `json:"enabled"`
-}
-
-func (m *Module) handleUpdateSkill(w http.ResponseWriter, r *http.Request) {
-	id := strings.TrimSpace(chi.URLParam(r, "id"))
-	var req updateSkillRequest
-	if err := decodeJSON(r, &req); err != nil {
-		httpserver.WriteError(w, r, http.StatusBadRequest, "invalid_json", err.Error())
-		return
-	}
-	if req.Name != nil && strings.TrimSpace(*req.Name) == "" {
-		httpserver.WriteError(w, r, http.StatusBadRequest, "invalid_name", "Skill name cannot be empty")
-		return
-	}
-	if req.Content != nil && strings.TrimSpace(*req.Content) == "" {
-		httpserver.WriteError(w, r, http.StatusBadRequest, "invalid_content", "Skill content cannot be empty")
-		return
-	}
-	updated, err := m.repo.UpdateSkill(r.Context(), id, updateSkillPatch(req))
-	if err != nil {
-		if errors.Is(err, ErrSkillNotFound) {
-			httpserver.WriteError(w, r, http.StatusNotFound, "skill_not_found", "Skill not found")
-			return
-		}
-		httpserver.WriteError(w, r, http.StatusInternalServerError, "skill_update_failed", "Failed to update skill")
-		return
-	}
-	httpserver.WriteJSON(w, http.StatusOK, updated)
-}
-
-func (m *Module) handleDeleteSkill(w http.ResponseWriter, r *http.Request) {
-	id := strings.TrimSpace(chi.URLParam(r, "id"))
-	err := m.repo.DeleteSkill(r.Context(), id)
-	if err != nil {
-		switch {
-		case errors.Is(err, ErrSkillNotFound):
-			httpserver.WriteError(w, r, http.StatusNotFound, "skill_not_found", "Skill not found")
-		case errors.Is(err, ErrBuiltinSkillProtected):
-			httpserver.WriteError(w, r, http.StatusBadRequest, "builtin_skill_protected", "Built-in skills cannot be deleted")
-		default:
-			httpserver.WriteError(w, r, http.StatusInternalServerError, "skill_delete_failed", "Failed to delete skill")
-		}
-		return
-	}
-	httpserver.WriteJSON(w, http.StatusOK, map[string]any{"deleted": true, "id": id})
-}
-
-func (m *Module) handleExportSkill(w http.ResponseWriter, r *http.Request) {
-	id := strings.TrimSpace(chi.URLParam(r, "id"))
-	skill, err := m.repo.GetSkill(r.Context(), id)
-	if err != nil {
-		if errors.Is(err, ErrSkillNotFound) {
-			httpserver.WriteError(w, r, http.StatusNotFound, "skill_not_found", "Skill not found")
-			return
-		}
-		httpserver.WriteError(w, r, http.StatusInternalServerError, "skill_export_failed", "Failed to export skill")
-		return
-	}
-	desc := strings.ReplaceAll(skill.Description, "\n", " ")
-	doc := fmt.Sprintf("---\nname: %s\ndescription: %q\n---\n\n%s\n", skill.Slug, desc, strings.TrimSpace(skill.Content))
-	w.Header().Set("Content-Type", "text/markdown; charset=utf-8")
-	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", skill.Slug+"-SKILL.md"))
-	w.WriteHeader(http.StatusOK)
-	_, _ = io.WriteString(w, doc)
 }
 
 func decodeJSON(r *http.Request, dst any) error {

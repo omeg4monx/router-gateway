@@ -53,6 +53,7 @@ type ListFilter struct {
 	Severity string
 	Query    string
 	Limit    int
+	Offset   int
 }
 
 type repo struct {
@@ -119,6 +120,8 @@ func (r *repo) list(ctx context.Context, filter ListFilter) ([]AuditEvent, int, 
 		limit = maxListLimit
 	}
 
+	offset := max(filter.Offset, 0)
+
 	where, args := buildWhere(filter)
 
 	var total int
@@ -128,8 +131,8 @@ func (r *repo) list(ctx context.Context, filter ListFilter) ([]AuditEvent, int, 
 	}
 
 	query := `SELECT id, category, action, severity, actor, resource_id, summary, metadata_json, ip_address, created_at
-		FROM security_audit_events` + where + ` ORDER BY created_at DESC, id DESC LIMIT ?`
-	rows, err := r.db.Reader().QueryContext(ctx, query, append(args, limit)...)
+		FROM security_audit_events` + where + ` ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?`
+	rows, err := r.db.Reader().QueryContext(ctx, query, append(args, limit, offset)...)
 	if err != nil {
 		return nil, 0, fmt.Errorf("list audit events: %w", err)
 	}
