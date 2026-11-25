@@ -25,3 +25,4 @@ Concise repository guardrails complementary to global lean-engineering and UI po
 
 - Run `make check` before claiming any code change complete.
 - For non-trivial changes or any UI/UX work, invoke the project skill `omeg4mon-verify` (`.agents/skills/omeg4mon-verify/SKILL.md`).
+- Before finishing any task or preparing a release, invoke the project skill `omeg4mon-versioning` (`.agents/skills/omeg4mon-versioning/SKILL.md`) to classify SemVer impact (`NONE`/`PATCH`/`MINOR`/`MAJOR`/`PRE-RELEASE`) and audit manifest drift.
