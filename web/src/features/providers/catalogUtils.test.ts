@@ -3,6 +3,7 @@ import { existsSync } from "node:fs";
 import { join, resolve } from "node:path";
 import {
   buildProviderEntries,
+  canProbeProviderModels,
   computeFleetTelemetry,
   countCategoryBuckets,
   countStatusBuckets,
@@ -233,5 +234,43 @@ describe("providers catalogUtils", () => {
     const descNames = sortProviderEntries(entries, "desc").map((e) => e.name);
     expect(ascNames).toEqual(["Claude Code", "Local vLLM", "OpenAI"]);
     expect(descNames).toEqual(["OpenAI", "Local vLLM", "Claude Code"]);
+  });
+
+  test("enables model probing for ready keyless free providers (venice, opencode, ovh) without connections", () => {
+    const entries = buildProviderEntries(ADAPTERS, CUSTOM_NODES, CONNECTIONS);
+    const byId = new Map(entries.map((entry) => [entry.id, entry]));
+
+    const opencode = byId.get("opencode");
+    const venice = byId.get("venice");
+    const ovh = byId.get("ovh");
+    const edgeTts = byId.get("edge-tts");
+    const openai = byId.get("openai");
+    const anthropic = byId.get("anthropic");
+
+    expect(opencode).toBeDefined();
+    expect(venice).toBeDefined();
+    expect(ovh).toBeDefined();
+    expect(edgeTts).toBeDefined();
+    expect(openai).toBeDefined();
+    expect(anthropic).toBeDefined();
+
+    if (opencode) expect(canProbeProviderModels(opencode)).toBe(true);
+    if (venice) expect(canProbeProviderModels(venice)).toBe(true);
+    if (ovh) expect(canProbeProviderModels(ovh)).toBe(true);
+    // Keyless providers without a baseUrl (e.g. edge-tts) cannot be probed
+    if (edgeTts) expect(canProbeProviderModels(edgeTts)).toBe(false);
+    // Normal provider with enabled connection can be probed
+    if (openai) expect(canProbeProviderModels(openai)).toBe(true);
+    // Normal provider without connections cannot be probed
+    if (anthropic) expect(canProbeProviderModels(anthropic)).toBe(false);
+    // Keyless provider whose connections are all explicitly disabled cannot be probed
+    if (venice) {
+      expect(
+        canProbeProviderModels({
+          ...venice,
+          stats: { ...venice.stats, total: 1, disabled: 1, connected: 0, allDisabled: true },
+        }),
+      ).toBe(false);
+    }
   });
 });

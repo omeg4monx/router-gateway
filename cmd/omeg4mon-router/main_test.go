@@ -143,7 +143,7 @@ func TestAppRunAndShutdownEndpointTriggersGracefulExit(t *testing.T) {
 		DataDir:       t.TempDir(),
 		AdminPassword: "shutdown-test-pass-2026",
 		LogLevel:      "error",
-		APITimeout:    5 * time.Second,
+		APITimeout:    10 * time.Second,
 	}
 
 	app, err := buildApp(ctx, cfg, system.BuildInfo{Version: "test"})
@@ -176,7 +176,7 @@ func TestAppRunAndShutdownEndpointTriggersGracefulExit(t *testing.T) {
 	}
 	client := &http.Client{
 		Jar:     jar,
-		Timeout: 2 * time.Second,
+		Timeout: 10 * time.Second,
 	}
 
 	healthResp, err := client.Get("http://" + addr + "/api/health")

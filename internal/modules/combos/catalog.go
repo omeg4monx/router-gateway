@@ -404,6 +404,34 @@ func (m *Module) handleTestCombo(w http.ResponseWriter, r *http.Request) {
 	httpserver.WriteJSON(w, http.StatusOK, resp)
 }
 
+func resolveKeylessProbeCredentials(providerID string) (contracts.UpstreamCredentials, bool) {
+	switch strings.ToLower(strings.TrimSpace(providerID)) {
+	case "venice", "venice-ai", "veniceai":
+		return contracts.UpstreamCredentials{
+			ProviderID: "venice",
+			Protocol:   "openai-chat",
+			BaseURL:    "https://outerface.venice.ai/api/inference/chat",
+			AuthType:   "none",
+		}, true
+	case "opencode", "oc":
+		return contracts.UpstreamCredentials{
+			ProviderID: "opencode",
+			Protocol:   "openai-chat",
+			BaseURL:    "https://opencode.ai/zen/v1",
+			AuthType:   "none",
+		}, true
+	case "ovh", "kepler", "ovh-kepler", "kepler-ai":
+		return contracts.UpstreamCredentials{
+			ProviderID: "ovh",
+			Protocol:   "openai-chat",
+			BaseURL:    "https://oai.endpoints.kepler.ai.cloud.ovh.net/v1",
+			AuthType:   "none",
+		}, true
+	default:
+		return contracts.UpstreamCredentials{}, false
+	}
+}
+
 func (m *Module) probeProviderModel(ctx context.Context, providerID, modelID string) ModelTestResult {
 	conns, err := m.providers.ListEnabledConnections(ctx)
 	if err != nil {
@@ -425,6 +453,9 @@ func (m *Module) probeProviderModel(ctx context.Context, providerID, modelID str
 		}
 	}
 	if matchedConn == nil {
+		if keylessCreds, ok := resolveKeylessProbeCredentials(providerID); ok {
+			return m.probeWithCredentials(ctx, "", keylessCreds, modelID)
+		}
 		return ModelTestResult{
 			OK:     false,
 			Status: "error",
@@ -444,7 +475,10 @@ func (m *Module) probeConnectionModel(ctx context.Context, connectionID, modelID
 			Error:  "failed to resolve provider credentials",
 		}
 	}
+	return m.probeWithCredentials(ctx, connectionID, creds, modelID)
+}
 
+func (m *Module) probeWithCredentials(ctx context.Context, connectionID string, creds contracts.UpstreamCredentials, modelID string) ModelTestResult {
 	probeCtx, cancel := context.WithTimeout(ctx, defaultProbeTimeout)
 	defer cancel()
 	probeCtx = httpclient.WithProviderID(probeCtx, creds.ProviderID)
@@ -471,7 +505,7 @@ func (m *Module) probeConnectionModel(ctx context.Context, connectionID, modelID
 	}
 
 	statusCode, body, latency, probeErr := executeProbe(creds)
-	if probeErr == nil && strings.EqualFold(creds.AuthType, "oauth") &&
+	if probeErr == nil && connectionID != "" && strings.EqualFold(creds.AuthType, "oauth") &&
 		(statusCode == http.StatusUnauthorized || statusCode == http.StatusForbidden) {
 		if refreshed, refreshErr := m.providers.RefreshOAuthToken(probeCtx, connectionID); refreshErr == nil &&
 			strings.TrimSpace(refreshed.AccessToken) != "" {
@@ -505,7 +539,9 @@ func (m *Module) probeConnectionModel(ctx context.Context, connectionID, modelID
 	}
 
 	if statusCode >= http.StatusOK && statusCode < http.StatusMultipleChoices {
-		m.cooldown.RecordSuccess(connectionID)
+		if connectionID != "" {
+			m.cooldown.RecordSuccess(connectionID)
+		}
 		inTok, outTok, cachedTok := extractProbeTokenUsage(creds.Protocol, body)
 		m.emitUsage(ctx, contracts.UsageRecord{
 			KeyID:        probeUsageKeyID,
@@ -670,7 +706,9 @@ func buildModelProbeRequest(ctx context.Context, creds contracts.UpstreamCredent
 			"max_output_tokens": 16,
 		}
 	default:
-		if strings.HasSuffix(baseURL, "/chat/completions") || strings.HasSuffix(baseURL, "/responses") {
+		if strings.HasSuffix(baseURL, "/chat/completions") ||
+			strings.HasSuffix(baseURL, "/responses") ||
+			strings.HasSuffix(baseURL, "/inference/chat") {
 			targetURL = baseURL
 		} else {
 			targetURL = baseURL + "/chat/completions"

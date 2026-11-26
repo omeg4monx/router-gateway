@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -629,5 +630,133 @@ func TestProbeAndIdentifyRecordUsageTelemetry(t *testing.T) {
 	// Identify probe
 	if r := recorder.records[5]; r.ProviderID != "omeg4mon" || r.Model != "gpt-4o" || r.InputTokens != 18 || r.OutputTokens != 7 || r.CachedTokens != 4 || r.StatusCode != 200 || r.KeyID != "admin-probe" {
 		t.Errorf("unexpected identify probe usage record: %+v", r)
+	}
+}
+
+type roundTripFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
+	return f(req)
+}
+
+func TestKeylessFreeProviderModelProbeAndIdentify(t *testing.T) {
+	var capturedURLs []string
+	var capturedAuthHeaders []string
+
+	mockClient := &http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			capturedURLs = append(capturedURLs, req.URL.String())
+			capturedAuthHeaders = append(capturedAuthHeaders, req.Header.Get("Authorization"))
+			body := `{"id":"chatcmpl-keyless","model":"venice-uncensored-1-2","choices":[{"message":{"role":"assistant","content":"I am venice-uncensored-1-2."}}],"usage":{"prompt_tokens":5,"completion_tokens":3}}`
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+				Body:       io.NopCloser(strings.NewReader(body)),
+			}, nil
+		}),
+	}
+
+	database, err := db.Open(t.TempDir() + "/keyless-probe-test.sqlite")
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	t.Cleanup(func() { _ = database.Close() })
+
+	emptyStore := &catalogFakeProviderStore{}
+	mod := combos.New(combos.Options{
+		DB:         database,
+		Providers:  emptyStore,
+		HTTPClient: mockClient,
+		Now:        func() time.Time { return time.Date(2026, 11, 26, 0, 0, 0, 0, time.UTC) },
+	})
+	reg := lifecycle.NewRegistry(nil)
+	if err := reg.Register(stubModule{name: "system"}); err != nil {
+		t.Fatalf("register system: %v", err)
+	}
+	if err := reg.Register(stubModule{name: "providers", deps: []string{"system"}}); err != nil {
+		t.Fatalf("register providers: %v", err)
+	}
+	if err := reg.Register(mod); err != nil {
+		t.Fatalf("register combos: %v", err)
+	}
+	if err := reg.MigrateAll(context.Background(), database); err != nil {
+		t.Fatalf("apply migrations: %v", err)
+	}
+	if err := mod.Start(context.Background()); err != nil {
+		t.Fatalf("start module: %v", err)
+	}
+
+	router := chi.NewRouter()
+	router.Route("/api", func(r chi.Router) {
+		mod.RegisterRoutes(lifecycle.RouteMounts{AdminAPI: r})
+	})
+
+	cases := []struct {
+		providerID string
+		modelID    string
+		wantURL    string
+	}{
+		{"venice", "venice-uncensored-1-2", "https://outerface.venice.ai/api/inference/chat"},
+		{"opencode", "muse-wonder-1.0", "https://opencode.ai/zen/v1/chat/completions"},
+		{"ovh", "Qwen3.6-27B", "https://oai.endpoints.kepler.ai.cloud.ovh.net/v1/chat/completions"},
+	}
+
+	for _, tc := range cases {
+		rec := httptest.NewRecorder()
+		payload := `{"providerId":"` + tc.providerID + `","modelId":"` + tc.modelID + `"}`
+		router.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/api/models/test", bytes.NewBufferString(payload)))
+		if rec.Code != http.StatusOK {
+			t.Fatalf("POST /api/models/test (%s) status = %d: %s", tc.providerID, rec.Code, rec.Body.String())
+		}
+		var res combos.ModelTestResult
+		if err := json.Unmarshal(rec.Body.Bytes(), &res); err != nil {
+			t.Fatalf("decode test result (%s): %v", tc.providerID, err)
+		}
+		if !res.OK || res.Status != "ok" {
+			t.Fatalf("expected ok probe for keyless provider %q, got %+v", tc.providerID, res)
+		}
+	}
+
+	// Identify probe must also work for keyless providers without a saved connection.
+	idRec := httptest.NewRecorder()
+	router.ServeHTTP(idRec, httptest.NewRequest(http.MethodPost, "/api/models/identify", bytes.NewBufferString(`{"providerId":"venice","modelId":"venice-uncensored-1-2"}`)))
+	if idRec.Code != http.StatusOK {
+		t.Fatalf("POST /api/models/identify (venice) status = %d: %s", idRec.Code, idRec.Body.String())
+	}
+	var idRes combos.ModelIdentityResult
+	if err := json.Unmarshal(idRec.Body.Bytes(), &idRes); err != nil {
+		t.Fatalf("decode identify result: %v", err)
+	}
+	if !idRes.OK || idRes.Verdict == "error" {
+		t.Fatalf("expected ok identify probe for keyless provider venice, got %+v", idRes)
+	}
+
+	wantURLs := []string{
+		"https://outerface.venice.ai/api/inference/chat",
+		"https://opencode.ai/zen/v1/chat/completions",
+		"https://oai.endpoints.kepler.ai.cloud.ovh.net/v1/chat/completions",
+		"https://outerface.venice.ai/api/inference/chat",
+	}
+	if len(capturedURLs) != len(wantURLs) {
+		t.Fatalf("captured %d upstream requests, want %d (%v)", len(capturedURLs), len(wantURLs), capturedURLs)
+	}
+	for i, want := range wantURLs {
+		if capturedURLs[i] != want {
+			t.Errorf("request[%d] URL = %q, want %q", i, capturedURLs[i], want)
+		}
+		if capturedAuthHeaders[i] != "" {
+			t.Errorf("request[%d] unexpected Authorization header = %q", i, capturedAuthHeaders[i])
+		}
+	}
+
+	// Non-keyless provider with zero connections must still report no enabled connection.
+	nonKeylessRec := httptest.NewRecorder()
+	router.ServeHTTP(nonKeylessRec, httptest.NewRequest(http.MethodPost, "/api/models/test", bytes.NewBufferString(`{"providerId":"openai","modelId":"gpt-4o"}`)))
+	var nonKeylessRes combos.ModelTestResult
+	if err := json.Unmarshal(nonKeylessRec.Body.Bytes(), &nonKeylessRes); err != nil {
+		t.Fatalf("decode non-keyless result: %v", err)
+	}
+	if nonKeylessRes.OK || !strings.Contains(nonKeylessRes.Error, "no enabled connection") {
+		t.Fatalf("expected no enabled connection error for openai without connections, got %+v", nonKeylessRes)
 	}
 }

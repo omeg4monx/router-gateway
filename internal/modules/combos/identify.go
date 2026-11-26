@@ -93,13 +93,22 @@ func (m *Module) identifyProviderModel(ctx context.Context, providerID, modelID 
 			matchedConn = &c
 		}
 	}
+	var (
+		connectionID string
+		creds        contracts.UpstreamCredentials
+	)
 	if matchedConn == nil {
-		return baseError(fmt.Sprintf("no enabled connection found for provider %q", providerID), 0, 0)
-	}
-
-	creds, err := m.providers.ResolveCredentials(ctx, matchedConn.ID)
-	if err != nil {
-		return baseError("failed to resolve provider credentials", 0, 0)
+		keylessCreds, ok := resolveKeylessProbeCredentials(providerID)
+		if !ok {
+			return baseError(fmt.Sprintf("no enabled connection found for provider %q", providerID), 0, 0)
+		}
+		creds = keylessCreds
+	} else {
+		connectionID = matchedConn.ID
+		creds, err = m.providers.ResolveCredentials(ctx, matchedConn.ID)
+		if err != nil {
+			return baseError("failed to resolve provider credentials", 0, 0)
+		}
 	}
 
 	probeCtx, cancel := context.WithTimeout(ctx, defaultProbeTimeout)
@@ -128,9 +137,9 @@ func (m *Module) identifyProviderModel(ctx context.Context, providerID, modelID 
 	}
 
 	statusCode, headers, body, latency, probeErr := executeIdentify(creds)
-	if probeErr == nil && strings.EqualFold(creds.AuthType, "oauth") &&
+	if probeErr == nil && connectionID != "" && strings.EqualFold(creds.AuthType, "oauth") &&
 		(statusCode == http.StatusUnauthorized || statusCode == http.StatusForbidden) {
-		if refreshed, refreshErr := m.providers.RefreshOAuthToken(probeCtx, matchedConn.ID); refreshErr == nil &&
+		if refreshed, refreshErr := m.providers.RefreshOAuthToken(probeCtx, connectionID); refreshErr == nil &&
 			strings.TrimSpace(refreshed.AccessToken) != "" {
 			creds = refreshed
 			statusCode, headers, body, latency, probeErr = executeIdentify(creds)
@@ -143,7 +152,7 @@ func (m *Module) identifyProviderModel(ctx context.Context, providerID, modelID 
 			KeyID:        probeUsageKeyID,
 			Model:        modelID,
 			ProviderID:   creds.ProviderID,
-			ConnectionID: matchedConn.ID,
+			ConnectionID: connectionID,
 			Protocol:     creds.Protocol,
 			Latency:      time.Duration(latency) * time.Millisecond,
 			TTFT:         time.Duration(latency) * time.Millisecond,
@@ -159,7 +168,7 @@ func (m *Module) identifyProviderModel(ctx context.Context, providerID, modelID 
 			KeyID:        probeUsageKeyID,
 			Model:        modelID,
 			ProviderID:   creds.ProviderID,
-			ConnectionID: matchedConn.ID,
+			ConnectionID: connectionID,
 			Protocol:     creds.Protocol,
 			Latency:      time.Duration(latency) * time.Millisecond,
 			TTFT:         time.Duration(latency) * time.Millisecond,
@@ -175,7 +184,7 @@ func (m *Module) identifyProviderModel(ctx context.Context, providerID, modelID 
 		KeyID:        probeUsageKeyID,
 		Model:        modelID,
 		ProviderID:   creds.ProviderID,
-		ConnectionID: matchedConn.ID,
+		ConnectionID: connectionID,
 		Protocol:     creds.Protocol,
 		InputTokens:  inTok,
 		OutputTokens: outTok,
@@ -238,7 +247,9 @@ func buildIdentityProbeRequest(ctx context.Context, creds contracts.UpstreamCred
 			"max_output_tokens": 96,
 		}
 	default:
-		if strings.HasSuffix(baseURL, "/chat/completions") || strings.HasSuffix(baseURL, "/responses") {
+		if strings.HasSuffix(baseURL, "/chat/completions") ||
+			strings.HasSuffix(baseURL, "/responses") ||
+			strings.HasSuffix(baseURL, "/inference/chat") {
 			targetURL = baseURL
 		} else {
 			targetURL = baseURL + "/chat/completions"
