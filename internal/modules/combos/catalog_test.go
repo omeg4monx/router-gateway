@@ -640,13 +640,33 @@ func (f roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
 }
 
 func TestKeylessFreeProviderModelProbeAndIdentify(t *testing.T) {
-	var capturedURLs []string
-	var capturedAuthHeaders []string
+	type capturedReq struct {
+		url     string
+		headers http.Header
+		body    map[string]any
+	}
+	var captured []capturedReq
 
 	mockClient := &http.Client{
 		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
-			capturedURLs = append(capturedURLs, req.URL.String())
-			capturedAuthHeaders = append(capturedAuthHeaders, req.Header.Get("Authorization"))
+			rawBody, _ := io.ReadAll(req.Body)
+			var parsed map[string]any
+			_ = json.Unmarshal(rawBody, &parsed)
+			captured = append(captured, capturedReq{
+				url:     req.URL.String(),
+				headers: req.Header.Clone(),
+				body:    parsed,
+			})
+			if strings.Contains(req.URL.Host, "opencode.ai") {
+				sse := "data: {\"id\":\"chatcmpl-oc\",\"model\":\"big-pickle\",\"choices\":[{\"delta\":{\"role\":\"assistant\",\"content\":\"I am big-pickle.\"}}]}\n\n" +
+					"data: {\"id\":\"chatcmpl-oc\",\"model\":\"big-pickle\",\"choices\":[{\"delta\":{},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":6,\"completion_tokens\":4}}\n\n" +
+					"data: [DONE]\n\n"
+				return &http.Response{
+					StatusCode: http.StatusOK,
+					Header:     http.Header{"Content-Type": []string{"text/event-stream"}},
+					Body:       io.NopCloser(strings.NewReader(sse)),
+				}, nil
+			}
 			body := `{"id":"chatcmpl-keyless","model":"venice-uncensored-1-2","choices":[{"message":{"role":"assistant","content":"I am venice-uncensored-1-2."}}],"usage":{"prompt_tokens":5,"completion_tokens":3}}`
 			return &http.Response{
 				StatusCode: http.StatusOK,
@@ -694,11 +714,10 @@ func TestKeylessFreeProviderModelProbeAndIdentify(t *testing.T) {
 	cases := []struct {
 		providerID string
 		modelID    string
-		wantURL    string
 	}{
-		{"venice", "venice-uncensored-1-2", "https://outerface.venice.ai/api/inference/chat"},
-		{"opencode", "muse-wonder-1.0", "https://opencode.ai/zen/v1/chat/completions"},
-		{"ovh", "Qwen3.6-27B", "https://oai.endpoints.kepler.ai.cloud.ovh.net/v1/chat/completions"},
+		{"venice", "venice-uncensored-1-2"},
+		{"opencode", "big-pickle"},
+		{"ovh", "Qwen3.6-27B"},
 	}
 
 	for _, tc := range cases {
@@ -717,36 +736,92 @@ func TestKeylessFreeProviderModelProbeAndIdentify(t *testing.T) {
 		}
 	}
 
-	// Identify probe must also work for keyless providers without a saved connection.
-	idRec := httptest.NewRecorder()
-	router.ServeHTTP(idRec, httptest.NewRequest(http.MethodPost, "/api/models/identify", bytes.NewBufferString(`{"providerId":"venice","modelId":"venice-uncensored-1-2"}`)))
-	if idRec.Code != http.StatusOK {
-		t.Fatalf("POST /api/models/identify (venice) status = %d: %s", idRec.Code, idRec.Body.String())
-	}
-	var idRes combos.ModelIdentityResult
-	if err := json.Unmarshal(idRec.Body.Bytes(), &idRes); err != nil {
-		t.Fatalf("decode identify result: %v", err)
-	}
-	if !idRes.OK || idRes.Verdict == "error" {
-		t.Fatalf("expected ok identify probe for keyless provider venice, got %+v", idRes)
+	// Identify probe must also work for keyless providers (both JSON and OpenCode SSE).
+	for _, tc := range []struct {
+		providerID string
+		modelID    string
+	}{
+		{"venice", "venice-uncensored-1-2"},
+		{"opencode", "big-pickle"},
+	} {
+		idRec := httptest.NewRecorder()
+		router.ServeHTTP(idRec, httptest.NewRequest(http.MethodPost, "/api/models/identify", bytes.NewBufferString(`{"providerId":"`+tc.providerID+`","modelId":"`+tc.modelID+`"}`)))
+		if idRec.Code != http.StatusOK {
+			t.Fatalf("POST /api/models/identify (%s) status = %d: %s", tc.providerID, idRec.Code, idRec.Body.String())
+		}
+		var idRes combos.ModelIdentityResult
+		if err := json.Unmarshal(idRec.Body.Bytes(), &idRes); err != nil {
+			t.Fatalf("decode identify result (%s): %v", tc.providerID, err)
+		}
+		if !idRes.OK || idRes.Verdict == "error" {
+			t.Fatalf("expected ok identify probe for keyless provider %s, got %+v", tc.providerID, idRes)
+		}
 	}
 
 	wantURLs := []string{
 		"https://outerface.venice.ai/api/inference/chat",
-		"https://opencode.ai/zen/v1/chat/completions",
+		"https://opencode.ai/inference/openai/v1/chat/completions",
 		"https://oai.endpoints.kepler.ai.cloud.ovh.net/v1/chat/completions",
 		"https://outerface.venice.ai/api/inference/chat",
+		"https://opencode.ai/inference/openai/v1/chat/completions",
 	}
-	if len(capturedURLs) != len(wantURLs) {
-		t.Fatalf("captured %d upstream requests, want %d (%v)", len(capturedURLs), len(wantURLs), capturedURLs)
+	if len(captured) != len(wantURLs) {
+		t.Fatalf("captured %d upstream requests, want %d", len(captured), len(wantURLs))
 	}
 	for i, want := range wantURLs {
-		if capturedURLs[i] != want {
-			t.Errorf("request[%d] URL = %q, want %q", i, capturedURLs[i], want)
+		if captured[i].url != want {
+			t.Errorf("request[%d] URL = %q, want %q", i, captured[i].url, want)
 		}
-		if capturedAuthHeaders[i] != "" {
-			t.Errorf("request[%d] unexpected Authorization header = %q", i, capturedAuthHeaders[i])
+	}
+
+	// Venice & OVH must not send Authorization header; OpenCode v2 requires Bearer public + v2 CLI headers + fingerprint body.
+	if got := captured[0].headers.Get("Authorization"); got != "" {
+		t.Errorf("venice unexpected Authorization = %q", got)
+	}
+	if got := captured[2].headers.Get("Authorization"); got != "" {
+		t.Errorf("ovh unexpected Authorization = %q", got)
+	}
+	ocReq := captured[1]
+	if got := ocReq.headers.Get("Authorization"); got != "Bearer public" {
+		t.Errorf("opencode Authorization = %q, want %q", got, "Bearer public")
+	}
+	if got := ocReq.headers.Get("User-Agent"); !strings.HasPrefix(got, "opencode/latest/") || !strings.HasSuffix(got, "/cli") {
+		t.Errorf("opencode User-Agent = %q, want opencode/latest/*/cli", got)
+	}
+	if got := ocReq.headers.Get("x-opencode-client"); got != "cli" {
+		t.Errorf("opencode x-opencode-client = %q, want cli", got)
+	}
+	sessionID := ocReq.headers.Get("x-opencode-session")
+	if !strings.HasPrefix(sessionID, "ses_") || len(sessionID) != 30 {
+		t.Errorf("opencode x-opencode-session = %q, want 30-char ses_*", sessionID)
+	}
+	if ocReq.headers.Get("x-opencode-session-id") != sessionID || ocReq.headers.Get("x-session-id") != sessionID {
+		t.Errorf("opencode session header mismatch: %v", ocReq.headers)
+	}
+	if len(ocReq.headers.Get("x-opencode-project")) != 40 {
+		t.Errorf("opencode x-opencode-project = %q, want 40-hex", ocReq.headers.Get("x-opencode-project"))
+	}
+	if ocReq.headers.Get("Accept") != "text/event-stream" {
+		t.Errorf("opencode Accept = %q, want text/event-stream", ocReq.headers.Get("Accept"))
+	}
+	if stream, _ := ocReq.body["stream"].(bool); !stream {
+		t.Errorf("opencode probe body must set stream=true, got %v", ocReq.body["stream"])
+	}
+	tools, _ := ocReq.body["tools"].([]any)
+	if len(tools) != 5 {
+		t.Errorf("opencode probe body must include 5 canonical fingerprint tools, got %d", len(tools))
+	}
+	msgs, _ := ocReq.body["messages"].([]any)
+	hasEnv := false
+	for _, item := range msgs {
+		if m, ok := item.(map[string]any); ok && m["role"] == "system" {
+			if c, _ := m["content"].(string); strings.Contains(c, "<env>") {
+				hasEnv = true
+			}
 		}
+	}
+	if !hasEnv {
+		t.Errorf("opencode probe body must include <env> marker in system message, got %v", msgs)
 	}
 
 	// Non-keyless provider with zero connections must still report no enabled connection.

@@ -188,6 +188,35 @@ func TestNewClientUsesCustomProxyFunc(t *testing.T) {
 	}
 }
 
+func TestSharedChromeTLSClientHandlesHTTPAndReturnsSingleton(t *testing.T) {
+	t.Parallel()
+
+	c1 := httpclient.SharedChromeTLSClient()
+	c2 := httpclient.SharedChromeTLSClient()
+	if c1 == nil || c1 != c2 {
+		t.Fatalf("expected non-nil singleton SharedChromeTLSClient")
+	}
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("ok"))
+	}))
+	defer srv.Close()
+
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, srv.URL, nil)
+	if err != nil {
+		t.Fatalf("new request: %v", err)
+	}
+	resp, err := c1.Do(req)
+	if err != nil {
+		t.Fatalf("SharedChromeTLSClient().Do(http): %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d, want 200", resp.StatusCode)
+	}
+}
+
 func TestNewClientRequestContextCancellationAbortsStream(t *testing.T) {
 	t.Parallel()
 

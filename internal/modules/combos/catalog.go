@@ -417,7 +417,7 @@ func resolveKeylessProbeCredentials(providerID string) (contracts.UpstreamCreden
 		return contracts.UpstreamCredentials{
 			ProviderID: "opencode",
 			Protocol:   "openai-chat",
-			BaseURL:    "https://opencode.ai/zen/v1",
+			BaseURL:    "https://opencode.ai/inference/openai/v1",
 			AuthType:   "none",
 		}, true
 	case "ovh", "kepler", "ovh-kepler", "kepler-ai":
@@ -483,10 +483,7 @@ func (m *Module) probeWithCredentials(ctx context.Context, connectionID string, 
 	defer cancel()
 	probeCtx = httpclient.WithProviderID(probeCtx, creds.ProviderID)
 
-	client := m.httpClient
-	if client == nil {
-		client = &http.Client{Timeout: defaultProbeTimeout}
-	}
+	client := selectProbeHTTPClient(m.httpClient, creds)
 
 	executeProbe := func(activeCreds contracts.UpstreamCredentials) (int, []byte, int64, error) {
 		req, reqErr := buildModelProbeRequest(probeCtx, activeCreds, modelID)
@@ -601,7 +598,13 @@ func (m *Module) probeWithCredentials(ctx context.Context, connectionID string, 
 
 func extractProbeTokenUsage(protocol string, body []byte) (inputTokens, outputTokens, cachedTokens int64) {
 	trimmed := bytes.TrimSpace(body)
-	if len(trimmed) == 0 || trimmed[0] != '{' {
+	if len(trimmed) == 0 {
+		return 0, 0, 0
+	}
+	if trimmed[0] != '{' {
+		if bytes.Contains(trimmed, []byte("data:")) {
+			return extractSSETokenUsage(protocol, trimmed)
+		}
 		return 0, 0, 0
 	}
 
@@ -718,9 +721,12 @@ func buildModelProbeRequest(ctx context.Context, creds contracts.UpstreamCredent
 			"max_tokens": 1,
 			"messages":   []map[string]string{{"role": "user", "content": "hi"}},
 		}
+		if isOpenCodeFreeCreds(creds) {
+			applyOpenCodeFreePayload(payload, "hi")
+		}
 	}
 
-	rawBody, err := json.Marshal(payload)
+	rawBody, err := marshalProbeJSON(payload)
 	if err != nil {
 		return nil, err
 	}
@@ -753,6 +759,10 @@ func buildModelProbeRequest(ctx context.Context, creds contracts.UpstreamCredent
 		if token != "" {
 			req.Header.Set("Authorization", "Bearer "+token)
 		}
+	}
+
+	if isOpenCodeFreeCreds(creds) {
+		applyOpenCodeFreeHeaders(req)
 	}
 
 	for k, v := range creds.ExtraHeaders {

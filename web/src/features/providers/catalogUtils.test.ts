@@ -272,5 +272,15 @@ describe("providers catalogUtils", () => {
         }),
       ).toBe(false);
     }
+    // OpenCode Free must point to /inference/openai/v1 and list active free models (not retired 400 models)
+    if (opencode) {
+      expect(opencode.baseUrl).toBe("https://opencode.ai/inference/openai/v1");
+      expect(opencode.defaultModels).toContain("big-pickle");
+      expect(opencode.defaultModels).toContain("mimo-v2.6-flash-free");
+      expect(opencode.defaultModels).toContain("deepseek-v4.1-flash-free");
+      expect(opencode.defaultModels).toContain("iceman-free");
+      expect(opencode.defaultModels).not.toContain("gpt-4o-mini-free");
+      expect(opencode.defaultModels).not.toContain("space-bunny-free");
+    }
   });
 });

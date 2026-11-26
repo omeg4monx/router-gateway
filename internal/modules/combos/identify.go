@@ -115,10 +115,7 @@ func (m *Module) identifyProviderModel(ctx context.Context, providerID, modelID 
 	defer cancel()
 	probeCtx = httpclient.WithProviderID(probeCtx, creds.ProviderID)
 
-	client := m.httpClient
-	if client == nil {
-		client = &http.Client{Timeout: defaultProbeTimeout}
-	}
+	client := selectProbeHTTPClient(m.httpClient, creds)
 
 	executeIdentify := func(activeCreds contracts.UpstreamCredentials) (int, http.Header, []byte, int64, error) {
 		req, reqErr := buildIdentityProbeRequest(probeCtx, activeCreds, modelID)
@@ -260,9 +257,12 @@ func buildIdentityProbeRequest(ctx context.Context, creds contracts.UpstreamCred
 			"temperature": 0,
 			"messages":    []map[string]string{{"role": "user", "content": identityProbePrompt}},
 		}
+		if isOpenCodeFreeCreds(creds) {
+			applyOpenCodeFreePayload(payload, identityProbePrompt)
+		}
 	}
 
-	rawBody, err := json.Marshal(payload)
+	rawBody, err := marshalProbeJSON(payload)
 	if err != nil {
 		return nil, err
 	}
@@ -295,6 +295,10 @@ func buildIdentityProbeRequest(ctx context.Context, creds contracts.UpstreamCred
 		if token != "" {
 			req.Header.Set("Authorization", "Bearer "+token)
 		}
+	}
+
+	if isOpenCodeFreeCreds(creds) {
+		applyOpenCodeFreeHeaders(req)
 	}
 
 	for k, v := range creds.ExtraHeaders {
@@ -476,6 +480,9 @@ func extractVendorHeaders(headers http.Header) map[string]string {
 func parseIdentityPayload(body []byte) (reportedModel, idPrefix, fingerprint, selfReport string, hasReasoning bool) {
 	var raw map[string]any
 	if err := json.Unmarshal(body, &raw); err != nil {
+		if bytes.Contains(body, []byte("data:")) {
+			return parseSSEIdentityPayload(body)
+		}
 		return "", "", "", "", false
 	}
 
