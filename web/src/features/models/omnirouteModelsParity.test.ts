@@ -8,8 +8,12 @@ const consoleSource = readFileSync(resolve(modelsDir, "ModelCatalogConsole.tsx")
 const modalSource = readFileSync(resolve(modelsDir, "AssignKeysModal.tsx"), "utf8");
 const hooksSource = readFileSync(resolve(modelsDir, "hooks.ts"), "utf8");
 const appSource = readFileSync(resolve(modelsDir, "../../App.tsx"), "utf8");
-const comboBuilderSource = readFileSync(
-  resolve(modelsDir, "../combos/ComboBuilderModal.tsx"),
+const comboFormSource = readFileSync(
+  resolve(modelsDir, "../combos/ComboRegistrationForm.tsx"),
+  "utf8",
+);
+const strategyGuideSource = readFileSync(
+  resolve(modelsDir, "../combos/StrategyGuideModal.tsx"),
   "utf8",
 );
 const legacyConsolePath = resolve(modelsDir, "../combos/ModelsRoutingConsole.tsx");
@@ -21,12 +25,16 @@ describe("/dashboard/models & /dashboard/combos parity", () => {
     expect(existsSync(legacyConsolePath)).toBe(false);
   });
 
-  test("Combos supports all 22 strategies and structured model/combo-ref steps", () => {
+  test("Combos supports all 22 strategies, provider/account picker, strategy helper modal, and structured steps", () => {
     expect(COMBO_STRATEGY_OPTIONS).toHaveLength(22);
-    expect(comboBuilderSource).toContain("combo-strategy-select");
-    expect(comboBuilderSource).toContain("combo-ref");
-    expect(comboBuilderSource).toContain("fallbackOnlyOnQuotaExhaustion");
-    expect(comboBuilderSource).toContain("nestedComboMode");
+    expect(comboFormSource).toContain("combo-strategy-select");
+    expect(comboFormSource).toContain("combo-provider-select");
+    expect(comboFormSource).toContain("combo-account-select");
+    expect(comboFormSource).toContain("strategy-helper-btn");
+    expect(comboFormSource).toContain("combo-ref");
+    expect(comboFormSource).toContain("fallbackOnlyOnQuotaExhaustion");
+    expect(comboFormSource).toContain("nestedComboMode");
+    expect(strategyGuideSource).toContain("strategy-guide-modal");
   });
 
   test("ModelCatalogConsole implements OmniRoute underline tabs, visibility counts, and bulk action testids", () => {

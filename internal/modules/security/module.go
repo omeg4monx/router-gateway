@@ -422,11 +422,22 @@ func (m *Module) handleListAudit(w http.ResponseWriter, r *http.Request) {
 		limit = parsed
 	}
 
+	offset := 0
+	if raw := strings.TrimSpace(r.URL.Query().Get("offset")); raw != "" {
+		parsed, err := strconv.Atoi(raw)
+		if err != nil || parsed < 0 {
+			httpserver.WriteError(w, r, http.StatusBadRequest, "invalid_offset", "offset must be a non-negative integer")
+			return
+		}
+		offset = parsed
+	}
+
 	items, total, err := m.repo.list(r.Context(), ListFilter{
 		Category: r.URL.Query().Get("category"),
 		Severity: r.URL.Query().Get("severity"),
 		Query:    r.URL.Query().Get("q"),
 		Limit:    limit,
+		Offset:   offset,
 	})
 	if err != nil {
 		httpserver.WriteError(w, r, http.StatusInternalServerError, "audit_list_failed", "failed to list audit events")

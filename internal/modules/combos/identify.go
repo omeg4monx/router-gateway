@@ -93,23 +93,29 @@ func (m *Module) identifyProviderModel(ctx context.Context, providerID, modelID 
 			matchedConn = &c
 		}
 	}
+	var (
+		connectionID string
+		creds        contracts.UpstreamCredentials
+	)
 	if matchedConn == nil {
-		return baseError(fmt.Sprintf("no enabled connection found for provider %q", providerID), 0, 0)
-	}
-
-	creds, err := m.providers.ResolveCredentials(ctx, matchedConn.ID)
-	if err != nil {
-		return baseError("failed to resolve provider credentials", 0, 0)
+		keylessCreds, ok := resolveKeylessProbeCredentials(providerID)
+		if !ok {
+			return baseError(fmt.Sprintf("no enabled connection found for provider %q", providerID), 0, 0)
+		}
+		creds = keylessCreds
+	} else {
+		connectionID = matchedConn.ID
+		creds, err = m.providers.ResolveCredentials(ctx, matchedConn.ID)
+		if err != nil {
+			return baseError("failed to resolve provider credentials", 0, 0)
+		}
 	}
 
 	probeCtx, cancel := context.WithTimeout(ctx, defaultProbeTimeout)
 	defer cancel()
 	probeCtx = httpclient.WithProviderID(probeCtx, creds.ProviderID)
 
-	client := m.httpClient
-	if client == nil {
-		client = &http.Client{Timeout: defaultProbeTimeout}
-	}
+	client := selectProbeHTTPClient(m.httpClient, creds)
 
 	executeIdentify := func(activeCreds contracts.UpstreamCredentials) (int, http.Header, []byte, int64, error) {
 		req, reqErr := buildIdentityProbeRequest(probeCtx, activeCreds, modelID)
@@ -128,9 +134,9 @@ func (m *Module) identifyProviderModel(ctx context.Context, providerID, modelID 
 	}
 
 	statusCode, headers, body, latency, probeErr := executeIdentify(creds)
-	if probeErr == nil && strings.EqualFold(creds.AuthType, "oauth") &&
+	if probeErr == nil && connectionID != "" && strings.EqualFold(creds.AuthType, "oauth") &&
 		(statusCode == http.StatusUnauthorized || statusCode == http.StatusForbidden) {
-		if refreshed, refreshErr := m.providers.RefreshOAuthToken(probeCtx, matchedConn.ID); refreshErr == nil &&
+		if refreshed, refreshErr := m.providers.RefreshOAuthToken(probeCtx, connectionID); refreshErr == nil &&
 			strings.TrimSpace(refreshed.AccessToken) != "" {
 			creds = refreshed
 			statusCode, headers, body, latency, probeErr = executeIdentify(creds)
@@ -143,7 +149,7 @@ func (m *Module) identifyProviderModel(ctx context.Context, providerID, modelID 
 			KeyID:        probeUsageKeyID,
 			Model:        modelID,
 			ProviderID:   creds.ProviderID,
-			ConnectionID: matchedConn.ID,
+			ConnectionID: connectionID,
 			Protocol:     creds.Protocol,
 			Latency:      time.Duration(latency) * time.Millisecond,
 			TTFT:         time.Duration(latency) * time.Millisecond,
@@ -159,7 +165,7 @@ func (m *Module) identifyProviderModel(ctx context.Context, providerID, modelID 
 			KeyID:        probeUsageKeyID,
 			Model:        modelID,
 			ProviderID:   creds.ProviderID,
-			ConnectionID: matchedConn.ID,
+			ConnectionID: connectionID,
 			Protocol:     creds.Protocol,
 			Latency:      time.Duration(latency) * time.Millisecond,
 			TTFT:         time.Duration(latency) * time.Millisecond,
@@ -175,7 +181,7 @@ func (m *Module) identifyProviderModel(ctx context.Context, providerID, modelID 
 		KeyID:        probeUsageKeyID,
 		Model:        modelID,
 		ProviderID:   creds.ProviderID,
-		ConnectionID: matchedConn.ID,
+		ConnectionID: connectionID,
 		Protocol:     creds.Protocol,
 		InputTokens:  inTok,
 		OutputTokens: outTok,
@@ -238,7 +244,9 @@ func buildIdentityProbeRequest(ctx context.Context, creds contracts.UpstreamCred
 			"max_output_tokens": 96,
 		}
 	default:
-		if strings.HasSuffix(baseURL, "/chat/completions") || strings.HasSuffix(baseURL, "/responses") {
+		if strings.HasSuffix(baseURL, "/chat/completions") ||
+			strings.HasSuffix(baseURL, "/responses") ||
+			strings.HasSuffix(baseURL, "/inference/chat") {
 			targetURL = baseURL
 		} else {
 			targetURL = baseURL + "/chat/completions"
@@ -249,9 +257,12 @@ func buildIdentityProbeRequest(ctx context.Context, creds contracts.UpstreamCred
 			"temperature": 0,
 			"messages":    []map[string]string{{"role": "user", "content": identityProbePrompt}},
 		}
+		if isOpenCodeFreeCreds(creds) {
+			applyOpenCodeFreePayload(payload, identityProbePrompt)
+		}
 	}
 
-	rawBody, err := json.Marshal(payload)
+	rawBody, err := marshalProbeJSON(payload)
 	if err != nil {
 		return nil, err
 	}
@@ -284,6 +295,10 @@ func buildIdentityProbeRequest(ctx context.Context, creds contracts.UpstreamCred
 		if token != "" {
 			req.Header.Set("Authorization", "Bearer "+token)
 		}
+	}
+
+	if isOpenCodeFreeCreds(creds) {
+		applyOpenCodeFreeHeaders(req)
 	}
 
 	for k, v := range creds.ExtraHeaders {
@@ -465,6 +480,9 @@ func extractVendorHeaders(headers http.Header) map[string]string {
 func parseIdentityPayload(body []byte) (reportedModel, idPrefix, fingerprint, selfReport string, hasReasoning bool) {
 	var raw map[string]any
 	if err := json.Unmarshal(body, &raw); err != nil {
+		if bytes.Contains(body, []byte("data:")) {
+			return parseSSEIdentityPayload(body)
+		}
 		return "", "", "", "", false
 	}
 

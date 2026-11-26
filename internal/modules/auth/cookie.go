@@ -4,25 +4,15 @@ import (
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/omeg4monx/router-gateway/internal/platform/httpserver"
 )
 
 // SessionCookieName is the HTTP cookie name carrying the signed admin session token.
 const SessionCookieName = "om4_session"
 
 func isSecureRequest(r *http.Request) bool {
-	if r == nil {
-		return false
-	}
-	if r.TLS != nil {
-		return true
-	}
-	if proto := r.Header.Get("X-Forwarded-Proto"); proto != "" {
-		first, _, _ := strings.Cut(proto, ",")
-		if strings.EqualFold(strings.TrimSpace(first), "https") {
-			return true
-		}
-	}
-	return false
+	return httpserver.IsHTTPS(r)
 }
 
 func setSessionCookie(w http.ResponseWriter, r *http.Request, token string, ttl time.Duration, expiresAt time.Time) {

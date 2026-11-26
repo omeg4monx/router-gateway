@@ -542,69 +542,65 @@ export function SystemOverview() {
         </div>
       </section>
 
-      {/* Row 2: Host / OS Specifications (left) + Spotlight Insight Cards (right), 9router MonitoringPageClient parity */}
-      <section className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        {/* Host & OS Telemetry Card */}
-        <div className="flex min-w-0 flex-col justify-between gap-4 rounded-xl border border-[var(--color-border)]/80 bg-[var(--color-surface)] p-4 shadow-[0_1px_2px_rgba(11,13,18,0.03)] sm:p-5">
-          <div className="space-y-4">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="flex flex-wrap items-center gap-2">
-                <Cpu className="h-4 w-4 text-[var(--color-primary)]" aria-hidden="true" />
-                <span className="text-sm font-semibold text-[var(--color-text-main)]">
-                  {isId ? "Spesifikasi Mesin & OS" : "Host & OS Specifications"}
+      {/* Row 2: Host & OS Specifications (full row) */}
+      <section className="flex min-w-0 flex-col justify-between gap-4 rounded-xl border border-[var(--color-border)]/80 bg-[var(--color-surface)] p-4 shadow-[0_1px_2px_rgba(11,13,18,0.03)] sm:p-5">
+        <div className="space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <Cpu className="h-4 w-4 text-[var(--color-primary)]" aria-hidden="true" />
+              <span className="text-sm font-semibold text-[var(--color-text-main)]">
+                {isId ? "Spesifikasi Mesin & OS" : "Host & OS Specifications"}
+              </span>
+              {sys?.hostname ? (
+                <span className="rounded-full border border-[var(--color-border-subtle)] bg-[var(--color-surface-2)] px-2 py-0.5 font-mono text-[11px] text-[var(--color-text-muted)]">
+                  {sys.hostname}
                 </span>
-                {sys?.hostname ? (
-                  <span className="rounded-full border border-[var(--color-border-subtle)] bg-[var(--color-surface-2)] px-2 py-0.5 font-mono text-[11px] text-[var(--color-text-muted)]">
-                    {sys.hostname}
-                  </span>
-                ) : null}
-                {sys?.os ? (
-                  <span className="rounded-full border border-[var(--color-border-subtle)] bg-[var(--color-surface-2)] px-2 py-0.5 font-mono text-[11px] text-[var(--color-text-muted)]">
-                    {sys.os}
-                  </span>
-                ) : null}
-              </div>
-              {isTelemetryLive ? (
-                <span
-                  className="inline-flex items-center gap-1.5 rounded-full border border-[var(--color-border-subtle)] bg-[var(--color-surface-2)] px-2 py-0.5 font-mono text-[10px] font-semibold tracking-wider text-[var(--status-ok)]"
-                  title={isId ? "Diperbarui otomatis setiap 2 detik" : "Auto-updating every 2s"}
-                >
-                  <span className="relative flex h-1.5 w-1.5" aria-hidden="true">
-                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[var(--status-ok)] opacity-75" />
-                    <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-[var(--status-ok)]" />
-                  </span>
-                  LIVE
+              ) : null}
+              {sys?.os ? (
+                <span className="rounded-full border border-[var(--color-border-subtle)] bg-[var(--color-surface-2)] px-2 py-0.5 font-mono text-[11px] text-[var(--color-text-muted)]">
+                  {sys.os}
                 </span>
               ) : null}
             </div>
+            {isTelemetryLive ? (
+              <span
+                className="inline-flex items-center gap-1.5 rounded-full border border-[var(--color-border-subtle)] bg-[var(--color-surface-2)] px-2 py-0.5 font-mono text-[10px] font-semibold tracking-wider text-[var(--status-ok)]"
+                title={isId ? "Diperbarui otomatis setiap 2 detik" : "Auto-updating every 2s"}
+              >
+                <span className="relative flex h-1.5 w-1.5" aria-hidden="true">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[var(--status-ok)] opacity-75" />
+                  <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-[var(--status-ok)]" />
+                </span>
+                LIVE
+              </span>
+            ) : null}
+          </div>
 
-            {telemetryQuery.isPending ? (
-              <div className="space-y-3">
-                <div className="h-9 animate-pulse rounded-lg bg-[var(--color-surface-2)]/70" />
-                <div className="h-7 animate-pulse rounded-lg bg-[var(--color-surface-2)]/70" />
-                <div className="h-7 animate-pulse rounded-lg bg-[var(--color-surface-2)]/70" />
-                <div className="h-7 animate-pulse rounded-lg bg-[var(--color-surface-2)]/70" />
+          {telemetryQuery.isPending ? (
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+              <div className="h-12 animate-pulse rounded-lg bg-[var(--color-surface-2)]/70" />
+              <div className="h-12 animate-pulse rounded-lg bg-[var(--color-surface-2)]/70" />
+              <div className="h-12 animate-pulse rounded-lg bg-[var(--color-surface-2)]/70" />
+            </div>
+          ) : !sys ? (
+            <p className="text-xs text-[var(--color-text-muted)]">
+              {isId
+                ? "Data telemetri mesin belum tersedia. Pastikan backend Go terbaru sedang berjalan."
+                : "Host telemetry unavailable. Restart the Go backend to enable /api/system/telemetry."}
+            </p>
+          ) : (
+            <div className="space-y-4">
+              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <p className="text-sm font-semibold text-[var(--color-text-main)]">
+                  {sys.cpuModel}
+                </p>
+                <p className="font-mono text-xs tabular-nums text-[var(--color-text-muted)]">
+                  {sys.cpuCores} {isId ? "core" : "cores"}
+                  {hasLoadAvg ? ` · Load ${sys.loadAvg.map((v) => v.toFixed(2)).join(" / ")}` : ""}
+                </p>
               </div>
-            ) : !sys ? (
-              <p className="text-xs text-[var(--color-text-muted)]">
-                {isId
-                  ? "Data telemetri mesin belum tersedia. Pastikan backend Go terbaru sedang berjalan."
-                  : "Host telemetry unavailable. Restart the Go backend to enable /api/system/telemetry."}
-              </p>
-            ) : (
-              <>
-                <div>
-                  <p className="text-sm font-semibold text-[var(--color-text-main)]">
-                    {sys.cpuModel}
-                  </p>
-                  <p className="mt-0.5 font-mono text-xs tabular-nums text-[var(--color-text-muted)]">
-                    {sys.cpuCores} {isId ? "core" : "cores"}
-                    {hasLoadAvg
-                      ? ` · Load ${sys.loadAvg.map((v) => v.toFixed(2)).join(" / ")}`
-                      : ""}
-                  </p>
-                </div>
 
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                 {/* CPU Usage Bar */}
                 <div className="flex flex-col gap-1.5">
                   <div className="flex items-center justify-between text-xs text-[var(--color-text-muted)]">
@@ -661,198 +657,210 @@ export function SystemOverview() {
                     />
                   </div>
                 </div>
-              </>
-            )}
-          </div>
-
-          {/* Host Footer Metadata */}
-          <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 border-t border-[var(--color-border-subtle)] pt-3 text-xs text-[var(--color-text-muted)]">
-            <span>
-              {isId ? "Uptime OS" : "Host Uptime"}:{" "}
-              <strong className="font-mono font-semibold text-[var(--color-text-main)]">
-                {formatHostUptimeShort(sys?.hostUptimeSeconds, isId)}
-              </strong>
-            </span>
-            <span>
-              {isId ? "Uptime Router" : "App Uptime"}:{" "}
-              <strong className="font-mono font-semibold text-[var(--color-text-main)]">
-                {formatHostUptimeShort(sys?.appUptimeSeconds ?? health?.uptimeSeconds, isId)}
-              </strong>
-            </span>
-            <span>
-              Database:{" "}
-              <strong
-                className={cn(
-                  "font-mono font-semibold",
-                  (sys?.dbStatus ?? health?.db) === "ok"
-                    ? "text-[var(--status-ok)]"
-                    : "text-[var(--status-error)]",
-                )}
-              >
-                {(sys?.dbStatus ?? health?.db) === "ok" ? "● OK" : "● Error"}
-              </strong>
-            </span>
-            {sys?.goVersion ? (
-              <span className="font-mono text-[11px] text-[var(--color-text-subtle)]">
-                {sys.goVersion}
-              </span>
-            ) : null}
-          </div>
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* Right Column: 4 Compact Spotlight Insight Cards */}
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          {/* Spotlight 1: Most Used Model + Provider */}
-          <div className="flex flex-col gap-1.5 rounded-xl border border-[var(--color-border)]/80 bg-[var(--color-surface)] p-4 shadow-[0_1px_2px_rgba(11,13,18,0.03)]">
-            <div className="flex items-center gap-2">
-              <Flame className="h-4 w-4 text-[var(--color-primary)]" aria-hidden="true" />
-              <span className="text-xs font-semibold text-[var(--color-text-main)]">
-                {isId ? "Model Paling Sering Dipakai" : "Most Used Model"}
-              </span>
-            </div>
-            {mostUsedModel ? (
-              <>
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="truncate font-mono text-lg font-bold tracking-tight text-[var(--color-text-main)]">
-                    {mostUsedModel.model}
-                  </span>
-                  {mostUsedModel.provider ? (
-                    <Badge variant="default">{mostUsedModel.provider}</Badge>
-                  ) : null}
-                </div>
-                <span className="text-xs text-[var(--color-text-muted)]">
-                  <strong className="font-semibold text-[var(--color-text-main)]">
-                    {mostUsedModel.requests.toLocaleString()} request
-                  </strong>
-                  {mostUsedModel.sharePct !== null
-                    ? ` · ${mostUsedModel.sharePct}% ${isId ? "dari total" : "of total"}`
-                    : ""}{" "}
-                  · {formatCompactTokens(mostUsedModel.tokens)} {isId ? "token" : "tokens"} ·{" "}
-                  {rangeLabels[range]}
-                </span>
-              </>
-            ) : (
-              <span className="text-xs text-[var(--color-text-muted)]">
-                {usageQuery.isPending
-                  ? isId
-                    ? "Memuat…"
-                    : "Loading…"
-                  : isId
-                    ? `Belum ada pemakaian model (${rangeLabels[range]}).`
-                    : `No model usage in the last ${rangeLabels[range]}.`}
-              </span>
-            )}
-          </div>
-
-          {/* Spotlight 2: Most Used Provider */}
-          <div className="flex flex-col gap-1.5 rounded-xl border border-[var(--color-border)]/80 bg-[var(--color-surface)] p-4 shadow-[0_1px_2px_rgba(11,13,18,0.03)]">
-            <div className="flex items-center gap-2">
-              <Server className="h-4 w-4 text-[var(--color-primary)]" aria-hidden="true" />
-              <span className="text-xs font-semibold text-[var(--color-text-main)]">
-                {isId ? "Provider Paling Sering Dipakai" : "Most Used Provider"}
-              </span>
-            </div>
-            {mostUsedProvider ? (
-              <>
-                <span className="truncate font-mono text-lg font-bold tracking-tight text-[var(--color-text-main)]">
-                  {mostUsedProvider.name}
-                </span>
-                <span className="text-xs text-[var(--color-text-muted)]">
-                  <strong className="font-semibold text-[var(--color-text-main)]">
-                    {mostUsedProvider.requests.toLocaleString()} request
-                  </strong>
-                  {mostUsedProvider.sharePct !== null
-                    ? ` · ${mostUsedProvider.sharePct}% ${isId ? "dari total" : "of total"}`
-                    : ""}{" "}
-                  · {formatCompactTokens(mostUsedProvider.tokens)} {isId ? "token" : "tokens"} ·{" "}
-                  {rangeLabels[range]}
-                </span>
-              </>
-            ) : (
-              <span className="text-xs text-[var(--color-text-muted)]">
-                {usageQuery.isPending
-                  ? isId
-                    ? "Memuat…"
-                    : "Loading…"
-                  : isId
-                    ? `Belum ada pemakaian provider (${rangeLabels[range]}).`
-                    : `No provider usage in the last ${rangeLabels[range]}.`}
-              </span>
-            )}
-          </div>
-
-          {/* Spotlight 3: Most Used API Key */}
-          <div className="flex flex-col gap-1.5 rounded-xl border border-[var(--color-border)]/80 bg-[var(--color-surface)] p-4 shadow-[0_1px_2px_rgba(11,13,18,0.03)]">
-            <div className="flex items-center gap-2">
-              <KeyRound className="h-4 w-4 text-[var(--color-primary)]" aria-hidden="true" />
-              <span className="text-xs font-semibold text-[var(--color-text-main)]">
-                {isId ? "API Key Paling Sering Dipakai" : "Most Active API Key"}
-              </span>
-            </div>
-            {mostUsedKey ? (
-              <>
-                <span className="truncate text-lg font-bold tracking-tight text-[var(--color-text-main)]">
-                  {mostUsedKey.name}
-                </span>
-                <span className="text-xs text-[var(--color-text-muted)]">
-                  <strong className="font-semibold text-[var(--color-text-main)]">
-                    {mostUsedKey.requests.toLocaleString()} request
-                  </strong>
-                  {mostUsedKey.sharePct !== null ? ` · ${mostUsedKey.sharePct}%` : ""} ·{" "}
-                  {formatCompactTokens(mostUsedKey.tokens)} {isId ? "token" : "tokens"}
-                  {mostUsedKey.provider ? ` · via ${mostUsedKey.provider}` : ""}
-                </span>
-              </>
-            ) : (
-              <span className="text-xs text-[var(--color-text-muted)]">
-                {recentLogsQuery.isPending
-                  ? isId
-                    ? "Memuat…"
-                    : "Loading…"
-                  : isId
-                    ? "Belum ada pemakaian API key tercatat."
-                    : "No API key activity recorded yet."}
-              </span>
-            )}
-          </div>
-
-          {/* Spotlight 4: Provider with Most Connections */}
-          <div className="flex flex-col gap-1.5 rounded-xl border border-[var(--color-border)]/80 bg-[var(--color-surface)] p-4 shadow-[0_1px_2px_rgba(11,13,18,0.03)]">
-            <div className="flex items-center gap-2">
-              <Database className="h-4 w-4 text-[var(--color-primary)]" aria-hidden="true" />
-              <span className="text-xs font-semibold text-[var(--color-text-main)]">
-                {isId ? "Provider dengan Koneksi Terbanyak" : "Provider with Most Connections"}
-              </span>
-            </div>
-            {providerMostConnections ? (
-              <>
-                <span className="truncate font-mono text-lg font-bold tracking-tight text-[var(--color-text-main)]">
-                  {providerMostConnections.name}
-                </span>
-                <span className="text-xs text-[var(--color-text-muted)]">
-                  <strong className="font-semibold text-[var(--color-text-main)]">
-                    {providerMostConnections.total} {isId ? "koneksi" : "connections"}
-                  </strong>{" "}
-                  · {providerMostConnections.active} {isId ? "aktif" : "active"} ·{" "}
-                  {providerMostConnections.sharePct}% {isId ? "dari total" : "of total"}
-                </span>
-              </>
-            ) : (
-              <span className="text-xs text-[var(--color-text-muted)]">
-                {providersQuery.isPending
-                  ? isId
-                    ? "Memuat…"
-                    : "Loading…"
-                  : isId
-                    ? "Belum ada koneksi provider."
-                    : "No provider connections yet."}
-              </span>
-            )}
-          </div>
+        {/* Host Footer Metadata */}
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 border-t border-[var(--color-border-subtle)] pt-3 text-xs text-[var(--color-text-muted)]">
+          <span>
+            {isId ? "Uptime OS" : "Host Uptime"}:{" "}
+            <strong className="font-mono font-semibold text-[var(--color-text-main)]">
+              {formatHostUptimeShort(sys?.hostUptimeSeconds, isId)}
+            </strong>
+          </span>
+          <span>
+            {isId ? "Uptime Router" : "App Uptime"}:{" "}
+            <strong className="font-mono font-semibold text-[var(--color-text-main)]">
+              {formatHostUptimeShort(sys?.appUptimeSeconds ?? health?.uptimeSeconds, isId)}
+            </strong>
+          </span>
+          <span>
+            Database:{" "}
+            <strong
+              className={cn(
+                "font-mono font-semibold",
+                (sys?.dbStatus ?? health?.db) === "ok"
+                  ? "text-[var(--status-ok)]"
+                  : "text-[var(--status-error)]",
+              )}
+            >
+              {(sys?.dbStatus ?? health?.db) === "ok" ? "● OK" : "● Error"}
+            </strong>
+          </span>
+          {sys?.goVersion ? (
+            <span className="font-mono text-[11px] text-[var(--color-text-subtle)]">
+              {sys.goVersion}
+            </span>
+          ) : null}
         </div>
       </section>
 
-      {/* Row 3: 4 Inventory MiniCards (9router MonitoringPageClient parity) */}
+      {/* Row 3: Realtime React Flow Provider Topology & Recent Requests */}
+      <OverviewRealtimeTraffic
+        topologyProviders={topologyProviders}
+        logs={logs}
+        keyNameMap={keyNameMap}
+        isLoadingLogs={recentLogsQuery.isPending}
+        streamStatus={usageStream.status}
+        streamEventCount={usageStream.eventCount}
+        lastStreamEvent={usageStream.lastEvent}
+        isId={isId}
+      />
+
+      {/* Row 4: 4 Compact Spotlight Insight Cards */}
+      <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        {/* Spotlight 1: Most Used Model + Provider */}
+        <div className="flex flex-col gap-1.5 rounded-xl border border-[var(--color-border)]/80 bg-[var(--color-surface)] p-4 shadow-[0_1px_2px_rgba(11,13,18,0.03)]">
+          <div className="flex items-center gap-2">
+            <Flame className="h-4 w-4 text-[var(--color-primary)]" aria-hidden="true" />
+            <span className="text-xs font-semibold text-[var(--color-text-main)]">
+              {isId ? "Model Paling Sering Dipakai" : "Most Used Model"}
+            </span>
+          </div>
+          {mostUsedModel ? (
+            <>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="truncate font-mono text-lg font-bold tracking-tight text-[var(--color-text-main)]">
+                  {mostUsedModel.model}
+                </span>
+                {mostUsedModel.provider ? (
+                  <Badge variant="default">{mostUsedModel.provider}</Badge>
+                ) : null}
+              </div>
+              <span className="text-xs text-[var(--color-text-muted)]">
+                <strong className="font-semibold text-[var(--color-text-main)]">
+                  {mostUsedModel.requests.toLocaleString()} request
+                </strong>
+                {mostUsedModel.sharePct !== null
+                  ? ` · ${mostUsedModel.sharePct}% ${isId ? "dari total" : "of total"}`
+                  : ""}{" "}
+                · {formatCompactTokens(mostUsedModel.tokens)} {isId ? "token" : "tokens"} ·{" "}
+                {rangeLabels[range]}
+              </span>
+            </>
+          ) : (
+            <span className="text-xs text-[var(--color-text-muted)]">
+              {usageQuery.isPending
+                ? isId
+                  ? "Memuat…"
+                  : "Loading…"
+                : isId
+                  ? `Belum ada pemakaian model (${rangeLabels[range]}).`
+                  : `No model usage in the last ${rangeLabels[range]}.`}
+            </span>
+          )}
+        </div>
+
+        {/* Spotlight 2: Most Used Provider */}
+        <div className="flex flex-col gap-1.5 rounded-xl border border-[var(--color-border)]/80 bg-[var(--color-surface)] p-4 shadow-[0_1px_2px_rgba(11,13,18,0.03)]">
+          <div className="flex items-center gap-2">
+            <Server className="h-4 w-4 text-[var(--color-primary)]" aria-hidden="true" />
+            <span className="text-xs font-semibold text-[var(--color-text-main)]">
+              {isId ? "Provider Paling Sering Dipakai" : "Most Used Provider"}
+            </span>
+          </div>
+          {mostUsedProvider ? (
+            <>
+              <span className="truncate font-mono text-lg font-bold tracking-tight text-[var(--color-text-main)]">
+                {mostUsedProvider.name}
+              </span>
+              <span className="text-xs text-[var(--color-text-muted)]">
+                <strong className="font-semibold text-[var(--color-text-main)]">
+                  {mostUsedProvider.requests.toLocaleString()} request
+                </strong>
+                {mostUsedProvider.sharePct !== null
+                  ? ` · ${mostUsedProvider.sharePct}% ${isId ? "dari total" : "of total"}`
+                  : ""}{" "}
+                · {formatCompactTokens(mostUsedProvider.tokens)} {isId ? "token" : "tokens"} ·{" "}
+                {rangeLabels[range]}
+              </span>
+            </>
+          ) : (
+            <span className="text-xs text-[var(--color-text-muted)]">
+              {usageQuery.isPending
+                ? isId
+                  ? "Memuat…"
+                  : "Loading…"
+                : isId
+                  ? `Belum ada pemakaian provider (${rangeLabels[range]}).`
+                  : `No provider usage in the last ${rangeLabels[range]}.`}
+            </span>
+          )}
+        </div>
+
+        {/* Spotlight 3: Most Used API Key */}
+        <div className="flex flex-col gap-1.5 rounded-xl border border-[var(--color-border)]/80 bg-[var(--color-surface)] p-4 shadow-[0_1px_2px_rgba(11,13,18,0.03)]">
+          <div className="flex items-center gap-2">
+            <KeyRound className="h-4 w-4 text-[var(--color-primary)]" aria-hidden="true" />
+            <span className="text-xs font-semibold text-[var(--color-text-main)]">
+              {isId ? "API Key Paling Sering Dipakai" : "Most Active API Key"}
+            </span>
+          </div>
+          {mostUsedKey ? (
+            <>
+              <span className="truncate text-lg font-bold tracking-tight text-[var(--color-text-main)]">
+                {mostUsedKey.name}
+              </span>
+              <span className="text-xs text-[var(--color-text-muted)]">
+                <strong className="font-semibold text-[var(--color-text-main)]">
+                  {mostUsedKey.requests.toLocaleString()} request
+                </strong>
+                {mostUsedKey.sharePct !== null ? ` · ${mostUsedKey.sharePct}%` : ""} ·{" "}
+                {formatCompactTokens(mostUsedKey.tokens)} {isId ? "token" : "tokens"}
+                {mostUsedKey.provider ? ` · via ${mostUsedKey.provider}` : ""}
+              </span>
+            </>
+          ) : (
+            <span className="text-xs text-[var(--color-text-muted)]">
+              {recentLogsQuery.isPending
+                ? isId
+                  ? "Memuat…"
+                  : "Loading…"
+                : isId
+                  ? "Belum ada pemakaian API key tercatat."
+                  : "No API key activity recorded yet."}
+            </span>
+          )}
+        </div>
+
+        {/* Spotlight 4: Provider with Most Connections */}
+        <div className="flex flex-col gap-1.5 rounded-xl border border-[var(--color-border)]/80 bg-[var(--color-surface)] p-4 shadow-[0_1px_2px_rgba(11,13,18,0.03)]">
+          <div className="flex items-center gap-2">
+            <Database className="h-4 w-4 text-[var(--color-primary)]" aria-hidden="true" />
+            <span className="text-xs font-semibold text-[var(--color-text-main)]">
+              {isId ? "Provider dengan Koneksi Terbanyak" : "Provider with Most Connections"}
+            </span>
+          </div>
+          {providerMostConnections ? (
+            <>
+              <span className="truncate font-mono text-lg font-bold tracking-tight text-[var(--color-text-main)]">
+                {providerMostConnections.name}
+              </span>
+              <span className="text-xs text-[var(--color-text-muted)]">
+                <strong className="font-semibold text-[var(--color-text-main)]">
+                  {providerMostConnections.total} {isId ? "koneksi" : "connections"}
+                </strong>{" "}
+                · {providerMostConnections.active} {isId ? "aktif" : "active"} ·{" "}
+                {providerMostConnections.sharePct}% {isId ? "dari total" : "of total"}
+              </span>
+            </>
+          ) : (
+            <span className="text-xs text-[var(--color-text-muted)]">
+              {providersQuery.isPending
+                ? isId
+                  ? "Memuat…"
+                  : "Loading…"
+                : isId
+                  ? "Belum ada koneksi provider."
+                  : "No provider connections yet."}
+            </span>
+          )}
+        </div>
+      </section>
+
+      {/* Row 5: 4 Inventory MiniCards (9router MonitoringPageClient parity) */}
       <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Link
           to="/dashboard/providers/"
@@ -919,19 +927,7 @@ export function SystemOverview() {
         </Link>
       </section>
 
-      {/* Row 4: Realtime React Flow Provider Topology & Recent Requests */}
-      <OverviewRealtimeTraffic
-        topologyProviders={topologyProviders}
-        logs={logs}
-        keyNameMap={keyNameMap}
-        isLoadingLogs={recentLogsQuery.isPending}
-        streamStatus={usageStream.status}
-        streamEventCount={usageStream.eventCount}
-        lastStreamEvent={usageStream.lastEvent}
-        isId={isId}
-      />
-
-      {/* Row 5: Top Models & Top Providers Charts */}
+      {/* Row 6: Top Models & Top Providers Charts */}
       <section className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         {/* Top Models Breakdown */}
         <div className="overflow-hidden rounded-xl border border-[var(--color-border)]/80 bg-[var(--color-surface)] shadow-[0_1px_2px_rgba(11,13,18,0.03)]">

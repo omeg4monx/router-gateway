@@ -326,7 +326,7 @@ export function OverviewRealtimeTraffic({
           </div>
         </div>
 
-        <div className="relative flex-1 bg-[var(--color-bg-alt)]/30">
+        <div className="relative h-[360px] bg-[var(--color-bg-alt)]/30 sm:h-[410px]">
           <Suspense
             fallback={
               <div className="flex h-[360px] items-center justify-center text-xs text-[var(--color-text-muted)] sm:h-[410px]">
@@ -419,7 +419,7 @@ export function OverviewRealtimeTraffic({
           </div>
         </div>
 
-        <div className="h-[360px] flex-1 overflow-y-auto sm:h-[410px]">
+        <div className="h-[360px] max-h-[360px] overflow-y-auto sm:h-[410px] sm:max-h-[410px]">
           {isLoadingLogs && logs.length === 0 ? (
             <div className="space-y-2 p-4">
               {["sk-1", "sk-2", "sk-3", "sk-4", "sk-5"].map((key) => (

@@ -94,4 +94,25 @@ describe("features/system/overview", () => {
     expect(realtimeSource).not.toContain("Activity Trend");
     expect(realtimeSource).not.toContain("Tren Aktivitas");
   });
+
+  test("OverviewRealtimeTraffic bounds Recent Requests and Topology column heights without flex-1 vertical stretching", () => {
+    const realtimeSource = readFileSync(
+      resolve(import.meta.dirname, "OverviewRealtimeTraffic.tsx"),
+      "utf8",
+    );
+    expect(realtimeSource).toContain("max-h-[360px]");
+    expect(realtimeSource).toContain("sm:max-h-[410px]");
+    expect(realtimeSource).not.toContain("h-[360px] flex-1 overflow-y-auto");
+  });
+
+  test("SystemOverview renders Host & OS Specifications as a full row directly above Live Topology and Recent Requests", () => {
+    const overviewSource = readFileSync(resolve(import.meta.dirname, "SystemOverview.tsx"), "utf8");
+    const hostIdx = overviewSource.indexOf("Host & OS Specifications");
+    const realtimeIdx = overviewSource.indexOf("<OverviewRealtimeTraffic");
+    const spotlightIdx = overviewSource.indexOf("Most Used Model");
+
+    expect(hostIdx).toBeGreaterThan(-1);
+    expect(realtimeIdx).toBeGreaterThan(hostIdx);
+    expect(spotlightIdx).toBeGreaterThan(realtimeIdx);
+  });
 });

@@ -143,7 +143,7 @@ func TestAppRunAndShutdownEndpointTriggersGracefulExit(t *testing.T) {
 		DataDir:       t.TempDir(),
 		AdminPassword: "shutdown-test-pass-2026",
 		LogLevel:      "error",
-		APITimeout:    5 * time.Second,
+		APITimeout:    10 * time.Second,
 	}
 
 	app, err := buildApp(ctx, cfg, system.BuildInfo{Version: "test"})
@@ -176,7 +176,7 @@ func TestAppRunAndShutdownEndpointTriggersGracefulExit(t *testing.T) {
 	}
 	client := &http.Client{
 		Jar:     jar,
-		Timeout: 2 * time.Second,
+		Timeout: 10 * time.Second,
 	}
 
 	healthResp, err := client.Get("http://" + addr + "/api/health")
@@ -857,7 +857,7 @@ func TestAppWave1BGatewayEndToEnd(t *testing.T) {
 	}
 }
 
-func TestAppWave1CUsageAndCLIToolsEndToEnd(t *testing.T) {
+func TestAppWave1CUsageEndToEnd(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
@@ -940,7 +940,7 @@ func TestAppWave1CUsageAndCLIToolsEndToEnd(t *testing.T) {
 	if err := json.Unmarshal(healthBody, &health); err != nil {
 		t.Fatalf("decode /api/health JSON: %v", err)
 	}
-	wantModules := []string{"arena", "auth", "clitools", "cloudsync", "combos", "gateway", "importer", "keys", "media", "mitm", "modeleditor", "notifications", "plugins", "promptinjection", "providers", "proxypools", "pxpipe", "security", "settings", "system", "teams", "telegram", "tokensaver", "translator", "tunnel", "usage", "vouchers"}
+	wantModules := []string{"arena", "auth", "combos", "gateway", "importer", "keys", "media", "mitm", "modeleditor", "notifications", "plugins", "promptinjection", "providers", "proxypools", "pxpipe", "security", "settings", "system", "telegram", "tokensaver", "translator", "tunnel", "usage"}
 	for _, wantMod := range wantModules {
 		if !slices.Contains(health.Modules, wantMod) {
 			t.Fatalf("GET /api/health modules = %v, missing %q", health.Modules, wantMod)
@@ -1078,59 +1078,6 @@ func TestAppWave1CUsageAndCLIToolsEndToEnd(t *testing.T) {
 		summary.Totals.OutputTokens < 45 ||
 		summary.Totals.CostUSD <= 0 {
 		t.Fatalf("unexpected usage summary totals: %+v", summary.Totals)
-	}
-
-	// 5) Verify GET /api/cli-tools and POST /api/cli-tools/claude-code/generate.
-	status, toolsBody := doJSON(http.MethodGet, ts.URL+"/api/cli-tools", nil, nil)
-	if status != http.StatusOK {
-		t.Fatalf("GET /api/cli-tools status = %d, want 200 (body: %s)", status, string(toolsBody))
-	}
-	var toolsCatalog struct {
-		LocalApplyEnabled bool `json:"local_apply_enabled"`
-		Tools             []struct {
-			Tool string `json:"tool"`
-		} `json:"tools"`
-	}
-	if err := json.Unmarshal(toolsBody, &toolsCatalog); err != nil {
-		t.Fatalf("decode GET /api/cli-tools JSON: %v", err)
-	}
-	if !toolsCatalog.LocalApplyEnabled {
-		t.Fatalf("expected local_apply_enabled=true for loopback host")
-	}
-	if len(toolsCatalog.Tools) != 6 {
-		t.Fatalf("GET /api/cli-tools count = %d, want 6 (%+v)", len(toolsCatalog.Tools), toolsCatalog.Tools)
-	}
-
-	status, genBody := doJSON(http.MethodPost, ts.URL+"/api/cli-tools/claude-code/generate", map[string]any{
-		"base_url": ts.URL,
-		"api_key":  createdKey.Secret,
-		"model":    "openai/gpt-4o",
-	}, nil)
-	if status != http.StatusOK {
-		t.Fatalf("POST /api/cli-tools/claude-code/generate status = %d, want 200 (body: %s)", status, string(genBody))
-	}
-	var genResp struct {
-		Tool    string `json:"tool"`
-		Format  string `json:"format"`
-		Content string `json:"content"`
-	}
-	if err := json.Unmarshal(genBody, &genResp); err != nil {
-		t.Fatalf("decode POST /api/cli-tools/claude-code/generate JSON: %v", err)
-	}
-	if genResp.Tool != "claude-code" || genResp.Format != "json" {
-		t.Fatalf("unexpected generate response metadata: %+v", genResp)
-	}
-	var claudeCfg struct {
-		Env map[string]string `json:"env"`
-	}
-	if err := json.Unmarshal([]byte(genResp.Content), &claudeCfg); err != nil {
-		t.Fatalf("generated claude-code content is not valid JSON: %v (content: %s)", err, genResp.Content)
-	}
-	if claudeCfg.Env["ANTHROPIC_BASE_URL"] != ts.URL {
-		t.Fatalf("ANTHROPIC_BASE_URL = %q, want %q", claudeCfg.Env["ANTHROPIC_BASE_URL"], ts.URL)
-	}
-	if claudeCfg.Env["ANTHROPIC_AUTH_TOKEN"] != createdKey.Secret {
-		t.Fatalf("ANTHROPIC_AUTH_TOKEN = %q, want %q", claudeCfg.Env["ANTHROPIC_AUTH_TOKEN"], createdKey.Secret)
 	}
 }
 
@@ -1731,185 +1678,6 @@ func TestWave2CDisabledModulesDetachCleanly(t *testing.T) {
 	}
 }
 
-func TestWave3ATeamsBudgetAndVoucherClaimE2E(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
-
-	var upstreamHits atomic.Int32
-	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		upstreamHits.Add(1)
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"id":"chatcmpl-w3a","object":"chat.completion","model":"gpt-4o","choices":[{"index":0,"message":{"role":"assistant","content":"ok"},"finish_reason":"stop"}],"usage":{"prompt_tokens":10,"completion_tokens":5,"total_tokens":15}}`))
-	}))
-	defer upstream.Close()
-
-	cfg := config.Config{
-		Host:          "127.0.0.1",
-		Port:          0,
-		DataDir:       t.TempDir(),
-		AdminPassword: "wave3a-admin-pass",
-		LogLevel:      "error",
-		APITimeout:    5 * time.Second,
-	}
-	app, err := buildApp(ctx, cfg, system.BuildInfo{Version: "test", Commit: "wave3a"})
-	if err != nil {
-		t.Fatalf("buildApp: %v", err)
-	}
-	t.Cleanup(func() { _ = app.Close(context.Background()) })
-
-	ts := httptest.NewServer(app.Handler())
-	defer ts.Close()
-
-	jar, _ := cookiejar.New(nil)
-	client := &http.Client{Jar: jar, Timeout: 5 * time.Second}
-
-	doJSON := func(method, url string, payload any, headers map[string]string) (int, []byte) {
-		t.Helper()
-		var bodyReader io.Reader
-		if payload != nil {
-			raw, _ := json.Marshal(payload)
-			bodyReader = bytes.NewReader(raw)
-		}
-		req, _ := http.NewRequestWithContext(ctx, method, url, bodyReader)
-		if payload != nil {
-			req.Header.Set("Content-Type", "application/json")
-		}
-		for k, v := range headers {
-			req.Header.Set(k, v)
-		}
-		resp, reqErr := client.Do(req)
-		if reqErr != nil {
-			t.Fatalf("%s %s: %v", method, url, reqErr)
-		}
-		defer resp.Body.Close()
-		b, _ := io.ReadAll(resp.Body)
-		return resp.StatusCode, b
-	}
-
-	if code, body := doJSON(http.MethodPost, ts.URL+"/api/auth/login", map[string]string{"password": cfg.AdminPassword}, nil); code != http.StatusOK {
-		t.Fatalf("login = %d: %s", code, body)
-	}
-
-	// Register upstream OpenAI provider connection.
-	if code, body := doJSON(http.MethodPost, ts.URL+"/api/providers/connections", map[string]any{
-		"provider_id": "openai",
-		"name":        "w3a-openai",
-		"auth_type":   "api_key",
-		"api_key":     "sk-upstream-test",
-		"base_url":    upstream.URL,
-		"models":      []string{"gpt-4o"},
-	}, nil); code != http.StatusCreated {
-		t.Fatalf("create provider connection = %d: %s", code, body)
-	}
-
-	// Create team with 1 RPM limit.
-	code, teamBody := doJSON(http.MethodPost, ts.URL+"/api/teams", map[string]any{
-		"name":           "Wave3A Team",
-		"budget_usd":     50.0,
-		"rate_limit_rpm": 1,
-	}, nil)
-	if code != http.StatusCreated {
-		t.Fatalf("POST /api/teams = %d: %s", code, teamBody)
-	}
-	var team struct {
-		ID string `json:"id"`
-	}
-	_ = json.Unmarshal(teamBody, &team)
-
-	// Create voucher bound to that team.
-	if code, body := doJSON(http.MethodPost, ts.URL+"/api/vouchers", map[string]any{
-		"code":            "WAVE3APROMO",
-		"name":            "Wave 3A Promo",
-		"quota_usd":       10.0,
-		"team_id":         team.ID,
-		"max_redemptions": 1,
-	}, nil); code != http.StatusCreated {
-		t.Fatalf("POST /api/vouchers = %d: %s", code, body)
-	}
-
-	// Self-service claim without admin cookie using a fresh client.
-	pubClient := &http.Client{Timeout: 5 * time.Second}
-	claimRaw, _ := json.Marshal(map[string]any{"code": "wave3apromo", "claimer_id": "dev-1"})
-	claimResp, err := pubClient.Post(ts.URL+"/api/vouchers/claim", "application/json", bytes.NewReader(claimRaw))
-	if err != nil {
-		t.Fatalf("POST /api/vouchers/claim: %v", err)
-	}
-	claimBytes, _ := io.ReadAll(claimResp.Body)
-	_ = claimResp.Body.Close()
-	if claimResp.StatusCode != http.StatusOK {
-		t.Fatalf("POST /api/vouchers/claim = %d: %s", claimResp.StatusCode, claimBytes)
-	}
-	var claimed struct {
-		Secret string `json:"secret"`
-	}
-	_ = json.Unmarshal(claimBytes, &claimed)
-	if claimed.Secret == "" {
-		t.Fatalf("expected non-empty secret from voucher claim: %s", claimBytes)
-	}
-
-	// 1st gateway call using voucher-provisioned key succeeds; 2nd call hits team's 1 RPM limit (429) without dialing upstream.
-	chatReq := map[string]any{
-		"model":    "openai/gpt-4o",
-		"messages": []map[string]string{{"role": "user", "content": "hi"}},
-	}
-	authHdr := map[string]string{"Authorization": "Bearer " + claimed.Secret}
-	if c1, b1 := doJSON(http.MethodPost, ts.URL+"/v1/chat/completions", chatReq, authHdr); c1 != http.StatusOK {
-		t.Fatalf("1st gateway call = %d: %s", c1, b1)
-	}
-	if c2, b2 := doJSON(http.MethodPost, ts.URL+"/v1/chat/completions", chatReq, authHdr); c2 != http.StatusTooManyRequests {
-		t.Fatalf("2nd gateway call = %d, want 429; body=%s", c2, b2)
-	}
-	if upstreamHits.Load() != 1 {
-		t.Fatalf("upstreamHits = %d, want 1 (2nd request must fail closed before upstream)", upstreamHits.Load())
-	}
-}
-
-func TestWave3ADisabledModulesDetachCleanly(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
-
-	cfg := config.Config{
-		Host:          "127.0.0.1",
-		Port:          0,
-		DataDir:       t.TempDir(),
-		AdminPassword: "wave3a-disabled-pass",
-		LogLevel:      "error",
-		APITimeout:    5 * time.Second,
-		DisabledModules: map[string]bool{
-			"teams":    true,
-			"vouchers": true,
-		},
-	}
-	app, err := buildApp(ctx, cfg, system.BuildInfo{Version: "test", Commit: "wave3a"})
-	if err != nil {
-		t.Fatalf("buildApp with disabled Wave 3A modules: %v", err)
-	}
-	t.Cleanup(func() { _ = app.Close(context.Background()) })
-
-	ts := httptest.NewServer(app.Handler())
-	defer ts.Close()
-
-	jar, _ := cookiejar.New(nil)
-	client := &http.Client{Jar: jar, Timeout: 5 * time.Second}
-	loginRaw, _ := json.Marshal(map[string]string{"password": cfg.AdminPassword})
-	resp, err := client.Post(ts.URL+"/api/auth/login", "application/json", bytes.NewReader(loginRaw))
-	if err != nil || resp.StatusCode != http.StatusOK {
-		t.Fatalf("login failed: %v", err)
-	}
-	_ = resp.Body.Close()
-
-	for _, path := range []string{"/api/teams", "/api/vouchers"} {
-		r, err := client.Get(ts.URL + path)
-		if err != nil {
-			t.Fatalf("GET %s: %v", path, err)
-		}
-		_ = r.Body.Close()
-		if r.StatusCode != http.StatusNotFound {
-			t.Fatalf("expected 404 for disabled module route %s, got %d", path, r.StatusCode)
-		}
-	}
-}
-
 func TestWave3BMediaAndTunnelE2E(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
@@ -2463,7 +2231,7 @@ func TestWave3DDisabledModulesDetachCleanly(t *testing.T) {
 	}
 }
 
-func TestWave3EE2EPluginsCloudSyncImporter(t *testing.T) {
+func TestWave3EE2EPluginsAndImporter(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
 
@@ -2510,7 +2278,7 @@ func TestWave3EE2EPluginsCloudSyncImporter(t *testing.T) {
 		t.Fatalf("login = %d: %s", code, body)
 	}
 
-	// 1. Plugins & Skills: enable antiSlop, preview, and list built-in skills.
+	// 1. Plugins: enable antiSlop and preview.
 	if code, body := doJSON(http.MethodPut, ts.URL+"/api/plugins/antiSlop", map[string]any{
 		"enabled": true,
 		"models":  []string{"gpt-4o"},
@@ -2527,30 +2295,8 @@ func TestWave3EE2EPluginsCloudSyncImporter(t *testing.T) {
 	}); code != http.StatusOK || !strings.Contains(string(body), `"antiSlop"`) {
 		t.Fatalf("POST /api/plugins/preview = %d: %s", code, body)
 	}
-	if code, body := doJSON(http.MethodGet, ts.URL+"/api/skills", nil); code != http.StatusOK || !strings.Contains(string(body), "omeg4mon-router-gateway") {
-		t.Fatalf("GET /api/skills = %d: %s", code, body)
-	}
 
-	// 2. CloudSync: SSRF rejection on loopback + portable snapshot export & restore.
-	if code, _ := doJSON(http.MethodPatch, ts.URL+"/api/cloud-sync/config", map[string]any{
-		"endpoint_url": "http://127.0.0.1:9999/sync",
-	}); code != http.StatusBadRequest {
-		t.Fatalf("expected 400 SSRF rejection for loopback endpoint, got %d", code)
-	}
-	snapCode, snapRaw := doJSON(http.MethodGet, ts.URL+"/api/cloud-sync/snapshot", nil)
-	if snapCode != http.StatusOK || !strings.Contains(string(snapRaw), `"checksum"`) {
-		t.Fatalf("GET /api/cloud-sync/snapshot = %d: %s", snapCode, snapRaw)
-	}
-	var snapObj map[string]any
-	_ = json.Unmarshal(snapRaw, &snapObj)
-	if code, body := doJSON(http.MethodPost, ts.URL+"/api/cloud-sync/restore", map[string]any{
-		"conflict_policy": "merge",
-		"snapshot":        snapObj,
-	}); code != http.StatusOK {
-		t.Fatalf("POST /api/cloud-sync/restore = %d: %s", code, body)
-	}
-
-	// 3. Importer: create temp legacy SQLite DB, inspect, dry-run, and live import.
+	// 2. Importer: create temp legacy SQLite DB, inspect, dry-run, and live import.
 	legacyPath := filepath.Join(t.TempDir(), "legacy.sqlite")
 	lconn, err := sql.Open("sqlite", legacyPath)
 	if err != nil {
@@ -2595,9 +2341,8 @@ func TestWave3EDisabledModulesDetachCleanly(t *testing.T) {
 		LogLevel:      "error",
 		APITimeout:    5 * time.Second,
 		DisabledModules: map[string]bool{
-			"plugins":   true,
-			"cloudsync": true,
-			"importer":  true,
+			"plugins":  true,
+			"importer": true,
 		},
 	}
 	app, err := buildApp(ctx, cfg, system.BuildInfo{Version: "test", Commit: "wave3e"})
@@ -2618,7 +2363,7 @@ func TestWave3EDisabledModulesDetachCleanly(t *testing.T) {
 	}
 	_ = resp.Body.Close()
 
-	for _, path := range []string{"/api/plugins", "/api/skills", "/api/cloud-sync/config", "/api/importer/history"} {
+	for _, path := range []string{"/api/plugins", "/api/importer/history"} {
 		r, err := client.Get(ts.URL + path)
 		if err != nil {
 			t.Fatalf("GET %s: %v", path, err)

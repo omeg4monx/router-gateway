@@ -93,7 +93,7 @@ components:
   schemas:
     TokenSaverConfig:
       type: object
-      required: [enabled, strategy, max_history_messages, max_tool_output_chars, headroom_enabled, prefix_depth, max_cache_entries, cache_ttl_seconds, inject_cache_control, updated_at]
+      required: [enabled, strategy, max_history_messages, max_tool_output_chars, headroom_enabled, prefix_depth, max_cache_entries, cache_ttl_seconds, inject_cache_control, caveman_enabled, caveman_level, ponytail_enabled, ponytail_level, trim_history_enabled, updated_at]
       properties:
         enabled: { type: boolean }
         strategy: { type: string, enum: [off, whitespace, dedupe, aggressive] }
@@ -104,6 +104,11 @@ components:
         max_cache_entries: { type: integer }
         cache_ttl_seconds: { type: integer }
         inject_cache_control: { type: boolean }
+        caveman_enabled: { type: boolean }
+        caveman_level: { type: string, enum: [lite, full, ultra] }
+        ponytail_enabled: { type: boolean }
+        ponytail_level: { type: string, enum: [lite, full, ultra] }
+        trim_history_enabled: { type: boolean }
         updated_at: { type: string }
     TokenSaverConfigPatch:
       type: object
@@ -117,6 +122,11 @@ components:
         max_cache_entries: { type: integer }
         cache_ttl_seconds: { type: integer }
         inject_cache_control: { type: boolean }
+        caveman_enabled: { type: boolean }
+        caveman_level: { type: string, enum: [lite, full, ultra] }
+        ponytail_enabled: { type: boolean }
+        ponytail_level: { type: string, enum: [lite, full, ultra] }
+        trim_history_enabled: { type: boolean }
     CompressionStats:
       type: object
       required: [requests_processed, requests_compressed, bytes_saved, estimated_tokens_saved]

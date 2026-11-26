@@ -41,6 +41,7 @@ describe("OmniRoute Load Models feature contracts", () => {
     expect(detailSource).toContain("modelTestResults");
     expect(detailSource).toContain("handleTestModel");
     expect(detailSource).toContain("modelTestControllersRef");
+    expect(detailSource).toContain("canProbeProviderModels");
   });
 
   test("sortProviderModels sorts models naturally in asc and desc order without mutating input", () => {

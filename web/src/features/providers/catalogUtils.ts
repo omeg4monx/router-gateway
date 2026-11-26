@@ -82,6 +82,15 @@ const ADAPTER_TO_REGISTRY_ID: Record<string, string> = {
   "aws-quick": "aws-quick",
 };
 
+export function canProbeProviderModels(
+  entry: Pick<ProviderEntry, "noAuth" | "baseUrl" | "stats">,
+): boolean {
+  if (entry.stats.total > 0) {
+    return !entry.stats.allDisabled && entry.stats.total - entry.stats.disabled > 0;
+  }
+  return Boolean(entry.noAuth && entry.baseUrl.trim() !== "");
+}
+
 export function getProviderMonogram(name: string, id: string): string {
   const source = (name || id || "PR").trim();
   const words = source.split(/[\s\-_/]+/).filter(Boolean);

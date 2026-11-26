@@ -33,6 +33,8 @@ type Config struct {
 	AllowInsecureRemote bool
 	LogLevel            string
 	APITimeout          time.Duration
+	TLSCertFile         string
+	TLSKeyFile          string
 }
 
 // CoreModules returns the names of core modules that cannot be disabled.
@@ -96,6 +98,8 @@ func Load(args []string, getenv func(string) string) (Config, error) {
 		}
 		cfg.APITimeout = d
 	}
+	cfg.TLSCertFile = strings.TrimSpace(getenv("OMEG4MON_TLS_CERT_FILE"))
+	cfg.TLSKeyFile = strings.TrimSpace(getenv("OMEG4MON_TLS_KEY_FILE"))
 
 	disabled, err := parseDisabledModules(getenv("OMEG4MON_DISABLED_MODULES"))
 	if err != nil {
@@ -109,6 +113,8 @@ func Load(args []string, getenv func(string) string) (Config, error) {
 	fs.IntVar(&cfg.Port, "port", cfg.Port, "listen port")
 	fs.StringVar(&cfg.DataDir, "data-dir", cfg.DataDir, "data directory path")
 	fs.StringVar(&cfg.LogLevel, "log-level", cfg.LogLevel, "log level")
+	fs.StringVar(&cfg.TLSCertFile, "tls-cert-file", cfg.TLSCertFile, "path to TLS certificate PEM file")
+	fs.StringVar(&cfg.TLSKeyFile, "tls-key-file", cfg.TLSKeyFile, "path to TLS private key PEM file")
 	if err := fs.Parse(args); err != nil {
 		return Config{}, err
 	}
@@ -116,6 +122,8 @@ func Load(args []string, getenv func(string) string) (Config, error) {
 	cfg.Host = strings.TrimSpace(cfg.Host)
 	cfg.DataDir = strings.TrimSpace(cfg.DataDir)
 	cfg.LogLevel = strings.TrimSpace(cfg.LogLevel)
+	cfg.TLSCertFile = strings.TrimSpace(cfg.TLSCertFile)
+	cfg.TLSKeyFile = strings.TrimSpace(cfg.TLSKeyFile)
 
 	if cfg.Host == "" {
 		return Config{}, errors.New("host must not be empty")
@@ -126,8 +134,16 @@ func Load(args []string, getenv func(string) string) (Config, error) {
 	if cfg.DataDir == "" {
 		return Config{}, errors.New("data-dir must not be empty")
 	}
+	if (cfg.TLSCertFile == "") != (cfg.TLSKeyFile == "") {
+		return Config{}, errors.New("tls-cert-file and tls-key-file must both be set when enabling TLS")
+	}
 
 	return cfg, nil
+}
+
+// TLSEnabled reports whether native TLS certificate and key files are configured.
+func (c Config) TLSEnabled() bool {
+	return c.TLSCertFile != "" && c.TLSKeyFile != ""
 }
 
 // Addr returns the formatted host:port listen address.

@@ -261,7 +261,7 @@ type JobInspector interface {
 }
 
 // ProvisionKeyRequest describes parameters for minting a new gateway API key
-// from another module (such as vouchers) without importing internal/modules/keys.
+// from another module (such as importer) without importing internal/modules/keys.
 type ProvisionKeyRequest struct {
 	Name          string
 	AllowedModels []string
@@ -286,11 +286,6 @@ type ProvisionedKey struct {
 type KeyProvisioner interface {
 	ProvisionKey(ctx context.Context, req ProvisionKeyRequest) (ProvisionedKey, error)
 	RevokeKey(ctx context.Context, keyID string) error
-}
-
-// TeamAssigner binds a gateway API key to a team for shared budget/RPM grouping.
-type TeamAssigner interface {
-	AssignKeyToTeam(ctx context.Context, teamID, keyID string) error
 }
 
 // ChatMessage represents a single role/content message in an internal chat completion request.
@@ -326,7 +321,7 @@ type ChatCompleter interface {
 }
 
 // SettingsSnapshotter exports and imports typed control-plane settings across
-// modules (such as cloudsync and importer) without importing internal/modules/settings.
+// modules (such as importer) without importing internal/modules/settings.
 type SettingsSnapshotter interface {
 	ExportSettings(ctx context.Context) (map[string]any, error)
 	ImportSettings(ctx context.Context, values map[string]any, actor, reason string) (int, error)

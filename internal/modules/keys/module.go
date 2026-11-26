@@ -193,7 +193,7 @@ func (m *Module) Stop(ctx context.Context) error {
 }
 
 // ProvisionKey mints a new gateway API key programmatically on behalf of
-// authorized modules (such as vouchers) and emits keys.changed on the bus.
+// authorized modules (such as importer) and emits keys.changed on the bus.
 func (m *Module) ProvisionKey(ctx context.Context, req contracts.ProvisionKeyRequest) (contracts.ProvisionedKey, error) {
 	name, err := validateName(req.Name)
 	if err != nil {

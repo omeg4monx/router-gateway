@@ -140,3 +140,27 @@ func TestCodexOAuthExchangeEnrichesNameFromIDTokenJWT(t *testing.T) {
 		t.Fatalf("expected connection name enriched with email, got %q", conn.Name)
 	}
 }
+
+func TestOAuthCallbackUsesHTTPSBehindReverseProxy(t *testing.T) {
+	t.Parallel()
+
+	h := newTestHarness(t, nil, nil)
+	defer func() { _ = h.mod.Stop(context.Background()) }()
+
+	req := httptest.NewRequest(http.MethodGet, "/api/providers/oauth/callback?code=abc123&state=st_1", nil)
+	req.Host = "router.example.com"
+	req.Header.Set("X-Forwarded-Proto", "https")
+	rec := httptest.NewRecorder()
+	h.server.Handler().ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("GET /api/providers/oauth/callback status = %d, want 200", rec.Code)
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, "https://router.example.com/api/providers/oauth/callback") {
+		t.Fatalf("expected callback HTML to embed https:// callback URL, got: %s", body)
+	}
+	if strings.Contains(body, "http://router.example.com/api/providers/oauth/callback") {
+		t.Fatalf("callback HTML unexpectedly used http:// scheme behind HTTPS proxy")
+	}
+}

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"strconv"
 	"time"
 	"unicode/utf8"
 
@@ -59,6 +60,14 @@ type policyResponse struct {
 }
 
 func (m *Module) handleLogin(w http.ResponseWriter, r *http.Request) {
+	clientKey := clientRateLimitKey(r)
+	now := time.Now().UTC()
+	if allowed, retryAfter := m.loginLimiter.check(clientKey, now); !allowed {
+		w.Header().Set("Retry-After", strconv.Itoa(retryAfter))
+		httpserver.WriteError(w, r, http.StatusTooManyRequests, "rate_limited", "too many failed login attempts; please try again later")
+		return
+	}
+
 	var req loginRequest
 	if !decodeJSONBody(w, r, &req) {
 		return
@@ -80,9 +89,12 @@ func (m *Module) handleLogin(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if !crypto.VerifyPassword(hash, req.Password) {
+		m.loginLimiter.recordFailure(clientKey, now)
 		httpserver.WriteError(w, r, http.StatusUnauthorized, "invalid_credentials", "invalid admin password")
 		return
 	}
+
+	m.loginLimiter.reset(clientKey)
 
 	expiresAt := time.Now().UTC().Add(m.sessionTTL)
 	token, err := m.sessions.Sign(adminSubject, m.sessionTTL)
@@ -122,7 +134,7 @@ func (m *Module) handleMe(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	remoteEnforced := m.remoteEnforced()
+	remoteEnforced := m.remoteEnforcedForRequest(r)
 	requireLogin := true
 	if !remoteEnforced {
 		reqLogin, err := m.store.RequireLogin(r.Context())
@@ -232,7 +244,7 @@ func (m *Module) handleUpdatePolicy(w http.ResponseWriter, r *http.Request) {
 	}
 
 	wantRequireLogin := *req.RequireLogin
-	remoteEnforced := m.remoteEnforced()
+	remoteEnforced := m.remoteEnforcedForRequest(r)
 	if !wantRequireLogin && remoteEnforced {
 		httpserver.WriteError(w, r, http.StatusForbidden, "remote_login_required", "login cannot be disabled on non-loopback bind addresses unless OMEG4MON_ALLOW_INSECURE_REMOTE is enabled")
 		return

@@ -51,7 +51,7 @@ import {
 } from "../models/hooks";
 import type { CatalogTestResult } from "../models/types";
 import { AddCustomModelModal } from "./AddCustomModelModal";
-import { buildProviderEntries, type ProviderEntry } from "./catalogUtils";
+import { buildProviderEntries, canProbeProviderModels, type ProviderEntry } from "./catalogUtils";
 import { removeModelFromList } from "./customModelUtils";
 import {
   type FetchConnectionModelsResponse,
@@ -349,6 +349,7 @@ function ProviderStudioDetail({ providerId }: { providerId: string }) {
   const externalLinkUrl = entry.apiKeyUrl ?? entry.signupUrl ?? entry.website;
   const modelPrefix = entry.alias || entry.id;
   const enabledCount = sortedConnections.filter((c) => c.enabled).length;
+  const canTestModels = canProbeProviderModels(entry);
 
   const oauthButtonLabel =
     entry.id === "aws-quick"
@@ -471,7 +472,7 @@ function ProviderStudioDetail({ providerId }: { providerId: string }) {
   };
 
   const handleTestModel = async (modelId: string) => {
-    if (enabledCount === 0 || testingModelIds[modelId]) {
+    if (!canTestModels || testingModelIds[modelId]) {
       return;
     }
     const previous = modelTestControllersRef.current.get(modelId);
@@ -498,7 +499,7 @@ function ProviderStudioDetail({ providerId }: { providerId: string }) {
   };
 
   const handleIdentifyModel = async (modelId: string) => {
-    if (enabledCount === 0 || identifyingModelIds[modelId]) {
+    if (!canTestModels || identifyingModelIds[modelId]) {
       return;
     }
     const previous = modelIdentityControllersRef.current.get(modelId);
@@ -1448,7 +1449,7 @@ function ProviderStudioDetail({ providerId }: { providerId: string }) {
                             </Badge>
                           ) : (
                             <span className="font-mono text-[10.5px] text-[var(--color-text-subtle)]">
-                              {enabledCount > 0
+                              {canTestModels
                                 ? isId
                                   ? "Siap diuji"
                                   : "Ready"
@@ -1464,11 +1465,11 @@ function ProviderStudioDetail({ providerId }: { providerId: string }) {
                             type="button"
                             size="xs"
                             variant="secondary"
-                            disabled={enabledCount === 0 || isTestingModel}
+                            disabled={!canTestModels || isTestingModel}
                             onClick={() => void handleTestModel(model.id)}
                             aria-label={`Test ${fullModel}`}
                             title={
-                              enabledCount > 0
+                              canTestModels
                                 ? isId
                                   ? `Tes model ${fullModel}`
                                   : `Test model ${fullModel}`
@@ -1489,11 +1490,11 @@ function ProviderStudioDetail({ providerId }: { providerId: string }) {
                             type="button"
                             size="xs"
                             variant="secondary"
-                            disabled={enabledCount === 0 || isIdentifyingModel}
+                            disabled={!canTestModels || isIdentifyingModel}
                             onClick={() => void handleIdentifyModel(model.id)}
                             aria-label={`Unmask ${fullModel}`}
                             title={
-                              enabledCount > 0
+                              canTestModels
                                 ? isId
                                   ? `Cek identitas asli model ${fullModel} (deteksi masking)`
                                   : `Probe true identity of ${fullModel} (detect masking)`

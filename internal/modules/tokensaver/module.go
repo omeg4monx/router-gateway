@@ -157,7 +157,7 @@ func (m *Module) OnRequest(_ context.Context, req *contracts.CanonicalRequest) e
 		return nil
 	}
 	cfg := m.snapshotConfig()
-	if !cfg.Enabled && !cfg.HeadroomEnabled {
+	if !cfg.Enabled && !cfg.HeadroomEnabled && !cfg.CavemanEnabled && !cfg.PonytailEnabled && !cfg.TrimHistoryEnabled {
 		return nil
 	}
 	if req.Metadata == nil {
@@ -165,15 +165,32 @@ func (m *Module) OnRequest(_ context.Context, req *contracts.CanonicalRequest) e
 	}
 
 	bypassSaver, _ := req.Metadata["bypass_tokensaver"].(bool)
-	if cfg.Enabled && !bypassSaver {
-		m.reqProcessed.Add(1)
-		out, savedBytes, savedTokens, mutated := compressPayload(req.Body, cfg)
-		if mutated {
-			req.Body = out
-			m.reqCompressed.Add(1)
-			m.bytesSaved.Add(savedBytes)
-			m.tokensSaved.Add(savedTokens)
-			req.Metadata["tokens_saved"] = savedTokens
+	if !bypassSaver {
+		if cfg.Enabled {
+			m.reqProcessed.Add(1)
+			out, savedBytes, savedTokens, mutated := compressPayload(req.Body, cfg)
+			if mutated {
+				req.Body = out
+				m.reqCompressed.Add(1)
+				m.bytesSaved.Add(savedBytes)
+				m.tokensSaved.Add(savedTokens)
+				req.Metadata["tokens_saved"] = savedTokens
+			}
+		} else if cfg.TrimHistoryEnabled {
+			m.reqProcessed.Add(1)
+			out, savedBytes, savedTokens, mutated := trimPayloadHistory(req.Body, cfg.MaxHistoryMessages)
+			if mutated {
+				req.Body = out
+				m.reqCompressed.Add(1)
+				m.bytesSaved.Add(savedBytes)
+				m.tokensSaved.Add(savedTokens)
+				req.Metadata["tokens_saved"] = savedTokens
+			}
+		}
+		if cfg.CavemanEnabled || cfg.PonytailEnabled {
+			if updated, changed := injectOutputDirectives(req.Protocol, req.Body, cfg); changed {
+				req.Body = updated
+			}
 		}
 	}
 
@@ -271,6 +288,11 @@ func (m *Module) handlePatchConfig(w http.ResponseWriter, r *http.Request) {
 		MaxCacheEntries    *int    `json:"max_cache_entries"`
 		CacheTTLSeconds    *int    `json:"cache_ttl_seconds"`
 		InjectCacheControl *bool   `json:"inject_cache_control"`
+		CavemanEnabled     *bool   `json:"caveman_enabled"`
+		CavemanLevel       *string `json:"caveman_level"`
+		PonytailEnabled    *bool   `json:"ponytail_enabled"`
+		PonytailLevel      *string `json:"ponytail_level"`
+		TrimHistoryEnabled *bool   `json:"trim_history_enabled"`
 	}
 	if !decodeJSONBody(w, r, &patch) {
 		return
@@ -332,6 +354,31 @@ func (m *Module) handlePatchConfig(w http.ResponseWriter, r *http.Request) {
 	}
 	if patch.InjectCacheControl != nil {
 		cfg.InjectCacheControl = *patch.InjectCacheControl
+	}
+	if patch.CavemanEnabled != nil {
+		cfg.CavemanEnabled = *patch.CavemanEnabled
+	}
+	if patch.CavemanLevel != nil {
+		lvl := strings.TrimSpace(*patch.CavemanLevel)
+		if !isValidLevel(lvl) {
+			httpserver.WriteError(w, r, http.StatusBadRequest, "invalid_caveman_level", "caveman_level must be lite, full, or ultra")
+			return
+		}
+		cfg.CavemanLevel = lvl
+	}
+	if patch.PonytailEnabled != nil {
+		cfg.PonytailEnabled = *patch.PonytailEnabled
+	}
+	if patch.PonytailLevel != nil {
+		lvl := strings.TrimSpace(*patch.PonytailLevel)
+		if !isValidLevel(lvl) {
+			httpserver.WriteError(w, r, http.StatusBadRequest, "invalid_ponytail_level", "ponytail_level must be lite, full, or ultra")
+			return
+		}
+		cfg.PonytailLevel = lvl
+	}
+	if patch.TrimHistoryEnabled != nil {
+		cfg.TrimHistoryEnabled = *patch.TrimHistoryEnabled
 	}
 
 	saved, err := m.repo.saveConfig(r.Context(), cfg)

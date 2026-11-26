@@ -663,6 +663,7 @@ func (m *Module) executeInferenceCandidates(
 			errMsg:     err.Error(),
 		}
 	}
+	candidates = prioritizeHeadroomAffinity(candidates, icReq.Metadata)
 
 	var (
 		lastStatus      = http.StatusBadGateway
@@ -936,6 +937,9 @@ func (m *Module) executeCandidateAttempt(
 
 	upCtx := httpclient.WithProviderID(ctx, cand.ProviderID)
 	curBody := upBody
+	if cand.ProviderID == "antigravity" {
+		curBody = rewriteAntigravitySystemInstruction(curBody)
+	}
 	retriedSystemToUser := false
 
 	var resp *http.Response
@@ -1287,4 +1291,38 @@ func buildCompactedResponse(canon *CanonicalChatResponse) map[string]any {
 			}},
 		}},
 	}
+}
+
+// prioritizeHeadroomAffinity promotes the sticky Headroom prefix-cache candidate
+// to index 0 while preserving fallback order for all remaining healthy candidates.
+func prioritizeHeadroomAffinity(candidates []contracts.ResolvedTarget, metadata map[string]any) []contracts.ResolvedTarget {
+	if len(candidates) <= 1 || len(metadata) == 0 {
+		return candidates
+	}
+	connID, _ := metadata["headroom_affinity_connection"].(string)
+	if connID == "" {
+		return candidates
+	}
+	provID, _ := metadata["headroom_affinity_provider"].(string)
+
+	matchIdx := -1
+	for i, cand := range candidates {
+		if cand.ConnectionID != connID {
+			continue
+		}
+		if provID != "" && cand.ProviderID != provID {
+			continue
+		}
+		matchIdx = i
+		break
+	}
+	if matchIdx <= 0 {
+		return candidates
+	}
+
+	ordered := make([]contracts.ResolvedTarget, 0, len(candidates))
+	ordered = append(ordered, candidates[matchIdx])
+	ordered = append(ordered, candidates[:matchIdx]...)
+	ordered = append(ordered, candidates[matchIdx+1:]...)
+	return ordered
 }

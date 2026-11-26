@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -629,5 +630,208 @@ func TestProbeAndIdentifyRecordUsageTelemetry(t *testing.T) {
 	// Identify probe
 	if r := recorder.records[5]; r.ProviderID != "omeg4mon" || r.Model != "gpt-4o" || r.InputTokens != 18 || r.OutputTokens != 7 || r.CachedTokens != 4 || r.StatusCode != 200 || r.KeyID != "admin-probe" {
 		t.Errorf("unexpected identify probe usage record: %+v", r)
+	}
+}
+
+type roundTripFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
+	return f(req)
+}
+
+func TestKeylessFreeProviderModelProbeAndIdentify(t *testing.T) {
+	type capturedReq struct {
+		url     string
+		headers http.Header
+		body    map[string]any
+	}
+	var captured []capturedReq
+
+	mockClient := &http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			rawBody, _ := io.ReadAll(req.Body)
+			var parsed map[string]any
+			_ = json.Unmarshal(rawBody, &parsed)
+			captured = append(captured, capturedReq{
+				url:     req.URL.String(),
+				headers: req.Header.Clone(),
+				body:    parsed,
+			})
+			if strings.Contains(req.URL.Host, "opencode.ai") {
+				sse := "data: {\"id\":\"chatcmpl-oc\",\"model\":\"big-pickle\",\"choices\":[{\"delta\":{\"role\":\"assistant\",\"content\":\"I am big-pickle.\"}}]}\n\n" +
+					"data: {\"id\":\"chatcmpl-oc\",\"model\":\"big-pickle\",\"choices\":[{\"delta\":{},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":6,\"completion_tokens\":4}}\n\n" +
+					"data: [DONE]\n\n"
+				return &http.Response{
+					StatusCode: http.StatusOK,
+					Header:     http.Header{"Content-Type": []string{"text/event-stream"}},
+					Body:       io.NopCloser(strings.NewReader(sse)),
+				}, nil
+			}
+			body := `{"id":"chatcmpl-keyless","model":"venice-uncensored-1-2","choices":[{"message":{"role":"assistant","content":"I am venice-uncensored-1-2."}}],"usage":{"prompt_tokens":5,"completion_tokens":3}}`
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+				Body:       io.NopCloser(strings.NewReader(body)),
+			}, nil
+		}),
+	}
+
+	database, err := db.Open(t.TempDir() + "/keyless-probe-test.sqlite")
+	if err != nil {
+		t.Fatalf("open db: %v", err)
+	}
+	t.Cleanup(func() { _ = database.Close() })
+
+	emptyStore := &catalogFakeProviderStore{}
+	mod := combos.New(combos.Options{
+		DB:         database,
+		Providers:  emptyStore,
+		HTTPClient: mockClient,
+		Now:        func() time.Time { return time.Date(2026, 11, 26, 0, 0, 0, 0, time.UTC) },
+	})
+	reg := lifecycle.NewRegistry(nil)
+	if err := reg.Register(stubModule{name: "system"}); err != nil {
+		t.Fatalf("register system: %v", err)
+	}
+	if err := reg.Register(stubModule{name: "providers", deps: []string{"system"}}); err != nil {
+		t.Fatalf("register providers: %v", err)
+	}
+	if err := reg.Register(mod); err != nil {
+		t.Fatalf("register combos: %v", err)
+	}
+	if err := reg.MigrateAll(context.Background(), database); err != nil {
+		t.Fatalf("apply migrations: %v", err)
+	}
+	if err := mod.Start(context.Background()); err != nil {
+		t.Fatalf("start module: %v", err)
+	}
+
+	router := chi.NewRouter()
+	router.Route("/api", func(r chi.Router) {
+		mod.RegisterRoutes(lifecycle.RouteMounts{AdminAPI: r})
+	})
+
+	cases := []struct {
+		providerID string
+		modelID    string
+	}{
+		{"venice", "venice-uncensored-1-2"},
+		{"opencode", "big-pickle"},
+		{"ovh", "Qwen3.6-27B"},
+	}
+
+	for _, tc := range cases {
+		rec := httptest.NewRecorder()
+		payload := `{"providerId":"` + tc.providerID + `","modelId":"` + tc.modelID + `"}`
+		router.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/api/models/test", bytes.NewBufferString(payload)))
+		if rec.Code != http.StatusOK {
+			t.Fatalf("POST /api/models/test (%s) status = %d: %s", tc.providerID, rec.Code, rec.Body.String())
+		}
+		var res combos.ModelTestResult
+		if err := json.Unmarshal(rec.Body.Bytes(), &res); err != nil {
+			t.Fatalf("decode test result (%s): %v", tc.providerID, err)
+		}
+		if !res.OK || res.Status != "ok" {
+			t.Fatalf("expected ok probe for keyless provider %q, got %+v", tc.providerID, res)
+		}
+	}
+
+	// Identify probe must also work for keyless providers (both JSON and OpenCode SSE).
+	for _, tc := range []struct {
+		providerID string
+		modelID    string
+	}{
+		{"venice", "venice-uncensored-1-2"},
+		{"opencode", "big-pickle"},
+	} {
+		idRec := httptest.NewRecorder()
+		router.ServeHTTP(idRec, httptest.NewRequest(http.MethodPost, "/api/models/identify", bytes.NewBufferString(`{"providerId":"`+tc.providerID+`","modelId":"`+tc.modelID+`"}`)))
+		if idRec.Code != http.StatusOK {
+			t.Fatalf("POST /api/models/identify (%s) status = %d: %s", tc.providerID, idRec.Code, idRec.Body.String())
+		}
+		var idRes combos.ModelIdentityResult
+		if err := json.Unmarshal(idRec.Body.Bytes(), &idRes); err != nil {
+			t.Fatalf("decode identify result (%s): %v", tc.providerID, err)
+		}
+		if !idRes.OK || idRes.Verdict == "error" {
+			t.Fatalf("expected ok identify probe for keyless provider %s, got %+v", tc.providerID, idRes)
+		}
+	}
+
+	wantURLs := []string{
+		"https://outerface.venice.ai/api/inference/chat",
+		"https://opencode.ai/inference/openai/v1/chat/completions",
+		"https://oai.endpoints.kepler.ai.cloud.ovh.net/v1/chat/completions",
+		"https://outerface.venice.ai/api/inference/chat",
+		"https://opencode.ai/inference/openai/v1/chat/completions",
+	}
+	if len(captured) != len(wantURLs) {
+		t.Fatalf("captured %d upstream requests, want %d", len(captured), len(wantURLs))
+	}
+	for i, want := range wantURLs {
+		if captured[i].url != want {
+			t.Errorf("request[%d] URL = %q, want %q", i, captured[i].url, want)
+		}
+	}
+
+	// Venice & OVH must not send Authorization header; OpenCode v2 requires Bearer public + v2 CLI headers + fingerprint body.
+	if got := captured[0].headers.Get("Authorization"); got != "" {
+		t.Errorf("venice unexpected Authorization = %q", got)
+	}
+	if got := captured[2].headers.Get("Authorization"); got != "" {
+		t.Errorf("ovh unexpected Authorization = %q", got)
+	}
+	ocReq := captured[1]
+	if got := ocReq.headers.Get("Authorization"); got != "Bearer public" {
+		t.Errorf("opencode Authorization = %q, want %q", got, "Bearer public")
+	}
+	if got := ocReq.headers.Get("User-Agent"); !strings.HasPrefix(got, "opencode/latest/") || !strings.HasSuffix(got, "/cli") {
+		t.Errorf("opencode User-Agent = %q, want opencode/latest/*/cli", got)
+	}
+	if got := ocReq.headers.Get("x-opencode-client"); got != "cli" {
+		t.Errorf("opencode x-opencode-client = %q, want cli", got)
+	}
+	sessionID := ocReq.headers.Get("x-opencode-session")
+	if !strings.HasPrefix(sessionID, "ses_") || len(sessionID) != 30 {
+		t.Errorf("opencode x-opencode-session = %q, want 30-char ses_*", sessionID)
+	}
+	if ocReq.headers.Get("x-opencode-session-id") != sessionID || ocReq.headers.Get("x-session-id") != sessionID {
+		t.Errorf("opencode session header mismatch: %v", ocReq.headers)
+	}
+	if len(ocReq.headers.Get("x-opencode-project")) != 40 {
+		t.Errorf("opencode x-opencode-project = %q, want 40-hex", ocReq.headers.Get("x-opencode-project"))
+	}
+	if ocReq.headers.Get("Accept") != "text/event-stream" {
+		t.Errorf("opencode Accept = %q, want text/event-stream", ocReq.headers.Get("Accept"))
+	}
+	if stream, _ := ocReq.body["stream"].(bool); !stream {
+		t.Errorf("opencode probe body must set stream=true, got %v", ocReq.body["stream"])
+	}
+	tools, _ := ocReq.body["tools"].([]any)
+	if len(tools) != 5 {
+		t.Errorf("opencode probe body must include 5 canonical fingerprint tools, got %d", len(tools))
+	}
+	msgs, _ := ocReq.body["messages"].([]any)
+	hasEnv := false
+	for _, item := range msgs {
+		if m, ok := item.(map[string]any); ok && m["role"] == "system" {
+			if c, _ := m["content"].(string); strings.Contains(c, "<env>") {
+				hasEnv = true
+			}
+		}
+	}
+	if !hasEnv {
+		t.Errorf("opencode probe body must include <env> marker in system message, got %v", msgs)
+	}
+
+	// Non-keyless provider with zero connections must still report no enabled connection.
+	nonKeylessRec := httptest.NewRecorder()
+	router.ServeHTTP(nonKeylessRec, httptest.NewRequest(http.MethodPost, "/api/models/test", bytes.NewBufferString(`{"providerId":"openai","modelId":"gpt-4o"}`)))
+	var nonKeylessRes combos.ModelTestResult
+	if err := json.Unmarshal(nonKeylessRec.Body.Bytes(), &nonKeylessRes); err != nil {
+		t.Fatalf("decode non-keyless result: %v", err)
+	}
+	if nonKeylessRes.OK || !strings.Contains(nonKeylessRes.Error, "no enabled connection") {
+		t.Fatalf("expected no enabled connection error for openai without connections, got %+v", nonKeylessRes)
 	}
 }
