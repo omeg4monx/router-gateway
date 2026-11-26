@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light" data-locale="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>OMEG4MON ROUTER</title>
+    <meta
+      name="description"
+      content="Self-hosted OpenAI and Anthropic compatible LLM routing gateway."
+    />
+    <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+    <link rel="alternate icon" href="/favicon.ico" />
+    <script>
+      (() => {
+        try {
+          const t = localStorage.getItem("omeg4mon-theme");
+          if (t === "light" || t === "dark") {
+            document.documentElement.setAttribute("data-theme", t);
+          }
+          const l = localStorage.getItem("omeg4mon-locale");
+          if (l === "en" || l === "id") {
+            document.documentElement.setAttribute("lang", l);
+            document.documentElement.setAttribute("data-locale", l);
+          }
+        } catch {}
+      })();
+    </script>
+  </head>
+  <body class="min-h-screen bg-[var(--bg-canvas)] font-sans text-[var(--text-primary)]">
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

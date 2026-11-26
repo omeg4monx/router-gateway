@@ -1,0 +1,1353 @@
+openapi: 3.1.0
+info:
+  title: omeg4mon-router Combos & Routing Module API
+  version: 0.1.0
+paths:
+  /api/combos:
+    get:
+      operationId: listCombos
+      summary: List configured multi-model fallback combos
+      tags:
+        - combos
+      responses:
+        '200':
+          description: Configured fallback combos ordered by name.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListCombosResponse'
+        '401':
+          description: Administrative authentication is required.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '500':
+          description: Failed to load fallback combos.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+    post:
+      operationId: createCombo
+      summary: Create a new ordered multi-model fallback combo
+      tags:
+        - combos
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateComboRequest'
+      responses:
+        '201':
+          description: Fallback combo created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Combo'
+        '400':
+          description: Malformed request body or validation error.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Administrative authentication is required.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '409':
+          description: A combo with the requested name already exists.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '413':
+          description: Request body exceeds maximum allowed size.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '500':
+          description: Failed to create fallback combo.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+  /api/combos/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: Unique combo identifier.
+        schema:
+          type: string
+    get:
+      operationId: getCombo
+      summary: Retrieve a single fallback combo by ID
+      tags:
+        - combos
+      responses:
+        '200':
+          description: Fallback combo details.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Combo'
+        '401':
+          description: Administrative authentication is required.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Combo not found.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '500':
+          description: Failed to load combo.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+    patch:
+      operationId: updateCombo
+      summary: Update a fallback combo name, description, ordered targets, strategy, or enabled state
+      tags:
+        - combos
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateComboRequest'
+      responses:
+        '200':
+          description: Fallback combo updated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Combo'
+        '400':
+          description: Malformed request body or validation error.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Administrative authentication is required.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Combo not found.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '409':
+          description: Updated combo name conflicts with an existing combo.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '413':
+          description: Request body exceeds maximum allowed size.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '500':
+          description: Failed to update combo.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+    delete:
+      operationId: deleteCombo
+      summary: Permanently delete a fallback combo
+      tags:
+        - combos
+      responses:
+        '204':
+          description: Combo deleted.
+        '401':
+          description: Administrative authentication is required.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Combo not found.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '500':
+          description: Failed to delete combo.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+  /api/combos/test:
+    post:
+      operationId: testCombo
+      summary: Probe a fallback combo chain against live upstream connections
+      tags:
+        - combos
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TestComboRequest'
+      responses:
+        '200':
+          description: Combo probe results.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TestComboResponse'
+        '400':
+          description: Missing comboName.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Administrative authentication is required.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Combo not found.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+  /api/models/catalog:
+    get:
+      operationId: getModelCatalog
+      summary: Retrieve OmniRoute-compatible model catalog grouped by provider
+      tags:
+        - combos
+      parameters:
+        - name: includeHidden
+          in: query
+          required: false
+          description: Set to 1 or true to include hidden/disabled models.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Provider-grouped model catalog.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModelCatalogResponse'
+        '401':
+          description: Administrative authentication is required.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+  /api/models/test:
+    post:
+      operationId: testCatalogModel
+      summary: Probe a single model on a configured provider connection
+      tags:
+        - combos
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TestModelRequest'
+      responses:
+        '200':
+          description: Model probe result.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModelTestResult'
+        '400':
+          description: Missing providerId or modelId.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Administrative authentication is required.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+  /api/models/identify:
+    post:
+      operationId: identifyCatalogModel
+      summary: Probe a model for masking/aliasing using upstream metadata, headers, and self-identification
+      tags:
+        - combos
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TestModelRequest'
+      responses:
+        '200':
+          description: Model identity probe result with evidence and detection limitations.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModelIdentityResult'
+        '400':
+          description: Missing providerId or modelId.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Administrative authentication is required.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+  /api/models/test-all:
+    post:
+      operationId: testAllCatalogModels
+      summary: Probe multiple models for a provider sequentially with rate-limit awareness
+      tags:
+        - combos
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TestAllModelsRequest'
+      responses:
+        '200':
+          description: Per-model probe results.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TestAllModelsResponse'
+        '400':
+          description: Missing providerId or modelIds.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Administrative authentication is required.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+  /api/providers/health-matrix:
+    get:
+      operationId: getProviderHealthMatrix
+      summary: Aggregate live connection and cooldown health states per provider
+      tags:
+        - combos
+      responses:
+        '200':
+          description: Provider health matrix.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProviderHealthMatrixResponse'
+        '401':
+          description: Administrative authentication is required.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+  /api/models/aliases:
+    get:
+      operationId: listModelAliases
+      summary: List configured model aliases
+      tags:
+        - combos
+      responses:
+        '200':
+          description: Model aliases ordered alphabetically.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListModelAliasesResponse'
+        '401':
+          description: Administrative authentication is required.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '500':
+          description: Failed to list model aliases.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+  /api/models/aliases/{alias}:
+    parameters:
+      - name: alias
+        in: path
+        required: true
+        description: Logical alias name (percent-encode '/' if present).
+        schema:
+          type: string
+    put:
+      operationId: upsertModelAlias
+      summary: Create or update a model alias pointing to a target model, combo, or alias
+      tags:
+        - combos
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpsertModelAliasRequest'
+      responses:
+        '200':
+          description: Model alias saved.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModelAlias'
+        '400':
+          description: Invalid alias, missing target_model, or self-referential alias.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Administrative authentication is required.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '413':
+          description: Request body exceeds maximum allowed size.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '500':
+          description: Failed to persist model alias.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+    delete:
+      operationId: deleteModelAlias
+      summary: Delete a configured model alias
+      tags:
+        - combos
+      responses:
+        '204':
+          description: Model alias deleted.
+        '400':
+          description: Invalid alias path parameter.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Administrative authentication is required.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Model alias not found.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '500':
+          description: Failed to delete model alias.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+  /api/models/disabled:
+    get:
+      operationId: listDisabledModels
+      summary: List disabled model identifiers suppressed from routing and listing
+      tags:
+        - combos
+      responses:
+        '200':
+          description: Disabled models ordered alphabetically.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListDisabledModelsResponse'
+        '401':
+          description: Administrative authentication is required.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '500':
+          description: Failed to list disabled models.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+    put:
+      operationId: disableModel
+      summary: Disable a bare or provider-qualified model identifier
+      tags:
+        - combos
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DisableModelRequest'
+      responses:
+        '200':
+          description: Model disabled.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DisabledModel'
+        '400':
+          description: Malformed request body or invalid model identifier.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Administrative authentication is required.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '413':
+          description: Request body exceeds maximum allowed size.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '500':
+          description: Failed to disable model.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+    delete:
+      operationId: enableModel
+      summary: Remove a model identifier from the disabled list (via ?model= query parameter or JSON body)
+      tags:
+        - combos
+      parameters:
+        - name: model
+          in: query
+          required: false
+          description: Model identifier to re-enable (supports provider/model containing '/').
+          schema:
+            type: string
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EnableModelRequest'
+      responses:
+        '204':
+          description: Model removed from disabled list.
+        '400':
+          description: Missing or invalid model identifier.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Administrative authentication is required.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Model is not currently disabled.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '500':
+          description: Failed to re-enable model.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+  /api/models/cooldowns:
+    get:
+      operationId: listModelCooldowns
+      summary: List upstream provider connections currently in failure cooldown
+      tags:
+        - combos
+      responses:
+        '200':
+          description: Active upstream connection cooldowns.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListCooldownsResponse'
+        '401':
+          description: Administrative authentication is required.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+  /api/models/cooldowns/{connectionId}:
+    parameters:
+      - name: connectionId
+        in: path
+        required: true
+        description: Upstream provider connection identifier to release from cooldown.
+        schema:
+          type: string
+    delete:
+      operationId: clearModelCooldown
+      summary: Manually clear an upstream connection cooldown window and reset its backoff counter
+      tags:
+        - combos
+      responses:
+        '204':
+          description: Connection cooldown cleared.
+        '400':
+          description: Invalid connectionId path parameter.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Administrative authentication is required.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+  /api/providers/strategies:
+    get:
+      operationId: listProviderStrategies
+      summary: List configured per-provider account routing strategies and the active global default
+      tags:
+        - combos
+      responses:
+        '200':
+          description: Configured provider strategy overrides and default strategy.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListProviderStrategiesResponse'
+        '401':
+          description: Administrative authentication is required.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '500':
+          description: Failed to load provider strategies.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+  /api/providers/{providerId}/strategy:
+    parameters:
+      - name: providerId
+        in: path
+        required: true
+        description: Provider adapter or custom node identifier.
+        schema:
+          type: string
+    get:
+      operationId: getProviderStrategy
+      summary: Retrieve the active account routing strategy for a provider (returns active default when unset)
+      tags:
+        - combos
+      responses:
+        '200':
+          description: Effective provider routing strategy.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProviderStrategyState'
+        '400':
+          description: Invalid providerId path parameter.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Administrative authentication is required.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '500':
+          description: Failed to load provider strategy.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+    put:
+      operationId: updateProviderStrategy
+      summary: Set or update the active account routing strategy for a provider
+      tags:
+        - combos
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateProviderStrategyRequest'
+      responses:
+        '200':
+          description: Updated provider routing strategy.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProviderStrategyState'
+        '400':
+          description: Invalid providerId or unsupported account routing strategy.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Administrative authentication is required.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '413':
+          description: Request body exceeds maximum allowed size.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '500':
+          description: Failed to save provider strategy.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+components:
+  schemas:
+    ComboStrategy:
+      type: string
+      enum:
+        - priority
+        - weighted
+        - round-robin
+        - context-relay
+        - fill-first
+        - p2c
+        - random
+        - least-used
+        - cost-optimized
+        - reset-aware
+        - reset-window
+        - expiry-first
+        - headroom
+        - quota-weighted
+        - strict-random
+        - auto
+        - lkgp
+        - context-optimized
+        - cache-optimized
+        - fusion
+        - pipeline
+        - jev
+    ComboStep:
+      type: object
+      additionalProperties: false
+      required:
+        - kind
+      properties:
+        kind:
+          type: string
+          enum:
+            - model
+            - combo-ref
+        model:
+          type: string
+        comboName:
+          type: string
+        weight:
+          type: number
+          minimum: 0
+          maximum: 100
+        label:
+          type: string
+        connectionId:
+          type: string
+        prompt:
+          type: string
+        fallbackOnlyOnQuotaExhaustion:
+          type: boolean
+    Combo:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - name
+        - description
+        - targets
+        - steps
+        - strategy
+        - config
+        - enabled
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        targets:
+          type: array
+          minItems: 1
+          items:
+            type: string
+        steps:
+          type: array
+          items:
+            $ref: '#/components/schemas/ComboStep'
+        strategy:
+          $ref: '#/components/schemas/ComboStrategy'
+        config:
+          type: object
+          additionalProperties: true
+        enabled:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    ListCombosResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - combos
+      properties:
+        combos:
+          type: array
+          items:
+            $ref: '#/components/schemas/Combo'
+    CreateComboRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 128
+        description:
+          type: string
+          maxLength: 512
+        targets:
+          type: array
+          minItems: 1
+          maxItems: 64
+          items:
+            type: string
+        steps:
+          type: array
+          minItems: 1
+          maxItems: 64
+          items:
+            $ref: '#/components/schemas/ComboStep'
+        strategy:
+          $ref: '#/components/schemas/ComboStrategy'
+        config:
+          type: object
+          additionalProperties: true
+        enabled:
+          type: boolean
+          default: true
+    UpdateComboRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 128
+        description:
+          type: string
+          maxLength: 512
+        targets:
+          type: array
+          minItems: 1
+          maxItems: 64
+          items:
+            type: string
+        steps:
+          type: array
+          minItems: 1
+          maxItems: 64
+          items:
+            $ref: '#/components/schemas/ComboStep'
+        strategy:
+          $ref: '#/components/schemas/ComboStrategy'
+        config:
+          type: object
+          additionalProperties: true
+        enabled:
+          type: boolean
+    ModelAlias:
+      type: object
+      additionalProperties: false
+      required:
+        - alias
+        - target_model
+        - created_at
+        - updated_at
+      properties:
+        alias:
+          type: string
+        target_model:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    ListModelAliasesResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - aliases
+      properties:
+        aliases:
+          type: array
+          items:
+            $ref: '#/components/schemas/ModelAlias'
+    UpsertModelAliasRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - target_model
+      properties:
+        target_model:
+          type: string
+          minLength: 1
+          maxLength: 128
+    DisabledModel:
+      type: object
+      additionalProperties: false
+      required:
+        - model
+        - reason
+        - created_at
+      properties:
+        model:
+          type: string
+        reason:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+    ListDisabledModelsResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - disabled_models
+      properties:
+        disabled_models:
+          type: array
+          items:
+            $ref: '#/components/schemas/DisabledModel'
+    DisableModelRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - model
+      properties:
+        model:
+          type: string
+          minLength: 1
+          maxLength: 128
+        reason:
+          type: string
+          maxLength: 512
+    EnableModelRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - model
+      properties:
+        model:
+          type: string
+          minLength: 1
+          maxLength: 128
+    CooldownEntry:
+      type: object
+      additionalProperties: false
+      required:
+        - connection_id
+        - failures
+        - until
+        - last_status
+        - updated_at
+      properties:
+        connection_id:
+          type: string
+        failures:
+          type: integer
+          minimum: 1
+        until:
+          type: string
+          format: date-time
+        last_status:
+          type: integer
+        updated_at:
+          type: string
+          format: date-time
+    ListCooldownsResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - cooldowns
+      properties:
+        cooldowns:
+          type: array
+          items:
+            $ref: '#/components/schemas/CooldownEntry'
+    CatalogModel:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - name
+        - type
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        type:
+          type: string
+        subtype:
+          type: string
+        custom:
+          type: boolean
+        free:
+          type: boolean
+        capabilities:
+          type: object
+          additionalProperties:
+            type: boolean
+        context_length:
+          type: integer
+        max_output_tokens:
+          type: integer
+        input_modalities:
+          type: array
+          items:
+            type: string
+        output_modalities:
+          type: array
+          items:
+            type: string
+        supported_endpoints:
+          type: array
+          items:
+            type: string
+        hidden:
+          type: boolean
+    CatalogProviderGroup:
+      type: object
+      additionalProperties: false
+      required:
+        - provider
+        - models
+      properties:
+        provider:
+          type: string
+        models:
+          type: array
+          items:
+            $ref: '#/components/schemas/CatalogModel'
+    ModelCatalogResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - catalog
+      properties:
+        catalog:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/CatalogProviderGroup'
+    TestModelRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - providerId
+        - modelId
+      properties:
+        providerId:
+          type: string
+        modelId:
+          type: string
+    ModelTestResult:
+      type: object
+      additionalProperties: false
+      required:
+        - ok
+        - status
+        - latencyMs
+      properties:
+        ok:
+          type: boolean
+        status:
+          type: string
+          enum:
+            - ok
+            - slow
+            - error
+        latencyMs:
+          type: integer
+        statusCode:
+          type: integer
+        error:
+          type: string
+        rateLimited:
+          type: boolean
+        isQuota:
+          type: boolean
+        isTimeout:
+          type: boolean
+    ModelIdentityResult:
+      type: object
+      additionalProperties: false
+      required:
+        - ok
+        - claimedModel
+        - verdict
+        - confidence
+        - signals
+        - limitationNote
+        - latencyMs
+      properties:
+        ok:
+          type: boolean
+        claimedModel:
+          type: string
+        claimedFamily:
+          type: string
+        verdict:
+          type: string
+          enum:
+            - verified
+            - suspected_masked
+            - inconclusive
+            - error
+        confidence:
+          type: string
+          enum:
+            - high
+            - medium
+            - low
+        detectedModel:
+          type: string
+        detectedFamily:
+          type: string
+        reportedModel:
+          type: string
+        responseIdPrefix:
+          type: string
+        systemFingerprint:
+          type: string
+        vendorHeaders:
+          type: object
+          additionalProperties:
+            type: string
+        selfReport:
+          type: string
+        signals:
+          type: array
+          items:
+            type: string
+        limitationNote:
+          type: string
+        latencyMs:
+          type: integer
+        statusCode:
+          type: integer
+        error:
+          type: string
+    TestAllModelsRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - providerId
+        - modelIds
+      properties:
+        providerId:
+          type: string
+        modelIds:
+          type: array
+          items:
+            type: string
+        respectRateLimit:
+          type: boolean
+    TestAllModelsResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - results
+      properties:
+        results:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/ModelTestResult'
+    TestComboRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - comboName
+      properties:
+        comboName:
+          type: string
+    ComboTargetTestResult:
+      type: object
+      additionalProperties: false
+      required:
+        - target
+        - status
+      properties:
+        target:
+          type: string
+        status:
+          type: string
+          enum:
+            - ok
+            - error
+        latencyMs:
+          type: integer
+        statusCode:
+          type: integer
+        error:
+          type: string
+    TestComboResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - results
+      properties:
+        resolvedBy:
+          type: string
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/ComboTargetTestResult'
+        error:
+          type: string
+    ProviderHealthMatrixEntry:
+      type: object
+      additionalProperties: false
+      required:
+        - provider
+        - state
+        - totalConnections
+        - healthyConnections
+        - coolingDownConnections
+      properties:
+        provider:
+          type: string
+        state:
+          type: string
+          enum:
+            - healthy
+            - degraded
+            - down
+            - untested
+        totalConnections:
+          type: integer
+        healthyConnections:
+          type: integer
+        coolingDownConnections:
+          type: integer
+    ProviderHealthMatrixResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - providers
+      properties:
+        providers:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProviderHealthMatrixEntry'
+    ProviderAccountStrategy:
+      type: string
+      enum:
+        - fill-first
+        - priority
+        - round-robin
+        - p2c
+        - least-used
+        - random
+        - strict-random
+        - lkgp
+        - cache-optimized
+        - headroom
+        - reset-aware
+        - reset-window
+        - expiry-first
+    ProviderStrategyState:
+      type: object
+      additionalProperties: false
+      required:
+        - provider_id
+        - strategy
+        - default_strategy
+        - is_default
+      properties:
+        provider_id:
+          type: string
+        strategy:
+          $ref: '#/components/schemas/ProviderAccountStrategy'
+        default_strategy:
+          $ref: '#/components/schemas/ProviderAccountStrategy'
+        is_default:
+          type: boolean
+        updated_at:
+          type: string
+    ListProviderStrategiesResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - default_strategy
+        - strategies
+      properties:
+        default_strategy:
+          $ref: '#/components/schemas/ProviderAccountStrategy'
+        strategies:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProviderStrategyState'
+    UpdateProviderStrategyRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - strategy
+      properties:
+        strategy:
+          $ref: '#/components/schemas/ProviderAccountStrategy'

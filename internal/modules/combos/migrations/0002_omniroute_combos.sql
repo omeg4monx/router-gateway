@@ -1,0 +1,2 @@
+ALTER TABLE combos ADD COLUMN steps_json TEXT NOT NULL DEFAULT '[]';
+ALTER TABLE combos ADD COLUMN config_json TEXT NOT NULL DEFAULT '{}';

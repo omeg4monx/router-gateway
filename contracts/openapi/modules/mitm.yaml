@@ -1,0 +1,456 @@
+openapi: 3.1.0
+info:
+  title: omeg4mon-router MITM Module
+  version: 0.1.0
+paths:
+  /api/mitm/status:
+    get:
+      tags: [mitm]
+      operationId: getMitmStatus
+      summary: Get live MITM proxy status, Root CA metadata, IDE tool hosts, and install guide
+      responses:
+        '200':
+          description: MITM status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MitmStatus'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+  /api/mitm/config:
+    patch:
+      tags: [mitm]
+      operationId: updateMitmConfig
+      summary: Update loopback-only MITM proxy configuration
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateMitmConfigRequest'
+      responses:
+        '200':
+          description: Updated MITM status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MitmStatus'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+  /api/mitm/start:
+    post:
+      tags: [mitm]
+      operationId: startMitmProxy
+      summary: Start the local TLS MITM proxy
+      responses:
+        '200':
+          description: MITM proxy started
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MitmStatus'
+        '400':
+          description: Invalid MITM listen or gateway URL
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '409':
+          description: MITM proxy already running
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+  /api/mitm/stop:
+    post:
+      tags: [mitm]
+      operationId: stopMitmProxy
+      summary: Stop the local TLS MITM proxy
+      responses:
+        '200':
+          description: MITM proxy stopped
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MitmStatus'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+  /api/mitm/ca/generate:
+    post:
+      tags: [mitm]
+      operationId: generateMitmCA
+      summary: Generate or rotate the local MITM ECDSA Root CA
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GenerateMitmCARequest'
+      responses:
+        '200':
+          description: Root CA metadata
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MitmCAInfo'
+        '400':
+          description: Invalid JSON request body
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+  /api/mitm/ca/download:
+    get:
+      tags: [mitm]
+      operationId: downloadMitmCA
+      summary: Download the public Root CA certificate in PEM format
+      responses:
+        '200':
+          description: Public PEM certificate
+          content:
+            application/x-pem-file:
+              schema:
+                type: string
+        '404':
+          description: Root CA not generated yet
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+  /api/mitm/aliases:
+    get:
+      tags: [mitm]
+      operationId: listMitmAliases
+      summary: List IDE MITM model rewrite aliases
+      responses:
+        '200':
+          description: MITM model aliases
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MitmAliasListResponse'
+    post:
+      tags: [mitm]
+      operationId: createMitmAlias
+      summary: Create an IDE MITM model rewrite alias
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateMitmAliasRequest'
+      responses:
+        '201':
+          description: Created MITM alias
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MitmAlias'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '409':
+          description: Duplicate alias
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+  /api/mitm/aliases/{id}:
+    delete:
+      tags: [mitm]
+      operationId: deleteMitmAlias
+      summary: Delete a MITM model rewrite alias
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeleteMitmAliasResponse'
+        '400':
+          description: Invalid alias ID
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+  /api/mitm/events:
+    get:
+      tags: [mitm]
+      operationId: listMitmEvents
+      summary: List recent intercepted MITM requests
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Intercepted events
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MitmEventListResponse'
+    delete:
+      tags: [mitm]
+      operationId: clearMitmEvents
+      summary: Clear intercepted MITM events
+      responses:
+        '200':
+          description: Cleared count
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClearMitmEventsResponse'
+components:
+  schemas:
+    MitmState:
+      type: string
+      enum: [stopped, running, error]
+    MitmCAInfo:
+      type: object
+      additionalProperties: false
+      required: [exists, cert_path, fingerprint, subject, not_before, not_after]
+      properties:
+        exists:
+          type: boolean
+        cert_path:
+          type: string
+        fingerprint:
+          type: string
+        subject:
+          type: string
+        not_before:
+          type: string
+        not_after:
+          type: string
+    MitmToolDescriptor:
+      type: object
+      additionalProperties: false
+      required: [id, name, hosts, enabled]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        hosts:
+          type: array
+          items:
+            type: string
+        enabled:
+          type: boolean
+    MitmInstallGuide:
+      type: object
+      additionalProperties: false
+      required: [os, ca_command, hosts_path, hosts_snippet]
+      properties:
+        os:
+          type: string
+        ca_command:
+          type: string
+        hosts_path:
+          type: string
+        hosts_snippet:
+          type: string
+    MitmStatus:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - listen_addr
+        - bound_addr
+        - target_gateway_url
+        - enabled_tools
+        - auto_start
+        - started_at
+        - last_error
+        - ca
+        - tools
+        - install_guide
+      properties:
+        status:
+          $ref: '#/components/schemas/MitmState'
+        listen_addr:
+          type: string
+        bound_addr:
+          type: string
+        target_gateway_url:
+          type: string
+        enabled_tools:
+          type: array
+          items:
+            type: string
+        auto_start:
+          type: boolean
+        started_at:
+          type: string
+        last_error:
+          type: string
+        ca:
+          $ref: '#/components/schemas/MitmCAInfo'
+        tools:
+          type: array
+          items:
+            $ref: '#/components/schemas/MitmToolDescriptor'
+        install_guide:
+          $ref: '#/components/schemas/MitmInstallGuide'
+    UpdateMitmConfigRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        listen_addr:
+          type: string
+        target_gateway_url:
+          type: string
+        enabled_tools:
+          type: array
+          items:
+            type: string
+        auto_start:
+          type: boolean
+    GenerateMitmCARequest:
+      type: object
+      additionalProperties: false
+      properties:
+        force:
+          type: boolean
+    MitmAlias:
+      type: object
+      additionalProperties: false
+      required: [id, tool, source_model, target_model, enabled, created_at, updated_at]
+      properties:
+        id:
+          type: string
+        tool:
+          type: string
+        source_model:
+          type: string
+        target_model:
+          type: string
+        enabled:
+          type: boolean
+        created_at:
+          type: string
+        updated_at:
+          type: string
+    MitmAliasListResponse:
+      type: object
+      additionalProperties: false
+      required: [aliases]
+      properties:
+        aliases:
+          type: array
+          items:
+            $ref: '#/components/schemas/MitmAlias'
+    CreateMitmAliasRequest:
+      type: object
+      additionalProperties: false
+      required: [tool, source_model, target_model]
+      properties:
+        tool:
+          type: string
+        source_model:
+          type: string
+        target_model:
+          type: string
+        enabled:
+          type: boolean
+    DeleteMitmAliasResponse:
+      type: object
+      additionalProperties: false
+      required: [deleted, id]
+      properties:
+        deleted:
+          type: boolean
+        id:
+          type: string
+    MitmEvent:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - tool
+        - host
+        - method
+        - path
+        - source_model
+        - target_model
+        - status_code
+        - latency_ms
+        - created_at
+      properties:
+        id:
+          type: string
+        tool:
+          type: string
+        host:
+          type: string
+        method:
+          type: string
+        path:
+          type: string
+        source_model:
+          type: string
+        target_model:
+          type: string
+        status_code:
+          type: integer
+        latency_ms:
+          type: integer
+        created_at:
+          type: string
+    MitmEventListResponse:
+      type: object
+      additionalProperties: false
+      required: [events]
+      properties:
+        events:
+          type: array
+          items:
+            $ref: '#/components/schemas/MitmEvent'
+    ClearMitmEventsResponse:
+      type: object
+      additionalProperties: false
+      required: [deleted]
+      properties:
+        deleted:
+          type: integer

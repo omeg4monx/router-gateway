@@ -1,0 +1,146 @@
+paths:
+  /api/plugins:
+    get:
+      operationId: listPlugins
+      tags: [plugins]
+      summary: List built-in gateway request-enhancement plugins and their runtime configuration
+      responses:
+        '200':
+          description: Plugin catalog and configuration
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PluginListResponse'
+  /api/plugins/{key}:
+    put:
+      operationId: updatePlugin
+      tags: [plugins]
+      summary: Update configuration for a built-in plugin
+      parameters:
+        - name: key
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdatePluginRequest'
+      responses:
+        '200':
+          description: Updated plugin state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PluginState'
+        '400':
+          description: Invalid payload
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Plugin not found
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+  /api/plugins/preview:
+    post:
+      operationId: previewPlugins
+      tags: [plugins]
+      summary: Dry-run active request-enhancement plugins against a sample gateway payload
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PreviewPluginsRequest'
+      responses:
+        '200':
+          description: Dry-run transformation output
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PreviewPluginsResponse'
+        '400':
+          description: Invalid payload
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+components:
+  schemas:
+    PluginState:
+      type: object
+      additionalProperties: false
+      required: [key, name, description, category, enabled, models, config, updated_at]
+      properties:
+        key:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        category:
+          type: string
+        enabled:
+          type: boolean
+        models:
+          type: array
+          items:
+            type: string
+        config:
+          type: object
+          additionalProperties: true
+        updated_at:
+          type: string
+    PluginListResponse:
+      type: object
+      additionalProperties: false
+      required: [plugins]
+      properties:
+        plugins:
+          type: array
+          items:
+            $ref: '#/components/schemas/PluginState'
+    UpdatePluginRequest:
+      type: object
+      additionalProperties: false
+      required: [enabled]
+      properties:
+        enabled:
+          type: boolean
+        models:
+          type: array
+          items:
+            type: string
+        config:
+          type: object
+          additionalProperties: true
+    PreviewPluginsRequest:
+      type: object
+      additionalProperties: false
+      required: [model, payload]
+      properties:
+        model:
+          type: string
+        payload:
+          type: object
+          additionalProperties: true
+    PreviewPluginsResponse:
+      type: object
+      additionalProperties: false
+      required: [changed, applied_plugins, payload]
+      properties:
+        changed:
+          type: boolean
+        applied_plugins:
+          type: array
+          items:
+            type: string
+        payload:
+          type: object
+          additionalProperties: true

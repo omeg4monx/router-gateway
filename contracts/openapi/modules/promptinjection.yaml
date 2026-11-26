@@ -1,0 +1,292 @@
+openapi: 3.1.0
+info:
+  title: Prompt Guard API
+  version: 0.1.0
+paths:
+  /api/prompt-guard/config:
+    get:
+      operationId: getPromptGuardConfig
+      tags: [promptinjection]
+      summary: Get prompt guard configuration
+      responses:
+        '200':
+          description: Current prompt guard policy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PromptGuardConfig'
+    patch:
+      operationId: updatePromptGuardConfig
+      tags: [promptinjection]
+      summary: Update prompt guard configuration
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PromptGuardConfigPatch'
+      responses:
+        '200':
+          description: Updated prompt guard policy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PromptGuardConfig'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+  /api/prompt-guard/rules:
+    get:
+      operationId: listPromptGuardRules
+      tags: [promptinjection]
+      summary: List built-in and custom prompt guard rules
+      responses:
+        '200':
+          description: Rule list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PromptGuardRuleList'
+    post:
+      operationId: createPromptGuardRule
+      tags: [promptinjection]
+      summary: Create a custom prompt guard rule
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePromptGuardRuleRequest'
+      responses:
+        '201':
+          description: Created rule
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PromptGuardRule'
+        '400':
+          description: Invalid rule or regex
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+  /api/prompt-guard/rules/{id}:
+    patch:
+      operationId: updatePromptGuardRule
+      tags: [promptinjection]
+      summary: Update a prompt guard rule
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdatePromptGuardRuleRequest'
+      responses:
+        '200':
+          description: Updated rule
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PromptGuardRule'
+        '400':
+          description: Invalid rule
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Rule not found
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+    delete:
+      operationId: deletePromptGuardRule
+      tags: [promptinjection]
+      summary: Delete a custom prompt guard rule
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Deleted
+        '404':
+          description: Custom rule not found
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+  /api/prompt-guard/test:
+    post:
+      operationId: testPromptGuard
+      tags: [promptinjection]
+      summary: Dry-run prompt text against active prompt guard rules
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PromptGuardTestRequest'
+      responses:
+        '200':
+          description: Evaluation result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PromptGuardTestResult'
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+  /api/prompt-guard/events:
+    get:
+      operationId: listPromptGuardEvents
+      tags: [promptinjection]
+      summary: List recent prompt guard audit events
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+      responses:
+        '200':
+          description: Recent events
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PromptGuardEventList'
+    delete:
+      operationId: clearPromptGuardEvents
+      tags: [promptinjection]
+      summary: Clear prompt guard audit events
+      responses:
+        '204':
+          description: Cleared
+components:
+  schemas:
+    PromptGuardConfig:
+      type: object
+      required: [enabled, mode, sensitivity, block_status_code, updated_at]
+      properties:
+        enabled: { type: boolean }
+        mode: { type: string, enum: [block, sanitize, audit] }
+        sensitivity: { type: string, enum: [low, medium, high] }
+        block_status_code: { type: integer, enum: [400, 403, 422] }
+        updated_at: { type: string }
+    PromptGuardConfigPatch:
+      type: object
+      properties:
+        enabled: { type: boolean }
+        mode: { type: string, enum: [block, sanitize, audit] }
+        sensitivity: { type: string, enum: [low, medium, high] }
+        block_status_code: { type: integer, enum: [400, 403, 422] }
+    PromptGuardRule:
+      type: object
+      required: [id, name, pattern, match_type, action, severity, enabled, builtin, description, created_at, updated_at]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        pattern: { type: string }
+        match_type: { type: string, enum: [substring, regex] }
+        action: { type: string, enum: [block, sanitize, audit] }
+        severity: { type: string, enum: [low, medium, high] }
+        enabled: { type: boolean }
+        builtin: { type: boolean }
+        description: { type: string }
+        created_at: { type: string }
+        updated_at: { type: string }
+    PromptGuardRuleList:
+      type: object
+      required: [rules]
+      properties:
+        rules:
+          type: array
+          items:
+            $ref: '#/components/schemas/PromptGuardRule'
+    CreatePromptGuardRuleRequest:
+      type: object
+      required: [name, pattern, match_type, action, severity]
+      properties:
+        name: { type: string }
+        pattern: { type: string }
+        match_type: { type: string, enum: [substring, regex] }
+        action: { type: string, enum: [block, sanitize, audit] }
+        severity: { type: string, enum: [low, medium, high] }
+        enabled: { type: boolean }
+        description: { type: string }
+    UpdatePromptGuardRuleRequest:
+      type: object
+      properties:
+        name: { type: string }
+        pattern: { type: string }
+        match_type: { type: string, enum: [substring, regex] }
+        action: { type: string, enum: [block, sanitize, audit] }
+        severity: { type: string, enum: [low, medium, high] }
+        enabled: { type: boolean }
+        description: { type: string }
+    PromptGuardTestRequest:
+      type: object
+      required: [text]
+      properties:
+        text: { type: string }
+        mode: { type: string, enum: [block, sanitize, audit] }
+        sensitivity: { type: string, enum: [low, medium, high] }
+    PromptGuardMatchHit:
+      type: object
+      required: [rule_id, rule_name, action, severity, matched]
+      properties:
+        rule_id: { type: string }
+        rule_name: { type: string }
+        action: { type: string }
+        severity: { type: string }
+        matched: { type: string }
+    PromptGuardTestResult:
+      type: object
+      required: [matched, action, hits, sanitized_text]
+      properties:
+        matched: { type: boolean }
+        action: { type: string }
+        hits:
+          type: array
+          items:
+            $ref: '#/components/schemas/PromptGuardMatchHit'
+        sanitized_text: { type: string }
+    PromptGuardEvent:
+      type: object
+      required: [id, request_id, model, key_id, rule_id, rule_name, action, severity, snippet, created_at]
+      properties:
+        id: { type: string }
+        request_id: { type: string }
+        model: { type: string }
+        key_id: { type: string }
+        rule_id: { type: string }
+        rule_name: { type: string }
+        action: { type: string }
+        severity: { type: string }
+        snippet: { type: string }
+        created_at: { type: string }
+    PromptGuardEventList:
+      type: object
+      required: [events]
+      properties:
+        events:
+          type: array
+          items:
+            $ref: '#/components/schemas/PromptGuardEvent'

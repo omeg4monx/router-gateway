@@ -1,203 +1,91 @@
-# OMEG4MON ROUTER
+# OMEG4MON Router
 
-Local AI routing gateway with a web dashboard. It exposes one OpenAI- and Anthropic-compatible endpoint (`/v1`) and routes each request to the upstream provider you configure, translating request and response formats on the way.
+Single-binary modular LLM gateway and control plane built with **Go (`net/http` + `chi/v5`, zero-CGO SQLite WAL)** and **Vite + React 19 (TypeScript, static SPA embedded via `//go:embed`)**.
 
-- **Gateway**: Next.js 16 server (`custom-server.js`) on port `20128`.
-- **Dashboard**: `http://localhost:20128/dashboard`.
-- **API base**: `http://localhost:20128/v1`.
-- **CLI launcher**: the `omeg4mon-router` package in `cli/`, which starts the server, can run it from the system tray and writes configs for coding tools.
+## Architecture
 
----
+- **Single self-contained binary:** Serves OpenAI/Anthropic/Gemini-compatible gateway routes (`/v1/*`, `/v1beta/*`), admin management API (`/api/*`), and the embedded Vite + React static dashboard (`web/out/`).
+- **27 isolated vertical-slice modules:** Each feature domain lives in `internal/modules/<name>/` (with its own SQLite migrations and OpenAPI 3.1 contract in `contracts/openapi/modules/`) and mirrors `web/src/features/<name>/`. Cross-module calls use narrow interfaces in `internal/contracts/` and `internal/platform/eventbus`.
+- **Zero-CGO persistence & secret vault:** Pure-Go `modernc.org/sqlite` with split 1-writer / 8-reader WAL pools and AES-256-GCM credential encryption backed by `OMEG4MON_MASTER_KEY` or `<DATA_DIR>/master.key` (`0600`).
 
-## Features
+## Quick Start
 
-- **One endpoint, many providers.** About 146 provider definitions (`open-sse/providers/registry/`): OpenAI-compatible APIs through a generic executor, and dedicated executors for non-standard upstreams.
-- **Format translation.** OpenAI Chat, Anthropic Messages, OpenAI Responses and Gemini formats. Translators pivot through the OpenAI format, with direct routes for lossy pairs.
-- **Fallback.**
-  - **Combos** try a list of models in order.
-  - **Multi-account rotation** applies per-error cooldowns.
-  - **Automatic token refresh** renews OAuth credentials.
-  - **Request-scoped errors** (malformed request, unsupported parameter) are returned instead of burning the whole chain.
-- **API keys** with per-key permissions, allowed models and usage tracking.
-- **Usage and cost dashboard**, request logs and provider limits.
-- **CLI tool setup.** Writes configs for Claude Code, Codex, OpenCode, Cline, Kilo, Droid, Crush, Hermes, OpenClaw, Grok Build, OMP and others.
-- **Optional components:**
-  - Cloudflare quick tunnel or Tailscale for remote access.
-  - Proxy pools.
-  - Local MITM proxy for IDE traffic.
-  - Headroom token compression.
-  - SAML/OIDC login.
+### 1. Build & Run Single Binary
 
----
-
-## Requirements
-
-- Node.js 22 (see `.nvmrc`). The CLI accepts Node ≥ 18.
-- npm (Bun also works: `dev:bun`, `build:bun`, `start:bun`).
-- Optional: Docker, Go 1.26+ for the experimental Go core.
-
----
-
-## Quick start (from source)
+Requires Go `1.26+` and Bun `1.4+`:
 
 ```bash
-git clone https://github.com/omeg4monx/router-gateway.git
-cd router-gateway
-cp .env.example .env        # set JWT_SECRET and INITIAL_PASSWORD
-npm install
-npm run build
-npm run start               # http://localhost:20128/dashboard
+# Full 1-cycle production build, check, smoke test, and run
+make prod
+
+# Or step-by-step
+make build
+./bin/omeg4mon-router
 ```
 
-To develop with hot reload, run `npm run dev`. It serves on `127.0.0.1:20128` only.
+Open `http://127.0.0.1:20128` to complete first-run setup (`/init/`) and open the dashboard.
 
-> `next dev` does **not** load `custom-server.js`, so the dashboard auth guard is inactive in dev mode. Never expose a dev server to a network.
-
-### First login
-
-- Without `INITIAL_PASSWORD`, the default password is `omeg4mon123`. It is accepted only from a trusted network (loopback, LAN, Docker or Tailscale) unless `ALLOW_REMOTE_DEFAULT_LOGIN=true`.
-- To change the password for the first time, enter the current initial password.
-
----
-
-## Docker
+### 2. Multi-Platform CLI Launcher (`@omeg4mon/router`)
 
 ```bash
-cp .env.example .env
-docker compose up -d        # gateway on :20128, Headroom on 127.0.0.1:8787
+npx @omeg4mon/router --host 127.0.0.1 --port 20128
 ```
 
-You can also run `./start.sh`, which rebuilds and runs a single container.
+Binary resolution order: `OMEG4MON_ROUTER_BIN` → `cli/vendor/` → `../bin/` → `../dist/` → `PATH`.
 
-- Data lives in the `omeg4mon-router-data` volume (override with `OMEG4MON_ROUTER_VOLUME`).
-- The container listens on all interfaces. Put it behind a reverse proxy or firewall before exposing it.
-
----
-
-## Linux server install
+### 3. Docker (Distroless Multi-Stage)
 
 ```bash
-sudo ./install.sh --port 20128 --password '<strong-password>'
+docker build -t omeg4mon-router .
+docker run -d --name omeg4mon-router \
+  -p 20128:20128 \
+  -v omeg4mon-data:/data \
+  -e OMEG4MON_ADMIN_PASSWORD="change-me" \
+  omeg4mon-router
 ```
 
-`install.sh` does the following:
-- Writes `.env` with generated secrets (mode `600`).
-- Builds the app.
-- Installs a systemd service named `omeg4mon-router`. The unit runs as root; review it before use.
+> Non-loopback binds (`0.0.0.0`) enforce `require_login=true` and disable `/api/shutdown` unless `OMEG4MON_ALLOW_INSECURE_REMOTE=true` is explicitly set.
 
-Run `./install.sh --help` for all flags.
-
----
-
-## CLI launcher
+### 4. Local Development (Live Reload & Dev Single Binary)
 
 ```bash
-npm run cli:pack            # builds and packs the cli/ package
-npm i -g ./omeg4mon-router-*.tgz   # pack:cli writes the tarball to the repo root
-omeg4mon-router             # starts the server and opens the dashboard
+# 1-cycle live reload (codegen + Go API :20128 + Vite HMR :20127 in one terminal)
+make dev
+
+# Or 1-cycle debug single binary (codegen + build-web + unstripped embedui binary on :20128)
+make dev-bin
 ```
-
-| Option | Description |
-|---|---|
-| `-p, --port <port>` | Port (default `20128`) |
-| `-H, --host <host>` | Bind address (default `127.0.0.1`; use `0.0.0.0` for LAN access) |
-| `-n, --no-browser` | Don't open the browser |
-| `-l, --log` | Show server logs |
-| `-t, --tray` | Run in the system tray |
-| `--skip-update` | Skip the update check |
-
-**Commands:**
-- `omeg4mon-router connect http://<host>:20128` configures local coding tools against a remote gateway. That gateway must be started with `--host 0.0.0.0`.
-- `omeg4mon-router xai video --help` generates video through the gateway.
-
----
-
-## Using the API
-
-Create an API key in **Dashboard → Keys**, then call the gateway like any OpenAI or Anthropic endpoint:
-
-```bash
-curl http://localhost:20128/v1/chat/completions \
-  -H "Authorization: Bearer <api-key>" \
-  -H "Content-Type: application/json" \
-  -d '{"model":"<provider>/<model>","messages":[{"role":"user","content":"Hello"}]}'
-```
-
-| Endpoint | Format |
-|---|---|
-| `POST /v1/chat/completions` | OpenAI Chat Completions |
-| `POST /v1/messages` | Anthropic Messages |
-| `POST /v1/responses` | OpenAI Responses |
-| `GET /v1/models` | Model list |
-| `/v1/embeddings`, `/v1/images`, `/v1/audio`, `/v1/videos` | Media endpoints (provider-dependent) |
-| `/v1beta/models/*` | Gemini-style |
-
-The API key can also be sent as `x-api-key`, `x-goog-api-key` or `?key=`.
-
-Loopback requests are accepted without a key unless **Require API key** is enabled. Remote requests always need a valid key.
-
----
 
 ## Configuration
 
-Every variable is documented in `.env.example`. The most important ones:
+| Environment Variable | CLI Flag | Default | Description |
+| --- | --- | --- | --- |
+| `OMEG4MON_HOST` | `--host` | `127.0.0.1` | Bind address |
+| `OMEG4MON_PORT` | `--port` | `20128` | Listen port (`1–65535`) |
+| `OMEG4MON_DATA_DIR` | `--data-dir` | `~/.omeg4mon-router` | SQLite DB and vault directory |
+| `OMEG4MON_LOG_LEVEL` | `--log-level` | `info` | Structured `slog` level |
+| `OMEG4MON_MASTER_KEY` | — | auto-generated | 32-byte hex AES-256-GCM vault key |
+| `OMEG4MON_ADMIN_PASSWORD` | — | — | Optional headless first-run admin password |
+| `OMEG4MON_API_TIMEOUT` | — | `30s` | Non-streaming `/api/*` request timeout |
+| `OMEG4MON_DISABLED_MODULES` | — | — | Comma-separated optional modules to disable |
+| `OMEG4MON_ALLOW_INSECURE_REMOTE` | — | `false` | Override remote-bind security guard |
 
-| Variable | Purpose |
-|---|---|
-| `JWT_SECRET` | Signs dashboard sessions (generated into `DATA_DIR/jwt-secret` if unset) |
-| `INITIAL_PASSWORD` | Dashboard password until you set one |
-| `DATA_DIR` | Data location (default `~/.omeg4mon-router`, `%APPDATA%\omeg4mon-router` on Windows) |
-| `PORT` | Listen port (default `20128`) |
-| `OMEG4MON_ROUTER_VAULT_KEY` | At-rest key for stored credentials. If unset, a random key is created in `DATA_DIR/vault.key` |
-| `TUNNEL_WORKER_URL` | Optional short-link worker for tunnels. Leave unset unless you run the worker yourself |
-| `BASE_URL` | Public URL. **Required for SAML** |
+## Modules
 
-### Data and backups
+- **Core (always enabled):** `system`, `auth`, `settings`, `providers`, `keys`, `combos`, `gateway`, `usage`
+- **Optional (toggleable via `OMEG4MON_DISABLED_MODULES`):** `clitools`, `proxypools`, `translator`, `modeleditor`, `tokensaver`, `promptinjection`, `security`, `notifications`, `teams`, `vouchers`, `media`, `tunnel`, `mitm`, `pxpipe`, `telegram`, `arena`, `plugins`, `cloudsync`, `importer`
 
-- State is stored in SQLite at `DATA_DIR/db/data.sqlite`.
-- The driver is chosen automatically, in this order: `bun:sqlite`, `better-sqlite3`, `node:sqlite`, `sql.js`.
-- Back up `DATA_DIR/vault.key` together with the database. Without it, stored provider credentials cannot be decrypted.
-
----
-
-## Security notes
-
-- The gateway binds to loopback by default. Before exposing it, set strong `JWT_SECRET` and `INITIAL_PASSWORD` values and enable **Require API key**.
-- Configured proxies fail closed: a request never falls back to a direct connection when its proxy fails.
-- Telegram control needs a configured user ID and a webhook registered from the dashboard. The webhook secret is verified on every update.
-- The MITM component installs a local root CA and edits the hosts file. Enable it only on machines you control.
-- Using consumer web sessions or IDE identities of third-party services through this gateway may violate their terms of service. You are responsible for how providers are used.
-
----
-
-## Project layout
-
-```
-src/            Next.js app: dashboard, /api routes, auth guard, persistence, MITM
-open-sse/       Provider-agnostic engine: translators, executors, fallback, token refresh
-cli/            omeg4mon-router CLI launcher (separate package)
-cmd/, internal/ Experimental Go core (not feature-complete; see docs/ROADMAP_GO_MIGRATION.md)
-tests/          Vitest suite (independent package)
-```
-
-- Request flow: `/v1/*` → `src/sse/handlers/chat.js` → `open-sse/handlers/chatCore.js` → executor and translator → upstream.
-- See `docs/ARCHITECTURE.md` and `open-sse/AGENTS.md` before changing the engine.
-
----
-
-## Tests
+## Verification & Release
 
 ```bash
-npm install
-cd tests && npm install
-npx vitest run                      # whole suite
-npx vitest run unit/<file>.test.js  # one file
+make check        # Go fmt/lint/race/zero-CGO + Web biome/tests/typecheck + CLI tests
+make build        # OpenAPI codegen + Vite SPA static build + single binary (bin/omeg4mon-router)
+make smoke        # Live single-binary health, UI, 404, CLI launcher, and idle RSS check
+make cross-build  # 6 zero-CGO binaries (linux/darwin/windows x amd64/arm64) + dist/SHA256SUMS.txt
 ```
 
-Some tests are known to fail on a plain checkout: `tests/__baseline__/` holds the regression baselines, and `real/*.real.test.js` calls live providers and needs credentials. Compare against a baseline run instead of expecting an all-green suite.
-
----
+Tagging `v*` triggers `.github/workflows/release.yml`, publishing all 6 verified binaries, `SHA256SUMS.txt`, and multi-arch `linux/amd64,linux/arm64` images to GHCR.
 
 ## License
 
-MIT. See [LICENSE](./LICENSE).
+MIT — Copyright (c) 2026 OMEG4MON. See [LICENSE](LICENSE).

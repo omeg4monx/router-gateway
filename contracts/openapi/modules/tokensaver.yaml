@@ -1,0 +1,191 @@
+openapi: 3.1.0
+info:
+  title: Token Saver & Headroom API
+  version: 0.1.0
+paths:
+  /api/token-saver/config:
+    get:
+      operationId: getTokenSaverConfig
+      tags: [tokensaver]
+      summary: Get Token Saver and Headroom configuration
+      responses:
+        '200':
+          description: Current configuration
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenSaverConfig'
+    patch:
+      operationId: updateTokenSaverConfig
+      tags: [tokensaver]
+      summary: Update Token Saver and Headroom configuration
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenSaverConfigPatch'
+      responses:
+        '200':
+          description: Updated configuration
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenSaverConfig'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+  /api/token-saver/stats:
+    get:
+      operationId: getTokenSaverStats
+      tags: [tokensaver]
+      summary: Get live compression and Headroom cache statistics
+      responses:
+        '200':
+          description: Live metrics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenSaverStats'
+    delete:
+      operationId: resetTokenSaverStats
+      tags: [tokensaver]
+      summary: Reset compression and Headroom counters
+      responses:
+        '204':
+          description: Reset
+  /api/token-saver/cache:
+    delete:
+      operationId: clearHeadroomCache
+      tags: [tokensaver]
+      summary: Clear in-memory Headroom prefix affinity cache
+      responses:
+        '204':
+          description: Cleared
+  /api/token-saver/preview:
+    post:
+      operationId: previewTokenSaver
+      tags: [tokensaver]
+      summary: Dry-run token compression and prefix fingerprint on a payload
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenSaverPreviewRequest'
+      responses:
+        '200':
+          description: Preview output
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenSaverPreviewResult'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+components:
+  schemas:
+    TokenSaverConfig:
+      type: object
+      required: [enabled, strategy, max_history_messages, max_tool_output_chars, headroom_enabled, prefix_depth, max_cache_entries, cache_ttl_seconds, inject_cache_control, caveman_enabled, caveman_level, ponytail_enabled, ponytail_level, trim_history_enabled, updated_at]
+      properties:
+        enabled: { type: boolean }
+        strategy: { type: string, enum: [off, whitespace, dedupe, aggressive] }
+        max_history_messages: { type: integer }
+        max_tool_output_chars: { type: integer }
+        headroom_enabled: { type: boolean }
+        prefix_depth: { type: integer }
+        max_cache_entries: { type: integer }
+        cache_ttl_seconds: { type: integer }
+        inject_cache_control: { type: boolean }
+        caveman_enabled: { type: boolean }
+        caveman_level: { type: string, enum: [lite, full, ultra] }
+        ponytail_enabled: { type: boolean }
+        ponytail_level: { type: string, enum: [lite, full, ultra] }
+        trim_history_enabled: { type: boolean }
+        updated_at: { type: string }
+    TokenSaverConfigPatch:
+      type: object
+      properties:
+        enabled: { type: boolean }
+        strategy: { type: string, enum: [off, whitespace, dedupe, aggressive] }
+        max_history_messages: { type: integer }
+        max_tool_output_chars: { type: integer }
+        headroom_enabled: { type: boolean }
+        prefix_depth: { type: integer }
+        max_cache_entries: { type: integer }
+        cache_ttl_seconds: { type: integer }
+        inject_cache_control: { type: boolean }
+        caveman_enabled: { type: boolean }
+        caveman_level: { type: string, enum: [lite, full, ultra] }
+        ponytail_enabled: { type: boolean }
+        ponytail_level: { type: string, enum: [lite, full, ultra] }
+        trim_history_enabled: { type: boolean }
+    CompressionStats:
+      type: object
+      required: [requests_processed, requests_compressed, bytes_saved, estimated_tokens_saved]
+      properties:
+        requests_processed: { type: integer }
+        requests_compressed: { type: integer }
+        bytes_saved: { type: integer }
+        estimated_tokens_saved: { type: integer }
+    WarmPrefixSummary:
+      type: object
+      required: [key, protocol, model, provider_id, connection_id, hits, last_seen_at]
+      properties:
+        key: { type: string }
+        protocol: { type: string }
+        model: { type: string }
+        provider_id: { type: string }
+        connection_id: { type: string }
+        hits: { type: integer }
+        last_seen_at: { type: string }
+    HeadroomStats:
+      type: object
+      required: [cache_hits, cache_misses, hit_rate, active_entries, max_entries, warm_prefixes]
+      properties:
+        cache_hits: { type: integer }
+        cache_misses: { type: integer }
+        hit_rate: { type: number }
+        active_entries: { type: integer }
+        max_entries: { type: integer }
+        warm_prefixes:
+          type: array
+          items:
+            $ref: '#/components/schemas/WarmPrefixSummary'
+    TokenSaverStats:
+      type: object
+      required: [compression, headroom]
+      properties:
+        compression:
+          $ref: '#/components/schemas/CompressionStats'
+        headroom:
+          $ref: '#/components/schemas/HeadroomStats'
+    TokenSaverPreviewRequest:
+      type: object
+      required: [body]
+      properties:
+        protocol: { type: string }
+        model: { type: string }
+        strategy: { type: string, enum: [off, whitespace, dedupe, aggressive] }
+        body:
+          type: object
+          additionalProperties: true
+    TokenSaverPreviewResult:
+      type: object
+      required: [original_bytes, compressed_bytes, bytes_saved, estimated_tokens_saved, cache_key, body]
+      properties:
+        original_bytes: { type: integer }
+        compressed_bytes: { type: integer }
+        bytes_saved: { type: integer }
+        estimated_tokens_saved: { type: integer }
+        cache_key: { type: string }
+        body:
+          type: object
+          additionalProperties: true

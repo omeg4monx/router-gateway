@@ -1,0 +1,380 @@
+openapi: 3.1.0
+info:
+  title: omeg4mon-router Keys Module API
+  version: 0.1.0
+paths:
+  /api/keys:
+    get:
+      operationId: listApiKeys
+      summary: List all gateway API keys (metadata only, never secrets or hashes)
+      tags:
+        - keys
+      responses:
+        '200':
+          description: Gateway API key metadata ordered newest-first.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListApiKeysResponse'
+        '401':
+          description: Administrative authentication is required.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '500':
+          description: Failed to load API keys from storage.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+    post:
+      operationId: createApiKey
+      summary: Create a new gateway API key and return its one-time raw secret
+      tags:
+        - keys
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateApiKeyRequest'
+      responses:
+        '201':
+          description: Gateway API key created; raw secret is returned once and never stored.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiKeySecretResponse'
+        '400':
+          description: Malformed request body or validation error.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Administrative authentication is required.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '413':
+          description: Request body exceeds maximum allowed size.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '500':
+          description: Failed to create API key.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+  /api/keys/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: Unique gateway API key identifier.
+        schema:
+          type: string
+    get:
+      operationId: getApiKey
+      summary: Retrieve metadata for a single gateway API key
+      tags:
+        - keys
+      responses:
+        '200':
+          description: Gateway API key metadata.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiKeySummary'
+        '401':
+          description: Administrative authentication is required.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '404':
+          description: API key not found.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '500':
+          description: Failed to load API key metadata.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+    patch:
+      operationId: updateApiKey
+      summary: Update gateway API key metadata, limits, disable state, or expiration
+      tags:
+        - keys
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateApiKeyRequest'
+      responses:
+        '200':
+          description: API key updated and validation cache invalidated immediately.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiKeySummary'
+        '400':
+          description: Malformed request body or validation error.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Administrative authentication is required.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '404':
+          description: API key not found.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '413':
+          description: Request body exceeds maximum allowed size.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '500':
+          description: Failed to update API key.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+    delete:
+      operationId: deleteApiKey
+      summary: Permanently delete a gateway API key and invalidate its cached hash
+      tags:
+        - keys
+      responses:
+        '204':
+          description: API key deleted and invalidated immediately.
+        '401':
+          description: Administrative authentication is required.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '404':
+          description: API key not found.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '500':
+          description: Failed to delete API key.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+  /api/keys/{id}/rotate:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: Unique gateway API key identifier.
+        schema:
+          type: string
+    post:
+      operationId: rotateApiKey
+      summary: Atomically rotate a gateway API key secret, invalidating the old secret immediately
+      tags:
+        - keys
+      responses:
+        '200':
+          description: API key rotated; new raw secret is returned once.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiKeySecretResponse'
+        '401':
+          description: Administrative authentication is required.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '404':
+          description: API key not found.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '500':
+          description: Failed to rotate API key.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+components:
+  schemas:
+    ApiKeySummary:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - name
+        - key_prefix
+        - allowed_models
+        - scopes
+        - tags
+        - rate_limit_rpm
+        - quota_usd
+        - disabled
+        - expires_at
+        - last_used_at
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        key_prefix:
+          type: string
+          description: First 14 characters of the raw key for operator identification.
+        allowed_models:
+          type: array
+          items:
+            type: string
+        scopes:
+          type: array
+          items:
+            type: string
+        tags:
+          type: array
+          items:
+            type: string
+        rate_limit_rpm:
+          type: integer
+          minimum: 0
+        quota_usd:
+          type: number
+          format: double
+          minimum: 0
+        disabled:
+          type: boolean
+        expires_at:
+          type:
+            - string
+            - 'null'
+          format: date-time
+        last_used_at:
+          type:
+            - string
+            - 'null'
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    ListApiKeysResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - keys
+      properties:
+        keys:
+          type: array
+          items:
+            $ref: '#/components/schemas/ApiKeySummary'
+    CreateApiKeyRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 128
+        allowed_models:
+          type: array
+          items:
+            type: string
+        scopes:
+          type: array
+          items:
+            type: string
+          default:
+            - gateway
+        tags:
+          type: array
+          items:
+            type: string
+        rate_limit_rpm:
+          type: integer
+          minimum: 0
+          default: 0
+        quota_usd:
+          type: number
+          format: double
+          minimum: 0
+          default: 0
+        expires_at:
+          type:
+            - string
+            - 'null'
+          format: date-time
+    UpdateApiKeyRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 128
+        allowed_models:
+          type: array
+          items:
+            type: string
+        scopes:
+          type: array
+          items:
+            type: string
+        tags:
+          type: array
+          items:
+            type: string
+        rate_limit_rpm:
+          type: integer
+          minimum: 0
+        quota_usd:
+          type: number
+          format: double
+          minimum: 0
+        disabled:
+          type: boolean
+        expires_at:
+          type:
+            - string
+            - 'null'
+          format: date-time
+    ApiKeySecretResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - key
+        - secret
+      properties:
+        key:
+          $ref: '#/components/schemas/ApiKeySummary'
+        secret:
+          type: string
+          description: One-time raw gateway API key secret (sk-om4-<48-char base64url>).

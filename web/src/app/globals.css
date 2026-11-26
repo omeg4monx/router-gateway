@@ -1,0 +1,598 @@
+@import "tailwindcss";
+
+/* Latin-only variable font subsets (en/id UI) to keep embedded binary compact */
+@font-face {
+  font-family: "Plus Jakarta Sans Variable";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 200 800;
+  src: url("@fontsource-variable/plus-jakarta-sans/files/plus-jakarta-sans-latin-wght-normal.woff2")
+    format("woff2-variations");
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: "JetBrains Mono Variable";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 800;
+  src: url("@fontsource-variable/jetbrains-mono/files/jetbrains-mono-latin-wght-normal.woff2")
+    format("woff2-variations");
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@theme inline {
+  --font-sans: var(--font-ui-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-ui-mono), ui-monospace, SFMono-Regular, monospace;
+
+  /* Brand scale */
+  --color-brand-50: var(--color-brand-50);
+  --color-brand-100: var(--color-brand-100);
+  --color-brand-200: var(--color-brand-200);
+  --color-brand-300: var(--color-brand-300);
+  --color-brand-400: var(--color-brand-400);
+  --color-brand-500: var(--color-brand-500);
+  --color-brand-600: var(--color-brand-600);
+  --color-brand-700: var(--color-brand-700);
+  --color-brand-800: var(--color-brand-800);
+  --color-brand-900: var(--color-brand-900);
+
+  /* Primary / Secondary / Accent / Highlight */
+  --color-primary: var(--color-primary);
+  --color-primary-hover: var(--color-primary-hover);
+  --color-on-primary: var(--color-on-primary);
+  --color-secondary: var(--color-secondary);
+  --color-secondary-hover: var(--color-secondary-hover);
+  --color-secondary-bg: var(--color-secondary-bg);
+  --color-secondary-fg: var(--color-secondary-fg);
+  --color-secondary-border: var(--color-secondary-border);
+  --color-accent: var(--color-accent);
+  --color-accent-hover: var(--color-accent-hover);
+  --color-accent-bg: var(--color-accent-bg);
+  --color-accent-fg: var(--color-accent-fg);
+  --color-accent-border: var(--color-accent-border);
+  --color-highlight: var(--color-highlight);
+
+  /* Semantic surfaces & text */
+  --color-bg: var(--color-bg);
+  --color-bg-alt: var(--color-bg-alt);
+  --color-surface: var(--color-surface);
+  --color-surface-2: var(--color-surface-2);
+  --color-surface-3: var(--color-surface-3);
+  --color-sidebar: var(--color-sidebar);
+  --color-border: var(--color-border);
+  --color-border-subtle: var(--color-border-subtle);
+  --color-text: var(--color-text);
+  --color-text-main: var(--color-text-main);
+  --color-text-muted: var(--color-text-muted);
+  --color-text-subtle: var(--color-text-subtle);
+  --color-field: var(--color-field);
+  --color-field-border: var(--color-field-border);
+
+  /* Status */
+  --color-danger: var(--color-danger);
+  --color-danger-bg: var(--color-danger-bg);
+  --color-danger-fg: var(--color-danger-fg);
+  --color-danger-border: var(--color-danger-border);
+  --color-success: var(--color-success);
+  --color-success-bg: var(--color-success-bg);
+  --color-success-fg: var(--color-success-fg);
+  --color-success-border: var(--color-success-border);
+  --color-warning: var(--color-warning);
+  --color-warning-bg: var(--color-warning-bg);
+  --color-warning-fg: var(--color-warning-fg);
+  --color-warning-border: var(--color-warning-border);
+  --color-info: var(--color-info);
+  --color-info-bg: var(--color-info-bg);
+  --color-info-fg: var(--color-info-fg);
+  --color-info-border: var(--color-info-border);
+}
+
+/* ============================================================
+   OMEG4MON ROUTER palette (parity with main)
+   Dark  = Omegamon Zwart: obsidian armor, gunmetal plates, silver
+           trim, dark electric cyan energy, burning red eyes/core.
+   Light = Omegamon X-Antibody: pearl-white armor, Garuru Cannon blue,
+           All Delete cyan, Grey Sword gold, red/black armor trim.
+   Contrast: on-primary on a primary fill >= 6:1 in both modes; primary
+   as text >= 4.5:1 on surfaces.
+   ============================================================ */
+:root,
+[data-theme="light"] {
+  color-scheme: light;
+
+  /* Brand scale (light) — Ruby Rose custom accent from main (#b5173a / #951330) */
+  --color-brand-50: #fdf2f5;
+  --color-brand-100: #fbe4ea;
+  --color-brand-200: #f6c4d1;
+  --color-brand-300: #ee97ad;
+  --color-brand-400: #df5478;
+  --color-brand-500: #b5173a;
+  --color-brand-600: #951330;
+  --color-brand-700: #7c0f28;
+  --color-brand-800: #5f0b1e;
+  --color-brand-900: #420715;
+
+  /* Primary — Ruby Rose (main custom palette preset "rose") */
+  --color-primary: var(--color-brand-500);
+  --color-primary-hover: var(--color-brand-600);
+  /* White on Ruby Rose: >= 6:1 */
+  --color-on-primary: #ffffff;
+
+  /* Secondary — Grey Sword gold (fill carries dark text) */
+  --color-secondary: #e8a317;
+  --color-secondary-hover: #cc8a0a;
+  --color-secondary-bg: #fdf4e0;
+  --color-secondary-fg: #8a5200;
+  --color-secondary-border: #f0d49a;
+
+  /* Accent — red armor trim */
+  --color-accent: #c8102e;
+  --color-accent-hover: #a50d26;
+  --color-accent-bg: #fce8eb;
+  --color-accent-fg: #a50d26;
+  --color-accent-border: #f3b8c2;
+
+  /* Highlight — All Delete cyan */
+  --color-highlight: #00b8e6;
+
+  /* Surfaces (light) — pearl white armor */
+  --color-bg: #f5f6f8;
+  --color-bg-alt: #eceef2;
+  --color-surface: #ffffff;
+  --color-surface-2: #eef1f5;
+  --color-surface-3: #e2e6ec;
+  --color-sidebar: rgba(236, 239, 243, 0.88);
+  --color-border: #d9dee6;
+  --color-border-subtle: #e8ebf0;
+  --color-field: #ffffff;
+  --color-field-border: #d3d9e2;
+
+  /* Text — black armor plates */
+  --color-text: #0b0d12;
+  --color-text-main: #0b0d12;
+  --color-text-muted: #4a5260;
+  --color-text-subtle: #5f6775;
+
+  /* Status */
+  --color-danger: #c0342b;
+  --color-danger-bg: #fdecea;
+  --color-danger-fg: #a02a22;
+  --color-danger-border: #f0c4c0;
+
+  --color-success: #0f6b3f;
+  --color-success-bg: #e7f4ec;
+  --color-success-fg: #10693d;
+  --color-success-border: #b7dfc6;
+
+  --color-warning: #945c00;
+  --color-warning-bg: #fdf2e3;
+  --color-warning-fg: #8a5500;
+  --color-warning-border: #efd6ad;
+
+  --color-info: #0e7490;
+  --color-info-bg: #e6f6fa;
+  --color-info-fg: #0b5e75;
+  --color-info-border: #b3e0ec;
+
+  /* Semantic aliases used by migration/ts-go components */
+  --bg-canvas: #f5f6f8;
+  --bg-surface: #ffffff;
+  --bg-surface-raised: #eef1f5;
+  --bg-input: #ffffff;
+  --border-subtle: #e8ebf0;
+  --border-strong: #d9dee6;
+  --text-primary: #0b0d12;
+  --text-secondary: #4a5260;
+  --text-muted: #5f6775;
+  --accent-primary: #b5173a;
+  --accent-primary-hover: #951330;
+  --accent-primary-ink: #ffffff;
+  --accent-text: #b5173a;
+  --status-ok: #10693d;
+  --status-ok-bg: #e7f4ec;
+  --status-ok-border: #b7dfc6;
+  --status-error: #a02a22;
+  --status-error-bg: #fdecea;
+  --status-error-border: #f0c4c0;
+  --status-warn: #8a5500;
+  --status-warn-bg: #fdf2e3;
+  --status-warn-border: #efd6ad;
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  /* Brand scale (dark) — Ruby Rose custom accent from main (#eb6583 / #ef8099) */
+  --color-brand-50: #fef2f5;
+  --color-brand-100: #fde4ea;
+  --color-brand-200: #f9c6d2;
+  --color-brand-300: #f49eb2;
+  --color-brand-400: #ef8099;
+  --color-brand-500: #eb6583;
+  --color-brand-600: #ef8099;
+  --color-brand-700: #c73c5d;
+  --color-brand-800: #951330;
+  --color-brand-900: #630c20;
+
+  /* Primary — Ruby Rose (main custom palette preset "rose") */
+  --color-primary: var(--color-brand-500);
+  --color-primary-hover: var(--color-brand-600);
+  /* Obsidian on Ruby Rose: >= 6:1 */
+  --color-on-primary: #050608;
+
+  /* Secondary — silver trim (fill carries dark text) */
+  --color-secondary: #c0c6cf;
+  --color-secondary-hover: #d5dae1;
+  --color-secondary-bg: rgba(192, 198, 207, 0.12);
+  --color-secondary-fg: #d5dae1;
+  --color-secondary-border: rgba(192, 198, 207, 0.28);
+
+  /* Accent — burning red eyes / energy core */
+  --color-accent: #ff2d3a;
+  --color-accent-hover: #ff5a64;
+  --color-accent-bg: rgba(255, 45, 58, 0.14);
+  --color-accent-fg: #ff7a82;
+  --color-accent-border: rgba(255, 45, 58, 0.32);
+
+  /* Highlight — electric cyan glow */
+  --color-highlight: #22d3ee;
+
+  /* Surfaces (dark) — obsidian armor, gunmetal plates */
+  --color-bg: #050608;
+  --color-bg-alt: #0a0c10;
+  --color-surface: #101217;
+  --color-surface-2: #171a20;
+  --color-surface-3: #20242c;
+  --color-sidebar: #0a0c10;
+  --color-border: #262a33;
+  --color-border-subtle: #171a20;
+  --color-field: #0a0c10;
+  --color-field-border: #2a2f38;
+
+  /* Text — silver */
+  --color-text: #e6e9ee;
+  --color-text-main: #e6e9ee;
+  --color-text-muted: #a3aab6;
+  --color-text-subtle: #7e8592;
+
+  /* Status */
+  --color-danger: #f0605f;
+  --color-danger-bg: rgba(240, 96, 95, 0.14);
+  --color-danger-fg: #f2959a;
+  --color-danger-border: rgba(240, 96, 95, 0.3);
+
+  --color-success: #4fb083;
+  --color-success-bg: rgba(70, 160, 119, 0.14);
+  --color-success-fg: #7fcfaa;
+  --color-success-border: rgba(70, 160, 119, 0.3);
+
+  --color-warning: #d39a4a;
+  --color-warning-bg: rgba(211, 154, 74, 0.14);
+  --color-warning-fg: #e2b878;
+  --color-warning-border: rgba(211, 154, 74, 0.3);
+
+  --color-info: #22a6c4;
+  --color-info-bg: rgba(34, 166, 196, 0.14);
+  --color-info-fg: #7fd6ea;
+  --color-info-border: rgba(34, 166, 196, 0.3);
+
+  /* Semantic aliases used by migration/ts-go components */
+  --bg-canvas: #050608;
+  --bg-surface: #101217;
+  --bg-surface-raised: #171a20;
+  --bg-input: #0a0c10;
+  --border-subtle: #171a20;
+  --border-strong: #262a33;
+  --text-primary: #e6e9ee;
+  --text-secondary: #a3aab6;
+  --text-muted: #7e8592;
+  --accent-primary: #eb6583;
+  --accent-primary-hover: #ef8099;
+  --accent-primary-ink: #050608;
+  --accent-text: #eb6583;
+  --status-ok: #7fcfaa;
+  --status-ok-bg: rgba(70, 160, 119, 0.14);
+  --status-ok-border: rgba(70, 160, 119, 0.3);
+  --status-error: #f2959a;
+  --status-error-bg: rgba(240, 96, 95, 0.14);
+  --status-error-border: rgba(240, 96, 95, 0.3);
+  --status-warn: #e2b878;
+  --status-warn-bg: rgba(211, 154, 74, 0.14);
+  --status-warn-border: rgba(211, 154, 74, 0.3);
+}
+
+* {
+  border-color: var(--border-subtle);
+}
+
+html,
+body {
+  background-color: var(--bg-canvas);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+::selection {
+  background-color: color-mix(in srgb, var(--color-primary) 22%, transparent);
+  color: var(--color-primary);
+}
+
+[data-theme="dark"] ::selection {
+  background-color: color-mix(in srgb, var(--color-primary) 32%, transparent);
+  color: var(--color-brand-200);
+}
+
+input,
+textarea {
+  accent-color: var(--color-primary);
+}
+
+select {
+  color-scheme: light;
+}
+
+select option {
+  background-color: var(--bg-surface);
+  color: var(--text-primary);
+}
+
+[data-theme="dark"] select {
+  color-scheme: dark;
+}
+
+a:focus-visible,
+button:focus-visible,
+input:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ============================================================================
+ * React Flow Provider Topology smooth animations & themed controls
+ * ========================================================================== */
+@keyframes topology-router-breathe {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 1px color-mix(in srgb, var(--color-highlight) 35%, transparent),
+      0 6px 22px color-mix(in srgb, var(--color-highlight) 20%, transparent);
+  }
+  50% {
+    box-shadow:
+      0 0 0 2px color-mix(in srgb, var(--color-highlight) 50%, transparent),
+      0 8px 30px color-mix(in srgb, var(--color-highlight) 34%, transparent);
+  }
+}
+
+@keyframes topology-edge-flow {
+  from {
+    stroke-dashoffset: 32;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes topology-edge-bloom {
+  0%,
+  100% {
+    opacity: 0.16;
+  }
+  50% {
+    opacity: 0.34;
+  }
+}
+
+.topology-router-core {
+  animation: topology-router-breathe 2.4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+.topology-router-badge {
+  box-shadow: 0 0 12px color-mix(in srgb, var(--color-highlight) 48%, transparent);
+}
+
+.topology-edge-flow {
+  stroke-dasharray: 6 10;
+  animation: topology-edge-flow 1.05s linear infinite;
+}
+
+.topology-edge-last {
+  stroke-dasharray: 4 12;
+  animation: topology-edge-flow 3.2s linear infinite;
+}
+
+.topology-edge-bloom {
+  animation: topology-edge-bloom 2.2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+.topology-flow-controls.react-flow__controls {
+  border: 1px solid var(--color-border);
+  border-radius: 0.625rem;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  background: var(--color-surface);
+}
+
+.topology-flow-controls .react-flow__controls-button {
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+  border-bottom: 1px solid var(--color-border-subtle);
+  transition:
+    background-color 180ms ease,
+    color 180ms ease;
+}
+
+.topology-flow-controls .react-flow__controls-button:hover {
+  background: var(--color-surface-2);
+  color: var(--color-text-main);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .topology-router-core,
+  .topology-edge-flow,
+  .topology-edge-last,
+  .topology-edge-bloom,
+  .metric-value-tick {
+    animation: none;
+  }
+}
+
+/* Subtle semantic tint differentiation for Overview KPI cards */
+.overview-kpi-card {
+  border-width: 1px;
+  border-style: solid;
+  transition:
+    border-color 220ms ease,
+    background-color 220ms ease;
+}
+
+.overview-kpi-requests {
+  background-color: color-mix(in srgb, var(--color-primary) 4%, var(--color-surface));
+  border-color: color-mix(in srgb, var(--color-primary) 20%, var(--color-border));
+}
+
+.overview-kpi-tokens {
+  background-color: color-mix(in srgb, var(--color-info) 4%, var(--color-surface));
+  border-color: color-mix(in srgb, var(--color-info) 22%, var(--color-border));
+}
+
+.overview-kpi-cached {
+  background-color: color-mix(in srgb, var(--color-success) 4%, var(--color-surface));
+  border-color: color-mix(in srgb, var(--color-success) 22%, var(--color-border));
+}
+
+[data-theme="dark"] .overview-kpi-requests {
+  background-color: color-mix(in srgb, var(--color-primary) 6%, var(--color-surface));
+  border-color: color-mix(in srgb, var(--color-primary) 24%, var(--color-border));
+}
+
+[data-theme="dark"] .overview-kpi-tokens {
+  background-color: color-mix(in srgb, var(--color-info) 6%, var(--color-surface));
+  border-color: color-mix(in srgb, var(--color-info) 24%, var(--color-border));
+}
+
+[data-theme="dark"] .overview-kpi-cached {
+  background-color: color-mix(in srgb, var(--color-success) 6%, var(--color-surface));
+  border-color: color-mix(in srgb, var(--color-success) 24%, var(--color-border));
+}
+
+/* Subtle realtime numeric update animation */
+@keyframes metric-value-tick {
+  0% {
+    opacity: 0.72;
+    transform: translateY(1.5px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.metric-value-tick {
+  animation: metric-value-tick 360ms var(--ease-spring);
+}
+
+:root {
+  --font-ui-sans: "Plus Jakarta Sans Variable", "Plus Jakarta Sans";
+  --font-ui-mono: "JetBrains Mono Variable", "JetBrains Mono";
+  --ease-spring: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Tactile floating studio sidebar rail (parity with main LeftRail) */
+.shell-rail {
+  isolation: isolate;
+  border: 1px solid color-mix(in srgb, var(--color-border) 85%, transparent);
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.6),
+    0 1px 2px rgba(11, 13, 18, 0.05),
+    0 10px 28px -10px rgba(11, 13, 18, 0.12);
+}
+
+.shell-rail::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  z-index: -1;
+  pointer-events: none;
+  background-color: var(--color-surface);
+}
+
+[data-theme="dark"] .shell-rail {
+  border-color: color-mix(in srgb, var(--color-border) 90%, transparent);
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.06),
+    0 1px 2px rgba(0, 0, 0, 0.45),
+    0 14px 36px -12px rgba(0, 0, 0, 0.65);
+}
+
+[data-theme="dark"] .shell-rail::before {
+  background-color: var(--color-surface);
+}
+
+/* Provider card & neutral-contrast logo tile (prevents light/dark logos from blending in) */
+.provider-card-surface {
+  background-color: #ffffff;
+  border-color: #dce2ec;
+}
+
+[data-theme="dark"] .provider-card-surface {
+  background-color: #141821;
+  border-color: #293040;
+}
+
+.provider-logo-tile {
+  background-color: #dde3ee;
+  border-color: #c5cedd;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55);
+}
+
+[data-theme="dark"] .provider-logo-tile {
+  background-color: #283040;
+  border-color: #3b4559;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.provider-logo-img {
+  filter: drop-shadow(0 1px 1px rgba(15, 23, 42, 0.2));
+}
+
+/* Monochrome provider brand logos invert cleanly on dark surfaces */
+[data-theme="dark"] .provider-logo-invert {
+  filter: invert(1) brightness(1.1) drop-shadow(0 1px 1px rgba(0, 0, 0, 0.35));
+}
+
+/* Subtle thin scrollbar for floating sidebar & internal panels */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--color-border) 85%, transparent) transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: color-mix(in srgb, var(--color-border) 85%, transparent);
+  border-radius: 9999px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: color-mix(in srgb, var(--color-text-muted) 55%, transparent);
+}

@@ -1,0 +1,211 @@
+paths:
+  /api/importer/inspect:
+    post:
+      operationId: inspectLegacyDatabase
+      tags: [importer]
+      summary: Inspect a legacy data.sqlite file strictly read-only without mutating it
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InspectLegacyRequest'
+      responses:
+        '200':
+          description: Legacy database summary
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InspectLegacyResponse'
+        '400':
+          description: Invalid path or non-SQLite file
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+  /api/importer/run:
+    post:
+      operationId: runLegacyImport
+      tags: [importer]
+      summary: Execute a dry-run or live one-way migration from a legacy data.sqlite file
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RunLegacyImportRequest'
+      responses:
+        '200':
+          description: Import run result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RunLegacyImportResponse'
+        '400':
+          description: Invalid source database
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+  /api/importer/history:
+    get:
+      operationId: listImporterHistory
+      tags: [importer]
+      summary: List recent legacy importer runs
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+      responses:
+        '200':
+          description: Importer run history
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImporterHistoryListResponse'
+    delete:
+      operationId: clearImporterHistory
+      tags: [importer]
+      summary: Clear all recorded importer runs
+      responses:
+        '200':
+          description: Cleared run count
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClearImporterHistoryResponse'
+components:
+  schemas:
+    InspectLegacyRequest:
+      type: object
+      additionalProperties: false
+      required: [source_path]
+      properties:
+        source_path:
+          type: string
+    InspectLegacyResponse:
+      type: object
+      additionalProperties: false
+      required: [source_path, tables_found, settings_count, combos_count, keys_count, providers_count, warnings]
+      properties:
+        source_path:
+          type: string
+        tables_found:
+          type: array
+          items:
+            type: string
+        settings_count:
+          type: integer
+        combos_count:
+          type: integer
+        keys_count:
+          type: integer
+        providers_count:
+          type: integer
+        warnings:
+          type: array
+          items:
+            type: string
+    RunLegacyImportRequest:
+      type: object
+      additionalProperties: false
+      required: [source_path]
+      properties:
+        source_path:
+          type: string
+        dry_run:
+          type: boolean
+        import_settings:
+          type: boolean
+        import_combos:
+          type: boolean
+        import_keys:
+          type: boolean
+        overwrite:
+          type: boolean
+    ImporterRun:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - source_path
+        - dry_run
+        - status
+        - settings_imported
+        - combos_imported
+        - keys_imported
+        - providers_found
+        - summary
+        - error
+        - created_at
+      properties:
+        id:
+          type: string
+        source_path:
+          type: string
+        dry_run:
+          type: boolean
+        status:
+          type: string
+        settings_imported:
+          type: integer
+        combos_imported:
+          type: integer
+        keys_imported:
+          type: integer
+        providers_found:
+          type: integer
+        summary:
+          type: string
+        error:
+          type: string
+        created_at:
+          type: string
+    ImportedProvisionedKey:
+      type: object
+      additionalProperties: false
+      required: [ID, Name, KeyPrefix, Secret]
+      properties:
+        ID:
+          type: string
+        Name:
+          type: string
+        KeyPrefix:
+          type: string
+        Secret:
+          type: string
+    RunLegacyImportResponse:
+      type: object
+      additionalProperties: false
+      required: [run, warnings, provisioned_keys]
+      properties:
+        run:
+          $ref: '#/components/schemas/ImporterRun'
+        warnings:
+          type: array
+          items:
+            type: string
+        provisioned_keys:
+          type: array
+          items:
+            $ref: '#/components/schemas/ImportedProvisionedKey'
+    ImporterHistoryListResponse:
+      type: object
+      additionalProperties: false
+      required: [runs]
+      properties:
+        runs:
+          type: array
+          items:
+            $ref: '#/components/schemas/ImporterRun'
+    ClearImporterHistoryResponse:
+      type: object
+      additionalProperties: false
+      required: [deleted]
+      properties:
+        deleted:
+          type: integer

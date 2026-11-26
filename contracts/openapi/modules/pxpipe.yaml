@@ -1,0 +1,360 @@
+openapi: 3.1.0
+info:
+  title: omeg4mon-router PXPIPE Module
+  version: 0.1.0
+paths:
+  /api/pxpipe/status:
+    get:
+      tags: [pxpipe]
+      operationId: getPxpipeStatus
+      summary: Get live PXPIPE transform pipeline status and configuration
+      responses:
+        '200':
+          description: PXPIPE status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PxpipeStatus'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+  /api/pxpipe/config:
+    patch:
+      tags: [pxpipe]
+      operationId: updatePxpipeConfig
+      summary: Update PXPIPE transform pipeline configuration
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdatePxpipeConfigRequest'
+      responses:
+        '200':
+          description: Updated PXPIPE status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PxpipeStatus'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+  /api/pxpipe/start:
+    post:
+      tags: [pxpipe]
+      operationId: startPxpipe
+      summary: Start the in-process PXPIPE transform pipeline
+      responses:
+        '200':
+          description: Started
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PxpipeStatus'
+  /api/pxpipe/stop:
+    post:
+      tags: [pxpipe]
+      operationId: stopPxpipe
+      summary: Stop the in-process PXPIPE transform pipeline
+      responses:
+        '200':
+          description: Stopped
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PxpipeStatus'
+  /api/pxpipe/restart:
+    post:
+      tags: [pxpipe]
+      operationId: restartPxpipe
+      summary: Restart the in-process PXPIPE transform pipeline
+      responses:
+        '200':
+          description: Restarted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PxpipeStatus'
+  /api/pxpipe/health:
+    get:
+      tags: [pxpipe]
+      operationId: getPxpipeHealth
+      summary: Run live 3-step PXPIPE self-test health check
+      responses:
+        '200':
+          description: Health report
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PxpipeHealthReport'
+  /api/pxpipe/stats:
+    get:
+      tags: [pxpipe]
+      operationId: getPxpipeStats
+      summary: Get live PXPIPE transform statistics
+      responses:
+        '200':
+          description: Transform stats
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PxpipeStats'
+    delete:
+      tags: [pxpipe]
+      operationId: resetPxpipeStats
+      summary: Reset PXPIPE transform statistics counters
+      responses:
+        '200':
+          description: Reset stats
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PxpipeStats'
+  /api/pxpipe/logs:
+    get:
+      tags: [pxpipe]
+      operationId: listPxpipeLogs
+      summary: List recent PXPIPE transform log summaries
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Transform logs
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PxpipeLogListResponse'
+    delete:
+      tags: [pxpipe]
+      operationId: clearPxpipeLogs
+      summary: Clear PXPIPE transform log ring buffer
+      responses:
+        '200':
+          description: Cleared count
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClearPxpipeLogsResponse'
+  /api/pxpipe/preview:
+    post:
+      tags: [pxpipe]
+      operationId: previewPxpipeTransform
+      summary: Dry-run PXPIPE transform pipeline against a JSON payload
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PxpipePreviewRequest'
+      responses:
+        '200':
+          description: Dry-run preview result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PxpipePreviewResponse'
+        '400':
+          description: Invalid payload
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+components:
+  schemas:
+    PxpipeConfig:
+      type: object
+      additionalProperties: false
+      required:
+        - enabled
+        - auto_start
+        - strip_null_fields
+        - collapse_whitespace
+        - dedupe_system_prompts
+        - max_history_messages
+        - updated_at
+      properties:
+        enabled:
+          type: boolean
+        auto_start:
+          type: boolean
+        strip_null_fields:
+          type: boolean
+        collapse_whitespace:
+          type: boolean
+        dedupe_system_prompts:
+          type: boolean
+        max_history_messages:
+          type: integer
+        updated_at:
+          type: string
+    PxpipeStatus:
+      type: object
+      additionalProperties: false
+      required: [running, mode, started_at, uptime_ms, config]
+      properties:
+        running:
+          type: boolean
+        mode:
+          type: string
+        started_at:
+          type: string
+        uptime_ms:
+          type: integer
+        config:
+          $ref: '#/components/schemas/PxpipeConfig'
+    UpdatePxpipeConfigRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        enabled:
+          type: boolean
+        auto_start:
+          type: boolean
+        strip_null_fields:
+          type: boolean
+        collapse_whitespace:
+          type: boolean
+        dedupe_system_prompts:
+          type: boolean
+        max_history_messages:
+          type: integer
+    PxpipeHealthCheck:
+      type: object
+      additionalProperties: false
+      required: [id, label, ok, detail]
+      properties:
+        id:
+          type: string
+        label:
+          type: string
+        ok:
+          type: boolean
+        detail:
+          type: string
+    PxpipeHealthReport:
+      type: object
+      additionalProperties: false
+      required: [healthy, checks, error]
+      properties:
+        healthy:
+          type: boolean
+        checks:
+          type: array
+          items:
+            $ref: '#/components/schemas/PxpipeHealthCheck'
+        error:
+          type: string
+    PxpipeStats:
+      type: object
+      additionalProperties: false
+      required:
+        - requests_seen
+        - requests_transformed
+        - bytes_in
+        - bytes_out
+        - bytes_saved
+        - estimated_tokens_saved
+        - errors
+      properties:
+        requests_seen:
+          type: integer
+        requests_transformed:
+          type: integer
+        bytes_in:
+          type: integer
+        bytes_out:
+          type: integer
+        bytes_saved:
+          type: integer
+        estimated_tokens_saved:
+          type: integer
+        errors:
+          type: integer
+    PxpipeLogEntry:
+      type: object
+      additionalProperties: false
+      required:
+        - timestamp
+        - request_id
+        - model
+        - bytes_before
+        - bytes_after
+        - bytes_saved
+        - stages_applied
+      properties:
+        timestamp:
+          type: string
+        request_id:
+          type: string
+        model:
+          type: string
+        bytes_before:
+          type: integer
+        bytes_after:
+          type: integer
+        bytes_saved:
+          type: integer
+        stages_applied:
+          type: array
+          items:
+            type: string
+    PxpipeLogListResponse:
+      type: object
+      additionalProperties: false
+      required: [logs]
+      properties:
+        logs:
+          type: array
+          items:
+            $ref: '#/components/schemas/PxpipeLogEntry'
+    ClearPxpipeLogsResponse:
+      type: object
+      additionalProperties: false
+      required: [deleted]
+      properties:
+        deleted:
+          type: integer
+    PxpipePreviewRequest:
+      type: object
+      additionalProperties: false
+      required: [payload]
+      properties:
+        payload:
+          type: object
+          additionalProperties: true
+    PxpipePreviewResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - original_bytes
+        - transformed_bytes
+        - bytes_saved
+        - estimated_tokens_saved
+        - stages_applied
+        - body
+      properties:
+        original_bytes:
+          type: integer
+        transformed_bytes:
+          type: integer
+        bytes_saved:
+          type: integer
+        estimated_tokens_saved:
+          type: integer
+        stages_applied:
+          type: array
+          items:
+            type: string
+        body:
+          type: object
+          additionalProperties: true

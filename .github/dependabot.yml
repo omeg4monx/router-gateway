@@ -1,2 +1,31 @@
 version: 2
-updates: []
+updates:
+  - package-ecosystem: "gomod"
+    directory: "/"
+    target-branch: "migration/ts-go"
+    schedule:
+      interval: "weekly"
+    groups:
+      go-dependencies:
+        patterns:
+          - "*"
+
+  - package-ecosystem: "npm"
+    directory: "/web"
+    target-branch: "migration/ts-go"
+    schedule:
+      interval: "weekly"
+    groups:
+      web-dependencies:
+        patterns:
+          - "*"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    target-branch: "migration/ts-go"
+    schedule:
+      interval: "weekly"
+    groups:
+      actions:
+        patterns:
+          - "*"

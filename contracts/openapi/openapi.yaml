@@ -1,0 +1,790 @@
+openapi: 3.1.0
+info:
+  title: omeg4mon-router Control Plane API
+  version: 0.1.0
+  description: Modular OpenAPI 3.1 contract for the omeg4mon-router control plane.
+servers:
+  - url: /
+    description: Same-origin router control plane
+tags:
+  - name: system
+    description: Health checks, build version metadata, first-run initialization, and shutdown control
+  - name: auth
+    description: Single-admin session authentication, password rotation, and login enforcement policy
+  - name: settings
+    description: Typed control-plane runtime settings, revision history, and atomic rollback
+  - name: keys
+    description: Gateway API key lifecycle management and secret rotation
+  - name: providers
+    description: Provider adapter catalog, custom compatible nodes, vaulted connections, connectivity tests, and PKCE OAuth
+  - name: combos
+    description: Fallback combos, model aliases, disabled models, and upstream connection cooldowns
+  - name: usage
+    description: Request telemetry logs, aggregated usage statistics, live SSE stream, and model pricing overrides
+  - name: proxypools
+    description: Encrypted HTTP/SOCKS5 outbound proxy pools, latency probes, auto-scanner, and provider bindings
+  - name: translator
+    description: Interactive wire-protocol translator workbench and live console log SSE stream
+  - name: promptinjection
+    description: Configurable prompt injection guard rules, dry-run tester, and audit event log
+  - name: modeleditor
+    description: Custom model parameter overrides, conditional bypass rules, and dry-run preview
+  - name: tokensaver
+    description: Go-native token compression, Headroom prefix cache affinity, and live savings metrics
+  - name: security
+    description: Live security posture report and redacted control-plane security audit trail
+  - name: notifications
+    description: System notifications inbox, live SSE notification stream, and background jobs telemetry
+  - name: media
+    description: Media gateway providers, fallback combos, audio/image/video/search proxying, and SSRF-safe web fetch
+  - name: tunnel
+    description: Cloudflare quick tunnel and Tailscale serve/funnel lifecycle manager
+  - name: mitm
+    description: Local loopback TLS MITM proxy, ECDSA Root CA engine, IDE tool hosts, and model aliases
+  - name: pxpipe
+    description: In-process request transform pipeline, GatewayInterceptor, live self-test health, and logs
+  - name: telegram
+    description: Vaulted Telegram Bot controller, fail-closed webhook, command simulator, and eventbus alert forwarding
+  - name: arena
+    description: Multi-model side-by-side comparison battles, leaderboard, and persistent Basic Chat sessions
+  - name: plugins
+    description: Configurable gateway request-enhancement plugins
+  - name: importer
+    description: Read-only legacy data.sqlite inspector and one-way control-plane migration tool
+paths:
+  /api/health:
+    $ref: './modules/system.yaml#/paths/~1api~1health'
+  /api/version:
+    $ref: './modules/system.yaml#/paths/~1api~1version'
+  /api/init:
+    $ref: './modules/system.yaml#/paths/~1api~1init'
+  /api/system/telemetry:
+    $ref: './modules/system.yaml#/paths/~1api~1system~1telemetry'
+  /api/system/shutdown:
+    $ref: './modules/system.yaml#/paths/~1api~1system~1shutdown'
+  /api/auth/login:
+    $ref: './modules/auth.yaml#/paths/~1api~1auth~1login'
+  /api/auth/logout:
+    $ref: './modules/auth.yaml#/paths/~1api~1auth~1logout'
+  /api/auth/me:
+    $ref: './modules/auth.yaml#/paths/~1api~1auth~1me'
+  /api/auth/password:
+    $ref: './modules/auth.yaml#/paths/~1api~1auth~1password'
+  /api/auth/policy:
+    $ref: './modules/auth.yaml#/paths/~1api~1auth~1policy'
+  /api/settings:
+    $ref: './modules/settings.yaml#/paths/~1api~1settings'
+  /api/settings/history:
+    $ref: './modules/settings.yaml#/paths/~1api~1settings~1history'
+  /api/settings/rollback:
+    $ref: './modules/settings.yaml#/paths/~1api~1settings~1rollback'
+  /api/keys:
+    $ref: './modules/keys.yaml#/paths/~1api~1keys'
+  /api/keys/{id}:
+    $ref: './modules/keys.yaml#/paths/~1api~1keys~1{id}'
+  /api/keys/{id}/rotate:
+    $ref: './modules/keys.yaml#/paths/~1api~1keys~1{id}~1rotate'
+  /api/providers/catalog:
+    $ref: './modules/providers.yaml#/paths/~1api~1providers~1catalog'
+  /api/providers/nodes:
+    $ref: './modules/providers.yaml#/paths/~1api~1providers~1nodes'
+  /api/providers/node-drafts/test:
+    $ref: './modules/providers.yaml#/paths/~1api~1providers~1node-drafts~1test'
+  /api/providers/nodes/{id}:
+    $ref: './modules/providers.yaml#/paths/~1api~1providers~1nodes~1{id}'
+  /api/providers/connections:
+    $ref: './modules/providers.yaml#/paths/~1api~1providers~1connections'
+  /api/providers/connections/{id}:
+    $ref: './modules/providers.yaml#/paths/~1api~1providers~1connections~1{id}'
+  /api/providers/connections/{id}/test:
+    $ref: './modules/providers.yaml#/paths/~1api~1providers~1connections~1{id}~1test'
+  /api/providers/oauth/{provider}/start:
+    $ref: './modules/providers.yaml#/paths/~1api~1providers~1oauth~1{provider}~1start'
+  /api/providers/oauth/{provider}/exchange:
+    $ref: './modules/providers.yaml#/paths/~1api~1providers~1oauth~1{provider}~1exchange'
+  /api/providers/oauth/{provider}/status:
+    $ref: './modules/providers.yaml#/paths/~1api~1providers~1oauth~1{provider}~1status'
+  /api/providers/oauth/{provider}/paste:
+    $ref: './modules/providers.yaml#/paths/~1api~1providers~1oauth~1{provider}~1paste'
+  /api/providers/oauth/{provider}/stop:
+    $ref: './modules/providers.yaml#/paths/~1api~1providers~1oauth~1{provider}~1stop'
+  /api/providers/oauth/callback:
+    $ref: './modules/providers.yaml#/paths/~1api~1providers~1oauth~1callback'
+  /api/combos:
+    $ref: './modules/combos.yaml#/paths/~1api~1combos'
+  /api/combos/test:
+    $ref: './modules/combos.yaml#/paths/~1api~1combos~1test'
+  /api/combos/{id}:
+    $ref: './modules/combos.yaml#/paths/~1api~1combos~1{id}'
+  /api/models/catalog:
+    $ref: './modules/combos.yaml#/paths/~1api~1models~1catalog'
+  /api/models/test:
+    $ref: './modules/combos.yaml#/paths/~1api~1models~1test'
+  /api/models/identify:
+    $ref: './modules/combos.yaml#/paths/~1api~1models~1identify'
+  /api/models/test-all:
+    $ref: './modules/combos.yaml#/paths/~1api~1models~1test-all'
+  /api/models/aliases:
+    $ref: './modules/combos.yaml#/paths/~1api~1models~1aliases'
+  /api/models/aliases/{alias}:
+    $ref: './modules/combos.yaml#/paths/~1api~1models~1aliases~1{alias}'
+  /api/models/disabled:
+    $ref: './modules/combos.yaml#/paths/~1api~1models~1disabled'
+  /api/models/cooldowns:
+    $ref: './modules/combos.yaml#/paths/~1api~1models~1cooldowns'
+  /api/models/cooldowns/{connectionId}:
+    $ref: './modules/combos.yaml#/paths/~1api~1models~1cooldowns~1{connectionId}'
+  /api/providers/health-matrix:
+    $ref: './modules/combos.yaml#/paths/~1api~1providers~1health-matrix'
+  /api/providers/strategies:
+    $ref: './modules/combos.yaml#/paths/~1api~1providers~1strategies'
+  /api/providers/{providerId}/strategy:
+    $ref: './modules/combos.yaml#/paths/~1api~1providers~1{providerId}~1strategy'
+  /api/usage/summary:
+    $ref: './modules/usage.yaml#/paths/~1api~1usage~1summary'
+  /api/usage/logs:
+    $ref: './modules/usage.yaml#/paths/~1api~1usage~1logs'
+  /api/usage/stream:
+    $ref: './modules/usage.yaml#/paths/~1api~1usage~1stream'
+  /api/usage/pricing:
+    $ref: './modules/usage.yaml#/paths/~1api~1usage~1pricing'
+  /api/usage/pricing/{model}:
+    $ref: './modules/usage.yaml#/paths/~1api~1usage~1pricing~1{model}'
+  /api/proxy-pools:
+    $ref: './modules/proxypools.yaml#/paths/~1api~1proxy-pools'
+  /api/proxy-pools/{id}:
+    $ref: './modules/proxypools.yaml#/paths/~1api~1proxy-pools~1{id}'
+  /api/proxy-pools/{id}/test:
+    $ref: './modules/proxypools.yaml#/paths/~1api~1proxy-pools~1{id}~1test'
+  /api/proxy-pools/scan:
+    $ref: './modules/proxypools.yaml#/paths/~1api~1proxy-pools~1scan'
+  /api/proxy-pool-bindings/{providerId}:
+    $ref: './modules/proxypools.yaml#/paths/~1api~1proxy-pool-bindings~1{providerId}'
+  /api/translator/protocols:
+    $ref: './modules/translator.yaml#/paths/~1api~1translator~1protocols'
+  /api/translator/translate:
+    $ref: './modules/translator.yaml#/paths/~1api~1translator~1translate'
+  /api/translator/logs:
+    $ref: './modules/translator.yaml#/paths/~1api~1translator~1logs'
+  /api/translator/logs/stream:
+    $ref: './modules/translator.yaml#/paths/~1api~1translator~1logs~1stream'
+  /api/prompt-guard/config:
+    $ref: './modules/promptinjection.yaml#/paths/~1api~1prompt-guard~1config'
+  /api/prompt-guard/rules:
+    $ref: './modules/promptinjection.yaml#/paths/~1api~1prompt-guard~1rules'
+  /api/prompt-guard/rules/{id}:
+    $ref: './modules/promptinjection.yaml#/paths/~1api~1prompt-guard~1rules~1{id}'
+  /api/prompt-guard/test:
+    $ref: './modules/promptinjection.yaml#/paths/~1api~1prompt-guard~1test'
+  /api/prompt-guard/events:
+    $ref: './modules/promptinjection.yaml#/paths/~1api~1prompt-guard~1events'
+  /api/model-editor/overrides:
+    $ref: './modules/modeleditor.yaml#/paths/~1api~1model-editor~1overrides'
+  /api/model-editor/overrides/{id}:
+    $ref: './modules/modeleditor.yaml#/paths/~1api~1model-editor~1overrides~1{id}'
+  /api/model-editor/bypass:
+    $ref: './modules/modeleditor.yaml#/paths/~1api~1model-editor~1bypass'
+  /api/model-editor/bypass/{id}:
+    $ref: './modules/modeleditor.yaml#/paths/~1api~1model-editor~1bypass~1{id}'
+  /api/model-editor/preview:
+    $ref: './modules/modeleditor.yaml#/paths/~1api~1model-editor~1preview'
+  /api/token-saver/config:
+    $ref: './modules/tokensaver.yaml#/paths/~1api~1token-saver~1config'
+  /api/token-saver/stats:
+    $ref: './modules/tokensaver.yaml#/paths/~1api~1token-saver~1stats'
+  /api/token-saver/cache:
+    $ref: './modules/tokensaver.yaml#/paths/~1api~1token-saver~1cache'
+  /api/token-saver/preview:
+    $ref: './modules/tokensaver.yaml#/paths/~1api~1token-saver~1preview'
+  /api/security/posture:
+    $ref: './modules/security.yaml#/paths/~1api~1security~1posture'
+  /api/security/audit:
+    $ref: './modules/security.yaml#/paths/~1api~1security~1audit'
+  /api/security/audit/export:
+    $ref: './modules/security.yaml#/paths/~1api~1security~1audit~1export'
+  /api/notifications:
+    $ref: './modules/notifications.yaml#/paths/~1api~1notifications'
+  /api/notifications/read-all:
+    $ref: './modules/notifications.yaml#/paths/~1api~1notifications~1read-all'
+  /api/notifications/{id}/read:
+    $ref: './modules/notifications.yaml#/paths/~1api~1notifications~1{id}~1read'
+  /api/notifications/{id}:
+    $ref: './modules/notifications.yaml#/paths/~1api~1notifications~1{id}'
+  /api/notifications/stream:
+    $ref: './modules/notifications.yaml#/paths/~1api~1notifications~1stream'
+  /api/jobs:
+    $ref: './modules/notifications.yaml#/paths/~1api~1jobs'
+  /api/jobs/{name}/trigger:
+    $ref: './modules/notifications.yaml#/paths/~1api~1jobs~1{name}~1trigger'
+  /api/media/providers:
+    $ref: './modules/media.yaml#/paths/~1api~1media~1providers'
+  /api/media/providers/{id}:
+    $ref: './modules/media.yaml#/paths/~1api~1media~1providers~1{id}'
+  /api/media/combos:
+    $ref: './modules/media.yaml#/paths/~1api~1media~1combos'
+  /api/media/combos/{id}:
+    $ref: './modules/media.yaml#/paths/~1api~1media~1combos~1{id}'
+  /api/tunnel/status:
+    $ref: './modules/tunnel.yaml#/paths/~1api~1tunnel~1status'
+  /api/tunnel/config:
+    $ref: './modules/tunnel.yaml#/paths/~1api~1tunnel~1config'
+  /api/tunnel/start:
+    $ref: './modules/tunnel.yaml#/paths/~1api~1tunnel~1start'
+  /api/tunnel/stop:
+    $ref: './modules/tunnel.yaml#/paths/~1api~1tunnel~1stop'
+  /api/tunnel/events:
+    $ref: './modules/tunnel.yaml#/paths/~1api~1tunnel~1events'
+  /api/mitm/status:
+    $ref: './modules/mitm.yaml#/paths/~1api~1mitm~1status'
+  /api/mitm/config:
+    $ref: './modules/mitm.yaml#/paths/~1api~1mitm~1config'
+  /api/mitm/start:
+    $ref: './modules/mitm.yaml#/paths/~1api~1mitm~1start'
+  /api/mitm/stop:
+    $ref: './modules/mitm.yaml#/paths/~1api~1mitm~1stop'
+  /api/mitm/ca/generate:
+    $ref: './modules/mitm.yaml#/paths/~1api~1mitm~1ca~1generate'
+  /api/mitm/ca/download:
+    $ref: './modules/mitm.yaml#/paths/~1api~1mitm~1ca~1download'
+  /api/mitm/aliases:
+    $ref: './modules/mitm.yaml#/paths/~1api~1mitm~1aliases'
+  /api/mitm/aliases/{id}:
+    $ref: './modules/mitm.yaml#/paths/~1api~1mitm~1aliases~1{id}'
+  /api/mitm/events:
+    $ref: './modules/mitm.yaml#/paths/~1api~1mitm~1events'
+  /api/pxpipe/status:
+    $ref: './modules/pxpipe.yaml#/paths/~1api~1pxpipe~1status'
+  /api/pxpipe/config:
+    $ref: './modules/pxpipe.yaml#/paths/~1api~1pxpipe~1config'
+  /api/pxpipe/start:
+    $ref: './modules/pxpipe.yaml#/paths/~1api~1pxpipe~1start'
+  /api/pxpipe/stop:
+    $ref: './modules/pxpipe.yaml#/paths/~1api~1pxpipe~1stop'
+  /api/pxpipe/restart:
+    $ref: './modules/pxpipe.yaml#/paths/~1api~1pxpipe~1restart'
+  /api/pxpipe/health:
+    $ref: './modules/pxpipe.yaml#/paths/~1api~1pxpipe~1health'
+  /api/pxpipe/stats:
+    $ref: './modules/pxpipe.yaml#/paths/~1api~1pxpipe~1stats'
+  /api/pxpipe/logs:
+    $ref: './modules/pxpipe.yaml#/paths/~1api~1pxpipe~1logs'
+  /api/pxpipe/preview:
+    $ref: './modules/pxpipe.yaml#/paths/~1api~1pxpipe~1preview'
+  /api/telegram/config:
+    $ref: './modules/telegram.yaml#/paths/~1api~1telegram~1config'
+  /api/telegram/secret/rotate:
+    $ref: './modules/telegram.yaml#/paths/~1api~1telegram~1secret~1rotate'
+  /api/telegram/webhook/registration:
+    $ref: './modules/telegram.yaml#/paths/~1api~1telegram~1webhook~1registration'
+  /api/telegram/test:
+    $ref: './modules/telegram.yaml#/paths/~1api~1telegram~1test'
+  /api/telegram/command:
+    $ref: './modules/telegram.yaml#/paths/~1api~1telegram~1command'
+  /api/telegram/events:
+    $ref: './modules/telegram.yaml#/paths/~1api~1telegram~1events'
+  /api/arena/models:
+    $ref: './modules/arena.yaml#/paths/~1api~1arena~1models'
+  /api/arena/battles:
+    $ref: './modules/arena.yaml#/paths/~1api~1arena~1battles'
+  /api/arena/battles/{id}:
+    $ref: './modules/arena.yaml#/paths/~1api~1arena~1battles~1{id}'
+  /api/arena/battles/{id}/vote:
+    $ref: './modules/arena.yaml#/paths/~1api~1arena~1battles~1{id}~1vote'
+  /api/arena/leaderboard:
+    $ref: './modules/arena.yaml#/paths/~1api~1arena~1leaderboard'
+  /api/chat/sessions:
+    $ref: './modules/arena.yaml#/paths/~1api~1chat~1sessions'
+  /api/chat/sessions/{id}:
+    $ref: './modules/arena.yaml#/paths/~1api~1chat~1sessions~1{id}'
+  /api/chat/sessions/{id}/messages:
+    $ref: './modules/arena.yaml#/paths/~1api~1chat~1sessions~1{id}~1messages'
+  /api/plugins:
+    $ref: './modules/plugins.yaml#/paths/~1api~1plugins'
+  /api/plugins/{key}:
+    $ref: './modules/plugins.yaml#/paths/~1api~1plugins~1{key}'
+  /api/plugins/preview:
+    $ref: './modules/plugins.yaml#/paths/~1api~1plugins~1preview'
+  /api/importer/inspect:
+    $ref: './modules/importer.yaml#/paths/~1api~1importer~1inspect'
+  /api/importer/run:
+    $ref: './modules/importer.yaml#/paths/~1api~1importer~1run'
+  /api/importer/history:
+    $ref: './modules/importer.yaml#/paths/~1api~1importer~1history'
+components:
+  schemas:
+    ErrorDetail:
+      type: object
+      additionalProperties: false
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          description: Machine-readable error code.
+        message:
+          type: string
+          description: Human-readable error message.
+        request_id:
+          type: string
+          description: Unique request correlation identifier when present.
+    ErrorEnvelope:
+      type: object
+      additionalProperties: false
+      required:
+        - error
+      properties:
+        error:
+          $ref: '#/components/schemas/ErrorDetail'
+    HealthResponse:
+      $ref: './modules/system.yaml#/components/schemas/HealthResponse'
+    VersionResponse:
+      $ref: './modules/system.yaml#/components/schemas/VersionResponse'
+    InitStatusResponse:
+      $ref: './modules/system.yaml#/components/schemas/InitStatusResponse'
+    InitRequest:
+      $ref: './modules/system.yaml#/components/schemas/InitRequest'
+    InitCompleteResponse:
+      $ref: './modules/system.yaml#/components/schemas/InitCompleteResponse'
+    ShutdownResponse:
+      $ref: './modules/system.yaml#/components/schemas/ShutdownResponse'
+    SystemTelemetryResponse:
+      $ref: './modules/system.yaml#/components/schemas/SystemTelemetryResponse'
+    LoginRequest:
+      $ref: './modules/auth.yaml#/components/schemas/LoginRequest'
+    LoginResponse:
+      $ref: './modules/auth.yaml#/components/schemas/LoginResponse'
+    LogoutResponse:
+      $ref: './modules/auth.yaml#/components/schemas/LogoutResponse'
+    AuthMeResponse:
+      $ref: './modules/auth.yaml#/components/schemas/AuthMeResponse'
+    ChangePasswordRequest:
+      $ref: './modules/auth.yaml#/components/schemas/ChangePasswordRequest'
+    ChangePasswordResponse:
+      $ref: './modules/auth.yaml#/components/schemas/ChangePasswordResponse'
+    UpdateAuthPolicyRequest:
+      $ref: './modules/auth.yaml#/components/schemas/UpdateAuthPolicyRequest'
+    AuthPolicyResponse:
+      $ref: './modules/auth.yaml#/components/schemas/AuthPolicyResponse'
+    SettingValue:
+      $ref: './modules/settings.yaml#/components/schemas/SettingValue'
+    NullableSettingValue:
+      $ref: './modules/settings.yaml#/components/schemas/NullableSettingValue'
+    SettingItem:
+      $ref: './modules/settings.yaml#/components/schemas/SettingItem'
+    SettingsResponse:
+      $ref: './modules/settings.yaml#/components/schemas/SettingsResponse'
+    PatchSettingsRequest:
+      $ref: './modules/settings.yaml#/components/schemas/PatchSettingsRequest'
+    SettingHistoryItem:
+      $ref: './modules/settings.yaml#/components/schemas/SettingHistoryItem'
+    SettingsHistoryResponse:
+      $ref: './modules/settings.yaml#/components/schemas/SettingsHistoryResponse'
+    RollbackSettingRequest:
+      $ref: './modules/settings.yaml#/components/schemas/RollbackSettingRequest'
+    ApiKeySummary:
+      $ref: './modules/keys.yaml#/components/schemas/ApiKeySummary'
+    ListApiKeysResponse:
+      $ref: './modules/keys.yaml#/components/schemas/ListApiKeysResponse'
+    CreateApiKeyRequest:
+      $ref: './modules/keys.yaml#/components/schemas/CreateApiKeyRequest'
+    UpdateApiKeyRequest:
+      $ref: './modules/keys.yaml#/components/schemas/UpdateApiKeyRequest'
+    ApiKeySecretResponse:
+      $ref: './modules/keys.yaml#/components/schemas/ApiKeySecretResponse'
+    ProviderProtocol:
+      $ref: './modules/providers.yaml#/components/schemas/ProviderProtocol'
+    ProviderAuthType:
+      $ref: './modules/providers.yaml#/components/schemas/ProviderAuthType'
+    CatalogOAuthDescriptor:
+      $ref: './modules/providers.yaml#/components/schemas/CatalogOAuthDescriptor'
+    CatalogAdapterDescriptor:
+      $ref: './modules/providers.yaml#/components/schemas/CatalogAdapterDescriptor'
+    ProviderNode:
+      $ref: './modules/providers.yaml#/components/schemas/ProviderNode'
+    ProvidersCatalogResponse:
+      $ref: './modules/providers.yaml#/components/schemas/ProvidersCatalogResponse'
+    ListProviderNodesResponse:
+      $ref: './modules/providers.yaml#/components/schemas/ListProviderNodesResponse'
+    CreateProviderNodeRequest:
+      $ref: './modules/providers.yaml#/components/schemas/CreateProviderNodeRequest'
+    TestProviderNodeRequest:
+      $ref: './modules/providers.yaml#/components/schemas/TestProviderNodeRequest'
+    ProviderConnectionSummary:
+      $ref: './modules/providers.yaml#/components/schemas/ProviderConnectionSummary'
+    ListProviderConnectionsResponse:
+      $ref: './modules/providers.yaml#/components/schemas/ListProviderConnectionsResponse'
+    CreateProviderConnectionRequest:
+      $ref: './modules/providers.yaml#/components/schemas/CreateProviderConnectionRequest'
+    UpdateProviderConnectionRequest:
+      $ref: './modules/providers.yaml#/components/schemas/UpdateProviderConnectionRequest'
+    TestProviderConnectionResponse:
+      $ref: './modules/providers.yaml#/components/schemas/TestProviderConnectionResponse'
+    OAuthStartRequest:
+      $ref: './modules/providers.yaml#/components/schemas/OAuthStartRequest'
+    OAuthStartResponse:
+      $ref: './modules/providers.yaml#/components/schemas/OAuthStartResponse'
+    OAuthExchangeRequest:
+      $ref: './modules/providers.yaml#/components/schemas/OAuthExchangeRequest'
+    OAuthCallbackJSONResponse:
+      $ref: './modules/providers.yaml#/components/schemas/OAuthCallbackJSONResponse'
+    OAuthStatusResponse:
+      $ref: './modules/providers.yaml#/components/schemas/OAuthStatusResponse'
+    OAuthPasteRequest:
+      $ref: './modules/providers.yaml#/components/schemas/OAuthPasteRequest'
+    OAuthPasteResponse:
+      $ref: './modules/providers.yaml#/components/schemas/OAuthPasteResponse'
+    OAuthStopResponse:
+      $ref: './modules/providers.yaml#/components/schemas/OAuthStopResponse'
+    ComboStrategy:
+      $ref: './modules/combos.yaml#/components/schemas/ComboStrategy'
+    Combo:
+      $ref: './modules/combos.yaml#/components/schemas/Combo'
+    ListCombosResponse:
+      $ref: './modules/combos.yaml#/components/schemas/ListCombosResponse'
+    CreateComboRequest:
+      $ref: './modules/combos.yaml#/components/schemas/CreateComboRequest'
+    UpdateComboRequest:
+      $ref: './modules/combos.yaml#/components/schemas/UpdateComboRequest'
+    ModelAlias:
+      $ref: './modules/combos.yaml#/components/schemas/ModelAlias'
+    ListModelAliasesResponse:
+      $ref: './modules/combos.yaml#/components/schemas/ListModelAliasesResponse'
+    UpsertModelAliasRequest:
+      $ref: './modules/combos.yaml#/components/schemas/UpsertModelAliasRequest'
+    DisabledModel:
+      $ref: './modules/combos.yaml#/components/schemas/DisabledModel'
+    ListDisabledModelsResponse:
+      $ref: './modules/combos.yaml#/components/schemas/ListDisabledModelsResponse'
+    DisableModelRequest:
+      $ref: './modules/combos.yaml#/components/schemas/DisableModelRequest'
+    EnableModelRequest:
+      $ref: './modules/combos.yaml#/components/schemas/EnableModelRequest'
+    CooldownEntry:
+      $ref: './modules/combos.yaml#/components/schemas/CooldownEntry'
+    ListCooldownsResponse:
+      $ref: './modules/combos.yaml#/components/schemas/ListCooldownsResponse'
+    UsageLog:
+      $ref: './modules/usage.yaml#/components/schemas/UsageLog'
+    UsageLogsResponse:
+      $ref: './modules/usage.yaml#/components/schemas/UsageLogsResponse'
+    UsageSummaryTotals:
+      $ref: './modules/usage.yaml#/components/schemas/UsageSummaryTotals'
+    ModelUsageBreakdown:
+      $ref: './modules/usage.yaml#/components/schemas/ModelUsageBreakdown'
+    ProviderUsageBreakdown:
+      $ref: './modules/usage.yaml#/components/schemas/ProviderUsageBreakdown'
+    UsageSeriesBucket:
+      $ref: './modules/usage.yaml#/components/schemas/UsageSeriesBucket'
+    UsageSummaryResponse:
+      $ref: './modules/usage.yaml#/components/schemas/UsageSummaryResponse'
+    ModelPricingSource:
+      $ref: './modules/usage.yaml#/components/schemas/ModelPricingSource'
+    ModelPricing:
+      $ref: './modules/usage.yaml#/components/schemas/ModelPricing'
+    ListModelPricingResponse:
+      $ref: './modules/usage.yaml#/components/schemas/ListModelPricingResponse'
+    UpsertModelPricingRequest:
+      $ref: './modules/usage.yaml#/components/schemas/UpsertModelPricingRequest'
+    ProxyPoolScheme:
+      $ref: './modules/proxypools.yaml#/components/schemas/ProxyPoolScheme'
+    ProxyPoolStatus:
+      $ref: './modules/proxypools.yaml#/components/schemas/ProxyPoolStatus'
+    ProxyPoolSummary:
+      $ref: './modules/proxypools.yaml#/components/schemas/ProxyPoolSummary'
+    ProxyBindingSummary:
+      $ref: './modules/proxypools.yaml#/components/schemas/ProxyBindingSummary'
+    ListProxyPoolsResponse:
+      $ref: './modules/proxypools.yaml#/components/schemas/ListProxyPoolsResponse'
+    CreateProxyPoolRequest:
+      $ref: './modules/proxypools.yaml#/components/schemas/CreateProxyPoolRequest'
+    UpdateProxyPoolRequest:
+      $ref: './modules/proxypools.yaml#/components/schemas/UpdateProxyPoolRequest'
+    TestProxyPoolRequest:
+      $ref: './modules/proxypools.yaml#/components/schemas/TestProxyPoolRequest'
+    TestProxyPoolResponse:
+      $ref: './modules/proxypools.yaml#/components/schemas/TestProxyPoolResponse'
+    ScanProxyCandidatesRequest:
+      $ref: './modules/proxypools.yaml#/components/schemas/ScanProxyCandidatesRequest'
+    ScanProxyCandidateResult:
+      $ref: './modules/proxypools.yaml#/components/schemas/ScanProxyCandidateResult'
+    ScanProxyCandidatesResponse:
+      $ref: './modules/proxypools.yaml#/components/schemas/ScanProxyCandidatesResponse'
+    UpsertProxyBindingRequest:
+      $ref: './modules/proxypools.yaml#/components/schemas/UpsertProxyBindingRequest'
+    TranslatorProtocol:
+      $ref: './modules/translator.yaml#/components/schemas/TranslatorProtocol'
+    TranslatorMode:
+      $ref: './modules/translator.yaml#/components/schemas/TranslatorMode'
+    TranslatorProtocolsResponse:
+      $ref: './modules/translator.yaml#/components/schemas/TranslatorProtocolsResponse'
+    TranslatePayloadRequest:
+      $ref: './modules/translator.yaml#/components/schemas/TranslatePayloadRequest'
+    TranslatePayloadResponse:
+      $ref: './modules/translator.yaml#/components/schemas/TranslatePayloadResponse'
+    ConsoleLogEntry:
+      $ref: './modules/translator.yaml#/components/schemas/ConsoleLogEntry'
+    ConsoleLogsResponse:
+      $ref: './modules/translator.yaml#/components/schemas/ConsoleLogsResponse'
+    PromptGuardConfig:
+      $ref: './modules/promptinjection.yaml#/components/schemas/PromptGuardConfig'
+    PromptGuardConfigPatch:
+      $ref: './modules/promptinjection.yaml#/components/schemas/PromptGuardConfigPatch'
+    PromptGuardRule:
+      $ref: './modules/promptinjection.yaml#/components/schemas/PromptGuardRule'
+    PromptGuardRuleList:
+      $ref: './modules/promptinjection.yaml#/components/schemas/PromptGuardRuleList'
+    CreatePromptGuardRuleRequest:
+      $ref: './modules/promptinjection.yaml#/components/schemas/CreatePromptGuardRuleRequest'
+    UpdatePromptGuardRuleRequest:
+      $ref: './modules/promptinjection.yaml#/components/schemas/UpdatePromptGuardRuleRequest'
+    PromptGuardTestRequest:
+      $ref: './modules/promptinjection.yaml#/components/schemas/PromptGuardTestRequest'
+    PromptGuardMatchHit:
+      $ref: './modules/promptinjection.yaml#/components/schemas/PromptGuardMatchHit'
+    PromptGuardTestResult:
+      $ref: './modules/promptinjection.yaml#/components/schemas/PromptGuardTestResult'
+    PromptGuardEvent:
+      $ref: './modules/promptinjection.yaml#/components/schemas/PromptGuardEvent'
+    PromptGuardEventList:
+      $ref: './modules/promptinjection.yaml#/components/schemas/PromptGuardEventList'
+    ModelOverride:
+      $ref: './modules/modeleditor.yaml#/components/schemas/ModelOverride'
+    ModelOverrideList:
+      $ref: './modules/modeleditor.yaml#/components/schemas/ModelOverrideList'
+    CreateModelOverrideRequest:
+      $ref: './modules/modeleditor.yaml#/components/schemas/CreateModelOverrideRequest'
+    UpdateModelOverrideRequest:
+      $ref: './modules/modeleditor.yaml#/components/schemas/UpdateModelOverrideRequest'
+    ModelBypassRule:
+      $ref: './modules/modeleditor.yaml#/components/schemas/ModelBypassRule'
+    ModelBypassRuleList:
+      $ref: './modules/modeleditor.yaml#/components/schemas/ModelBypassRuleList'
+    CreateModelBypassRuleRequest:
+      $ref: './modules/modeleditor.yaml#/components/schemas/CreateModelBypassRuleRequest'
+    UpdateModelBypassRuleRequest:
+      $ref: './modules/modeleditor.yaml#/components/schemas/UpdateModelBypassRuleRequest'
+    ModelEditorPreviewRequest:
+      $ref: './modules/modeleditor.yaml#/components/schemas/ModelEditorPreviewRequest'
+    ModelEditorPreviewResult:
+      $ref: './modules/modeleditor.yaml#/components/schemas/ModelEditorPreviewResult'
+    TokenSaverConfig:
+      $ref: './modules/tokensaver.yaml#/components/schemas/TokenSaverConfig'
+    TokenSaverConfigPatch:
+      $ref: './modules/tokensaver.yaml#/components/schemas/TokenSaverConfigPatch'
+    CompressionStats:
+      $ref: './modules/tokensaver.yaml#/components/schemas/CompressionStats'
+    WarmPrefixSummary:
+      $ref: './modules/tokensaver.yaml#/components/schemas/WarmPrefixSummary'
+    HeadroomStats:
+      $ref: './modules/tokensaver.yaml#/components/schemas/HeadroomStats'
+    TokenSaverStats:
+      $ref: './modules/tokensaver.yaml#/components/schemas/TokenSaverStats'
+    TokenSaverPreviewRequest:
+      $ref: './modules/tokensaver.yaml#/components/schemas/TokenSaverPreviewRequest'
+    TokenSaverPreviewResult:
+      $ref: './modules/tokensaver.yaml#/components/schemas/TokenSaverPreviewResult'
+    SecurityPostureReport:
+      $ref: './modules/security.yaml#/components/schemas/SecurityPostureReport'
+    SecurityAuditEvent:
+      $ref: './modules/security.yaml#/components/schemas/SecurityAuditEvent'
+    CreateSecurityAuditRequest:
+      $ref: './modules/security.yaml#/components/schemas/CreateSecurityAuditRequest'
+    SecurityAuditListResponse:
+      $ref: './modules/security.yaml#/components/schemas/SecurityAuditListResponse'
+    ClearSecurityAuditResponse:
+      $ref: './modules/security.yaml#/components/schemas/ClearSecurityAuditResponse'
+    SecurityAuditExportResponse:
+      $ref: './modules/security.yaml#/components/schemas/SecurityAuditExportResponse'
+    SystemNotification:
+      $ref: './modules/notifications.yaml#/components/schemas/SystemNotification'
+    CreateNotificationRequest:
+      $ref: './modules/notifications.yaml#/components/schemas/CreateNotificationRequest'
+    NotificationListResponse:
+      $ref: './modules/notifications.yaml#/components/schemas/NotificationListResponse'
+    MarkAllReadResponse:
+      $ref: './modules/notifications.yaml#/components/schemas/MarkAllReadResponse'
+    DeleteNotificationResponse:
+      $ref: './modules/notifications.yaml#/components/schemas/DeleteNotificationResponse'
+    ClearNotificationsResponse:
+      $ref: './modules/notifications.yaml#/components/schemas/ClearNotificationsResponse'
+    BackgroundJobStatus:
+      $ref: './modules/notifications.yaml#/components/schemas/BackgroundJobStatus'
+    BackgroundJobListResponse:
+      $ref: './modules/notifications.yaml#/components/schemas/BackgroundJobListResponse'
+    TriggerJobResponse:
+      $ref: './modules/notifications.yaml#/components/schemas/TriggerJobResponse'
+    MediaCapability:
+      $ref: './modules/media.yaml#/components/schemas/MediaCapability'
+    MediaDriver:
+      $ref: './modules/media.yaml#/components/schemas/MediaDriver'
+    MediaProvider:
+      $ref: './modules/media.yaml#/components/schemas/MediaProvider'
+    MediaProviderListResponse:
+      $ref: './modules/media.yaml#/components/schemas/MediaProviderListResponse'
+    CreateMediaProviderRequest:
+      $ref: './modules/media.yaml#/components/schemas/CreateMediaProviderRequest'
+    UpdateMediaProviderRequest:
+      $ref: './modules/media.yaml#/components/schemas/UpdateMediaProviderRequest'
+    MediaCombo:
+      $ref: './modules/media.yaml#/components/schemas/MediaCombo'
+    MediaComboListResponse:
+      $ref: './modules/media.yaml#/components/schemas/MediaComboListResponse'
+    CreateMediaComboRequest:
+      $ref: './modules/media.yaml#/components/schemas/CreateMediaComboRequest'
+    UpdateMediaComboRequest:
+      $ref: './modules/media.yaml#/components/schemas/UpdateMediaComboRequest'
+    DeleteMediaResourceResponse:
+      $ref: './modules/media.yaml#/components/schemas/DeleteMediaResourceResponse'
+    TunnelProvider:
+      $ref: './modules/tunnel.yaml#/components/schemas/TunnelProvider'
+    TailscaleMode:
+      $ref: './modules/tunnel.yaml#/components/schemas/TailscaleMode'
+    TunnelState:
+      $ref: './modules/tunnel.yaml#/components/schemas/TunnelState'
+    TunnelBinaryStatus:
+      $ref: './modules/tunnel.yaml#/components/schemas/TunnelBinaryStatus'
+    TunnelBinariesStatus:
+      $ref: './modules/tunnel.yaml#/components/schemas/TunnelBinariesStatus'
+    TunnelStatus:
+      $ref: './modules/tunnel.yaml#/components/schemas/TunnelStatus'
+    UpdateTunnelConfigRequest:
+      $ref: './modules/tunnel.yaml#/components/schemas/UpdateTunnelConfigRequest'
+    StartTunnelRequest:
+      $ref: './modules/tunnel.yaml#/components/schemas/StartTunnelRequest'
+    TunnelEvent:
+      $ref: './modules/tunnel.yaml#/components/schemas/TunnelEvent'
+    TunnelEventListResponse:
+      $ref: './modules/tunnel.yaml#/components/schemas/TunnelEventListResponse'
+    MitmState:
+      $ref: './modules/mitm.yaml#/components/schemas/MitmState'
+    MitmCAInfo:
+      $ref: './modules/mitm.yaml#/components/schemas/MitmCAInfo'
+    MitmToolDescriptor:
+      $ref: './modules/mitm.yaml#/components/schemas/MitmToolDescriptor'
+    MitmInstallGuide:
+      $ref: './modules/mitm.yaml#/components/schemas/MitmInstallGuide'
+    MitmStatus:
+      $ref: './modules/mitm.yaml#/components/schemas/MitmStatus'
+    UpdateMitmConfigRequest:
+      $ref: './modules/mitm.yaml#/components/schemas/UpdateMitmConfigRequest'
+    GenerateMitmCARequest:
+      $ref: './modules/mitm.yaml#/components/schemas/GenerateMitmCARequest'
+    MitmAlias:
+      $ref: './modules/mitm.yaml#/components/schemas/MitmAlias'
+    MitmAliasListResponse:
+      $ref: './modules/mitm.yaml#/components/schemas/MitmAliasListResponse'
+    CreateMitmAliasRequest:
+      $ref: './modules/mitm.yaml#/components/schemas/CreateMitmAliasRequest'
+    DeleteMitmAliasResponse:
+      $ref: './modules/mitm.yaml#/components/schemas/DeleteMitmAliasResponse'
+    MitmEvent:
+      $ref: './modules/mitm.yaml#/components/schemas/MitmEvent'
+    MitmEventListResponse:
+      $ref: './modules/mitm.yaml#/components/schemas/MitmEventListResponse'
+    ClearMitmEventsResponse:
+      $ref: './modules/mitm.yaml#/components/schemas/ClearMitmEventsResponse'
+    PxpipeConfig:
+      $ref: './modules/pxpipe.yaml#/components/schemas/PxpipeConfig'
+    PxpipeStatus:
+      $ref: './modules/pxpipe.yaml#/components/schemas/PxpipeStatus'
+    UpdatePxpipeConfigRequest:
+      $ref: './modules/pxpipe.yaml#/components/schemas/UpdatePxpipeConfigRequest'
+    PxpipeHealthCheck:
+      $ref: './modules/pxpipe.yaml#/components/schemas/PxpipeHealthCheck'
+    PxpipeHealthReport:
+      $ref: './modules/pxpipe.yaml#/components/schemas/PxpipeHealthReport'
+    PxpipeStats:
+      $ref: './modules/pxpipe.yaml#/components/schemas/PxpipeStats'
+    PxpipeLogEntry:
+      $ref: './modules/pxpipe.yaml#/components/schemas/PxpipeLogEntry'
+    PxpipeLogListResponse:
+      $ref: './modules/pxpipe.yaml#/components/schemas/PxpipeLogListResponse'
+    ClearPxpipeLogsResponse:
+      $ref: './modules/pxpipe.yaml#/components/schemas/ClearPxpipeLogsResponse'
+    PxpipePreviewRequest:
+      $ref: './modules/pxpipe.yaml#/components/schemas/PxpipePreviewRequest'
+    PxpipePreviewResponse:
+      $ref: './modules/pxpipe.yaml#/components/schemas/PxpipePreviewResponse'
+    TelegramConfig:
+      $ref: './modules/telegram.yaml#/components/schemas/TelegramConfig'
+    UpdateTelegramConfigRequest:
+      $ref: './modules/telegram.yaml#/components/schemas/UpdateTelegramConfigRequest'
+    TelegramActionResponse:
+      $ref: './modules/telegram.yaml#/components/schemas/TelegramActionResponse'
+    TelegramTestRequest:
+      $ref: './modules/telegram.yaml#/components/schemas/TelegramTestRequest'
+    TelegramTestResponse:
+      $ref: './modules/telegram.yaml#/components/schemas/TelegramTestResponse'
+    TelegramCommandRequest:
+      $ref: './modules/telegram.yaml#/components/schemas/TelegramCommandRequest'
+    TelegramCommandResponse:
+      $ref: './modules/telegram.yaml#/components/schemas/TelegramCommandResponse'
+    TelegramEvent:
+      $ref: './modules/telegram.yaml#/components/schemas/TelegramEvent'
+    TelegramEventListResponse:
+      $ref: './modules/telegram.yaml#/components/schemas/TelegramEventListResponse'
+    ClearTelegramEventsResponse:
+      $ref: './modules/telegram.yaml#/components/schemas/ClearTelegramEventsResponse'
+    ArenaModelOption:
+      $ref: './modules/arena.yaml#/components/schemas/ArenaModelOption'
+    ArenaModelListResponse:
+      $ref: './modules/arena.yaml#/components/schemas/ArenaModelListResponse'
+    ArenaContenderResult:
+      $ref: './modules/arena.yaml#/components/schemas/ArenaContenderResult'
+    ArenaBattle:
+      $ref: './modules/arena.yaml#/components/schemas/ArenaBattle'
+    ArenaBattleListResponse:
+      $ref: './modules/arena.yaml#/components/schemas/ArenaBattleListResponse'
+    RunArenaBattleRequest:
+      $ref: './modules/arena.yaml#/components/schemas/RunArenaBattleRequest'
+    VoteArenaBattleRequest:
+      $ref: './modules/arena.yaml#/components/schemas/VoteArenaBattleRequest'
+    ArenaLeaderboardEntry:
+      $ref: './modules/arena.yaml#/components/schemas/ArenaLeaderboardEntry'
+    ArenaLeaderboardResponse:
+      $ref: './modules/arena.yaml#/components/schemas/ArenaLeaderboardResponse'
+    DeleteArenaResourceResponse:
+      $ref: './modules/arena.yaml#/components/schemas/DeleteArenaResourceResponse'
+    ChatSession:
+      $ref: './modules/arena.yaml#/components/schemas/ChatSession'
+    ChatSessionListResponse:
+      $ref: './modules/arena.yaml#/components/schemas/ChatSessionListResponse'
+    CreateChatSessionRequest:
+      $ref: './modules/arena.yaml#/components/schemas/CreateChatSessionRequest'
+    UpdateChatSessionRequest:
+      $ref: './modules/arena.yaml#/components/schemas/UpdateChatSessionRequest'
+    ChatMessage:
+      $ref: './modules/arena.yaml#/components/schemas/ChatMessage'
+    ChatSessionDetailResponse:
+      $ref: './modules/arena.yaml#/components/schemas/ChatSessionDetailResponse'
+    SendChatMessageRequest:
+      $ref: './modules/arena.yaml#/components/schemas/SendChatMessageRequest'
+    SendChatMessageResponse:
+      $ref: './modules/arena.yaml#/components/schemas/SendChatMessageResponse'
+    PluginState:
+      $ref: './modules/plugins.yaml#/components/schemas/PluginState'
+    PluginListResponse:
+      $ref: './modules/plugins.yaml#/components/schemas/PluginListResponse'
+    UpdatePluginRequest:
+      $ref: './modules/plugins.yaml#/components/schemas/UpdatePluginRequest'
+    PreviewPluginsRequest:
+      $ref: './modules/plugins.yaml#/components/schemas/PreviewPluginsRequest'
+    PreviewPluginsResponse:
+      $ref: './modules/plugins.yaml#/components/schemas/PreviewPluginsResponse'
+    InspectLegacyRequest:
+      $ref: './modules/importer.yaml#/components/schemas/InspectLegacyRequest'
+    InspectLegacyResponse:
+      $ref: './modules/importer.yaml#/components/schemas/InspectLegacyResponse'
+    RunLegacyImportRequest:
+      $ref: './modules/importer.yaml#/components/schemas/RunLegacyImportRequest'
+    ImporterRun:
+      $ref: './modules/importer.yaml#/components/schemas/ImporterRun'
+    ImportedProvisionedKey:
+      $ref: './modules/importer.yaml#/components/schemas/ImportedProvisionedKey'
+    RunLegacyImportResponse:
+      $ref: './modules/importer.yaml#/components/schemas/RunLegacyImportResponse'
+    ImporterHistoryListResponse:
+      $ref: './modules/importer.yaml#/components/schemas/ImporterHistoryListResponse'
+    ClearImporterHistoryResponse:
+      $ref: './modules/importer.yaml#/components/schemas/ClearImporterHistoryResponse'

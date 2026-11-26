@@ -1,0 +1,293 @@
+openapi: 3.1.0
+info:
+  title: omeg4mon-router System Module API
+  version: 0.1.0
+paths:
+  /api/health:
+    get:
+      operationId: getSystemHealth
+      summary: Check service and database health
+      tags:
+        - system
+      responses:
+        '200':
+          description: Service and database are healthy.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+        '503':
+          description: Service is running in a degraded state (database unreachable).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+  /api/version:
+    get:
+      operationId: getSystemVersion
+      summary: Retrieve build and runtime version metadata
+      tags:
+        - system
+      responses:
+        '200':
+          description: Build and Go runtime version metadata.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VersionResponse'
+  /api/init:
+    get:
+      operationId: getSystemInitStatus
+      summary: Retrieve first-run initialization and login posture
+      tags:
+        - system
+      responses:
+        '200':
+          description: Current initialization status.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InitStatusResponse'
+        '500':
+          description: Failed to read initialization state.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+    post:
+      operationId: initializeSystem
+      summary: Complete first-run admin password initialization
+      tags:
+        - system
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InitRequest'
+      responses:
+        '200':
+          description: Admin password initialized successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InitCompleteResponse'
+        '400':
+          description: Malformed request body or password validation failure.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '409':
+          description: System is already initialized.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '413':
+          description: Request body exceeds maximum allowed size.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '500':
+          description: Internal error while persisting initialization state.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+  /api/system/telemetry:
+    get:
+      operationId: getSystemTelemetry
+      summary: Retrieve host machine, OS, CPU, memory, and disk telemetry
+      tags:
+        - system
+      responses:
+        '200':
+          description: Current host machine and runtime telemetry snapshot.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SystemTelemetryResponse'
+        '401':
+          description: Administrative authentication is required.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+  /api/system/shutdown:
+    post:
+      operationId: shutdownSystem
+      summary: Trigger graceful server shutdown
+      tags:
+        - system
+      responses:
+        '202':
+          description: Graceful shutdown accepted and initiated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShutdownResponse'
+        '401':
+          description: Administrative authentication is required.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Shutdown is disabled on non-loopback bind addresses unless explicitly overridden.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+components:
+  schemas:
+    HealthResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - db
+        - modules
+        - uptimeSeconds
+      properties:
+        status:
+          type: string
+          enum:
+            - ok
+            - degraded
+        db:
+          type: string
+          enum:
+            - ok
+            - error
+        modules:
+          type: array
+          items:
+            type: string
+        uptimeSeconds:
+          type: integer
+          format: int64
+          minimum: 0
+    VersionResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - version
+        - commit
+        - buildTime
+        - goVersion
+      properties:
+        version:
+          type: string
+        commit:
+          type: string
+        buildTime:
+          type: string
+        goVersion:
+          type: string
+    InitStatusResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - initialized
+        - requireLogin
+      properties:
+        initialized:
+          type: boolean
+        requireLogin:
+          type: boolean
+    InitRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - password
+      properties:
+        password:
+          type: string
+          format: password
+          minLength: 8
+          maxLength: 72
+    InitCompleteResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - initialized
+      properties:
+        initialized:
+          type: boolean
+    ShutdownResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          enum:
+            - shutting_down
+    SystemTelemetryResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - hostname
+        - os
+        - arch
+        - goVersion
+        - cpuModel
+        - cpuCores
+        - cpuUsagePercent
+        - loadAvg
+        - memTotalBytes
+        - memUsedBytes
+        - diskTotalBytes
+        - diskUsedBytes
+        - hostUptimeSeconds
+        - appUptimeSeconds
+        - dbStatus
+        - sampledAt
+      properties:
+        hostname:
+          type: string
+        os:
+          type: string
+        arch:
+          type: string
+        goVersion:
+          type: string
+        cpuModel:
+          type: string
+        cpuCores:
+          type: integer
+        cpuUsagePercent:
+          type: number
+        loadAvg:
+          type: array
+          items:
+            type: number
+        memTotalBytes:
+          type: integer
+          format: int64
+        memUsedBytes:
+          type: integer
+          format: int64
+        diskTotalBytes:
+          type: integer
+          format: int64
+        diskUsedBytes:
+          type: integer
+          format: int64
+        hostUptimeSeconds:
+          type: integer
+          format: int64
+        appUptimeSeconds:
+          type: integer
+          format: int64
+        dbStatus:
+          type: string
+          enum:
+            - ok
+            - error
+        sampledAt:
+          type: string
+          format: date-time

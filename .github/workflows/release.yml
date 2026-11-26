@@ -1,0 +1,168 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version label (dry-run build without publishing)"
+        required: false
+        default: "dry-run"
+
+permissions:
+  contents: read
+
+jobs:
+  verify-web:
+    name: Verify & Export Static Web UI
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install web dependencies
+        working-directory: web
+        run: bun install --frozen-lockfile
+
+      - name: Verify web lint, tests, typecheck, and static build
+        working-directory: web
+        run: |
+          bun run check
+          bun test
+          bun run typecheck
+          bun run build
+
+      - name: Run CLI launcher tests
+        working-directory: cli
+        run: bun test
+
+      - name: Upload static UI bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-web-out
+          path: web/out
+          retention-days: 1
+          if-no-files-found: error
+
+  release-binaries:
+    name: Build & Publish 6 Zero-CGO Binaries
+    needs: [verify-web]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          check-latest: true
+          cache: true
+
+      - name: Run Go race & zero-CGO verification
+        run: |
+          go vet ./...
+          go test -count=1 -race ./...
+          CGO_ENABLED=0 go test -count=1 ./internal/platform/db/...
+
+      - name: Download static UI bundle
+        uses: actions/download-artifact@v4
+        with:
+          name: release-web-out
+          path: cmd/omeg4mon-router/ui_dist
+
+      - name: Build 6 zero-CGO single binaries and SHA256SUMS
+        env:
+          RELEASE_VERSION: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || inputs.version }}
+        run: |
+          BUILD_TIME="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          COMMIT="${GITHUB_SHA::7}"
+          LDFLAGS="-s -w -X main.version=${RELEASE_VERSION} -X main.commit=${COMMIT} -X main.buildTime=${BUILD_TIME}"
+          mkdir -p dist
+          CGO_ENABLED=0 GOOS=linux   GOARCH=amd64 go build -tags embedui -trimpath -ldflags="${LDFLAGS}" -o dist/omeg4mon-router-linux-amd64 ./cmd/omeg4mon-router
+          CGO_ENABLED=0 GOOS=linux   GOARCH=arm64 go build -tags embedui -trimpath -ldflags="${LDFLAGS}" -o dist/omeg4mon-router-linux-arm64 ./cmd/omeg4mon-router
+          CGO_ENABLED=0 GOOS=darwin  GOARCH=amd64 go build -tags embedui -trimpath -ldflags="${LDFLAGS}" -o dist/omeg4mon-router-darwin-amd64 ./cmd/omeg4mon-router
+          CGO_ENABLED=0 GOOS=darwin  GOARCH=arm64 go build -tags embedui -trimpath -ldflags="${LDFLAGS}" -o dist/omeg4mon-router-darwin-arm64 ./cmd/omeg4mon-router
+          CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -tags embedui -trimpath -ldflags="${LDFLAGS}" -o dist/omeg4mon-router-windows-amd64.exe ./cmd/omeg4mon-router
+          CGO_ENABLED=0 GOOS=windows GOARCH=arm64 go build -tags embedui -trimpath -ldflags="${LDFLAGS}" -o dist/omeg4mon-router-windows-arm64.exe ./cmd/omeg4mon-router
+          cd dist && sha256sum omeg4mon-router-* > SHA256SUMS.txt
+          ls -lh .
+
+      - name: Smoke test linux/amd64 release binary
+        run: ./scripts/smoke-test.sh ./dist/omeg4mon-router-linux-amd64 20199
+
+      - name: Publish GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: |
+            dist/omeg4mon-router-linux-amd64
+            dist/omeg4mon-router-linux-arm64
+            dist/omeg4mon-router-darwin-amd64
+            dist/omeg4mon-router-darwin-arm64
+            dist/omeg4mon-router-windows-amd64.exe
+            dist/omeg4mon-router-windows-arm64.exe
+            dist/SHA256SUMS.txt
+
+  docker-release:
+    name: Build & Push Multi-Arch Container (GHCR)
+    needs: [verify-web]
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
+
+      - name: Build and push multi-arch Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: ${{ startsWith(github.ref, 'refs/tags/v') }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            VERSION=${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || inputs.version }}
+            COMMIT=${{ github.sha }}
+            BUILD_TIME=${{ github.event.head_commit.timestamp }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

@@ -1,0 +1,410 @@
+openapi: 3.1.0
+info:
+  title: omeg4mon-router Proxy Pools Module API
+  version: 0.1.0
+paths:
+  /api/proxy-pools:
+    get:
+      operationId: listProxyPools
+      summary: List configured HTTP/SOCKS5 proxy pools and provider bindings
+      tags:
+        - proxypools
+      responses:
+        '200':
+          description: Redacted proxy pools and provider bindings.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListProxyPoolsResponse'
+        '401':
+          description: Administrative authentication is required.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+    post:
+      operationId: createProxyPool
+      summary: Create an encrypted HTTP/HTTPS/SOCKS5 proxy pool entry
+      tags:
+        - proxypools
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateProxyPoolRequest'
+      responses:
+        '201':
+          description: Created proxy pool with redacted display URL.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProxyPoolSummary'
+        '400':
+          description: Invalid proxy URL or request payload.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Administrative authentication is required.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+  /api/proxy-pools/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+    patch:
+      operationId: updateProxyPool
+      summary: Update a proxy pool name, URL, or enabled state
+      tags:
+        - proxypools
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateProxyPoolRequest'
+      responses:
+        '200':
+          description: Updated proxy pool summary.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProxyPoolSummary'
+        '400':
+          description: Invalid proxy URL or payload.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Proxy pool not found.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+    delete:
+      operationId: deleteProxyPool
+      summary: Delete a proxy pool and cascade remove its provider bindings
+      tags:
+        - proxypools
+      responses:
+        '204':
+          description: Proxy pool deleted.
+        '404':
+          description: Proxy pool not found.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+  /api/proxy-pools/{id}/test:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+    post:
+      operationId: testProxyPool
+      summary: Measure proxy connectivity and latency and persist health status
+      tags:
+        - proxypools
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TestProxyPoolRequest'
+      responses:
+        '200':
+          description: Proxy probe result.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TestProxyPoolResponse'
+        '404':
+          description: Proxy pool not found.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+  /api/proxy-pools/scan:
+    post:
+      operationId: scanProxyCandidates
+      summary: Concurrently probe candidate proxy URLs and optionally auto-add healthy pools
+      tags:
+        - proxypools
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ScanProxyCandidatesRequest'
+      responses:
+        '200':
+          description: Batch proxy scan results.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScanProxyCandidatesResponse'
+        '400':
+          description: Invalid or oversized candidate list.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+  /api/proxy-pool-bindings/{providerId}:
+    parameters:
+      - name: providerId
+        in: path
+        required: true
+        schema:
+          type: string
+    put:
+      operationId: upsertProxyBinding
+      summary: Bind an upstream provider identifier to a proxy pool
+      tags:
+        - proxypools
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpsertProxyBindingRequest'
+      responses:
+        '200':
+          description: Saved provider proxy binding.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProxyBindingSummary'
+        '400':
+          description: Invalid request payload.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Referenced proxy pool not found.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+    delete:
+      operationId: deleteProxyBinding
+      summary: Remove a provider proxy binding so requests dial directly
+      tags:
+        - proxypools
+      responses:
+        '204':
+          description: Provider proxy binding removed.
+        '404':
+          description: Binding not found.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+components:
+  schemas:
+    ProxyPoolScheme:
+      type: string
+      enum:
+        - http
+        - https
+        - socks5
+        - socks5h
+    ProxyPoolStatus:
+      type: string
+      enum:
+        - unknown
+        - healthy
+        - unhealthy
+    ProxyPoolSummary:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - name
+        - scheme
+        - display_url
+        - has_credentials
+        - enabled
+        - status
+        - last_latency_ms
+        - last_error
+        - last_tested_at
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        scheme:
+          $ref: '#/components/schemas/ProxyPoolScheme'
+        display_url:
+          type: string
+        has_credentials:
+          type: boolean
+        enabled:
+          type: boolean
+        status:
+          $ref: '#/components/schemas/ProxyPoolStatus'
+        last_latency_ms:
+          type: integer
+          format: int64
+        last_error:
+          type: string
+        last_tested_at:
+          type: string
+        created_at:
+          type: string
+        updated_at:
+          type: string
+    ProxyBindingSummary:
+      type: object
+      additionalProperties: false
+      required:
+        - provider_id
+        - pool_id
+        - updated_at
+      properties:
+        provider_id:
+          type: string
+        pool_id:
+          type: string
+        updated_at:
+          type: string
+    ListProxyPoolsResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - pools
+        - bindings
+      properties:
+        pools:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProxyPoolSummary'
+        bindings:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProxyBindingSummary'
+    CreateProxyPoolRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - name
+        - url
+      properties:
+        name:
+          type: string
+        url:
+          type: string
+        enabled:
+          type: boolean
+    UpdateProxyPoolRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+        url:
+          type: string
+        enabled:
+          type: boolean
+    TestProxyPoolRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        target_url:
+          type: string
+        timeout_ms:
+          type: integer
+    TestProxyPoolResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - healthy
+        - status
+        - latency_ms
+        - tested_at
+      properties:
+        id:
+          type: string
+        healthy:
+          type: boolean
+        status:
+          $ref: '#/components/schemas/ProxyPoolStatus'
+        latency_ms:
+          type: integer
+          format: int64
+        error:
+          type: string
+        tested_at:
+          type: string
+    ScanProxyCandidatesRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - candidates
+      properties:
+        candidates:
+          type: array
+          items:
+            type: string
+        auto_add:
+          type: boolean
+        name_prefix:
+          type: string
+        timeout_ms:
+          type: integer
+    ScanProxyCandidateResult:
+      type: object
+      additionalProperties: false
+      required:
+        - display_url
+        - has_credentials
+        - healthy
+        - latency_ms
+      properties:
+        display_url:
+          type: string
+        scheme:
+          type: string
+        has_credentials:
+          type: boolean
+        healthy:
+          type: boolean
+        latency_ms:
+          type: integer
+          format: int64
+        error:
+          type: string
+        added_pool_id:
+          type: string
+    ScanProxyCandidatesResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - results
+      properties:
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/ScanProxyCandidateResult'
+    UpsertProxyBindingRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - pool_id
+      properties:
+        pool_id:
+          type: string

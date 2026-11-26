@@ -1,0 +1,232 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - migration/ts-go
+      - main
+  pull_request:
+    branches:
+      - migration/ts-go
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  go-check:
+    name: Go (Format, Vet, Race & Zero-CGO)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          check-latest: true
+          cache: true
+
+      - name: Check Go formatting
+        run: |
+          unformatted=$(gofmt -s -l cmd internal)
+          if [ -n "$unformatted" ]; then
+            echo "Unformatted Go files:"
+            echo "$unformatted"
+            exit 1
+          fi
+
+      - name: Verify Go modules
+        run: go mod verify
+
+      - name: Run golangci-lint (lint & formatters)
+        uses: golangci/golangci-lint-action@v7
+        with:
+          version: latest
+
+      - name: Verify golangci-lint formatters diff
+        run: golangci-lint fmt --diff ./...
+
+      - name: Run go vet
+        run: go vet ./...
+
+      - name: Run Go unit tests with race detector
+        run: go test -count=1 -race ./...
+
+      - name: Verify zero-CGO SQLite package
+        run: CGO_ENABLED=0 go test -count=1 ./internal/platform/db/...
+
+      - name: Validate committed Graphify knowledge graph JSON
+        run: |
+          python3 -c "
+          import json
+          from pathlib import Path
+          g = json.loads(Path('graphify-out/graph.json').read_text(encoding='utf-8'))
+          nodes = g.get('nodes', [])
+          assert len(nodes) > 0, 'graphify-out/graph.json has no nodes'
+          print(f'Graphify graph.json valid: {len(nodes)} nodes')
+          "
+
+  web-check:
+    name: Web & CLI (Vite + React 19, OpenAPI Drift, Tests & Static Build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Cache Bun dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('web/bun.lock') }}
+          restore-keys: bun-${{ runner.os }}-
+
+      - name: Install web dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Run Biome formatter and linter
+        run: bun run check
+
+      - name: Verify OpenAPI TypeScript contract has no drift
+        run: |
+          bun run gen:api
+          git diff --exit-code src/shared/api/schema.d.ts
+
+      - name: Run web unit tests
+        run: bun test
+
+      - name: Run CLI launcher unit tests
+        working-directory: cli
+        run: bun test
+
+      - name: Run strict TypeScript check (tsc)
+        run: bun run typecheck
+
+      - name: Enforce DESIGN.md surface guardrail (no glassmorphism)
+        run: |
+          if grep -rnE 'backdrop-blur|backdrop-filter' src/; then
+            echo "ERROR: backdrop-blur/backdrop-filter violates docs/DESIGN.md"
+            exit 1
+          fi
+
+      - name: Build Vite SPA static bundle
+        run: |
+          bun run build
+          test -f out/index.html
+          test -d out/assets
+
+      - name: Upload static UI bundle for single-binary jobs
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-out
+          path: web/out
+          retention-days: 1
+          if-no-files-found: error
+
+  single-binary:
+    name: Single Binary (embedui Build & Live Smoke Test)
+    needs: [go-check, web-check]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          check-latest: true
+          cache: true
+
+      - name: Download static UI bundle
+        uses: actions/download-artifact@v4
+        with:
+          name: web-out
+          path: cmd/omeg4mon-router/ui_dist
+
+      - name: Vet and test embedui package
+        run: |
+          go vet -tags embedui ./cmd/omeg4mon-router/...
+          CGO_ENABLED=0 go test -count=1 -tags embedui ./cmd/omeg4mon-router/...
+
+      - name: Build static single binary
+        run: |
+          mkdir -p bin
+          CGO_ENABLED=0 go build -tags embedui -trimpath \
+            -ldflags="-s -w -X main.version=ci-${GITHUB_SHA::7} -X main.commit=${GITHUB_SHA::7} -X main.buildTime=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            -o bin/omeg4mon-router ./cmd/omeg4mon-router
+          ls -lh bin/omeg4mon-router
+
+      - name: Run live single-binary smoke test
+        run: ./scripts/smoke-test.sh ./bin/omeg4mon-router 20199
+
+  cross-compile:
+    name: Cross-Compile (6 Targets Zero-CGO)
+    needs: [go-check, web-check]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          check-latest: true
+          cache: true
+
+      - name: Download static UI bundle
+        uses: actions/download-artifact@v4
+        with:
+          name: web-out
+          path: cmd/omeg4mon-router/ui_dist
+
+      - name: Cross-compile zero-CGO single binaries
+        run: |
+          mkdir -p dist
+          CGO_ENABLED=0 GOOS=linux   GOARCH=amd64 go build -tags embedui -trimpath -ldflags="-s -w" -o dist/omeg4mon-router-linux-amd64 ./cmd/omeg4mon-router
+          CGO_ENABLED=0 GOOS=linux   GOARCH=arm64 go build -tags embedui -trimpath -ldflags="-s -w" -o dist/omeg4mon-router-linux-arm64 ./cmd/omeg4mon-router
+          CGO_ENABLED=0 GOOS=darwin  GOARCH=amd64 go build -tags embedui -trimpath -ldflags="-s -w" -o dist/omeg4mon-router-darwin-amd64 ./cmd/omeg4mon-router
+          CGO_ENABLED=0 GOOS=darwin  GOARCH=arm64 go build -tags embedui -trimpath -ldflags="-s -w" -o dist/omeg4mon-router-darwin-arm64 ./cmd/omeg4mon-router
+          CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -tags embedui -trimpath -ldflags="-s -w" -o dist/omeg4mon-router-windows-amd64.exe ./cmd/omeg4mon-router
+          CGO_ENABLED=0 GOOS=windows GOARCH=arm64 go build -tags embedui -trimpath -ldflags="-s -w" -o dist/omeg4mon-router-windows-arm64.exe ./cmd/omeg4mon-router
+          cd dist && sha256sum omeg4mon-router-* > SHA256SUMS.txt
+          ls -lh .
+
+  docker-build:
+    name: Docker Multi-Stage Build
+    needs: [go-check, web-check]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build multi-stage Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

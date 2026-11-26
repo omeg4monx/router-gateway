@@ -1,0 +1,231 @@
+openapi: 3.1.0
+info:
+  title: omeg4mon-router Tunnel Module
+  version: 0.1.0
+paths:
+  /api/tunnel/status:
+    get:
+      tags: [tunnel]
+      operationId: getTunnelStatus
+      summary: Get live tunnel status, configuration, and binary availability
+      responses:
+        '200':
+          description: Tunnel status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TunnelStatus'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+  /api/tunnel/config:
+    patch:
+      tags: [tunnel]
+      operationId: updateTunnelConfig
+      summary: Update persisted tunnel configuration
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTunnelConfigRequest'
+      responses:
+        '200':
+          description: Updated tunnel status and configuration
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TunnelStatus'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+  /api/tunnel/start:
+    post:
+      tags: [tunnel]
+      operationId: startTunnel
+      summary: Start the configured Cloudflare or Tailscale tunnel
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StartTunnelRequest'
+      responses:
+        '200':
+          description: Tunnel started
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TunnelStatus'
+        '400':
+          description: Invalid parameters
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '409':
+          description: Tunnel already running
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '422':
+          description: Tunnel binary missing
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+  /api/tunnel/stop:
+    post:
+      tags: [tunnel]
+      operationId: stopTunnel
+      summary: Stop the active tunnel
+      responses:
+        '200':
+          description: Tunnel stopped
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TunnelStatus'
+  /api/tunnel/events:
+    get:
+      tags: [tunnel]
+      operationId: listTunnelEvents
+      summary: List recent tunnel lifecycle events
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Recent tunnel events
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TunnelEventListResponse'
+components:
+  schemas:
+    TunnelProvider:
+      type: string
+      enum: [cloudflare, tailscale]
+    TailscaleMode:
+      type: string
+      enum: [funnel, serve]
+    TunnelState:
+      type: string
+      enum: [stopped, starting, running, error]
+    TunnelBinaryStatus:
+      type: object
+      additionalProperties: false
+      required: [available, path]
+      properties:
+        available:
+          type: boolean
+        path:
+          type: string
+    TunnelBinariesStatus:
+      type: object
+      additionalProperties: false
+      required: [cloudflared, tailscale]
+      properties:
+        cloudflared:
+          $ref: '#/components/schemas/TunnelBinaryStatus'
+        tailscale:
+          $ref: '#/components/schemas/TunnelBinaryStatus'
+    TunnelStatus:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - provider
+        - public_url
+        - local_url
+        - tailscale_mode
+        - auto_start
+        - pid
+        - started_at
+        - last_error
+        - binaries
+      properties:
+        status:
+          $ref: '#/components/schemas/TunnelState'
+        provider:
+          $ref: '#/components/schemas/TunnelProvider'
+        public_url:
+          type: string
+        local_url:
+          type: string
+        tailscale_mode:
+          $ref: '#/components/schemas/TailscaleMode'
+        auto_start:
+          type: boolean
+        pid:
+          type: integer
+        started_at:
+          type: string
+        last_error:
+          type: string
+        binaries:
+          $ref: '#/components/schemas/TunnelBinariesStatus'
+    UpdateTunnelConfigRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        provider:
+          $ref: '#/components/schemas/TunnelProvider'
+        local_url:
+          type: string
+        tailscale_mode:
+          $ref: '#/components/schemas/TailscaleMode'
+        auto_start:
+          type: boolean
+    StartTunnelRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        provider:
+          $ref: '#/components/schemas/TunnelProvider'
+        local_url:
+          type: string
+        tailscale_mode:
+          $ref: '#/components/schemas/TailscaleMode'
+    TunnelEvent:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - provider
+        - event_type
+        - message
+        - public_url
+        - created_at
+      properties:
+        id:
+          type: string
+        provider:
+          type: string
+        event_type:
+          type: string
+        message:
+          type: string
+        public_url:
+          type: string
+        created_at:
+          type: string
+    TunnelEventListResponse:
+      type: object
+      additionalProperties: false
+      required: [events]
+      properties:
+        events:
+          type: array
+          items:
+            $ref: '#/components/schemas/TunnelEvent'

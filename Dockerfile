@@ -1,98 +1,45 @@
-ARG NODE_IMAGE=node:22-alpine
-ARG ALPINE_MIRROR=dl-cdn.alpinelinux.org
-ARG NPM_REGISTRY=https://registry.npmjs.org/
-ARG APP_VERSION=unknown
+# syntax=docker/dockerfile:1
 
-FROM ${NODE_IMAGE} AS base
-ARG ALPINE_MIRROR
-WORKDIR /app
+FROM oven/bun:1-alpine AS web-builder
+WORKDIR /src/web
+COPY web/package.json web/bun.lock ./
+RUN bun install --frozen-lockfile
+COPY contracts /src/contracts
+COPY web/ ./
+RUN bun run build
 
-# Use the official Alpine mirror by default. A repository variable/build arg can
-# override it for environments that require a regional mirror.
-RUN if [ "$ALPINE_MIRROR" != "dl-cdn.alpinelinux.org" ]; then \
-      sed -i "s|dl-cdn.alpinelinux.org|${ALPINE_MIRROR}|g" /etc/apk/repositories; \
-    fi
+FROM golang:1.26-alpine AS go-builder
+ARG VERSION=dev
+ARG COMMIT=none
+ARG BUILD_TIME=unknown
+WORKDIR /src
+COPY go.mod go.sum ./
+RUN go mod download
+COPY cmd ./cmd
+COPY internal ./internal
+RUN rm -rf ./cmd/omeg4mon-router/ui_dist
+COPY --from=web-builder /src/web/out ./cmd/omeg4mon-router/ui_dist
+RUN mkdir -p /data && \
+    CGO_ENABLED=0 go build \
+      -tags embedui \
+      -trimpath \
+      -ldflags="-s -w -X main.version=${VERSION} -X main.commit=${COMMIT} -X main.buildTime=${BUILD_TIME}" \
+      -o /out/omeg4mon-router \
+      ./cmd/omeg4mon-router
 
-FROM base AS builder
-ARG NPM_REGISTRY
-
-RUN apk add --no-cache python3 make g++ linux-headers
-
-COPY package.json ./
-# No cache mount here on purpose. Railway's builder requires the id to be
-# prefixed with a key it generates per service, and the documented form is
-# rejected as well, so the mount only breaks the build there. The layer above
-# already caches the install, because package.json is copied on its own.
-RUN npm install \
-      --registry="${NPM_REGISTRY}" \
-      --fetch-retries=5 \
-      --fetch-retry-factor=2 \
-      --fetch-retry-mintimeout=10000 \
-      --fetch-retry-maxtimeout=120000 \
-      --fetch-timeout=300000
-
-COPY . ./
-ENV NEXT_TELEMETRY_DISABLED=1
-RUN npm run build
-
-# custom-server.js imports src/ and open-sse/ directly (auth guard, token refresh,
-# backups), outside Next's file tracing, so their packages never reach standalone.
-# jose/bcryptjs: dashboardGuard -> dashboardSession (without them every route 503s).
-# chalk/ora + ora's dependency tree: tokenRefresh -> oauth/services/xai -> oauth/utils/ui.
-RUN mkdir -p /runtime-modules && cd node_modules && cp -r \
-      jose bcryptjs chalk ora \
-      ansi-regex cli-cursor cli-spinners get-east-asian-width is-interactive \
-      is-unicode-supported log-symbols mimic-function onetime restore-cursor \
-      signal-exit stdin-discarder string-width strip-ansi yoctocolors \
-      /runtime-modules/
-
-FROM ${NODE_IMAGE} AS runner
-ARG ALPINE_MIRROR
-ARG APP_VERSION
-WORKDIR /app
-
-RUN if [ "$ALPINE_MIRROR" != "dl-cdn.alpinelinux.org" ]; then \
-      sed -i "s|dl-cdn.alpinelinux.org|${ALPINE_MIRROR}|g" /etc/apk/repositories; \
-    fi
-
+FROM gcr.io/distroless/static-debian12:nonroot
+ARG VERSION=dev
+ARG COMMIT=none
 LABEL org.opencontainers.image.title="omeg4mon-router" \
-      org.opencontainers.image.version="${APP_VERSION}"
-
-ENV NODE_ENV=production
-ENV PORT=20128
-ENV HOSTNAME=0.0.0.0
-ENV NEXT_TELEMETRY_DISABLED=1
-ENV DATA_DIR=/app/data
-ENV NODE_OPTIONS="--expose-gc --max-old-space-size=256"
-
-COPY --from=builder /app/public ./public
-COPY --from=builder /app/.next/static ./.next/static
-COPY --from=builder /app/.next/standalone ./
-COPY --from=builder /app/custom-server.js ./custom-server.js
-COPY --from=builder /app/scripts ./scripts
-COPY --from=builder /app/src ./src
-COPY --from=builder /app/open-sse ./open-sse
-# Standalone node_modules may omit runtime-required packages not traced by Next build
-COPY --from=builder /app/node_modules/node-forge ./node_modules/node-forge
-COPY --from=builder /app/node_modules/next ./node_modules/next
-COPY --from=builder /app/node_modules/sql.js ./node_modules/sql.js
-COPY --from=builder /app/node_modules/node-machine-id ./node_modules/node-machine-id
-COPY --from=builder /app/node_modules/uuid ./node_modules/uuid
-COPY --from=builder /app/node_modules/undici ./node_modules/undici
-COPY --from=builder /app/node_modules/confbox ./node_modules/confbox
-COPY --from=builder /runtime-modules ./node_modules
-
-RUN mkdir -p /app/data && chown -R node:node /app && \
-  mkdir -p /app/data-home && chown node:node /app/data-home && \
-  ln -sf /app/data-home /root/.omeg4mon-router 2>/dev/null || true
-
-# Avoid a full distribution upgrade in the runtime image. It makes builds less
-# reproducible and is unrelated to installing the runtime entrypoint helper.
-RUN apk add --no-cache su-exec && \
-  printf '#!/bin/sh\nchown -R node:node /app/data /app/data-home 2>/dev/null\nexec su-exec node "$@"\n' > /entrypoint.sh && \
-  chmod +x /entrypoint.sh
-
+      org.opencontainers.image.description="Single-binary modular Go + Vite React LLM gateway and control plane" \
+      org.opencontainers.image.version="${VERSION}" \
+      org.opencontainers.image.revision="${COMMIT}" \
+      org.opencontainers.image.licenses="MIT"
+COPY --from=go-builder /out/omeg4mon-router /omeg4mon-router
+COPY --from=go-builder --chown=65532:65532 /data /data
+ENV OMEG4MON_HOST=0.0.0.0 \
+    OMEG4MON_PORT=20128 \
+    OMEG4MON_DATA_DIR=/data
+VOLUME ["/data"]
 EXPOSE 20128
-
-ENTRYPOINT ["/entrypoint.sh"]
-CMD ["node", "custom-server.js"]
+ENTRYPOINT ["/omeg4mon-router"]

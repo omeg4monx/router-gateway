@@ -1,124 +1,87 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
-
-# Go binaries and build artifacts
-bin/
-dist/
-*.sqlite
-*.sqlite-wal
-*.sqlite-shm
-
-# dependencies
-/node_modules
-/.pnp
-.pnp.*
-.yarn/*
-!.yarn/patches
-!.yarn/plugins
-!.yarn/releases
-!.yarn/versions
-
-# testing
-/coverage
-
-# next.js
-/.next/
-/.next-dev/
-/.next-cli-build/
-/out/
-cli/.build-home/
-product
-# production
-/build
-.idea/
-
-# misc
-*.tgz
-omeg4mon-router-*.tgz
-.DS_Store
-*.pem
-
-# debug
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-.pnpm-debug.log*
-
-# env files (can opt-in for committing if needed)
-.env*
+# ==============================================================================
+# Secrets, Credentials & Local Environment
+# ==============================================================================
+.env
+.env.*
+**/.env
+**/.env.*
 !.env.example
+!**/.env.example
+master.key
+**/master.key
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+secrets.*
+credentials*.json
 
-# Tailscale Funnel TLS material is host-local; a private key must never be committed.
-*.ts.net.crt
-*.ts.net.key
-
-# vercel
-.vercel
-
-# typescript
-*.tsbuildinfo
-next-env.d.ts
-
-.bin/*
+# ==============================================================================
+# Runtime State & Local Databases
+# ==============================================================================
+*.sqlite
+*.sqlite3
+*.sqlite-shm
+*.sqlite-wal
+*.sqlite3-shm
+*.sqlite3-wal
+*.db
+*.db-shm
+*.db-wal
 data/
-logs/*
-source/*
-.cursor/*
-docs/*
-!docs/ARCHITECTURE.md
-!docs/ROADMAP_GO_MIGRATION.md
-test/*
-open-sse/test/*
-RM.vn.md
-RM.md
-cursor/*
-PUBLIC.md
-Thanks.md
-PUBLIC.en.md
-PR/*
-package-lock.json
 
+# ==============================================================================
+# Dependencies
+# ==============================================================================
+node_modules/
+**/node_modules/
 
-#Ignore vscode AI rules
-.github/instructions/codacy.instructions.md
-README1.md
-deploy*.sh
-ecosystem.config.*
+# ==============================================================================
+# Build Outputs, Binaries & Generated Artifacts
+# ==============================================================================
+/bin/
+/omeg4mon-router
+dist/
+build/
+out/
+web/out/
+web/tsconfig.tsbuildinfo
+cmd/omeg4mon-router/ui_dist/
+*.exe
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+coverage.txt
+coverage.html
 
-scripts/agSniffer/*
-gitbooks/*
-gitbook/README.md
+# ==============================================================================
+# Logs & Caches
+# ==============================================================================
+*.log
+logs/
+.cache/
+.turbo/
+.eslintcache
+.bun/
+*.tsbuildinfo
 
-# Refactor backup reference (do not bundle/lint)
-open-sse.old/
-.graphifyignore
-graphify-out/*
-
-# Local-only working dirs (notes, vendored repos, scripts, skills)
-.claude/
-.docs/
-.repo/
-.script/
-.codegraph/
-.PR/
-.next-analyze/*
-
-# Kiro local workspace state
-.kiro/
-9router-*
-
-# Local sensitive / temp files
-.engine-token.txt
-.tmp-prov.json
-.tmp-providers.json
-.oauth-session.json
-.dev-server.log
-.dev-server-err.log
-.start-dev.ps1
-start-dev-silent.cjs
-debug.log
-
-# Build outputs of any name (probe/side-by-side builds must never be committed)
-.next*/
-
-# Local-only Codex OAuth helper (contains live tokens, never commit)
-scripts/codexAuthLocal.mjs
+# ==============================================================================
+# OS, Editor & Local Tooling Scratch
+# ==============================================================================
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+.idea/
+.vscode/*
+!.vscode/settings.json
+.superpowers/
+.gemini/
+graphify-out/cache/
+graphify-out/.graphify_*
+graphify-out/cost.json
+graphify-out/20[0-9][0-9]-[0-9][0-9]-[0-9][0-9]/
