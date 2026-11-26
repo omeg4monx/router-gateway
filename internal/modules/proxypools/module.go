@@ -15,6 +15,7 @@ import (
 	"net/url"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -28,6 +29,10 @@ import (
 )
 
 const (
+	// RotatePoolID is a virtual binding target that round-robins outbound
+	// requests across all enabled (preferring healthy) proxy pools.
+	RotatePoolID = "__rotate__"
+
 	moduleName          = "proxypools"
 	defaultProbeTimeout = 5 * time.Second
 	maxBodyBytes        = 1 << 20 // 1 MiB
@@ -57,6 +62,9 @@ type Module struct {
 	mu          sync.RWMutex
 	cacheLoaded bool
 	boundURLs   map[string]*url.URL
+	rotateBound map[string]bool
+	rotateURLs  []*url.URL
+	rotateSeq   atomic.Uint64
 }
 
 var (
@@ -81,6 +89,7 @@ func New(opts Options) *Module {
 		logger:       logger,
 		probeTimeout: timeout,
 		boundURLs:    make(map[string]*url.URL),
+		rotateBound:  make(map[string]bool),
 	}
 }
 
@@ -123,13 +132,16 @@ func (m *Module) Start(ctx context.Context) error {
 func (m *Module) Stop(_ context.Context) error {
 	m.mu.Lock()
 	m.boundURLs = make(map[string]*url.URL)
+	m.rotateBound = make(map[string]bool)
+	m.rotateURLs = nil
 	m.cacheLoaded = false
 	m.mu.Unlock()
 	return nil
 }
 
 // ProxyURLForProvider resolves the outbound proxy URL bound to providerID, or
-// returns (nil, nil) if unbound or bound to a disabled pool.
+// returns (nil, nil) if unbound or bound to a disabled pool. Providers bound to
+// RotatePoolID round-robin across all enabled proxy pools.
 func (m *Module) ProxyURLForProvider(ctx context.Context, providerID string) (*url.URL, error) {
 	pid := strings.TrimSpace(providerID)
 	if pid == "" {
@@ -138,7 +150,9 @@ func (m *Module) ProxyURLForProvider(ctx context.Context, providerID string) (*u
 
 	m.mu.RLock()
 	loaded := m.cacheLoaded
+	isRotate := m.rotateBound[pid]
 	u := m.boundURLs[pid]
+	rotList := m.rotateURLs
 	m.mu.RUnlock()
 
 	if !loaded {
@@ -146,8 +160,18 @@ func (m *Module) ProxyURLForProvider(ctx context.Context, providerID string) (*u
 			return nil, err
 		}
 		m.mu.RLock()
+		isRotate = m.rotateBound[pid]
 		u = m.boundURLs[pid]
+		rotList = m.rotateURLs
 		m.mu.RUnlock()
+	}
+	if isRotate {
+		if len(rotList) == 0 {
+			return nil, nil
+		}
+		idx := (m.rotateSeq.Add(1) - 1) % uint64(len(rotList))
+		cp := *rotList[idx]
+		return &cp, nil
 	}
 	if u == nil {
 		return nil, nil
@@ -167,6 +191,8 @@ func (m *Module) reloadCache(ctx context.Context) error {
 	}
 
 	enabledURLs := make(map[string]*url.URL, len(pools))
+	healthyRotate := make([]*url.URL, 0, len(pools))
+	allEnabledRotate := make([]*url.URL, 0, len(pools))
 	for _, p := range pools {
 		if !p.Enabled {
 			continue
@@ -181,17 +207,33 @@ func (m *Module) reloadCache(ctx context.Context) error {
 			continue
 		}
 		enabledURLs[p.ID] = parsed
+		allEnabledRotate = append(allEnabledRotate, parsed)
+		if p.Status != "unhealthy" {
+			healthyRotate = append(healthyRotate, parsed)
+		}
 	}
 
 	next := make(map[string]*url.URL, len(bindings))
+	nextRotate := make(map[string]bool)
 	for _, b := range bindings {
+		if b.PoolID == RotatePoolID {
+			nextRotate[b.ProviderID] = true
+			continue
+		}
 		if u, ok := enabledURLs[b.PoolID]; ok {
 			next[b.ProviderID] = u
 		}
 	}
 
+	rotCandidates := healthyRotate
+	if len(rotCandidates) == 0 {
+		rotCandidates = allEnabledRotate
+	}
+
 	m.mu.Lock()
 	m.boundURLs = next
+	m.rotateBound = nextRotate
+	m.rotateURLs = rotCandidates
 	m.cacheLoaded = true
 	m.mu.Unlock()
 	return nil
@@ -425,6 +467,8 @@ func (m *Module) handleTest(w http.ResponseWriter, r *http.Request) {
 
 	if updateErr := m.repo.updatePoolHealth(r.Context(), pool.ID, status, lat, errMsg, testedAt); updateErr != nil {
 		m.logger.Warn("proxypools: update health failed", "pool_id", pool.ID, "err", updateErr)
+	} else {
+		m.invalidateAndPublish(r.Context())
 	}
 
 	httpserver.WriteJSON(w, http.StatusOK, PoolTestResponse{
@@ -529,12 +573,14 @@ func (m *Module) handleUpsertBinding(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if _, err := m.repo.getPool(r.Context(), poolID); errors.Is(err, errNotFound) {
-		httpserver.WriteError(w, r, http.StatusNotFound, "not_found", "proxy pool not found")
-		return
-	} else if err != nil {
-		httpserver.WriteError(w, r, http.StatusInternalServerError, "proxypools_get_failed", err.Error())
-		return
+	if poolID != RotatePoolID {
+		if _, err := m.repo.getPool(r.Context(), poolID); errors.Is(err, errNotFound) {
+			httpserver.WriteError(w, r, http.StatusNotFound, "not_found", "proxy pool not found")
+			return
+		} else if err != nil {
+			httpserver.WriteError(w, r, http.StatusInternalServerError, "proxypools_get_failed", err.Error())
+			return
+		}
 	}
 
 	now := formatUTC(time.Now())

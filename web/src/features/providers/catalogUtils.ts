@@ -82,6 +82,10 @@ const ADAPTER_TO_REGISTRY_ID: Record<string, string> = {
   "aws-quick": "aws-quick",
 };
 
+export function canAddProviderConnection(entry: Pick<ProviderEntry, "noAuth">): boolean {
+  return !entry.noAuth;
+}
+
 export function canProbeProviderModels(
   entry: Pick<ProviderEntry, "noAuth" | "baseUrl" | "stats">,
 ): boolean {

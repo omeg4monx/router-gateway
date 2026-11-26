@@ -3,6 +3,7 @@ import { existsSync } from "node:fs";
 import { join, resolve } from "node:path";
 import {
   buildProviderEntries,
+  canAddProviderConnection,
   canProbeProviderModels,
   computeFleetTelemetry,
   countCategoryBuckets,
@@ -282,5 +283,39 @@ describe("providers catalogUtils", () => {
       expect(opencode.defaultModels).not.toContain("gpt-4o-mini-free");
       expect(opencode.defaultModels).not.toContain("space-bunny-free");
     }
+  });
+
+  test("hides Add connection action for noAuth providers and lists only keyless Venice models", () => {
+    const entries = buildProviderEntries(ADAPTERS, CUSTOM_NODES, CONNECTIONS);
+    const byId = new Map(entries.map((entry) => [entry.id, entry]));
+
+    const venice = byId.get("venice");
+    const veniceFree = byId.get("venice-free");
+    const opencode = byId.get("opencode");
+    const openai = byId.get("openai");
+    const anthropic = byId.get("anthropic");
+
+    expect(venice).toBeDefined();
+    expect(veniceFree).toBeDefined();
+    expect(opencode).toBeDefined();
+    expect(openai).toBeDefined();
+    expect(anthropic).toBeDefined();
+
+    if (venice) {
+      expect(canAddProviderConnection(venice)).toBe(false);
+      expect(venice.defaultModels).toContain("venice-uncensored-1-2");
+      expect(venice.defaultModels).toContain("deepseek-v4-1-flash-uncensored");
+      expect(venice.defaultModels).not.toContain("deepseek-v4-pro");
+      expect(venice.defaultModels).not.toContain("zai-org-glm-5");
+      expect(venice.defaultModels).not.toContain("qwen3-vl-235b-a22b");
+      expect(venice.defaultModels).not.toContain("llama-3.3-70b");
+    }
+    if (veniceFree) {
+      expect(veniceFree.noAuth).toBe(true);
+      expect(canAddProviderConnection(veniceFree)).toBe(false);
+    }
+    if (opencode) expect(canAddProviderConnection(opencode)).toBe(false);
+    if (openai) expect(canAddProviderConnection(openai)).toBe(true);
+    if (anthropic) expect(canAddProviderConnection(anthropic)).toBe(true);
   });
 });

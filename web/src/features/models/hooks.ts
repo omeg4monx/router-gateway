@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { apiClient, extractErrorMessage } from "@/shared/api/client";
 import type { components } from "@/shared/api/schema";
 import {
@@ -9,17 +9,10 @@ import {
   normalizeTestStatus,
   type RawCatalogGroup,
 } from "./catalogUtils";
-import type {
-  ApiKeyAccessItem,
-  CatalogModelRow,
-  CatalogTestResult,
-  ProviderHealthState,
-} from "./types";
+import type { CatalogModelRow, CatalogTestResult } from "./types";
 
 export const modelCatalogQueryKeys = {
   catalog: ["models", "catalog"] as const,
-  healthMatrix: ["providers", "health-matrix"] as const,
-  apiKeys: ["keys", "catalog-access"] as const,
 };
 
 export function useModelCatalog() {
@@ -33,101 +26,6 @@ export function useModelCatalog() {
         return flattenCatalogResponse(data.catalog as Record<string, RawCatalogGroup>);
       }
       throw new Error(extractErrorMessage(error));
-    },
-  });
-}
-
-export function useProviderHealthMatrix() {
-  return useQuery<Record<string, ProviderHealthState>, Error>({
-    queryKey: modelCatalogQueryKeys.healthMatrix,
-    refetchInterval: 30_000,
-    queryFn: async () => {
-      const { data, error } = await apiClient.GET("/api/providers/health-matrix");
-      if (data) {
-        const out: Record<string, ProviderHealthState> = {};
-        for (const item of data.providers) {
-          if (item.provider) {
-            out[item.provider] = item.state;
-          }
-        }
-        return out;
-      }
-      throw new Error(extractErrorMessage(error));
-    },
-  });
-}
-
-export function useCatalogApiKeys() {
-  return useQuery<ApiKeyAccessItem[], Error>({
-    queryKey: modelCatalogQueryKeys.apiKeys,
-    queryFn: async () => {
-      const { data, error } = await apiClient.GET("/api/keys");
-      if (data) {
-        return data.keys.map((k) => {
-          const allowed = Array.isArray(k.allowed_models) ? k.allowed_models : [];
-          const isAll = allowed.length === 0 || allowed.includes("*");
-          return {
-            id: k.id,
-            name: k.name,
-            prefix: k.key_prefix,
-            disabled: k.disabled,
-            allowedModels: allowed,
-            modelAccessMode: isAll ? "all" : "restricted",
-          };
-        });
-      }
-      throw new Error(extractErrorMessage(error));
-    },
-  });
-}
-
-export function useUpdateKeyAllowedModelsMutation() {
-  const queryClient = useQueryClient();
-
-  return useMutation<void, Error, { keyId: string; allowedModels: string[] }>({
-    mutationFn: async ({ keyId, allowedModels }) => {
-      const { error } = await apiClient.PATCH("/api/keys/{id}", {
-        params: { path: { id: keyId } },
-        body: { allowed_models: allowedModels },
-      });
-      if (error) {
-        throw new Error(extractErrorMessage(error));
-      }
-    },
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: modelCatalogQueryKeys.apiKeys });
-    },
-  });
-}
-
-export function useToggleModelVisibilityMutation() {
-  const queryClient = useQueryClient();
-
-  return useMutation<void, Error, { qualifiedIds: string[]; hide: boolean }>({
-    mutationFn: async ({ qualifiedIds, hide }) => {
-      for (const qualifiedId of qualifiedIds) {
-        if (hide) {
-          const { error } = await apiClient.PUT("/api/models/disabled", {
-            body: { model: qualifiedId, reason: "Hidden from Model Catalog" },
-          });
-          if (error) {
-            throw new Error(extractErrorMessage(error));
-          }
-        } else {
-          const { error, response } = await apiClient.DELETE("/api/models/disabled", {
-            params: { query: { model: qualifiedId } },
-          });
-          if (error && response.status !== 404) {
-            throw new Error(extractErrorMessage(error));
-          }
-        }
-      }
-    },
-    onSuccess: async () => {
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: modelCatalogQueryKeys.catalog }),
-        queryClient.invalidateQueries({ queryKey: ["combos", "disabled-models"] }),
-      ]);
     },
   });
 }

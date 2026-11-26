@@ -17,13 +17,33 @@ export type UpsertProxyBindingRequest = components["schemas"]["UpsertProxyBindin
 
 const ALLOWED_SCHEMES = new Set(["http:", "https:", "socks5:", "socks5h:"]);
 
-export function isValidProxyUrl(raw: string): boolean {
+/**
+ * Normalizes Webshare / ProxyScrape shorthand (`host:port` or `host:port:user:pass`)
+ * into a standard `http://` proxy URL while leaving explicit scheme URLs untouched.
+ */
+export function normalizeProxyInput(raw: string): string {
   const trimmed = raw.trim();
-  if (!trimmed) {
+  if (!trimmed || trimmed.includes("://")) {
+    return trimmed;
+  }
+  const parts = trimmed.split(":");
+  if (parts.length === 2 && parts[0] && /^\d+$/.test(parts[1] ?? "")) {
+    return `http://${parts[0]}:${parts[1]}`;
+  }
+  if (parts.length === 4 && parts[0] && /^\d+$/.test(parts[1] ?? "") && parts[2]) {
+    const [host, port, user, pass] = parts;
+    return `http://${encodeURIComponent(user)}:${encodeURIComponent(pass ?? "")}@${host}:${port}`;
+  }
+  return trimmed;
+}
+
+export function isValidProxyUrl(raw: string): boolean {
+  const normalized = normalizeProxyInput(raw);
+  if (!normalized) {
     return false;
   }
   try {
-    const parsed = new URL(trimmed);
+    const parsed = new URL(normalized);
     return ALLOWED_SCHEMES.has(parsed.protocol.toLowerCase()) && parsed.hostname.length > 0;
   } catch {
     return false;
@@ -34,12 +54,12 @@ export function parseCandidateLines(raw: string): string[] {
   const seen = new Set<string>();
   const out: string[] = [];
   for (const line of raw.split(/\r?\n/)) {
-    const trimmed = line.trim();
-    if (!trimmed || seen.has(trimmed)) {
+    const normalized = normalizeProxyInput(line);
+    if (!normalized || seen.has(normalized)) {
       continue;
     }
-    seen.add(trimmed);
-    out.push(trimmed);
+    seen.add(normalized);
+    out.push(normalized);
   }
   return out;
 }
@@ -53,7 +73,11 @@ export const createProxyPoolSchema = z.object({
   url: z
     .string()
     .trim()
-    .refine(isValidProxyUrl, "Must be a valid http://, https://, socks5://, or socks5h:// URL"),
+    .transform(normalizeProxyInput)
+    .refine(
+      isValidProxyUrl,
+      "Must be a valid http://, https://, socks5://, socks5h://, or host:port[:user:pass] proxy",
+    ),
   enabled: z.boolean().default(true),
 });
 

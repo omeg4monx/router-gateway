@@ -41,6 +41,7 @@ node_modules/
 # Build Outputs, Binaries & Generated Artifacts
 # ==============================================================================
 /bin/
+/omeg4mon-router
 dist/
 build/
 out/

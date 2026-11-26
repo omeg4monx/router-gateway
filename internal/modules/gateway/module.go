@@ -26,6 +26,7 @@ import (
 	"github.com/omeg4monx/router-gateway/internal/platform/httpclient"
 	"github.com/omeg4monx/router-gateway/internal/platform/httpserver"
 	"github.com/omeg4monx/router-gateway/internal/platform/lifecycle"
+	"github.com/omeg4monx/router-gateway/internal/platform/venice"
 )
 
 const (
@@ -75,6 +76,7 @@ type Module struct {
 	logger       *slog.Logger
 	chains       *chainStore
 	agQuota      *antigravityQuotaMonitor
+	veniceMgr    *venice.AttestationManager
 	shaper       *trafficShaper
 	coalescer    *responseCoalescer
 }
@@ -183,6 +185,7 @@ func New(opts Options) *Module {
 		logger:       logger,
 		chains:       newChainStore(opts.DB, opts.ChainTTL),
 		agQuota:      newAntigravityQuotaMonitor(),
+		veniceMgr:    venice.NewAttestationManager(nil),
 		shaper:       newTrafficShaper(opts.MaxGlobalInFlight, opts.MaxConnInFlight, opts.QueueTimeout, nil),
 		coalescer:    coalescer,
 	}
@@ -678,7 +681,18 @@ func (m *Module) executeInferenceCandidates(
 		}
 		lastCand = cand
 
-		creds, credErr := m.providers.ResolveCredentials(ctx, cand.ConnectionID)
+		var (
+			creds   contracts.UpstreamCredentials
+			credErr error
+		)
+		if venice.IsVirtualConnectionID(cand.ConnectionID) {
+			creds = venice.DefaultCredentials()
+			if strings.TrimSpace(cand.Endpoint) != "" {
+				creds.BaseURL = cand.Endpoint
+			}
+		} else {
+			creds, credErr = m.providers.ResolveCredentials(ctx, cand.ConnectionID)
+		}
 		if credErr != nil {
 			m.health.RecordFailure(cand.ConnectionID, http.StatusBadGateway, 0)
 			lastStatus = http.StatusBadGateway
@@ -917,10 +931,19 @@ func (m *Module) executeCandidateAttempt(
 	deferHealthFailure bool,
 	capture *cachedGatewayResponse,
 ) attemptOutcome {
-	upURL, err := buildUpstreamURL(baseURL, outProto, upstreamModel, stream, false, isCompact)
-	if err != nil {
-		m.health.RecordFailure(cand.ConnectionID, http.StatusBadGateway, 0)
-		return attemptOutcome{statusCode: http.StatusBadGateway, errMsg: err.Error()}
+	isVeniceKeyless := venice.IsVeniceKeyless(creds)
+	var (
+		upURL string
+		err   error
+	)
+	if isVeniceKeyless {
+		upURL = venice.ResolveInferenceURL(baseURL)
+	} else {
+		upURL, err = buildUpstreamURL(baseURL, outProto, upstreamModel, stream, false, isCompact)
+		if err != nil {
+			m.health.RecordFailure(cand.ConnectionID, http.StatusBadGateway, 0)
+			return attemptOutcome{statusCode: http.StatusBadGateway, errMsg: err.Error()}
+		}
 	}
 
 	// Proactive Antigravity quota pre-check: skip accounts whose family bucket
@@ -936,9 +959,36 @@ func (m *Module) executeCandidateAttempt(
 	}
 
 	upCtx := httpclient.WithProviderID(ctx, cand.ProviderID)
+	reqClient := m.httpClient
+	var veniceAttestationToken string
 	curBody := upBody
 	if cand.ProviderID == "antigravity" {
 		curBody = rewriteAntigravitySystemInstruction(curBody)
+	}
+	if isVeniceKeyless {
+		reqClient = venice.SelectHTTPClient(m.httpClient)
+		var payloadErr error
+		curBody, _, payloadErr = venice.BuildChatPayload(upstreamModel, curBody)
+		if payloadErr != nil {
+			m.health.RecordFailure(cand.ConnectionID, http.StatusBadGateway, 0)
+			return attemptOutcome{statusCode: http.StatusBadGateway, errMsg: payloadErr.Error()}
+		}
+		var attErr error
+		veniceAttestationToken, attErr = m.veniceMgr.GetToken(upCtx, reqClient, upURL)
+		if attErr != nil {
+			if ctx.Err() != nil {
+				return attemptOutcome{clientCanceled: true}
+			}
+			m.veniceMgr.Evict(upURL)
+			if !deferHealthFailure {
+				m.health.RecordFailure(cand.ConnectionID, http.StatusBadGateway, 0)
+			}
+			return attemptOutcome{
+				deferredHealthFail: deferHealthFailure,
+				statusCode:         http.StatusBadGateway,
+				errMsg:             attErr.Error(),
+			}
+		}
 	}
 	retriedSystemToUser := false
 
@@ -950,11 +1000,18 @@ func (m *Module) executeCandidateAttempt(
 			m.health.RecordFailure(cand.ConnectionID, http.StatusBadGateway, 0)
 			return attemptOutcome{statusCode: http.StatusBadGateway, errMsg: reqErr.Error()}
 		}
-		applyUpstreamHeaders(upReq, creds, stream)
+		if isVeniceKeyless {
+			venice.ApplyHeaders(upReq, veniceAttestationToken, true)
+		} else {
+			applyUpstreamHeaders(upReq, creds, stream)
+		}
 
 		var doErr error
-		resp, doErr = m.httpClient.Do(upReq)
+		resp, doErr = reqClient.Do(upReq)
 		if doErr != nil {
+			if isVeniceKeyless {
+				m.veniceMgr.Evict(upURL)
+			}
 			if ctx.Err() != nil {
 				return attemptOutcome{clientCanceled: true}
 			}
@@ -1029,7 +1086,11 @@ func (m *Module) executeCandidateAttempt(
 		copyResponseHeaders(w.Header(), meta.Headers)
 
 		if stream {
-			sres, streamErr := m.streamUpstreamSSE(ctx, w, resp.Body, reqID, inProto, outProto, requestedModel, startTime)
+			streamSrc := resp.Body
+			if isVeniceKeyless {
+				streamSrc = venice.NewNDJSONToOpenAISSEReader(ctx, resp.Body, requestedModel)
+			}
+			sres, streamErr := m.streamUpstreamSSE(ctx, w, streamSrc, reqID, inProto, outProto, requestedModel, startTime)
 			if streamErr != nil && ctx.Err() == nil {
 				m.logger.Warn("stream interrupted", "request_id", reqID, "err", streamErr)
 			}
@@ -1065,6 +1126,15 @@ func (m *Module) executeCandidateAttempt(
 		if readErr != nil {
 			writeGatewayError(w, r, inProto, http.StatusBadGateway, "server_error", "upstream_read_error", readErr.Error())
 			return attemptOutcome{handled: true}
+		}
+		if isVeniceKeyless {
+			converted, _, convErr := venice.ParseNDJSONToOpenAI(rawResp, requestedModel)
+			if convErr != nil {
+				m.veniceMgr.Evict(upURL)
+				writeGatewayError(w, r, inProto, http.StatusBadGateway, "server_error", "invalid_upstream_response", convErr.Error())
+				return attemptOutcome{handled: true}
+			}
+			rawResp = converted
 		}
 
 		var usage CanonicalUsage
@@ -1148,6 +1218,10 @@ func (m *Module) executeCandidateAttempt(
 			Timestamp:    time.Now().UTC(),
 		})
 		return attemptOutcome{handled: true}
+	}
+
+	if isVeniceKeyless {
+		m.veniceMgr.Evict(upURL)
 	}
 
 	if resp.StatusCode == http.StatusUnauthorized && creds.AuthType == "oauth" && allowOAuthRefresh {

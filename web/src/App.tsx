@@ -42,11 +42,6 @@ const ModelEditorConsole = lazy(() =>
     default: m.ModelEditorConsole,
   })),
 );
-const ModelCatalogConsole = lazy(() =>
-  import("@/features/models/ModelCatalogConsole").then((m) => ({
-    default: m.ModelCatalogConsole,
-  })),
-);
 const NotificationsConsole = lazy(() =>
   import("@/features/notifications/NotificationsConsole").then((m) => ({
     default: m.NotificationsConsole,
@@ -143,7 +138,6 @@ export const DASHBOARD_ROUTE_PATHS = [
   "mitm",
   "monitor",
   "model-editor",
-  "models",
   "notifications",
   "plugins",
   "prompt-guard",
@@ -182,7 +176,6 @@ export function App() {
                 <Route path="mitm" element={<MitmConsole />} />
                 <Route path="monitor" element={<LiveMonitorConsole />} />
                 <Route path="model-editor" element={<ModelEditorConsole />} />
-                <Route path="models" element={<ModelCatalogConsole />} />
                 <Route path="notifications" element={<NotificationsConsole />} />
                 <Route path="plugins" element={<PluginsStudio />} />
                 <Route path="prompt-guard" element={<PromptGuardConsole />} />

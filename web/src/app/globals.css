@@ -442,9 +442,65 @@ input:focus-visible {
   .topology-router-core,
   .topology-edge-flow,
   .topology-edge-last,
-  .topology-edge-bloom {
+  .topology-edge-bloom,
+  .metric-value-tick {
     animation: none;
   }
+}
+
+/* Subtle semantic tint differentiation for Overview KPI cards */
+.overview-kpi-card {
+  border-width: 1px;
+  border-style: solid;
+  transition:
+    border-color 220ms ease,
+    background-color 220ms ease;
+}
+
+.overview-kpi-requests {
+  background-color: color-mix(in srgb, var(--color-primary) 4%, var(--color-surface));
+  border-color: color-mix(in srgb, var(--color-primary) 20%, var(--color-border));
+}
+
+.overview-kpi-tokens {
+  background-color: color-mix(in srgb, var(--color-info) 4%, var(--color-surface));
+  border-color: color-mix(in srgb, var(--color-info) 22%, var(--color-border));
+}
+
+.overview-kpi-cached {
+  background-color: color-mix(in srgb, var(--color-success) 4%, var(--color-surface));
+  border-color: color-mix(in srgb, var(--color-success) 22%, var(--color-border));
+}
+
+[data-theme="dark"] .overview-kpi-requests {
+  background-color: color-mix(in srgb, var(--color-primary) 6%, var(--color-surface));
+  border-color: color-mix(in srgb, var(--color-primary) 24%, var(--color-border));
+}
+
+[data-theme="dark"] .overview-kpi-tokens {
+  background-color: color-mix(in srgb, var(--color-info) 6%, var(--color-surface));
+  border-color: color-mix(in srgb, var(--color-info) 24%, var(--color-border));
+}
+
+[data-theme="dark"] .overview-kpi-cached {
+  background-color: color-mix(in srgb, var(--color-success) 6%, var(--color-surface));
+  border-color: color-mix(in srgb, var(--color-success) 24%, var(--color-border));
+}
+
+/* Subtle realtime numeric update animation */
+@keyframes metric-value-tick {
+  0% {
+    opacity: 0.72;
+    transform: translateY(1.5px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.metric-value-tick {
+  animation: metric-value-tick 360ms var(--ease-spring);
 }
 
 :root {

@@ -29,6 +29,7 @@ describe("Vite SPA routing & zero-Next.js contract", () => {
 
     const missing = ALL_NAV_ITEMS.map((item) => item.href).filter((href) => !registered.has(href));
     expect(missing).toEqual([]);
+    expect(registered.has("/dashboard/models/")).toBe(false);
   });
 
   test("no next/* imports remain anywhere in web/src", () => {

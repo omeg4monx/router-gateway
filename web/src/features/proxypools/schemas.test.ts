@@ -1,5 +1,10 @@
 import { describe, expect, it } from "bun:test";
-import { createProxyPoolSchema, parseCandidateLines, scanCandidatesSchema } from "./schemas";
+import {
+  createProxyPoolSchema,
+  normalizeProxyInput,
+  parseCandidateLines,
+  scanCandidatesSchema,
+} from "./schemas";
 
 describe("proxypools schemas", () => {
   it("accepts valid http, https, socks5, and socks5h proxy URLs", () => {
@@ -44,5 +49,20 @@ describe("proxypools schemas", () => {
     expect(
       scanCandidatesSchema.safeParse({ candidatesText: tooMany, autoAdd: false }).success,
     ).toBe(false);
+  });
+
+  it("normalizes Webshare/ProxyScrape shorthand host:port and host:port:user:pass formats", () => {
+    expect(normalizeProxyInput("198.23.239.134:6540:alice:secret")).toBe(
+      "http://alice:secret@198.23.239.134:6540",
+    );
+    expect(normalizeProxyInput("198.23.239.134:6540")).toBe("http://198.23.239.134:6540");
+    expect(normalizeProxyInput("socks5h://user:pass@10.0.0.1:1080")).toBe(
+      "socks5h://user:pass@10.0.0.1:1080",
+    );
+    expect(
+      parseCandidateLines(
+        "198.23.239.134:6540:alice:secret\nhttp://alice:secret@198.23.239.134:6540",
+      ),
+    ).toEqual(["http://alice:secret@198.23.239.134:6540"]);
   });
 });

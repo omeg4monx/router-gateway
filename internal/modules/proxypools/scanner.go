@@ -84,6 +84,9 @@ func probeProxy(ctx context.Context, proxyURL *url.URL, targetURL string, timeou
 			return time.Since(start).Milliseconds(), fmt.Errorf("proxy http probe: %w", doErr)
 		}
 		_ = resp.Body.Close()
+		if resp.StatusCode == http.StatusProxyAuthRequired {
+			return time.Since(start).Milliseconds(), errors.New("proxy authentication required (HTTP 407)")
+		}
 		if resp.StatusCode >= 500 {
 			return time.Since(start).Milliseconds(), fmt.Errorf("proxy target returned status %d", resp.StatusCode)
 		}

@@ -16,6 +16,7 @@ import (
 	"github.com/omeg4monx/router-gateway/internal/contracts"
 	"github.com/omeg4monx/router-gateway/internal/platform/httpclient"
 	"github.com/omeg4monx/router-gateway/internal/platform/httpserver"
+	"github.com/omeg4monx/router-gateway/internal/platform/venice"
 )
 
 const (
@@ -486,7 +487,28 @@ func (m *Module) probeWithCredentials(ctx context.Context, connectionID string, 
 	client := selectProbeHTTPClient(m.httpClient, creds)
 
 	executeProbe := func(activeCreds contracts.UpstreamCredentials) (int, []byte, int64, error) {
-		req, reqErr := buildModelProbeRequest(probeCtx, activeCreds, modelID)
+		var (
+			req    *http.Request
+			reqErr error
+		)
+		isVenice := venice.IsVeniceKeyless(activeCreds)
+		if isVenice {
+			targetURL := venice.ResolveInferenceURL(activeCreds.BaseURL)
+			attToken, attErr := venice.DefaultAttestationManager().GetToken(probeCtx, client, targetURL)
+			if attErr != nil {
+				return 0, nil, 0, attErr
+			}
+			probeBody, _, buildErr := venice.BuildChatPayload(modelID, []byte(`{"messages":[{"role":"user","content":"hi"}],"temperature":0.1}`))
+			if buildErr != nil {
+				return 0, nil, 0, buildErr
+			}
+			req, reqErr = http.NewRequestWithContext(probeCtx, http.MethodPost, targetURL, bytes.NewReader(probeBody))
+			if reqErr == nil {
+				venice.ApplyHeaders(req, attToken, true)
+			}
+		} else {
+			req, reqErr = buildModelProbeRequest(probeCtx, activeCreds, modelID)
+		}
 		if reqErr != nil {
 			return 0, nil, 0, reqErr
 		}
@@ -494,10 +516,20 @@ func (m *Module) probeWithCredentials(ctx context.Context, connectionID string, 
 		resp, doErr := client.Do(req)
 		latency := time.Since(start).Milliseconds()
 		if doErr != nil {
+			if isVenice {
+				venice.DefaultAttestationManager().Evict(activeCreds.BaseURL)
+			}
 			return 0, nil, latency, doErr
 		}
 		defer func() { _ = resp.Body.Close() }()
 		body, _ := io.ReadAll(io.LimitReader(resp.Body, maxProbeResponseBytes))
+		if isVenice {
+			if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
+				venice.DefaultAttestationManager().Evict(activeCreds.BaseURL)
+			} else if converted, _, convErr := venice.ParseNDJSONToOpenAI(body, modelID); convErr == nil {
+				body = converted
+			}
+		}
 		return resp.StatusCode, body, latency, nil
 	}
 

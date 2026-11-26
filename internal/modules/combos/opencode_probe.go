@@ -15,9 +15,13 @@ import (
 
 	"github.com/omeg4monx/router-gateway/internal/contracts"
 	"github.com/omeg4monx/router-gateway/internal/platform/httpclient"
+	"github.com/omeg4monx/router-gateway/internal/platform/venice"
 )
 
 func selectProbeHTTPClient(configured *http.Client, creds contracts.UpstreamCredentials) *http.Client {
+	if venice.IsVeniceKeyless(creds) {
+		return venice.SelectHTTPClient(configured)
+	}
 	if isOpenCodeFreeCreds(creds) {
 		// Use Chrome/BoringSSL uTLS transport for real upstream requests, while
 		// preserving custom mock RoundTrippers injected by unit tests.

@@ -74,13 +74,6 @@ export const ROUTING_ITEMS: readonly NavItem[] = [
     labels: { en: "Combos", id: "Combo" },
     keywords: ["combos", "routing", "aliases", "fallback", "failover", "cooldown", "rute"],
   },
-  {
-    href: "/dashboard/models/",
-    moduleId: "combos",
-    icon: Cpu,
-    labels: { en: "Models", id: "Model" },
-    keywords: ["models", "catalog", "katalog", "health", "test", "visibility", "keys"],
-  },
 ];
 
 export const OPERATIONS_ITEMS: readonly NavItem[] = [

@@ -51,7 +51,12 @@ import {
 } from "../models/hooks";
 import type { CatalogTestResult } from "../models/types";
 import { AddCustomModelModal } from "./AddCustomModelModal";
-import { buildProviderEntries, canProbeProviderModels, type ProviderEntry } from "./catalogUtils";
+import {
+  buildProviderEntries,
+  canAddProviderConnection,
+  canProbeProviderModels,
+  type ProviderEntry,
+} from "./catalogUtils";
 import { removeModelFromList } from "./customModelUtils";
 import {
   type FetchConnectionModelsResponse,
@@ -824,8 +829,17 @@ function ProviderStudioDetail({ providerId }: { providerId: string }) {
           {sortedConnections.length === 0 ? (
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-3">
-                <div className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--color-primary)]/10 text-[var(--color-primary)]">
-                  {isOAuth ? (
+                <div
+                  className={cn(
+                    "inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full",
+                    entry.noAuth
+                      ? "bg-[var(--status-ok-bg)] text-[var(--status-ok)]"
+                      : "bg-[var(--color-primary)]/10 text-[var(--color-primary)]",
+                  )}
+                >
+                  {entry.noAuth ? (
+                    <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
+                  ) : isOAuth ? (
                     <Lock className="h-4 w-4" aria-hidden="true" />
                   ) : (
                     <KeyRound className="h-4 w-4" aria-hidden="true" />
@@ -833,51 +847,63 @@ function ProviderStudioDetail({ providerId }: { providerId: string }) {
                 </div>
                 <div className="min-w-0">
                   <p className="text-sm font-medium text-[var(--color-text-main)]">
-                    {isId ? "Belum ada koneksi" : "No connections yet"}
+                    {entry.noAuth
+                      ? isId
+                        ? "Siap digunakan (Tanpa Auth)"
+                        : "Ready to use (No Auth Required)"
+                      : isId
+                        ? "Belum ada koneksi"
+                        : "No connections yet"}
                   </p>
                   <p className="text-xs text-[var(--color-text-muted)]">
-                    {isId
-                      ? `Tambahkan akun ${entry.name} untuk mulai merutekan request.`
-                      : `Add a ${entry.name} account to start routing requests.`}
+                    {entry.noAuth
+                      ? isId
+                        ? `${entry.name} berjalan tanpa API key atau login — langsung gunakan model di bawah.`
+                        : `${entry.name} works without an API key or login — use the models below directly.`
+                      : isId
+                        ? `Tambahkan akun ${entry.name} untuk mulai merutekan request.`
+                        : `Add a ${entry.name} account to start routing requests.`}
                   </p>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 gap-2 sm:flex sm:items-center">
-                {hasDualAuthModes ? (
-                  <>
+              {canAddProviderConnection(entry) ? (
+                <div className="grid grid-cols-1 gap-2 sm:flex sm:items-center">
+                  {hasDualAuthModes ? (
+                    <>
+                      <Button
+                        type="button"
+                        size="sm"
+                        className="w-full sm:w-auto"
+                        onClick={() => setShowOAuthModal(true)}
+                      >
+                        <Lock className="h-3.5 w-3.5" aria-hidden="true" />
+                        <span>{oauthButtonLabel}</span>
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="secondary"
+                        className="w-full sm:w-auto"
+                        onClick={() => setShowAddApiKeyModal(true)}
+                      >
+                        <KeyRound className="h-3.5 w-3.5" aria-hidden="true" />
+                        <span>API Key</span>
+                      </Button>
+                    </>
+                  ) : (
                     <Button
                       type="button"
                       size="sm"
                       className="w-full sm:w-auto"
-                      onClick={() => setShowOAuthModal(true)}
+                      onClick={triggerPrimaryAdd}
                     >
-                      <Lock className="h-3.5 w-3.5" aria-hidden="true" />
-                      <span>{oauthButtonLabel}</span>
+                      <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+                      <span>{isId ? "Tambah" : "Add"}</span>
                     </Button>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="secondary"
-                      className="w-full sm:w-auto"
-                      onClick={() => setShowAddApiKeyModal(true)}
-                    >
-                      <KeyRound className="h-3.5 w-3.5" aria-hidden="true" />
-                      <span>API Key</span>
-                    </Button>
-                  </>
-                ) : (
-                  <Button
-                    type="button"
-                    size="sm"
-                    className="w-full sm:w-auto"
-                    onClick={triggerPrimaryAdd}
-                  >
-                    <Plus className="h-3.5 w-3.5" aria-hidden="true" />
-                    <span>{isId ? "Tambah" : "Add"}</span>
-                  </Button>
-                )}
-              </div>
+                  )}
+                </div>
+              ) : null}
             </div>
           ) : (
             <div className="space-y-3">
@@ -1083,7 +1109,7 @@ function ProviderStudioDetail({ providerId }: { providerId: string }) {
                 })}
               </div>
 
-              {!isCustom ? (
+              {!isCustom && canAddProviderConnection(entry) ? (
                 <div className="grid grid-cols-1 gap-2 border-t border-[var(--color-border-subtle)] pt-3 sm:flex">
                   {hasDualAuthModes ? (
                     <>

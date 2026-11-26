@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/omeg4monx/router-gateway/internal/contracts"
+	"github.com/omeg4monx/router-gateway/internal/platform/venice"
 )
 
 const maxResolveDepth = 16
@@ -319,6 +320,23 @@ func (m *Module) resolveIdentifier(
 			available = append(available, buildResolvedTarget(conn, logicalModel, upstreamModel))
 		}
 		if len(available) == 0 {
+			if !matchedAny && venice.IsVeniceProviderID(providerID) && !isModelDisabled(snap.disabled, "venice", upstreamModel) {
+				matchedAny = true
+				if !m.cooldown.IsInCooldown(venice.VirtualConnectionID, now) {
+					return []contracts.ResolvedTarget{{
+						ProviderID:    "venice",
+						ProviderType:  "openai-chat",
+						ConnectionID:  venice.VirtualConnectionID,
+						Model:         logicalModel,
+						UpstreamModel: upstreamModel,
+						Endpoint:      venice.DefaultInferenceURL,
+						Metadata: map[string]string{
+							"auth_type":       "none",
+							"connection_name": "Venice AI (Keyless Webchat)",
+						},
+					}}, true
+				}
+			}
 			return nil, matchedAny
 		}
 		strategy := snap.providerStrategies[providerID]

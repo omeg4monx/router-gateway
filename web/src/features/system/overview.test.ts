@@ -115,4 +115,28 @@ describe("features/system/overview", () => {
     expect(realtimeIdx).toBeGreaterThan(hostIdx);
     expect(spotlightIdx).toBeGreaterThan(realtimeIdx);
   });
+
+  test("SystemOverview removes Estimated Spend KPI card, differentiates the 3 KPI cards with subtle tints, and animates normal digits", () => {
+    const overviewSource = readFileSync(resolve(import.meta.dirname, "SystemOverview.tsx"), "utf8");
+    const globalsCss = readFileSync(resolve(import.meta.dirname, "../../app/globals.css"), "utf8");
+
+    expect(overviewSource).not.toContain("Estimated Spend");
+    expect(overviewSource).not.toContain("Estimasi Biaya");
+    expect(overviewSource).toContain("overview-kpi-requests");
+    expect(overviewSource).toContain("overview-kpi-tokens");
+    expect(overviewSource).toContain("overview-kpi-cached");
+    expect(overviewSource).toContain("<AnimatedNumber");
+
+    const kpiStart = overviewSource.indexOf("Row 1:");
+    const kpiEnd = overviewSource.indexOf("Row 2:");
+    expect(kpiStart).toBeGreaterThan(-1);
+    expect(kpiEnd).toBeGreaterThan(kpiStart);
+    const kpiSection = overviewSource.slice(kpiStart, kpiEnd);
+    expect(kpiSection).not.toContain("formatCompactTokens");
+
+    expect(globalsCss).toContain(".overview-kpi-requests");
+    expect(globalsCss).toContain(".overview-kpi-tokens");
+    expect(globalsCss).toContain(".overview-kpi-cached");
+    expect(globalsCss).toContain("@keyframes metric-value-tick");
+  });
 });

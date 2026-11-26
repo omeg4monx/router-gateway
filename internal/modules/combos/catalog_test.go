@@ -17,6 +17,7 @@ import (
 	"github.com/omeg4monx/router-gateway/internal/modules/combos"
 	"github.com/omeg4monx/router-gateway/internal/platform/db"
 	"github.com/omeg4monx/router-gateway/internal/platform/lifecycle"
+	"github.com/omeg4monx/router-gateway/internal/platform/venice"
 )
 
 type catalogFakeProviderStore struct {
@@ -640,6 +641,7 @@ func (f roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
 }
 
 func TestKeylessFreeProviderModelProbeAndIdentify(t *testing.T) {
+	venice.DefaultAttestationManager().Evict(venice.DefaultInferenceURL)
 	type capturedReq struct {
 		url     string
 		headers http.Header
@@ -657,6 +659,23 @@ func TestKeylessFreeProviderModelProbeAndIdentify(t *testing.T) {
 				headers: req.Header.Clone(),
 				body:    parsed,
 			})
+			if strings.Contains(req.URL.Host, "outerface.venice.ai") && strings.HasSuffix(req.URL.Path, "/client_attestation/mint") {
+				mintBody := `{"expiresAt":4102444800,"tokens":[{"token":"venice-att-1"},{"token":"venice-att-2"},{"token":"venice-att-3"}]}`
+				return &http.Response{
+					StatusCode: http.StatusOK,
+					Header:     http.Header{"Content-Type": []string{"application/json"}},
+					Body:       io.NopCloser(strings.NewReader(mintBody)),
+				}, nil
+			}
+			if strings.Contains(req.URL.Host, "outerface.venice.ai") {
+				ndjson := `{"kind":"meta","completion_id":"chatcmpl-venice-keyless"}` + "\n" +
+					`{"kind":"content","content":"I am venice-uncensored-1-2."}` + "\n"
+				return &http.Response{
+					StatusCode: http.StatusOK,
+					Header:     http.Header{"Content-Type": []string{"text/html"}},
+					Body:       io.NopCloser(strings.NewReader(ndjson)),
+				}, nil
+			}
 			if strings.Contains(req.URL.Host, "opencode.ai") {
 				sse := "data: {\"id\":\"chatcmpl-oc\",\"model\":\"big-pickle\",\"choices\":[{\"delta\":{\"role\":\"assistant\",\"content\":\"I am big-pickle.\"}}]}\n\n" +
 					"data: {\"id\":\"chatcmpl-oc\",\"model\":\"big-pickle\",\"choices\":[{\"delta\":{},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":6,\"completion_tokens\":4}}\n\n" +
@@ -759,6 +778,7 @@ func TestKeylessFreeProviderModelProbeAndIdentify(t *testing.T) {
 	}
 
 	wantURLs := []string{
+		"https://outerface.venice.ai/api/app/user/client_attestation/mint",
 		"https://outerface.venice.ai/api/inference/chat",
 		"https://opencode.ai/inference/openai/v1/chat/completions",
 		"https://oai.endpoints.kepler.ai.cloud.ovh.net/v1/chat/completions",
@@ -774,14 +794,18 @@ func TestKeylessFreeProviderModelProbeAndIdentify(t *testing.T) {
 		}
 	}
 
-	// Venice & OVH must not send Authorization header; OpenCode v2 requires Bearer public + v2 CLI headers + fingerprint body.
-	if got := captured[0].headers.Get("Authorization"); got != "" {
+	// Venice & OVH must not send Authorization header; Venice must send x-venice-client-attestation;
+	// OpenCode v2 requires Bearer public + v2 CLI headers + fingerprint body.
+	if got := captured[1].headers.Get("Authorization"); got != "" {
 		t.Errorf("venice unexpected Authorization = %q", got)
 	}
-	if got := captured[2].headers.Get("Authorization"); got != "" {
+	if got := captured[1].headers.Get("x-venice-client-attestation"); got == "" {
+		t.Errorf("venice missing x-venice-client-attestation header")
+	}
+	if got := captured[3].headers.Get("Authorization"); got != "" {
 		t.Errorf("ovh unexpected Authorization = %q", got)
 	}
-	ocReq := captured[1]
+	ocReq := captured[2]
 	if got := ocReq.headers.Get("Authorization"); got != "Bearer public" {
 		t.Errorf("opencode Authorization = %q, want %q", got, "Bearer public")
 	}

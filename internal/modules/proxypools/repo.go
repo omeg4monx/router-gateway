@@ -168,6 +168,7 @@ func (r *repository) deletePool(ctx context.Context, id string) error {
 	if n == 0 {
 		return errNotFound
 	}
+	_, _ = r.db.Writer().ExecContext(ctx, `DELETE FROM proxy_bindings WHERE pool_id = ?`, id)
 	return nil
 }
 

@@ -58,7 +58,7 @@ func TestExtendedCatalogAdaptersAndAntigravityHeaderGuard(t *testing.T) {
 	}
 	wants := map[string]wantAdapter{
 		"aws-quick": {protocol: "openai-chat", authType: "oauth", wantOAuth: true, wantRedirectNoPath: true},
-		"venice":    {protocol: "openai-chat", authType: "api_key", wantOAuth: false},
+		"venice":    {protocol: "openai-chat", authType: "none", wantOAuth: false},
 		"freepi":    {protocol: "openai-chat", authType: "oauth", wantOAuth: true},
 	}
 

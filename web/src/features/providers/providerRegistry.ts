@@ -6970,15 +6970,12 @@ export const PROVIDER_REGISTRY: readonly ProviderRegistrySpec[] = [
     authType: "none",
     baseUrl: "https://outerface.venice.ai/api/inference/chat",
     defaultModels: [
+      "deepseek-v4-1-flash-uncensored",
+      "olafangensan-glm-4.7-flash-heretic",
       "venice-uncensored-1-2",
-      "zai-org-glm-5",
-      "qwen3-235b-a22b-instruct-2507",
       "qwen3-coder-480b-a35b-instruct-turbo",
-      "qwen3-vl-235b-a22b",
-      "deepseek-v4-pro",
-      "llama-3.3-70b",
-      "hermes-3-llama-3.1-405b",
-      "mistral-small-3-2-24b-instruct",
+      "nvidia-nemotron-3-nano-30b-a3b",
+      "nvidia-nemotron-3-ultra-550b-a55b",
     ],
     website: "https://venice.ai",
     apiKeyUrl: "https://venice.ai",
@@ -6986,40 +6983,28 @@ export const PROVIDER_REGISTRY: readonly ProviderRegistrySpec[] = [
     priority: 157,
     models: [
       {
+        id: "deepseek-v4-1-flash-uncensored",
+        name: "DeepSeek V4.1 Flash Uncensored (512K)",
+      },
+      {
+        id: "olafangensan-glm-4.7-flash-heretic",
+        name: "GLM 4.7 Flash Heretic (200K)",
+      },
+      {
         id: "venice-uncensored-1-2",
-        name: "Venice Uncensored 1.2",
-      },
-      {
-        id: "zai-org-glm-5",
-        name: "GLM-5",
-      },
-      {
-        id: "qwen3-235b-a22b-instruct-2507",
-        name: "Qwen3 235B A22B Instruct",
+        name: "Venice Uncensored 1.2 (128K)",
       },
       {
         id: "qwen3-coder-480b-a35b-instruct-turbo",
-        name: "Qwen3 Coder 480B A35B Turbo",
+        name: "Qwen 3 Coder 480B Turbo (256K)",
       },
       {
-        id: "qwen3-vl-235b-a22b",
-        name: "Qwen3 VL 235B A22B",
+        id: "nvidia-nemotron-3-nano-30b-a3b",
+        name: "NVIDIA Nemotron 3 Nano 30B (128K)",
       },
       {
-        id: "deepseek-v4-pro",
-        name: "DeepSeek V4 Pro",
-      },
-      {
-        id: "llama-3.3-70b",
-        name: "Llama 3.3 70B",
-      },
-      {
-        id: "hermes-3-llama-3.1-405b",
-        name: "Hermes 3 Llama 3.1 405B",
-      },
-      {
-        id: "mistral-small-3-2-24b-instruct",
-        name: "Mistral Small 3.2 24B",
+        id: "nvidia-nemotron-3-ultra-550b-a55b",
+        name: "NVIDIA Nemotron 3 Ultra (256K)",
       },
     ],
   },
@@ -7030,8 +7015,9 @@ export const PROVIDER_REGISTRY: readonly ProviderRegistrySpec[] = [
     category: "free",
     sourceCategory: "free",
     protocol: "openai-chat",
-    authType: "api_key",
+    authType: "none",
     baseUrl: "https://outerface.venice.ai/api/inference/chat",
+    noAuth: true,
     defaultModels: [
       "deepseek-v4-1-flash-uncensored",
       "olafangensan-glm-4.7-flash-heretic",

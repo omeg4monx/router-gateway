@@ -54,7 +54,7 @@ const MODULE_REGISTRY: Record<string, RawModuleEntry> = {
     },
   },
   gateway: {
-    href: "/dashboard/models/",
+    href: "/dashboard/combos/",
     descriptions: {
       en: "OpenAI, Anthropic, Responses & Gemini SSE translation proxy",
       id: "Proxy translasi SSE untuk OpenAI, Anthropic, Responses & Gemini",

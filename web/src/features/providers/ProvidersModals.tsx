@@ -35,7 +35,7 @@ import { Badge } from "@/shared/ui/badge";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
-import type { ProviderEntry } from "./catalogUtils";
+import { canAddProviderConnection, type ProviderEntry } from "./catalogUtils";
 import {
   fetchProviderOAuthStatus,
   useCreateProviderConnectionMutation,
@@ -3355,26 +3355,30 @@ export function ProviderConnectionsDrawer({
       footer={
         <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
           <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
-            <Button
-              type="button"
-              size="sm"
-              className="w-full sm:w-auto"
-              onClick={() => onAddConnection(entry)}
-            >
-              <Plus className="h-3.5 w-3.5" aria-hidden="true" />
-              <span>{primaryConnectLabel}</span>
-            </Button>
-            {entry.isNativeOAuth ? (
-              <Button
-                type="button"
-                size="sm"
-                variant="secondary"
-                className="w-full sm:w-auto"
-                onClick={() => onAddConnection(entry, "apikey")}
-              >
-                <KeyRound className="h-3.5 w-3.5" aria-hidden="true" />
-                <span>{isId ? "Pakai API Key / Token" : "Use API Key / Token"}</span>
-              </Button>
+            {canAddProviderConnection(entry) ? (
+              <>
+                <Button
+                  type="button"
+                  size="sm"
+                  className="w-full sm:w-auto"
+                  onClick={() => onAddConnection(entry)}
+                >
+                  <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+                  <span>{primaryConnectLabel}</span>
+                </Button>
+                {entry.isNativeOAuth ? (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="secondary"
+                    className="w-full sm:w-auto"
+                    onClick={() => onAddConnection(entry, "apikey")}
+                  >
+                    <KeyRound className="h-3.5 w-3.5" aria-hidden="true" />
+                    <span>{isId ? "Pakai API Key / Token" : "Use API Key / Token"}</span>
+                  </Button>
+                ) : null}
+              </>
             ) : null}
           </div>
           <Button
@@ -3551,30 +3555,42 @@ export function ProviderConnectionsDrawer({
           {entry.connections.length === 0 ? (
             <div className="space-y-3 rounded-xl border border-dashed border-[var(--color-border)] bg-[var(--color-surface-2)]/25 p-5 text-center">
               <p className="text-sm font-semibold text-[var(--color-text-main)]">
-                {isId ? "Belum ada akun terhubung" : "No accounts connected yet"}
+                {entry.noAuth
+                  ? isId
+                    ? "Siap digunakan (Tanpa Auth)"
+                    : "Ready to use (No Auth Required)"
+                  : isId
+                    ? "Belum ada akun terhubung"
+                    : "No accounts connected yet"}
               </p>
               <p className="mx-auto max-w-md text-xs leading-relaxed text-[var(--color-text-muted)]">
-                {isId
-                  ? `Hubungkan akun ${entry.name} pertama Anda untuk mulai merutekan request ke model-model di bawah.`
-                  : `Connect your first ${entry.name} account to start routing requests to the models below.`}
+                {entry.noAuth
+                  ? isId
+                    ? `${entry.name} berjalan tanpa API key atau login — langsung gunakan model-model di bawah.`
+                    : `${entry.name} works without an API key or login — use the models below directly.`
+                  : isId
+                    ? `Hubungkan akun ${entry.name} pertama Anda untuk mulai merutekan request ke model-model di bawah.`
+                    : `Connect your first ${entry.name} account to start routing requests to the models below.`}
               </p>
-              <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
-                <Button type="button" size="sm" onClick={() => onAddConnection(entry)}>
-                  <Plus className="h-3.5 w-3.5" aria-hidden="true" />
-                  <span>{primaryConnectLabel}</span>
-                </Button>
-                {entry.isNativeOAuth ? (
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="secondary"
-                    onClick={() => onAddConnection(entry, "apikey")}
-                  >
-                    <KeyRound className="h-3.5 w-3.5" aria-hidden="true" />
-                    <span>{isId ? "Impor Token / API Key" : "Import Token / API Key"}</span>
+              {canAddProviderConnection(entry) ? (
+                <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
+                  <Button type="button" size="sm" onClick={() => onAddConnection(entry)}>
+                    <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+                    <span>{primaryConnectLabel}</span>
                   </Button>
-                ) : null}
-              </div>
+                  {entry.isNativeOAuth ? (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => onAddConnection(entry, "apikey")}
+                    >
+                      <KeyRound className="h-3.5 w-3.5" aria-hidden="true" />
+                      <span>{isId ? "Impor Token / API Key" : "Import Token / API Key"}</span>
+                    </Button>
+                  ) : null}
+                </div>
+              ) : null}
             </div>
           ) : (
             <div className="space-y-2.5">

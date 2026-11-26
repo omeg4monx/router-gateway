@@ -19,7 +19,6 @@ import { useProviderConnections, useProvidersCatalog } from "@/features/provider
 import { useProxyPools } from "@/features/proxypools/hooks";
 import { useUsageLogs, useUsageStream, useUsageSummary } from "@/features/usage/hooks";
 import {
-  formatCompactTokens,
   formatDurationMs,
   formatUSD,
   USAGE_RANGES,
@@ -27,6 +26,7 @@ import {
 } from "@/features/usage/schemas";
 import { cn } from "@/shared/lib/utils";
 import { useUIStore } from "@/shared/store/uiStore";
+import { AnimatedNumber, formatIntegerDigits } from "@/shared/ui/AnimatedNumber";
 import { Badge } from "@/shared/ui/badge";
 import { Button } from "@/shared/ui/button";
 import { useSystemHealth, useSystemTelemetry } from "./hooks";
@@ -489,55 +489,66 @@ export function SystemOverview() {
         </section>
       ) : null}
 
-      {/* Row 1: 4 Overview KPI Cards */}
-      <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <div className="flex flex-col justify-between gap-1.5 rounded-xl border border-[var(--color-border)]/80 bg-[var(--color-surface)] p-4 shadow-[0_1px_2px_rgba(11,13,18,0.03)]">
-          <span className="text-xs font-medium text-[var(--color-text-muted)]">
-            {isId ? "Total Request" : "Total Requests"}
-          </span>
+      {/* Row 1: 3 Overview KPI Cards */}
+      <section className="grid grid-cols-1 gap-3 md:grid-cols-3">
+        <div className="overview-kpi-card overview-kpi-requests flex min-w-0 flex-col justify-between gap-1.5 rounded-xl p-4 shadow-[0_1px_2px_rgba(11,13,18,0.03)]">
+          <div className="flex items-center gap-2">
+            <span
+              className="h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--color-primary)]"
+              aria-hidden="true"
+            />
+            <span className="text-xs font-medium text-[var(--color-text-muted)]">
+              {isId ? "Total Request" : "Total Requests"}
+            </span>
+          </div>
           <span className="font-mono text-2xl font-bold tracking-tight tabular-nums text-[var(--color-text-main)]">
-            {usageQuery.isPending ? "—" : totalRequests.toLocaleString()}
+            {usageQuery.isPending ? "—" : <AnimatedNumber value={totalRequests} />}
           </span>
           <span className="font-mono text-[11px] tabular-nums text-[var(--color-text-muted)]">
             {isId ? "Latensi rata-rata" : "Avg latency"}:{" "}
-            {totals ? formatDurationMs(totals.avg_latency_ms) : "—"}
+            {totals ? (
+              <AnimatedNumber value={totals.avg_latency_ms} format={formatDurationMs} />
+            ) : (
+              "—"
+            )}
           </span>
         </div>
 
-        <div className="flex flex-col justify-between gap-1.5 rounded-xl border border-[var(--color-border)]/80 bg-[var(--color-surface)] p-4 shadow-[0_1px_2px_rgba(11,13,18,0.03)]">
-          <span className="text-xs font-medium text-[var(--color-text-muted)]">
-            {isId ? "Total Token" : "Total Tokens"}
-          </span>
+        <div className="overview-kpi-card overview-kpi-tokens flex min-w-0 flex-col justify-between gap-1.5 rounded-xl p-4 shadow-[0_1px_2px_rgba(11,13,18,0.03)]">
+          <div className="flex items-center gap-2">
+            <span
+              className="h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--color-info)]"
+              aria-hidden="true"
+            />
+            <span className="text-xs font-medium text-[var(--color-text-muted)]">
+              {isId ? "Total Token" : "Total Tokens"}
+            </span>
+          </div>
           <span className="font-mono text-2xl font-bold tracking-tight tabular-nums text-[var(--color-text-main)]">
-            {usageQuery.isPending ? "—" : formatCompactTokens(totalTokens)}
+            {usageQuery.isPending ? "—" : <AnimatedNumber value={totalTokens} />}
           </span>
           <span className="font-mono text-[11px] tabular-nums text-[var(--color-text-muted)]">
-            In {formatCompactTokens(totals?.input_tokens ?? 0)} · Out{" "}
-            {formatCompactTokens(totals?.output_tokens ?? 0)}
+            In <AnimatedNumber value={totals?.input_tokens ?? 0} /> · Out{" "}
+            <AnimatedNumber value={totals?.output_tokens ?? 0} />
           </span>
         </div>
 
-        <div className="flex flex-col justify-between gap-1.5 rounded-xl border border-[var(--color-border)]/80 bg-[var(--color-surface)] p-4 shadow-[0_1px_2px_rgba(11,13,18,0.03)]">
-          <span className="text-xs font-medium text-[var(--color-text-muted)]">
-            {isId ? "Estimasi Biaya" : "Estimated Spend"}
-          </span>
+        <div className="overview-kpi-card overview-kpi-cached flex min-w-0 flex-col justify-between gap-1.5 rounded-xl p-4 shadow-[0_1px_2px_rgba(11,13,18,0.03)]">
+          <div className="flex items-center gap-2">
+            <span
+              className="h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--color-success)]"
+              aria-hidden="true"
+            />
+            <span className="text-xs font-medium text-[var(--color-text-muted)]">
+              {isId ? "Token Ter-Cache" : "Cached Tokens"}
+            </span>
+          </div>
           <span className="font-mono text-2xl font-bold tracking-tight tabular-nums text-[var(--color-text-main)]">
-            {usageQuery.isPending ? "—" : formatUSD(totals?.cost_usd ?? 0)}
-          </span>
-          <span className="text-[11px] text-[var(--color-text-muted)]">
-            {rangeLabels[range]} · {topModels.length} {isId ? "model aktif" : "active models"}
-          </span>
-        </div>
-
-        <div className="flex flex-col justify-between gap-1.5 rounded-xl border border-[var(--color-border)]/80 bg-[var(--color-surface)] p-4 shadow-[0_1px_2px_rgba(11,13,18,0.03)]">
-          <span className="text-xs font-medium text-[var(--color-text-muted)]">
-            {isId ? "Token Ter-Cache" : "Cached Tokens"}
-          </span>
-          <span className="font-mono text-2xl font-bold tracking-tight tabular-nums text-[var(--color-text-main)]">
-            {usageQuery.isPending ? "—" : formatCompactTokens(cachedTokens)}
+            {usageQuery.isPending ? "—" : <AnimatedNumber value={cachedTokens} />}
           </span>
           <span className="font-mono text-[11px] tabular-nums text-[var(--color-text-muted)]">
-            {cacheHitPct}% {isId ? "dari input token" : "of input tokens"}
+            <AnimatedNumber value={cacheHitPct} format={(v) => `${Math.round(v)}%`} />{" "}
+            {isId ? "dari input token" : "of input tokens"}
           </span>
         </div>
       </section>
@@ -736,7 +747,7 @@ export function SystemOverview() {
                 {mostUsedModel.sharePct !== null
                   ? ` · ${mostUsedModel.sharePct}% ${isId ? "dari total" : "of total"}`
                   : ""}{" "}
-                · {formatCompactTokens(mostUsedModel.tokens)} {isId ? "token" : "tokens"} ·{" "}
+                · {formatIntegerDigits(mostUsedModel.tokens)} {isId ? "token" : "tokens"} ·{" "}
                 {rangeLabels[range]}
               </span>
             </>
@@ -773,7 +784,7 @@ export function SystemOverview() {
                 {mostUsedProvider.sharePct !== null
                   ? ` · ${mostUsedProvider.sharePct}% ${isId ? "dari total" : "of total"}`
                   : ""}{" "}
-                · {formatCompactTokens(mostUsedProvider.tokens)} {isId ? "token" : "tokens"} ·{" "}
+                · {formatIntegerDigits(mostUsedProvider.tokens)} {isId ? "token" : "tokens"} ·{" "}
                 {rangeLabels[range]}
               </span>
             </>
@@ -808,7 +819,7 @@ export function SystemOverview() {
                   {mostUsedKey.requests.toLocaleString()} request
                 </strong>
                 {mostUsedKey.sharePct !== null ? ` · ${mostUsedKey.sharePct}%` : ""} ·{" "}
-                {formatCompactTokens(mostUsedKey.tokens)} {isId ? "token" : "tokens"}
+                {formatIntegerDigits(mostUsedKey.tokens)} {isId ? "token" : "tokens"}
                 {mostUsedKey.provider ? ` · via ${mostUsedKey.provider}` : ""}
               </span>
             </>
@@ -871,7 +882,7 @@ export function SystemOverview() {
             {isId ? "Total Provider" : "Total Providers"}
           </span>
           <span className="font-mono text-2xl font-bold tracking-tight tabular-nums text-[var(--color-text-main)]">
-            {providersQuery.isPending ? "—" : providers.length}
+            {providersQuery.isPending ? "—" : <AnimatedNumber value={providers.length} />}
           </span>
           <span className="text-xs text-[var(--color-text-muted)]">
             {activeProvidersCount} {isId ? "aktif" : "active"}
@@ -887,7 +898,7 @@ export function SystemOverview() {
             {isId ? "Total Proxy Pool" : "Proxy Pools"}
           </span>
           <span className="font-mono text-2xl font-bold tracking-tight tabular-nums text-[var(--color-text-main)]">
-            {proxyPoolsQuery.isPending ? "—" : proxyPools.length}
+            {proxyPoolsQuery.isPending ? "—" : <AnimatedNumber value={proxyPools.length} />}
           </span>
           <span className="text-xs text-[var(--color-text-muted)]">
             {activeProxyPoolsCount} {isId ? "aktif" : "active"}
@@ -903,7 +914,7 @@ export function SystemOverview() {
             {isId ? "Total Combo" : "Saved Combos"}
           </span>
           <span className="font-mono text-2xl font-bold tracking-tight tabular-nums text-[var(--color-text-main)]">
-            {combosQuery.isPending ? "—" : combos.length}
+            {combosQuery.isPending ? "—" : <AnimatedNumber value={combos.length} />}
           </span>
           <span className="text-xs text-[var(--color-text-muted)]">
             {isId ? "kombinasi tersimpan" : "routing chains"}
@@ -919,7 +930,7 @@ export function SystemOverview() {
             {isId ? "Total API Key" : "Total API Keys"}
           </span>
           <span className="font-mono text-2xl font-bold tracking-tight tabular-nums text-[var(--color-text-main)]">
-            {keysQuery.isPending ? "—" : keys.length}
+            {keysQuery.isPending ? "—" : <AnimatedNumber value={keys.length} />}
           </span>
           <span className="text-xs text-[var(--color-text-muted)]">
             {activeKeysCount} {isId ? "aktif" : "active"}
@@ -980,7 +991,7 @@ export function SystemOverview() {
                     </div>
                     <div className="flex items-center justify-between font-mono text-[10.5px] tabular-nums text-[var(--color-text-subtle)]">
                       <span>
-                        {formatCompactTokens(tokens)} tok · {formatDurationMs(item.avg_latency_ms)}
+                        {formatIntegerDigits(tokens)} tok · {formatDurationMs(item.avg_latency_ms)}
                       </span>
                       <span>{formatUSD(item.cost_usd)}</span>
                     </div>
@@ -1034,7 +1045,7 @@ export function SystemOverview() {
                     </div>
                     <div className="flex items-center justify-between font-mono text-[10.5px] tabular-nums text-[var(--color-text-subtle)]">
                       <span>
-                        {formatCompactTokens(tokens)} tok · {formatDurationMs(prov.avg_latency_ms)}
+                        {formatIntegerDigits(tokens)} tok · {formatDurationMs(prov.avg_latency_ms)}
                       </span>
                       <span>{formatUSD(prov.cost_usd)}</span>
                     </div>

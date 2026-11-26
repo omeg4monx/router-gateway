@@ -11,13 +11,14 @@ import {
 } from "./navigation";
 
 describe("shared/ui/navigation (main LeftRail layout parity)", () => {
-  test("preserves all 24 dashboard routes with unique trailing-slash hrefs and expanded accordions", () => {
-    expect(ALL_NAV_ITEMS).toHaveLength(24);
+  test("preserves all 23 dashboard routes with unique trailing-slash hrefs and expanded accordions", () => {
+    expect(ALL_NAV_ITEMS).toHaveLength(23);
     expect(EXTENSION_GROUPS).toHaveLength(2);
     expect(EXTENSION_GROUPS.every((group) => group.defaultExpanded)).toBe(true);
 
     const hrefs = ALL_NAV_ITEMS.map((item) => item.href);
-    expect(new Set(hrefs).size).toBe(24);
+    expect(new Set(hrefs).size).toBe(23);
+    expect(hrefs).not.toContain("/dashboard/models/");
     for (const href of hrefs) {
       expect(href.startsWith("/dashboard/")).toBe(true);
       expect(href.endsWith("/")).toBe(true);
@@ -40,7 +41,7 @@ describe("shared/ui/navigation (main LeftRail layout parity)", () => {
 
   test("filters menu items across English labels, Indonesian labels, and keywords", () => {
     const all = resolveVisibleNavigation({ query: "" });
-    expect(countVisibleNavItems(all)).toBe(24);
+    expect(countVisibleNavItems(all)).toBe(23);
 
     const byEn = resolveVisibleNavigation({ query: "token saver" });
     expect(byEn.operations.map((i) => i.href)).toEqual(["/dashboard/token-saver/"]);
