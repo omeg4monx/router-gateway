@@ -1685,14 +1685,17 @@ export const PROVIDER_REGISTRY: readonly ProviderRegistrySpec[] = [
       {
         id: "hy3",
         name: "Hy3",
+        isFree: true,
       },
       {
         id: "hy4-preview",
         name: "Hy4-Preview",
+        isFree: true,
       },
       {
         id: "hy4",
         name: "Hy4",
+        isFree: true,
       },
       {
         id: "glm-5.3",
@@ -1798,18 +1801,22 @@ export const PROVIDER_REGISTRY: readonly ProviderRegistrySpec[] = [
       {
         id: "hy3",
         name: "Hy3",
+        isFree: true,
       },
       {
         id: "hy3-preview",
         name: "Hy3 Preview",
+        isFree: true,
       },
       {
         id: "hy4-preview",
         name: "Hy4-Preview",
+        isFree: true,
       },
       {
         id: "hy4",
         name: "Hy4",
+        isFree: true,
       },
       {
         id: "deepseek-v4-pro",

@@ -91,6 +91,8 @@ type quotaFetcher interface {
 func defaultQuotaFetchers() []quotaFetcher {
 	return []quotaFetcher{
 		tokenHarborQuotaFetcher{},
+		codebuddyQuotaFetcher{providerID: providerIDCodeBuddyCN},
+		codebuddyQuotaFetcher{providerID: providerIDCodeBuddyIntl},
 	}
 }
 

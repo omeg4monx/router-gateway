@@ -7,9 +7,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"net/url"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -28,8 +30,9 @@ const (
 )
 
 type discoveredModel struct {
-	ID   string `json:"id"`
-	Name string `json:"name,omitempty"`
+	ID     string `json:"id"`
+	Name   string `json:"name,omitempty"`
+	IsFree *bool  `json:"is_free,omitempty"`
 }
 
 type fetchConnectionModelsResponse struct {
@@ -398,7 +401,7 @@ func parseDiscoveredModels(body []byte) []discoveredModel {
 
 	seen := make(map[string]struct{})
 	out := make([]discoveredModel, 0, 16)
-	add := func(rawID, rawName string) {
+	add := func(rawID, rawName string, isFree *bool) {
 		id := strings.TrimSpace(rawID)
 		id = strings.TrimPrefix(id, "models/")
 		if id == "" {
@@ -412,21 +415,21 @@ func parseDiscoveredModels(body []byte) []discoveredModel {
 		if name == id {
 			name = ""
 		}
-		out = append(out, discoveredModel{ID: id, Name: name})
+		out = append(out, discoveredModel{ID: id, Name: name, IsFree: isFree})
 	}
 
 	extractList := func(items []any) {
 		for _, item := range items {
 			switch v := item.(type) {
 			case string:
-				add(v, "")
+				add(v, "", nil)
 			case map[string]any:
 				if internal, ok := v["isInternal"].(bool); ok && internal {
 					continue
 				}
 				id := firstStringField(v, "id", "slug", "model", "name")
 				name := firstStringField(v, "displayName", "display_name", "name")
-				add(id, name)
+				add(id, name, extractDiscoveredModelIsFree(v))
 			}
 		}
 	}
@@ -453,15 +456,54 @@ func parseDiscoveredModels(body []byte) []discoveredModel {
 					if internal, ok := info["isInternal"].(bool); ok && internal {
 						continue
 					}
-					add(k, firstStringField(info, "displayName", "display_name", "name"))
+					add(k, firstStringField(info, "displayName", "display_name", "name"), extractDiscoveredModelIsFree(info))
 				} else {
-					add(k, "")
+					add(k, "", nil)
 				}
 			}
 		}
 	}
 
 	return out
+}
+
+func extractDiscoveredModelIsFree(m map[string]any) *bool {
+	for _, key := range []string{"is_free", "isFree", "free"} {
+		if b, ok := m[key].(bool); ok {
+			return &b
+		}
+	}
+	if tier, ok := m["tier"].(string); ok && strings.EqualFold(strings.TrimSpace(tier), "free") {
+		v := true
+		return &v
+	}
+	if pricing, ok := m["pricing"].(map[string]any); ok && pricing != nil {
+		prompt, hasPrompt := parseOptionalPrice(pricing["prompt"])
+		completion, hasCompletion := parseOptionalPrice(pricing["completion"])
+		if hasPrompt && hasCompletion {
+			v := prompt <= 0 && completion <= 0
+			return &v
+		}
+	}
+	return nil
+}
+
+func parseOptionalPrice(raw any) (price float64, ok bool) {
+	switch v := raw.(type) {
+	case float64:
+		if !math.IsNaN(v) && !math.IsInf(v, 0) {
+			return v, true
+		}
+	case string:
+		trimmed := strings.TrimSpace(v)
+		if trimmed == "" {
+			return 0, false
+		}
+		if f, err := strconv.ParseFloat(trimmed, 64); err == nil && !math.IsNaN(f) && !math.IsInf(f, 0) {
+			return f, true
+		}
+	}
+	return 0, false
 }
 
 func firstStringField(m map[string]any, keys ...string) string {

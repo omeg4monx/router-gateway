@@ -408,3 +408,48 @@ func TestFetchConnectionModelsPersistsAndMergesExistingModels(t *testing.T) {
 		t.Fatalf("expected no redundant providers.changed event when models are unchanged, got delta %d", delta)
 	}
 }
+
+func TestParseDiscoveredModelsExtractsIsFreeFromPricingAndFlags(t *testing.T) {
+	payload := []byte(`{
+		"data": [
+			{"id": "vendor/free-str", "name": "Free String Pricing", "pricing": {"prompt": "0", "completion": "0"}},
+			{"id": "vendor/free-num", "pricing": {"prompt": 0, "completion": 0}},
+			{"id": "vendor/paid-str", "pricing": {"prompt": "0.0000015", "completion": "0.000002"}},
+			{"id": "vendor/explicit-free", "isFree": true},
+			{"id": "vendor/tier-free", "tier": "free"},
+			{"id": "vendor/plain-unknown"}
+		]
+	}`)
+
+	models := parseDiscoveredModels(payload)
+	byID := make(map[string]discoveredModel, len(models))
+	for _, m := range models {
+		byID[m.ID] = m
+	}
+
+	assertFree := func(id string, want *bool) {
+		t.Helper()
+		m, ok := byID[id]
+		if !ok {
+			t.Fatalf("missing model %q", id)
+		}
+		if want == nil {
+			if m.IsFree != nil {
+				t.Errorf("%s IsFree = %v, want nil", id, *m.IsFree)
+			}
+			return
+		}
+		if m.IsFree == nil || *m.IsFree != *want {
+			t.Errorf("%s IsFree = %v, want %v", id, m.IsFree, *want)
+		}
+	}
+
+	tr := true
+	fl := false
+	assertFree("vendor/free-str", &tr)
+	assertFree("vendor/free-num", &tr)
+	assertFree("vendor/paid-str", &fl)
+	assertFree("vendor/explicit-free", &tr)
+	assertFree("vendor/tier-free", &tr)
+	assertFree("vendor/plain-unknown", nil)
+}

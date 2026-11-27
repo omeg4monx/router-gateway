@@ -265,6 +265,7 @@ export function useTestProviderNodeDraftMutation() {
 export interface DiscoveredModel {
   id: string;
   name?: string;
+  is_free?: boolean;
 }
 
 export interface FetchConnectionModelsResponse {

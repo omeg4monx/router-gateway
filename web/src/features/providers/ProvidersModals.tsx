@@ -1190,6 +1190,7 @@ export function OAuthWizardModal({
   const [deviceError, setDeviceError] = useState<string | null>(null);
   const [copiedCode, setCopiedCode] = useState(false);
   const deviceSettledRef = useRef(false);
+  const modalInitKeyRef = useRef<string | null>(null);
 
   const startForm = useForm<OAuthStartFormInput, unknown, OAuthStartFormOutput>({
     resolver: zodResolver(oauthStartSchema),
@@ -1367,12 +1368,19 @@ export function OAuthWizardModal({
 
   useEffect(() => {
     if (!open) {
+      modalInitKeyRef.current = null;
       awsQuickAutoStartedRef.current = false;
       pkceAutoStartedRef.current = null;
       deviceAutoStartedRef.current = null;
       stopAwsQuickIfOwned();
       return;
     }
+    const initKey = initialProviderId ?? "";
+    if (modalInitKeyRef.current === initKey) {
+      return;
+    }
+    modalInitKeyRef.current = initKey;
+
     startOAuthReset();
     exchangeOAuthReset();
     pasteOAuthReset();
@@ -1404,6 +1412,7 @@ export function OAuthWizardModal({
     exchangeForm.reset(DEFAULT_OAUTH_EXCHANGE_VALUES);
   }, [
     open,
+    initialProviderId,
     selectedEntry,
     nativeOAuthEntries,
     startForm,
@@ -1423,7 +1432,9 @@ export function OAuthWizardModal({
     oauthMeta?.flow_type === "device_code" ||
     watchedProvider === "github-copilot" ||
     watchedProvider === "kiro" ||
-    watchedProvider === "freepi";
+    watchedProvider === "freepi" ||
+    watchedProvider === "codebuddy-cn" ||
+    watchedProvider === "codebuddy-intl";
   const awsQuickPort = useMemo(() => {
     const uri = awsQuickSession?.redirect_uri;
     if (!uri) return "<port>";
@@ -1535,7 +1546,9 @@ export function OAuthWizardModal({
               ? `Akun OAuth "${conn.name}" berhasil dihubungkan.`
               : `Connected OAuth account "${conn.name}".`,
           );
+          setDeviceSession(null);
           setOutcome({ status: "success", accountName: conn.name });
+          handleClose();
           return;
         }
         if (data.status === "error") {
@@ -1564,7 +1577,7 @@ export function OAuthWizardModal({
       cancelled = true;
       if (timerId !== null) window.clearTimeout(timerId);
     };
-  }, [open, deviceSession, exchangeOAuthMutateAsync, isId, onConnected, startForm]);
+  }, [open, deviceSession, exchangeOAuthMutateAsync, handleClose, isId, onConnected, startForm]);
 
   const startDeviceCodeFlow = useCallback(() => {
     const providerId = startForm.getValues("provider");
@@ -1787,7 +1800,9 @@ export function OAuthWizardModal({
               ? `Akun OAuth "${conn.name}" berhasil dihubungkan.`
               : `Connected OAuth account "${conn.name}".`,
           );
+          setDeviceSession(null);
           setOutcome({ status: "success", accountName: conn.name });
+          handleClose();
           return;
         }
         if (data.status === "error") {
@@ -1809,7 +1824,16 @@ export function OAuthWizardModal({
       cancelled = true;
       if (timerId !== null) window.clearTimeout(timerId);
     };
-  }, [open, activeSession, outcome, exchangeOAuthMutateAsync, isId, onConnected, startForm]);
+  }, [
+    open,
+    activeSession,
+    outcome,
+    exchangeOAuthMutateAsync,
+    handleClose,
+    isId,
+    onConnected,
+    startForm,
+  ]);
 
   const pasteCallbackFromClipboard = async () => {
     try {
@@ -3276,10 +3300,18 @@ export function ProviderConnectionsDrawer({
 
   const keyUrl = entry.apiKeyUrl ?? entry.signupUrl;
   const enabledCount = entry.connections.filter((c) => c.enabled).length;
+  const isEntryDeviceCode =
+    entry.adapter?.oauth?.flow_type === "device_code" ||
+    entry.id === "github-copilot" ||
+    entry.id === "kiro" ||
+    entry.id === "freepi" ||
+    entry.id === "codebuddy-cn" ||
+    entry.id === "codebuddy-intl";
+
   const authFlowBadge =
     entry.id === "aws-quick"
       ? "LOOPBACK OIDC"
-      : entry.id === "github-copilot" || entry.id === "kiro" || entry.id === "freepi"
+      : isEntryDeviceCode
         ? "DEVICE CODE"
         : entry.isNativeOAuth
           ? "OAUTH PKCE"
@@ -3294,7 +3326,7 @@ export function ProviderConnectionsDrawer({
       ? isId
         ? "Login Amazon Quick"
         : "Sign In Amazon Quick"
-      : entry.id === "github-copilot" || entry.id === "kiro" || entry.id === "freepi"
+      : isEntryDeviceCode
         ? isId
           ? "Hubungkan Device Login"
           : "Connect via Device Code"

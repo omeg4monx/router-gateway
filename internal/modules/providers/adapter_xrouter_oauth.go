@@ -187,5 +187,43 @@ func xrouterBuiltInOAuthAdapters() []ProviderAdapter {
 				DefaultRedirectURI: defaultOAuthRedirectURI,
 			},
 		},
+		&builtinAdapter{
+			id:             providerIDCodeBuddyCN,
+			displayName:    "CodeBuddy CN / WorkBuddy",
+			category:       authTypeOAuth,
+			protocol:       protocolOpenAIChat,
+			authType:       authTypeOAuth,
+			defaultBaseURL: codebuddyCNDefaultBaseURL,
+			defaultModels: []string{
+				"glm-5.2", "glm-5.1", "glm-5v-turbo", "minimax-m3",
+				"kimi-k2.7", "kimi-k2.6", "hy3", "hy4-preview", "hy4",
+				"glm-5.3", "glm-5.3-flash", "kimi-k3-1",
+				"deepseek-v4-pro", "deepseek-v4.1-flash",
+			},
+			oauthConfig: &OAuthConfig{
+				AuthorizeURL:       codebuddyCNStateURL,
+				TokenURL:           codebuddyCNTokenURL,
+				DefaultRedirectURI: defaultOAuthRedirectURI,
+			},
+		},
+		&builtinAdapter{
+			id:             providerIDCodeBuddyIntl,
+			displayName:    "CodeBuddy / WorkBuddy AI",
+			category:       authTypeOAuth,
+			protocol:       protocolOpenAIChat,
+			authType:       authTypeOAuth,
+			defaultBaseURL: codebuddyIntlDefaultBaseURL,
+			defaultModels: []string{
+				"glm-5.2", "glm-5.1", "glm-5.0", "glm-5.0-turbo", "glm-5v-turbo", "glm-4.7",
+				"minimax-m3", "minimax-m2.7", "kimi-k2.7", "kimi-k2.6", "kimi-k2.5",
+				"hy3", "hy3-preview", "hy4-preview", "hy4",
+				"deepseek-v4-pro", "deepseek-v4.1-flash", "deepseek-v3-2-volc",
+			},
+			oauthConfig: &OAuthConfig{
+				AuthorizeURL:       codebuddyIntlStateURL,
+				TokenURL:           codebuddyIntlTokenURL,
+				DefaultRedirectURI: defaultOAuthRedirectURI,
+			},
+		},
 	}
 }
