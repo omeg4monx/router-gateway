@@ -22,7 +22,10 @@ export function LocaleToggle() {
       aria-label={locale === "id" ? "Pilih bahasa tampilan" : "Select display language"}
       className="m-0 inline-flex h-9 min-w-0 items-center gap-0.5 rounded-md border border-[var(--border-subtle)] bg-[var(--bg-surface-raised)] p-0.5"
     >
-      <span className="flex items-center px-1.5 text-[var(--text-muted)]" aria-hidden="true">
+      <span
+        className="hidden items-center px-1.5 text-[var(--text-muted)] sm:flex"
+        aria-hidden="true"
+      >
         <Languages className="h-3.5 w-3.5" />
       </span>
       {LOCALE_OPTIONS.map((option) => {
@@ -35,7 +38,7 @@ export function LocaleToggle() {
             aria-pressed={active}
             aria-label={option.name}
             className={cn(
-              "inline-flex h-7 min-w-8 items-center justify-center rounded px-2 font-mono text-[11px] font-semibold tracking-wider transition-colors",
+              "inline-flex h-7 min-w-7 items-center justify-center rounded px-1.5 font-mono text-[11px] font-semibold tracking-wider transition-colors sm:min-w-8 sm:px-2",
               active
                 ? "bg-[var(--accent-primary)] text-[var(--accent-primary-ink)] shadow-xs"
                 : "text-[var(--text-muted)] hover:text-[var(--text-primary)]",

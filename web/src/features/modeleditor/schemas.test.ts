@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import {
-  createBypassRuleSchema,
-  createModelOverrideSchema,
-  parseExtraParamsJson,
-  parseStripParamsList,
-} from "./schemas";
+  getParameterGuideEntry,
+  MODEL_EDITOR_COPY,
+  PARAMETER_GUIDE_ENTRIES,
+} from "./parameterGuide";
+import { createModelOverrideSchema, parseExtraParamsJson, parseStripParamsList } from "./schemas";
 
 describe("modeleditor schemas", () => {
   test("validates model override creation with numeric bounds", () => {
@@ -14,10 +14,8 @@ describe("modeleditor schemas", () => {
       target_model: "claude-sonnet-4",
       temperature: "0.2",
       max_tokens: "4096",
-      top_p: "0.95",
       extra_params_json: '{"seed": 42}',
       strip_params_csv: "presence_penalty, frequency_penalty",
-      priority: "10",
     });
     expect(parsed.success).toBe(true);
   });
@@ -36,23 +34,19 @@ describe("modeleditor schemas", () => {
     expect(parseStripParamsList(" a , b , a , ")).toEqual(["a", "b"]);
   });
 
-  test("requires target_model when bypass action is rewrite_model", () => {
-    const missingTarget = createBypassRuleSchema.safeParse({
-      name: "Redirect",
-      model_pattern: "legacy-*",
-      action: "rewrite_model",
-      target_model: "",
-    });
-    expect(missingTarget.success).toBe(false);
+  test("provides complete bilingual parameter guide entries", () => {
+    expect(PARAMETER_GUIDE_ENTRIES.length).toBeGreaterThanOrEqual(7);
+    const tempEntry = getParameterGuideEntry("temperature");
+    expect(tempEntry.id).toBe("temperature");
+    expect(tempEntry.defaultValue.id.length).toBeGreaterThan(0);
+    expect(tempEntry.whenIncreased.effect.id.length).toBeGreaterThan(0);
+    expect(tempEntry.whenDecreased.effect.id.length).toBeGreaterThan(0);
 
-    const validBypass = createBypassRuleSchema.safeParse({
-      name: "Bypass TokenSaver",
-      model_pattern: "gpt-*",
-      action: "bypass_tokensaver",
-      header_name: "X-Raw",
-      header_value: "true",
-      priority: "20",
-    });
-    expect(validBypass.success).toBe(true);
+    const extraEntry = getParameterGuideEntry("extra_params");
+    expect(extraEntry.id).toBe("extra_params");
+    expect(extraEntry.example).toContain("seed");
+
+    expect(MODEL_EDITOR_COPY.id.guideTitle).toBeTruthy();
+    expect(MODEL_EDITOR_COPY.en.guideTitle).toBeTruthy();
   });
 });

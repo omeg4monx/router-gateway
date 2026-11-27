@@ -23,6 +23,7 @@ export function ThemeToggle() {
       variant="secondary"
       size="sm"
       onClick={toggleTheme}
+      className="h-9 w-9 px-0 sm:w-auto sm:px-3.5"
       aria-label={
         theme === "dark"
           ? isId
@@ -36,12 +37,12 @@ export function ThemeToggle() {
       {theme === "dark" ? (
         <>
           <Sun className="h-3.5 w-3.5 text-[var(--accent-primary)]" aria-hidden="true" />
-          <span>{lightLabel}</span>
+          <span className="hidden sm:inline">{lightLabel}</span>
         </>
       ) : (
         <>
           <Moon className="h-3.5 w-3.5 text-[var(--accent-primary)]" aria-hidden="true" />
-          <span>{darkLabel}</span>
+          <span className="hidden sm:inline">{darkLabel}</span>
         </>
       )}
     </Button>

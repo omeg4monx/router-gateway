@@ -766,8 +766,8 @@ export function AppShell({ children }: AppShellProps) {
       {/* Main content area */}
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="sticky top-0 z-20 bg-[var(--bg-canvas)]">
-          <div className="flex h-16 items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
-            <div className="flex min-w-0 items-center gap-3">
+          <div className="flex h-16 items-center justify-between gap-2 px-3 sm:gap-3 sm:px-6 lg:px-8">
+            <div className="flex min-w-0 items-center gap-2.5 sm:gap-3">
               <Button
                 type="button"
                 variant="secondary"
@@ -785,13 +785,13 @@ export function AppShell({ children }: AppShellProps) {
                   <ChevronRight className="hidden h-3 w-3 shrink-0 sm:inline" aria-hidden="true" />
                   <span className="truncate text-[var(--accent-text)]">{activeCategoryLabel}</span>
                 </div>
-                <h1 className="truncate text-base font-semibold tracking-tight text-[var(--text-primary)]">
+                <h1 className="truncate text-sm font-semibold tracking-tight text-[var(--text-primary)] sm:text-base">
                   {activeRouteLabel}
                 </h1>
               </div>
             </div>
 
-            <div className="flex shrink-0 items-center gap-2">
+            <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
               <button
                 type="button"
                 onClick={focusSidebarSearch}
@@ -823,7 +823,7 @@ export function AppShell({ children }: AppShellProps) {
                   onClick={openSignOutConfirm}
                   disabled={logoutMutation.isPending}
                   aria-label={copy.signOutLabel}
-                  className="h-9"
+                  className="h-9 w-9 px-0 sm:w-auto sm:px-3.5"
                 >
                   <LogOut className="h-3.5 w-3.5" aria-hidden="true" />
                   <span className="hidden sm:inline">

@@ -336,9 +336,9 @@
     "semantic_hash": ""
   },
   "web/src/shared/ui/AppShell.tsx": {
-    "mtime": 1795770998.6731422,
-    "seen": 1795771017.7739477,
-    "ast_hash": "b3e4db857539fc020bba0d608f855b2a",
+    "mtime": 1795810768.8364923,
+    "seen": 1795810784.5734603,
+    "ast_hash": "8d807dd6f7668562039b00efb110f3db",
     "semantic_hash": ""
   },
   "web/src/shared/ui/CaduceusLogo.tsx": {
@@ -354,9 +354,9 @@
     "semantic_hash": ""
   },
   "web/src/shared/ui/ThemeToggle.tsx": {
-    "mtime": 1795710119.1863298,
-    "seen": 1795770205.4557822,
-    "ast_hash": "1984e7e352e8abb2a5907db0f6b90616",
+    "mtime": 1795810759.7403576,
+    "seen": 1795810784.5735786,
+    "ast_hash": "cf388862d8b7e122b3f2db05856aa188",
     "semantic_hash": ""
   },
   "web/src/shared/ui/alert.tsx": {
@@ -1092,27 +1092,27 @@
     "semantic_hash": ""
   },
   "web/src/features/modeleditor/ModelEditorConsole.tsx": {
-    "mtime": 1795710119.1708019,
-    "seen": 1795770205.4555507,
-    "ast_hash": "aecd8528e5075e15bc759dc2f380a969",
+    "mtime": 1795810131.7608593,
+    "seen": 1795810337.4697676,
+    "ast_hash": "2bed9dc3326138b835e019ca328c79ce",
     "semantic_hash": ""
   },
   "web/src/features/modeleditor/hooks.ts": {
-    "mtime": 1795710119.171193,
-    "seen": 1795770205.4555523,
-    "ast_hash": "ff78a483653a3734fa4e86010d919e5c",
+    "mtime": 1795810045.8285525,
+    "seen": 1795810337.4697723,
+    "ast_hash": "f11cb20267d78bb06ac88f124d8abf3e",
     "semantic_hash": ""
   },
   "web/src/features/modeleditor/schemas.test.ts": {
-    "mtime": 1795710119.1712067,
-    "seen": 1795770205.4555538,
-    "ast_hash": "2c0daa069ff14b778c12da50330c7849",
+    "mtime": 1795810131.7368588,
+    "seen": 1795810337.4697754,
+    "ast_hash": "dd3d8726ced7805b22be4d5fc8673f22",
     "semantic_hash": ""
   },
   "web/src/features/modeleditor/schemas.ts": {
-    "mtime": 1795710119.1712067,
-    "seen": 1795770205.4555557,
-    "ast_hash": "63375a0c0796c5264bdffd6c2a5bd037",
+    "mtime": 1795810044.5995338,
+    "seen": 1795810337.4697766,
+    "ast_hash": "052098eb413f761ab87ceaced3fad530",
     "semantic_hash": ""
   },
   "web/src/features/promptinjection/PromptGuardConsole.tsx": {
@@ -1830,9 +1830,9 @@
     "semantic_hash": ""
   },
   "web/src/shared/ui/LocaleToggle.tsx": {
-    "mtime": 1795710119.1863298,
-    "seen": 1795770205.4557803,
-    "ast_hash": "494b814df28531d476c1ad5c530e499a",
+    "mtime": 1795810760.9515543,
+    "seen": 1795810784.5735762,
+    "ast_hash": "1c77007f630ee498ad5ad700bcb81e72",
     "semantic_hash": ""
   },
   "docs/superpowers/plans/2026-11-24-login-ui-ux-redesign.md": {
@@ -3672,9 +3672,9 @@
     "semantic_hash": ""
   },
   "web/src/shared/pwa/PwaControls.tsx": {
-    "mtime": 1795770998.672688,
-    "seen": 1795771017.7738464,
-    "ast_hash": "0541fcdf8f42ebdaecc194044acca87b",
+    "mtime": 1795810761.655386,
+    "seen": 1795810784.573233,
+    "ast_hash": "bb1b73e83cc1bdb1e0e9f5e0e515696e",
     "semantic_hash": ""
   },
   "web/src/shared/pwa/manifest.test.ts": {
@@ -3855,6 +3855,18 @@
     "mtime": 1795807545.9088008,
     "seen": 1795807926.3904204,
     "ast_hash": "3b11a9b5f64fcc9021f051395d9d5e1c",
+    "semantic_hash": ""
+  },
+  "web/src/features/modeleditor/ModelEditorHelpModal.tsx": {
+    "mtime": 1795810131.740859,
+    "seen": 1795810337.4697707,
+    "ast_hash": "c4cb97b71a31d4a08c5f06b7ba1ed02e",
+    "semantic_hash": ""
+  },
+  "web/src/features/modeleditor/parameterGuide.ts": {
+    "mtime": 1795810279.1221004,
+    "seen": 1795810337.4697738,
+    "ast_hash": "97118f36b5d20f750daebdf6d5b6b085",
     "semantic_hash": ""
   }
 }

@@ -24,7 +24,7 @@ export function PwaInstallButton({ canInstall, isInstalling, onInstall }: PwaIns
       onClick={onInstall}
       disabled={isInstalling}
       aria-label={copy.installAriaLabel}
-      className="h-9"
+      className="h-9 w-9 px-0 sm:w-auto sm:px-3.5"
     >
       <Download className="h-3.5 w-3.5 text-[var(--accent-primary)]" aria-hidden="true" />
       <span className="hidden sm:inline">
