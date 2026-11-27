@@ -16,9 +16,15 @@ import type {
 export type { ProviderModelSpec };
 
 export type ProviderCategory = "oauth" | "apikey" | "free" | "custom";
+export type ProviderSectionKey = "active" | ProviderCategory;
 export type ProviderStatusFilter = "all" | "active" | "error" | "inactive" | "unconfigured";
 export type ProviderCategoryTab = "all" | ProviderCategory;
 export type ProviderSortOrder = "default" | "asc" | "desc";
+
+export interface ProviderSectionBucket {
+  key: ProviderSectionKey;
+  entries: ProviderEntry[];
+}
 
 export interface ProviderEntryStats {
   total: number;
@@ -484,4 +490,27 @@ export function sortProviderEntries(
     }
     return a.name.localeCompare(b.name);
   });
+}
+
+export function buildProviderSectionBuckets(
+  entries: ProviderEntry[],
+  options?: { includeActiveSection?: boolean },
+): ProviderSectionBucket[] {
+  const includeActiveSection = options?.includeActiveSection ?? true;
+  const activeEntries = includeActiveSection
+    ? entries.filter((entry) => matchesStatusFilter(entry, "active"))
+    : [];
+  const activeIds = new Set(activeEntries.map((entry) => entry.id));
+  const remaining =
+    activeIds.size > 0 ? entries.filter((entry) => !activeIds.has(entry.id)) : entries;
+
+  const buckets: ProviderSectionBucket[] = [
+    { key: "active", entries: activeEntries },
+    { key: "custom", entries: remaining.filter((entry) => entry.category === "custom") },
+    { key: "oauth", entries: remaining.filter((entry) => entry.category === "oauth") },
+    { key: "apikey", entries: remaining.filter((entry) => entry.category === "apikey") },
+    { key: "free", entries: remaining.filter((entry) => entry.category === "free") },
+  ];
+
+  return buckets.filter((bucket) => bucket.entries.length > 0);
 }

@@ -3,6 +3,7 @@ import { existsSync } from "node:fs";
 import { join, resolve } from "node:path";
 import {
   buildProviderEntries,
+  buildProviderSectionBuckets,
   canAddProviderConnection,
   canProbeProviderModels,
   computeFleetTelemetry,
@@ -317,5 +318,38 @@ describe("providers catalogUtils", () => {
     if (opencode) expect(canAddProviderConnection(opencode)).toBe(false);
     if (openai) expect(canAddProviderConnection(openai)).toBe(true);
     if (anthropic) expect(canAddProviderConnection(anthropic)).toBe(true);
+  });
+
+  test("groups active connected providers into the top section without duplicating them in category sections", () => {
+    const entries = sortProviderEntries(buildProviderEntries(ADAPTERS, CUSTOM_NODES, CONNECTIONS));
+    const buckets = buildProviderSectionBuckets(entries);
+
+    expect(buckets[0]?.key).toBe("active");
+    expect(buckets[0]?.entries.map((entry) => entry.id)).toEqual(["openai"]);
+
+    const remainingIds = buckets.slice(1).flatMap((bucket) => bucket.entries.map((e) => e.id));
+    expect(remainingIds).not.toContain("openai");
+    expect(remainingIds).toContain("claude");
+    expect(remainingIds).toContain("vllm-local");
+
+    // Disabled and error-only providers stay in their original category buckets
+    const oauthBucket = buckets.find((bucket) => bucket.key === "oauth");
+    const customBucket = buckets.find((bucket) => bucket.key === "custom");
+    expect(oauthBucket?.entries.some((entry) => entry.id === "claude")).toBe(true);
+    expect(customBucket?.entries.some((entry) => entry.id === "vllm-local")).toBe(true);
+  });
+
+  test("omits active section when no providers are active or when includeActiveSection is false", () => {
+    const entries = buildProviderEntries(ADAPTERS, CUSTOM_NODES, CONNECTIONS);
+    const noActiveEntries = entries.filter((entry) => !matchesStatusFilter(entry, "active"));
+    const withoutActive = buildProviderSectionBuckets(noActiveEntries);
+    expect(withoutActive.some((bucket) => bucket.key === "active")).toBe(false);
+
+    const suppressedActive = buildProviderSectionBuckets(entries, {
+      includeActiveSection: false,
+    });
+    expect(suppressedActive.some((bucket) => bucket.key === "active")).toBe(false);
+    const apikeyBucket = suppressedActive.find((bucket) => bucket.key === "apikey");
+    expect(apikeyBucket?.entries.some((entry) => entry.id === "openai")).toBe(true);
   });
 });
