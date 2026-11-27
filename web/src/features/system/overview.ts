@@ -154,8 +154,8 @@ const MODULE_REGISTRY: Record<string, RawModuleEntry> = {
   arena: {
     href: "/dashboard/arena/",
     descriptions: {
-      en: "Multi-model comparison arena, leaderboard & Basic Chat",
-      id: "Arena perbandingan multi-model, papan peringkat & obrolan dasar",
+      en: "Multi-model comparison arena, leaderboard & Playground",
+      id: "Arena perbandingan multi-model, papan peringkat & Playground",
     },
   },
   plugins: {
@@ -403,7 +403,7 @@ const OVERVIEW_COPY: Record<UILocale, OverviewCopy> = {
         subtitle: "Configure failover chains & aliases",
       },
       chat: {
-        title: "Basic Chat",
+        title: "Playground",
         subtitle: "Test live routing in the studio",
       },
     },
@@ -434,8 +434,8 @@ const OVERVIEW_COPY: Record<UILocale, OverviewCopy> = {
     recentRequestsViewAll: "View all",
     recentRequestsEmptyTitle: "No traffic recorded yet",
     recentRequestsEmptyBody:
-      "Send an API request or test a route in Basic Chat to see live gateway activity here.",
-    recentRequestsEmptyCta: "Open Basic Chat",
+      "Send an API request or test a route in Playground to see live gateway activity here.",
+    recentRequestsEmptyCta: "Open Playground",
     colModel: "Model",
     colTokens: "Tokens",
     colLatency: "Latency",
@@ -499,7 +499,7 @@ const OVERVIEW_COPY: Record<UILocale, OverviewCopy> = {
         subtitle: "Atur rantai failover & alias model",
       },
       chat: {
-        title: "Obrolan Dasar",
+        title: "Playground",
         subtitle: "Uji routing langsung di studio",
       },
     },
@@ -530,8 +530,8 @@ const OVERVIEW_COPY: Record<UILocale, OverviewCopy> = {
     recentRequestsViewAll: "Lihat semua",
     recentRequestsEmptyTitle: "Belum ada trafik tercatat",
     recentRequestsEmptyBody:
-      "Kirim permintaan API atau uji rute di Obrolan Dasar untuk melihat aktivitas gateway di sini.",
-    recentRequestsEmptyCta: "Buka Obrolan Dasar",
+      "Kirim permintaan API atau uji rute di Playground untuk melihat aktivitas gateway di sini.",
+    recentRequestsEmptyCta: "Buka Playground",
     colModel: "Model",
     colTokens: "Token",
     colLatency: "Latensi",

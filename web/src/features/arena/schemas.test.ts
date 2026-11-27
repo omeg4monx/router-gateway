@@ -3,6 +3,7 @@ import {
   arenaBattleFormSchema,
   chatMessageFormSchema,
   createChatSessionFormSchema,
+  updateChatSessionFormSchema,
 } from "./schemas";
 
 describe("arena and chat schemas", () => {
@@ -51,5 +52,31 @@ describe("arena and chat schemas", () => {
     ).toBe(false);
     expect(chatMessageFormSchema.safeParse({ content: "Hello" }).success).toBe(true);
     expect(chatMessageFormSchema.safeParse({ content: "   " }).success).toBe(false);
+  });
+
+  test("validates optional temperature and max_tokens on chat session create and update", () => {
+    const created = createChatSessionFormSchema.safeParse({
+      title: "Latency Check",
+      model: "openai/gpt-4o",
+      system_prompt: "Be brief.",
+      temperature: 0.4,
+      max_tokens: 1024,
+    });
+    expect(created.success).toBe(true);
+
+    const invalidTemp = createChatSessionFormSchema.safeParse({
+      model: "openai/gpt-4o",
+      temperature: 3.5,
+    });
+    expect(invalidTemp.success).toBe(false);
+
+    const updated = updateChatSessionFormSchema.safeParse({
+      title: "Renamed Session",
+      model: "anthropic/claude-sonnet",
+      system_prompt: "Answer in bullets.",
+      temperature: 0.7,
+      max_tokens: 2048,
+    });
+    expect(updated.success).toBe(true);
   });
 });

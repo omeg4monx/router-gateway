@@ -125,8 +125,8 @@ export const EXTENSION_GROUPS: readonly NavAccordionGroup[] = [
         href: "/dashboard/chat/",
         moduleId: "arena",
         icon: MessageSquare,
-        labels: { en: "Basic Chat", id: "Obrolan Dasar" },
-        keywords: ["playground", "prompt", "test", "messages", "chat"],
+        labels: { en: "Playground", id: "Playground" },
+        keywords: ["playground", "prompt", "test", "messages", "chat", "obrolan"],
       },
       {
         href: "/dashboard/model-editor/",
