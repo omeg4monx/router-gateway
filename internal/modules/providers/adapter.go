@@ -7,6 +7,7 @@ import (
 	"maps"
 	"net/http"
 	"net/url"
+	"os"
 	"regexp"
 	"slices"
 	"strings"
@@ -461,6 +462,51 @@ func buildProtocolTestRequest(ctx context.Context, creds contracts.UpstreamCrede
 		return nil, fmt.Errorf("providers: invalid base_url: %w", err)
 	}
 	trimmedBase := strings.TrimRight(baseURL, "/")
+
+	if creds.ProviderID == providerIDFreePI {
+		targetURL := trimmedBase + "/chat/completions"
+		if strings.HasSuffix(trimmedBase, "/chat/completions") {
+			targetURL = trimmedBase
+		}
+		probeBody := `{"model":"particle","messages":[{"role":"user","content":"hi"}],"max_tokens":1}`
+		req, reqErr := http.NewRequestWithContext(ctx, http.MethodPost, targetURL, strings.NewReader(probeBody))
+		if reqErr != nil {
+			return nil, fmt.Errorf("providers: build freepi test request: %w", reqErr)
+		}
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Accept", "application/json")
+		cliVer := strings.TrimSpace(os.Getenv("FREEPI_CLI_VERSION"))
+		if cliVer == "" {
+			cliVer = "0.6.28"
+		}
+		req.Header.Set("x-client-version", cliVer)
+		req.Header.Set("x-session-id", "probe-"+creds.ConnectionID)
+		token := creds.AccessToken
+		if token == "" {
+			token = creds.APIKey
+		}
+		if token != "" {
+			req.Header.Set("Authorization", "Bearer "+token)
+		}
+		return req, nil
+	}
+
+	if creds.ProviderID == providerIDCodeBuddyCN || creds.ProviderID == providerIDCodeBuddyIntl {
+		endpoint := resolveCodeBuddyQuotaURL(creds.ProviderID, creds.BaseURL)
+		req, reqErr := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, strings.NewReader("{}"))
+		if reqErr != nil {
+			return nil, fmt.Errorf("providers: build codebuddy test request: %w", reqErr)
+		}
+		applyCodeBuddyProbeHeaders(req, creds.ProviderID)
+		token := creds.AccessToken
+		if token == "" {
+			token = creds.APIKey
+		}
+		if token != "" {
+			req.Header.Set("Authorization", "Bearer "+token)
+		}
+		return req, nil
+	}
 
 	var targetURL string
 	switch creds.Protocol {

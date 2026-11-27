@@ -93,6 +93,46 @@ import {
 const TEXTAREA_CLASS_NAME =
   "flex min-h-[92px] w-full rounded-md border border-[var(--border-strong)] bg-[var(--bg-input)] px-3 py-2 font-mono text-xs text-[var(--text-primary)] placeholder:font-sans placeholder:text-[var(--text-muted)] transition-colors focus:border-[var(--accent-primary)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent-primary)]";
 
+type ConnectionStatusFilter = "all" | "issues" | "active" | "disabled";
+
+const KNOWN_FREE_OPENCODE_MODELS = new Set(["big-pickle", "union-alpha"]);
+
+function isModelFreeByRule(id: string, providerId: string, explicit?: boolean): boolean {
+  if (explicit) {
+    return true;
+  }
+  const lower = id.trim().toLowerCase();
+  if (!lower) {
+    return false;
+  }
+  if (
+    lower.includes(":free") ||
+    lower.includes("-free") ||
+    lower.includes("/free") ||
+    lower.endsWith(" free") ||
+    lower.startsWith("cline-free/")
+  ) {
+    return true;
+  }
+  if (
+    (providerId === "opencode" || providerId === "opencode-zen") &&
+    KNOWN_FREE_OPENCODE_MODELS.has(lower)
+  ) {
+    return true;
+  }
+  return false;
+}
+
+function isConnectionInError(
+  conn: ProviderConnectionSummary,
+  live: TestProviderConnectionResponse | undefined,
+): boolean {
+  if (live) {
+    return !live.ok;
+  }
+  return conn.last_test_status === "error" || Boolean(conn.last_test_error?.trim());
+}
+
 function formatTimestamp(iso: string | null): string {
   if (!iso) {
     return "Never";
@@ -135,6 +175,14 @@ function ProviderStudioDetail({ providerId }: { providerId: string }) {
   const [actionError, setActionError] = useState<string | null>(null);
   const [busyConnectionId, setBusyConnectionId] = useState<string | null>(null);
   const [testingAll, setTestingAll] = useState(false);
+  const [testAllProgress, setTestAllProgress] = useState<{
+    total: number;
+    completed: number;
+    passed: number;
+    failed: number;
+    currentConnectionId: string | null;
+    currentConnectionName: string | null;
+  } | null>(null);
   const [liveTestResults, setLiveTestResults] = useState<
     Record<string, TestProviderConnectionResponse>
   >({});
@@ -144,7 +192,10 @@ function ProviderStudioDetail({ providerId }: { providerId: string }) {
   const fetchModelsMutate = fetchModelsMutation.mutate;
   const [confirmDeleteConnId, setConfirmDeleteConnId] = useState<string | null>(null);
   const [confirmDeleteNode, setConfirmDeleteNode] = useState(false);
+  const [connectionFilter, setConnectionFilter] = useState<ConnectionStatusFilter>("all");
+  const [connectionSearch, setConnectionSearch] = useState("");
   const [modelSearch, setModelSearch] = useState("");
+  const [freeModelsOnly, setFreeModelsOnly] = useState(false);
   const [modelSortField, setModelSortField] = useState<ModelSortField>("name");
   const [modelSortDirection, setModelSortDirection] = useState<ModelSortDirection>("asc");
   const [copiedModelId, setCopiedModelId] = useState<string | null>(null);
@@ -176,6 +227,55 @@ function ProviderStudioDetail({ providerId }: { providerId: string }) {
     if (!entry) return [];
     return [...entry.connections].sort((a, b) => a.priority - b.priority);
   }, [entry]);
+
+  const connectionCounts = useMemo(() => {
+    let issues = 0;
+    let active = 0;
+    let disabled = 0;
+    for (const conn of sortedConnections) {
+      const hasError = isConnectionInError(conn, liveTestResults[conn.id]);
+      if (hasError) {
+        issues += 1;
+      }
+      if (!conn.enabled) {
+        disabled += 1;
+      } else if (!hasError) {
+        active += 1;
+      }
+    }
+    return {
+      all: sortedConnections.length,
+      issues,
+      active,
+      disabled,
+    };
+  }, [sortedConnections, liveTestResults]);
+
+  const isConnectionFiltered = connectionFilter !== "all" || connectionSearch.trim().length > 0;
+
+  const filteredConnections = useMemo(() => {
+    const q = connectionSearch.trim().toLowerCase();
+    return sortedConnections.filter((conn) => {
+      const hasError = isConnectionInError(conn, liveTestResults[conn.id]);
+      if (connectionFilter === "issues" && !hasError) {
+        return false;
+      }
+      if (connectionFilter === "active" && (!conn.enabled || hasError)) {
+        return false;
+      }
+      if (connectionFilter === "disabled" && conn.enabled) {
+        return false;
+      }
+      if (!q) {
+        return true;
+      }
+      return (
+        conn.name.toLowerCase().includes(q) ||
+        conn.auth_type.toLowerCase().includes(q) ||
+        (conn.last_test_error?.toLowerCase().includes(q) ?? false)
+      );
+    });
+  }, [sortedConnections, liveTestResults, connectionFilter, connectionSearch]);
 
   const activeConnectionForLoad = sortedConnections.find((c) => c.enabled) ?? sortedConnections[0];
 
@@ -210,14 +310,25 @@ function ProviderStudioDetail({ providerId }: { providerId: string }) {
       isSaved?: boolean;
     }> = [];
 
-    if (loadedModelsResult && loadedModelsResult.source === "upstream") {
+    const hasLiveUpstream =
+      loadedModelsResult !== null &&
+      loadedModelsResult.source === "upstream" &&
+      loadedModelsResult.models.length > 0;
+    const catalogById = new Map(entry.models.map((m) => [m.id.trim(), m]));
+
+    if (hasLiveUpstream) {
       for (const m of loadedModelsResult.models) {
         const trimmed = m.id.trim();
         if (trimmed && !seen.has(trimmed)) {
           seen.add(trimmed);
+          const catalogEntry = catalogById.get(trimmed);
           list.push({
             id: trimmed,
-            name: m.name,
+            name: m.name || catalogEntry?.name,
+            isFree:
+              typeof m.is_free === "boolean"
+                ? m.is_free
+                : isModelFreeByRule(trimmed, entry.id, catalogEntry?.isFree),
             isLive: !catalogIds.has(trimmed),
             isSaved: savedConnIds.has(trimmed),
           });
@@ -231,7 +342,7 @@ function ProviderStudioDetail({ providerId }: { providerId: string }) {
         list.push({
           id: trimmed,
           name: m.name,
-          isFree: m.isFree,
+          isFree: hasLiveUpstream ? false : isModelFreeByRule(trimmed, entry.id, m.isFree),
           isSaved: savedConnIds.has(trimmed),
         });
       }
@@ -240,7 +351,11 @@ function ProviderStudioDetail({ providerId }: { providerId: string }) {
       const trimmed = m.trim();
       if (trimmed && !seen.has(trimmed)) {
         seen.add(trimmed);
-        list.push({ id: trimmed, isSaved: savedConnIds.has(trimmed) });
+        list.push({
+          id: trimmed,
+          isFree: hasLiveUpstream ? false : isModelFreeByRule(trimmed, entry.id, false),
+          isSaved: savedConnIds.has(trimmed),
+        });
       }
     }
     for (const conn of entry.connections) {
@@ -262,15 +377,24 @@ function ProviderStudioDetail({ providerId }: { providerId: string }) {
     return list;
   }, [entry, loadedModelsResult, fetchModelsMutation.isPending, activeConnectionForLoad?.enabled]);
 
+  const freeModelsCount = useMemo(
+    () => allModels.filter((m) => Boolean(m.isFree)).length,
+    [allModels],
+  );
+
   const filteredModels = useMemo(() => {
     const q = modelSearch.trim().toLowerCase();
-    const matched = !q
-      ? allModels
-      : allModels.filter(
-          (m) => m.id.toLowerCase().includes(q) || (m.name?.toLowerCase().includes(q) ?? false),
-        );
+    const matched = allModels.filter((m) => {
+      if (freeModelsOnly && !m.isFree) {
+        return false;
+      }
+      if (!q) {
+        return true;
+      }
+      return m.id.toLowerCase().includes(q) || (m.name?.toLowerCase().includes(q) ?? false);
+    });
     return sortProviderModels(matched, modelSortField, modelSortDirection);
-  }, [allModels, modelSearch, modelSortField, modelSortDirection]);
+  }, [allModels, freeModelsOnly, modelSearch, modelSortField, modelSortDirection]);
 
   // Auto-detect & load live models from upstream whenever any provider with an active connection is opened.
   useEffect(() => {
@@ -361,7 +485,12 @@ function ProviderStudioDetail({ providerId }: { providerId: string }) {
       ? isId
         ? "Login Amazon Quick"
         : "Sign In Amazon Quick"
-      : entry.id === "github-copilot" || entry.id === "kiro" || entry.id === "freepi"
+      : entry.adapter?.oauth?.flow_type === "device_code" ||
+          entry.id === "github-copilot" ||
+          entry.id === "kiro" ||
+          entry.id === "freepi" ||
+          entry.id === "codebuddy-cn" ||
+          entry.id === "codebuddy-intl"
         ? isId
           ? "Device Login"
           : "Device Login"
@@ -414,13 +543,47 @@ function ProviderStudioDetail({ providerId }: { providerId: string }) {
     if (enabled.length === 0 || testingAll) return;
     setActionError(null);
     setTestingAll(true);
+    let completed = 0;
+    let passed = 0;
+    let failed = 0;
+    setTestAllProgress({
+      total: enabled.length,
+      completed: 0,
+      passed: 0,
+      failed: 0,
+      currentConnectionId: enabled[0]?.id ?? null,
+      currentConnectionName: enabled[0]?.name ?? null,
+    });
     for (const conn of enabled) {
+      setTestAllProgress({
+        total: enabled.length,
+        completed,
+        passed,
+        failed,
+        currentConnectionId: conn.id,
+        currentConnectionName: conn.name,
+      });
       try {
         const res = await testConnMutation.mutateAsync(conn.id);
         setLiveTestResults((prev) => ({ ...prev, [conn.id]: res }));
+        if (res.ok) {
+          passed += 1;
+        } else {
+          failed += 1;
+        }
       } catch (err) {
+        failed += 1;
         setActionError(err instanceof Error ? err.message : `Failed testing ${conn.name}`);
       }
+      completed += 1;
+      setTestAllProgress({
+        total: enabled.length,
+        completed,
+        passed,
+        failed,
+        currentConnectionId: null,
+        currentConnectionName: null,
+      });
     }
     setTestingAll(false);
   };
@@ -796,8 +959,15 @@ function ProviderStudioDetail({ providerId }: { providerId: string }) {
           <div className="flex items-center gap-2">
             <CardTitle className="text-base">{isId ? "Koneksi" : "Connections"}</CardTitle>
             <span className="rounded-full bg-[var(--color-surface-2)] px-2 py-0.5 font-mono text-[11px] tabular-nums text-[var(--color-text-muted)]">
-              {sortedConnections.length}
+              {isConnectionFiltered
+                ? `${filteredConnections.length} / ${sortedConnections.length}`
+                : sortedConnections.length}
             </span>
+            {connectionCounts.issues > 0 ? (
+              <Badge variant="destructive" className="tabular-nums">
+                {connectionCounts.issues} {isId ? "bermasalah" : "issues"}
+              </Badge>
+            ) : null}
           </div>
           {enabledCount > 0 ? (
             <Button
@@ -813,10 +983,10 @@ function ProviderStudioDetail({ providerId }: { providerId: string }) {
                 aria-hidden="true"
               />
               <span>
-                {testingAll
+                {testingAll && testAllProgress
                   ? isId
-                    ? "Menguji Koneksi..."
-                    : "Testing Connections..."
+                    ? `Menguji ${testAllProgress.completed}/${testAllProgress.total}...`
+                    : `Testing ${testAllProgress.completed}/${testAllProgress.total}...`
                   : isId
                     ? "Tes Semua Koneksi"
                     : "Test Connections"}
@@ -907,207 +1077,386 @@ function ProviderStudioDetail({ providerId }: { providerId: string }) {
             </div>
           ) : (
             <div className="space-y-3">
-              <div className="divide-y divide-[var(--color-border-subtle)]">
-                {sortedConnections.map((conn, idx) => {
-                  const isFirst = idx === 0;
-                  const isLast = idx === sortedConnections.length - 1;
-                  const live = liveTestResults[conn.id];
-                  const isBusy = busyConnectionId === conn.id;
-                  const isConfirming = confirmDeleteConnId === conn.id;
-
-                  return (
-                    <div
-                      key={conn.id}
-                      className={cn(
-                        "group flex min-w-0 flex-col gap-3 py-3 first:pt-0 last:pb-0 sm:flex-row sm:items-center sm:justify-between",
-                        !conn.enabled && "opacity-65",
+              {testAllProgress ? (
+                <div
+                  className={cn(
+                    "space-y-2 rounded-lg border px-3 py-2.5 text-xs",
+                    testingAll
+                      ? "border-[var(--color-primary)]/35 bg-[var(--color-primary)]/8"
+                      : testAllProgress.failed > 0
+                        ? "border-[var(--status-error-border)] bg-[var(--status-error-bg)]"
+                        : "border-[var(--status-ok-border)] bg-[var(--status-ok-bg)]",
+                  )}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex min-w-0 items-center gap-2">
+                      {testingAll ? (
+                        <RefreshCw
+                          className="h-3.5 w-3.5 shrink-0 animate-spin text-[var(--color-primary)]"
+                          aria-hidden="true"
+                        />
+                      ) : testAllProgress.failed > 0 ? (
+                        <AlertTriangle
+                          className="h-3.5 w-3.5 shrink-0 text-[var(--status-error)]"
+                          aria-hidden="true"
+                        />
+                      ) : (
+                        <CheckCircle2
+                          className="h-3.5 w-3.5 shrink-0 text-[var(--status-ok)]"
+                          aria-hidden="true"
+                        />
                       )}
-                    >
-                      <div className="flex min-w-0 flex-1 items-start gap-2.5 sm:items-center">
-                        {/* OmniRoute Priority Up/Down Arrows */}
-                        <div className="flex shrink-0 flex-col">
-                          <button
-                            type="button"
-                            disabled={isFirst || busyConnectionId !== null}
-                            onClick={() => void handleSwapPriority(idx, idx - 1)}
-                            aria-label={`Move ${conn.name} up`}
-                            className={cn(
-                              "rounded p-0.5 transition-colors",
-                              isFirst
-                                ? "cursor-not-allowed text-[var(--color-text-muted)]/30"
-                                : "cursor-pointer text-[var(--color-text-muted)] hover:bg-[var(--color-surface-2)] hover:text-[var(--color-primary)]",
+                      <span className="truncate font-medium text-[var(--color-text-main)]">
+                        {testingAll
+                          ? isId
+                            ? `Memeriksa ${testAllProgress.currentConnectionName ?? "koneksi"} (${testAllProgress.completed}/${testAllProgress.total})...`
+                            : `Checking ${testAllProgress.currentConnectionName ?? "connection"} (${testAllProgress.completed}/${testAllProgress.total})...`
+                          : isId
+                            ? `Selesai memeriksa ${testAllProgress.completed}/${testAllProgress.total} koneksi`
+                            : `Finished checking ${testAllProgress.completed}/${testAllProgress.total} connections`}
+                      </span>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-2 font-mono text-[11px] tabular-nums">
+                      <span className="text-[var(--status-ok)]">{testAllProgress.passed} OK</span>
+                      {testAllProgress.failed > 0 ? (
+                        <span className="text-[var(--status-error)]">
+                          {testAllProgress.failed} {isId ? "gagal" : "failed"}
+                        </span>
+                      ) : null}
+                      {!testingAll ? (
+                        <button
+                          type="button"
+                          onClick={() => setTestAllProgress(null)}
+                          aria-label={isId ? "Tutup ringkasan tes" : "Dismiss test summary"}
+                          className="rounded p-0.5 text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-surface-2)] hover:text-[var(--color-text-main)]"
+                        >
+                          <X className="h-3.5 w-3.5" aria-hidden="true" />
+                        </button>
+                      ) : null}
+                    </div>
+                  </div>
+                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-[var(--color-surface-2)]">
+                    <div
+                      className={cn(
+                        "h-full rounded-full transition-all duration-200",
+                        !testingAll && testAllProgress.failed > 0
+                          ? "bg-[var(--status-error)]"
+                          : !testingAll
+                            ? "bg-[var(--status-ok)]"
+                            : "bg-[var(--color-primary)]",
+                      )}
+                      style={{
+                        width: `${
+                          testAllProgress.total > 0
+                            ? Math.round((testAllProgress.completed / testAllProgress.total) * 100)
+                            : 0
+                        }%`,
+                      }}
+                    />
+                  </div>
+                </div>
+              ) : null}
+
+              <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {(
+                    [
+                      {
+                        id: "all",
+                        label: isId ? "Semua" : "All",
+                        count: connectionCounts.all,
+                      },
+                      {
+                        id: "issues",
+                        label: isId ? "Bermasalah" : "Issues",
+                        count: connectionCounts.issues,
+                      },
+                      {
+                        id: "active",
+                        label: isId ? "Aktif" : "Active",
+                        count: connectionCounts.active,
+                      },
+                      {
+                        id: "disabled",
+                        label: isId ? "Nonaktif" : "Disabled",
+                        count: connectionCounts.disabled,
+                      },
+                    ] as const
+                  ).map((tab) => {
+                    const isSelected = connectionFilter === tab.id;
+                    const isIssueHighlight = tab.id === "issues" && tab.count > 0 && !isSelected;
+                    return (
+                      <Button
+                        key={tab.id}
+                        type="button"
+                        size="xs"
+                        variant={
+                          isSelected
+                            ? tab.id === "issues"
+                              ? "destructive"
+                              : "default"
+                            : "secondary"
+                        }
+                        aria-pressed={isSelected}
+                        className={cn(
+                          isIssueHighlight &&
+                            "border-[var(--status-error-border)] text-[var(--status-error)]",
+                        )}
+                        onClick={() => setConnectionFilter(tab.id)}
+                      >
+                        <span>{tab.label}</span>
+                        <span className="rounded-full bg-[var(--color-surface)]/25 px-1.5 py-0.25 font-mono text-[10px] tabular-nums">
+                          {tab.count}
+                        </span>
+                      </Button>
+                    );
+                  })}
+                </div>
+                {sortedConnections.length > 5 ? (
+                  <div className="relative w-full sm:w-56">
+                    <Search
+                      className="pointer-events-none absolute top-1/2 left-2.5 h-3.5 w-3.5 -translate-y-1/2 text-[var(--color-text-muted)]"
+                      aria-hidden="true"
+                    />
+                    <Input
+                      value={connectionSearch}
+                      onChange={(e) => setConnectionSearch(e.target.value)}
+                      placeholder={
+                        isId ? "Cari koneksi atau error..." : "Filter connections or errors..."
+                      }
+                      className="h-8 pl-8 text-xs"
+                    />
+                  </div>
+                ) : null}
+              </div>
+
+              {filteredConnections.length === 0 ? (
+                <p className="py-4 text-center text-xs text-[var(--color-text-muted)]">
+                  {connectionFilter === "issues" && !connectionSearch.trim()
+                    ? isId
+                      ? "Tidak ada key/OAuth yang bermasalah."
+                      : "No keys or OAuth connections with issues."
+                    : isId
+                      ? "Tidak ada koneksi yang cocok dengan filter saat ini."
+                      : "No connections match the current filter."}
+                </p>
+              ) : (
+                <div className="max-h-[360px] divide-y divide-[var(--color-border-subtle)] overflow-y-auto pr-1">
+                  {filteredConnections.map((conn, idx) => {
+                    const isFirst = isConnectionFiltered || idx === 0;
+                    const isLast = isConnectionFiltered || idx === filteredConnections.length - 1;
+                    const live = liveTestResults[conn.id];
+                    const isCheckingNow =
+                      testingAll && testAllProgress?.currentConnectionId === conn.id;
+                    const isBusy = busyConnectionId === conn.id || isCheckingNow;
+                    const isConfirming = confirmDeleteConnId === conn.id;
+
+                    return (
+                      <div
+                        key={conn.id}
+                        className={cn(
+                          "group flex min-w-0 flex-col gap-3 py-3 first:pt-0 last:pb-0 sm:flex-row sm:items-center sm:justify-between",
+                          !conn.enabled && "opacity-65",
+                          isCheckingNow && "rounded-lg bg-[var(--color-primary)]/6 px-2",
+                        )}
+                      >
+                        <div className="flex min-w-0 flex-1 items-start gap-2.5 sm:items-center">
+                          {/* OmniRoute Priority Up/Down Arrows */}
+                          <div className="flex shrink-0 flex-col">
+                            <button
+                              type="button"
+                              disabled={isFirst || busyConnectionId !== null}
+                              onClick={() => void handleSwapPriority(idx, idx - 1)}
+                              aria-label={`Move ${conn.name} up`}
+                              className={cn(
+                                "rounded p-0.5 transition-colors",
+                                isFirst
+                                  ? "cursor-not-allowed text-[var(--color-text-muted)]/30"
+                                  : "cursor-pointer text-[var(--color-text-muted)] hover:bg-[var(--color-surface-2)] hover:text-[var(--color-primary)]",
+                              )}
+                            >
+                              <ChevronUp className="h-3.5 w-3.5" aria-hidden="true" />
+                            </button>
+                            <button
+                              type="button"
+                              disabled={isLast || busyConnectionId !== null}
+                              onClick={() => void handleSwapPriority(idx, idx + 1)}
+                              aria-label={`Move ${conn.name} down`}
+                              className={cn(
+                                "rounded p-0.5 transition-colors",
+                                isLast
+                                  ? "cursor-not-allowed text-[var(--color-text-muted)]/30"
+                                  : "cursor-pointer text-[var(--color-text-muted)] hover:bg-[var(--color-surface-2)] hover:text-[var(--color-primary)]",
+                              )}
+                            >
+                              <ChevronDown className="h-3.5 w-3.5" aria-hidden="true" />
+                            </button>
+                          </div>
+
+                          <span className="mt-0.5 shrink-0 text-[var(--color-text-muted)] sm:mt-0">
+                            {conn.auth_type === "oauth" ? (
+                              <Lock className="h-4 w-4" aria-hidden="true" />
+                            ) : (
+                              <KeyRound className="h-4 w-4" aria-hidden="true" />
                             )}
-                          >
-                            <ChevronUp className="h-3.5 w-3.5" aria-hidden="true" />
-                          </button>
-                          <button
-                            type="button"
-                            disabled={isLast || busyConnectionId !== null}
-                            onClick={() => void handleSwapPriority(idx, idx + 1)}
-                            aria-label={`Move ${conn.name} down`}
-                            className={cn(
-                              "rounded p-0.5 transition-colors",
-                              isLast
-                                ? "cursor-not-allowed text-[var(--color-text-muted)]/30"
-                                : "cursor-pointer text-[var(--color-text-muted)] hover:bg-[var(--color-surface-2)] hover:text-[var(--color-primary)]",
-                            )}
-                          >
-                            <ChevronDown className="h-3.5 w-3.5" aria-hidden="true" />
-                          </button>
+                          </span>
+
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-medium text-[var(--color-text-main)]">
+                              {conn.name}
+                            </p>
+                            <div className="mt-1 flex min-w-0 flex-wrap items-center gap-1.5">
+                              <Badge
+                                variant={
+                                  !conn.enabled
+                                    ? "outline"
+                                    : conn.last_test_status === "error"
+                                      ? "destructive"
+                                      : "success"
+                                }
+                              >
+                                ●{" "}
+                                {!conn.enabled
+                                  ? isId
+                                    ? "nonaktif"
+                                    : "disabled"
+                                  : conn.last_test_status === "error"
+                                    ? "error"
+                                    : isId
+                                      ? "aktif"
+                                      : "active"}
+                              </Badge>
+                              <Badge variant="secondary">
+                                {conn.auth_type === "oauth" ? "OAuth" : "API Key"}
+                              </Badge>
+                              <span className="font-mono text-xs text-[var(--color-text-muted)]">
+                                #{conn.priority}
+                              </span>
+                              {isCheckingNow ? (
+                                <Badge variant="secondary" className="gap-1">
+                                  <RefreshCw
+                                    className="h-3 w-3 animate-spin text-[var(--color-primary)]"
+                                    aria-hidden="true"
+                                  />
+                                  <span>{isId ? "Memeriksa..." : "Checking..."}</span>
+                                </Badge>
+                              ) : live ? (
+                                <Badge
+                                  variant={live.ok ? "success" : "destructive"}
+                                  className="tabular-nums"
+                                >
+                                  {live.ok
+                                    ? `OK ${live.status_code} · ${live.latency_ms}ms`
+                                    : `FAIL ${live.status_code || "ERR"} · ${live.latency_ms}ms`}
+                                </Badge>
+                              ) : null}
+                              {conn.last_test_error && conn.enabled ? (
+                                <span
+                                  className="max-w-full truncate font-mono text-xs text-[var(--status-error)] sm:max-w-[280px]"
+                                  title={conn.last_test_error}
+                                >
+                                  {conn.last_test_error}
+                                </span>
+                              ) : null}
+                            </div>
+                          </div>
                         </div>
 
-                        <span className="mt-0.5 shrink-0 text-[var(--color-text-muted)] sm:mt-0">
-                          {conn.auth_type === "oauth" ? (
-                            <Lock className="h-4 w-4" aria-hidden="true" />
-                          ) : (
-                            <KeyRound className="h-4 w-4" aria-hidden="true" />
-                          )}
-                        </span>
-
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-medium text-[var(--color-text-main)]">
-                            {conn.name}
-                          </p>
-                          <div className="mt-1 flex min-w-0 flex-wrap items-center gap-1.5">
-                            <Badge
-                              variant={
-                                !conn.enabled
-                                  ? "outline"
-                                  : conn.last_test_status === "error"
-                                    ? "destructive"
-                                    : "success"
-                              }
+                        {/* Connection Row Actions */}
+                        <div className="flex w-full flex-wrap items-center justify-between gap-2 sm:w-auto sm:justify-end">
+                          <div className="flex flex-1 flex-wrap items-center gap-1.5 sm:flex-none">
+                            <Button
+                              type="button"
+                              size="xs"
+                              variant="secondary"
+                              className="flex-1 sm:flex-none"
+                              disabled={busyConnectionId !== null || testingAll}
+                              onClick={() => handleTestSingle(conn)}
                             >
-                              ●{" "}
-                              {!conn.enabled
-                                ? isId
-                                  ? "nonaktif"
-                                  : "disabled"
-                                : conn.last_test_status === "error"
-                                  ? "error"
-                                  : isId
-                                    ? "aktif"
-                                    : "active"}
-                            </Badge>
-                            <Badge variant="secondary">
-                              {conn.auth_type === "oauth" ? "OAuth" : "API Key"}
-                            </Badge>
-                            <span className="font-mono text-xs text-[var(--color-text-muted)]">
-                              #{conn.priority}
-                            </span>
-                            {live ? (
-                              <Badge
-                                variant={live.ok ? "success" : "destructive"}
-                                className="tabular-nums"
-                              >
-                                {live.ok
-                                  ? `OK ${live.status_code} · ${live.latency_ms}ms`
-                                  : `FAIL ${live.status_code || "ERR"} · ${live.latency_ms}ms`}
-                              </Badge>
-                            ) : null}
-                            {conn.last_test_error && conn.enabled ? (
+                              {isBusy ? (
+                                <RefreshCw
+                                  className="h-3.5 w-3.5 animate-spin"
+                                  aria-hidden="true"
+                                />
+                              ) : (
+                                <Activity className="h-3.5 w-3.5" aria-hidden="true" />
+                              )}
+                              <span>{isId ? "Tes" : "Test"}</span>
+                            </Button>
+
+                            <Button
+                              type="button"
+                              size="xs"
+                              variant="secondary"
+                              className="flex-1 sm:flex-none"
+                              onClick={() => setEditingConnection(conn)}
+                            >
+                              <Settings2 className="h-3.5 w-3.5" aria-hidden="true" />
+                              <span>{isId ? "Edit" : "Edit"}</span>
+                            </Button>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              role="switch"
+                              aria-checked={conn.enabled}
+                              disabled={busyConnectionId !== null}
+                              onClick={() => handleToggleConnection(conn)}
+                              aria-label={`${conn.enabled ? "Disable" : "Enable"} ${conn.name}`}
+                              className={cn(
+                                "relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full border transition-colors disabled:opacity-50",
+                                conn.enabled
+                                  ? "border-[var(--color-primary)] bg-[var(--color-primary)]"
+                                  : "border-[var(--color-border)] bg-[var(--color-surface-3)]",
+                              )}
+                            >
                               <span
-                                className="max-w-full truncate font-mono text-xs text-[var(--status-error)] sm:max-w-[280px]"
-                                title={conn.last_test_error}
+                                className={cn(
+                                  "inline-block h-3.5 w-3.5 rounded-full bg-[var(--color-on-primary)] shadow-xs transition-transform",
+                                  conn.enabled ? "translate-x-4" : "translate-x-0.5",
+                                )}
+                              />
+                            </button>
+
+                            {isConfirming ? (
+                              <div className="flex items-center gap-1">
+                                <Button
+                                  type="button"
+                                  size="xs"
+                                  variant="destructive"
+                                  disabled={busyConnectionId !== null}
+                                  onClick={() => handleDeleteConnection(conn)}
+                                >
+                                  {isId ? "Hapus" : "Confirm"}
+                                </Button>
+                                <Button
+                                  type="button"
+                                  size="xs"
+                                  variant="secondary"
+                                  onClick={() => setConfirmDeleteConnId(null)}
+                                >
+                                  {isId ? "Batal" : "Cancel"}
+                                </Button>
+                              </div>
+                            ) : (
+                              <button
+                                type="button"
+                                disabled={busyConnectionId !== null}
+                                onClick={() => setConfirmDeleteConnId(conn.id)}
+                                aria-label={`Delete ${conn.name}`}
+                                className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg text-[var(--color-text-muted)] transition-colors hover:bg-[var(--status-error-bg)] hover:text-[var(--status-error)] disabled:opacity-40"
                               >
-                                {conn.last_test_error}
-                              </span>
-                            ) : null}
+                                <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                              </button>
+                            )}
                           </div>
                         </div>
                       </div>
-
-                      {/* Connection Row Actions */}
-                      <div className="flex w-full flex-wrap items-center justify-between gap-2 sm:w-auto sm:justify-end">
-                        <div className="flex flex-1 flex-wrap items-center gap-1.5 sm:flex-none">
-                          <Button
-                            type="button"
-                            size="xs"
-                            variant="secondary"
-                            className="flex-1 sm:flex-none"
-                            disabled={busyConnectionId !== null || testingAll}
-                            onClick={() => handleTestSingle(conn)}
-                          >
-                            {isBusy ? (
-                              <RefreshCw className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
-                            ) : (
-                              <Activity className="h-3.5 w-3.5" aria-hidden="true" />
-                            )}
-                            <span>{isId ? "Tes" : "Test"}</span>
-                          </Button>
-
-                          <Button
-                            type="button"
-                            size="xs"
-                            variant="secondary"
-                            className="flex-1 sm:flex-none"
-                            onClick={() => setEditingConnection(conn)}
-                          >
-                            <Settings2 className="h-3.5 w-3.5" aria-hidden="true" />
-                            <span>{isId ? "Edit" : "Edit"}</span>
-                          </Button>
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            role="switch"
-                            aria-checked={conn.enabled}
-                            disabled={busyConnectionId !== null}
-                            onClick={() => handleToggleConnection(conn)}
-                            aria-label={`${conn.enabled ? "Disable" : "Enable"} ${conn.name}`}
-                            className={cn(
-                              "relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full border transition-colors disabled:opacity-50",
-                              conn.enabled
-                                ? "border-[var(--color-primary)] bg-[var(--color-primary)]"
-                                : "border-[var(--color-border)] bg-[var(--color-surface-3)]",
-                            )}
-                          >
-                            <span
-                              className={cn(
-                                "inline-block h-3.5 w-3.5 rounded-full bg-[var(--color-on-primary)] shadow-xs transition-transform",
-                                conn.enabled ? "translate-x-4" : "translate-x-0.5",
-                              )}
-                            />
-                          </button>
-
-                          {isConfirming ? (
-                            <div className="flex items-center gap-1">
-                              <Button
-                                type="button"
-                                size="xs"
-                                variant="destructive"
-                                disabled={busyConnectionId !== null}
-                                onClick={() => handleDeleteConnection(conn)}
-                              >
-                                {isId ? "Hapus" : "Confirm"}
-                              </Button>
-                              <Button
-                                type="button"
-                                size="xs"
-                                variant="secondary"
-                                onClick={() => setConfirmDeleteConnId(null)}
-                              >
-                                {isId ? "Batal" : "Cancel"}
-                              </Button>
-                            </div>
-                          ) : (
-                            <button
-                              type="button"
-                              disabled={busyConnectionId !== null}
-                              onClick={() => setConfirmDeleteConnId(conn.id)}
-                              aria-label={`Delete ${conn.name}`}
-                              className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg text-[var(--color-text-muted)] transition-colors hover:bg-[var(--status-error-bg)] hover:text-[var(--status-error)] disabled:opacity-40"
-                            >
-                              <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+                    );
+                  })}
+                </div>
+              )}
 
               {!isCustom && canAddProviderConnection(entry) ? (
                 <div className="grid grid-cols-1 gap-2 border-t border-[var(--color-border-subtle)] pt-3 sm:flex">
@@ -1166,10 +1515,12 @@ function ProviderStudioDetail({ providerId }: { providerId: string }) {
               {isId ? "Available Models" : "Available Models"}
             </CardTitle>
             <span className="rounded-full bg-[var(--color-surface-2)] px-2 py-0.5 font-mono text-[11px] tabular-nums text-[var(--color-text-muted)]">
-              {allModels.length}
+              {freeModelsOnly || modelSearch.trim()
+                ? `${filteredModels.length} / ${allModels.length}`
+                : allModels.length}
             </span>
           </div>
-          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center">
             {allModels.length > 10 ? (
               <div className="relative w-full sm:w-56">
                 <Search
@@ -1183,6 +1534,30 @@ function ProviderStudioDetail({ providerId }: { providerId: string }) {
                   className="h-8 pl-8 text-xs"
                 />
               </div>
+            ) : null}
+            {freeModelsCount > 0 || freeModelsOnly ? (
+              <Button
+                type="button"
+                size="xs"
+                variant={freeModelsOnly ? "default" : "secondary"}
+                className="w-full shrink-0 sm:w-auto"
+                aria-pressed={freeModelsOnly}
+                onClick={() => setFreeModelsOnly((prev) => !prev)}
+                title={
+                  freeModelsOnly
+                    ? isId
+                      ? "Menampilkan hanya model gratis (klik untuk tampilkan semua)"
+                      : "Showing free models only (click to show all)"
+                    : isId
+                      ? "Filter hanya model gratis"
+                      : "Filter free models only"
+                }
+              >
+                <span>{isId ? "Gratis" : "Free"}</span>
+                <span className="rounded-full bg-[var(--color-surface)]/25 px-1.5 py-0.25 font-mono text-[10px] tabular-nums">
+                  {freeModelsCount}
+                </span>
+              </Button>
             ) : null}
             {allModels.length > 1 ? (
               <div className="flex w-full items-center gap-1.5 sm:w-auto">
@@ -1374,9 +1749,13 @@ function ProviderStudioDetail({ providerId }: { providerId: string }) {
 
           {filteredModels.length === 0 ? (
             <p className="text-xs text-[var(--color-text-muted)]">
-              {isId
-                ? "Belum ada daftar model bawaan untuk provider ini."
-                : "No built-in models listed for this provider."}
+              {allModels.length > 0 && (freeModelsOnly || modelSearch.trim())
+                ? isId
+                  ? "Tidak ada model yang cocok dengan filter saat ini."
+                  : "No models match the current filter."
+                : isId
+                  ? "Belum ada daftar model bawaan untuk provider ini."
+                  : "No built-in models listed for this provider."}
             </p>
           ) : (
             <div className="grid grid-cols-1 items-start gap-2.5 sm:grid-cols-2 lg:grid-cols-3">

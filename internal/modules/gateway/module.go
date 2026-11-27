@@ -965,6 +965,12 @@ func (m *Module) executeCandidateAttempt(
 	if cand.ProviderID == "antigravity" {
 		curBody = rewriteAntigravitySystemInstruction(curBody)
 	}
+	if cand.ProviderID == providerIDFreePI {
+		curBody, _ = clampFreePIMaxTokens(curBody, resolveFreePIMinMaxTokens())
+	}
+	if isCodeBuddyProvider(cand.ProviderID) {
+		curBody = transformCodeBuddyRequest(curBody)
+	}
 	if isVeniceKeyless {
 		reqClient = venice.SelectHTTPClient(m.httpClient)
 		var payloadErr error
@@ -991,6 +997,7 @@ func (m *Module) executeCandidateAttempt(
 		}
 	}
 	retriedSystemToUser := false
+	retriedFreePIUpgrade := false
 
 	var resp *http.Response
 	var errBody []byte
@@ -1004,6 +1011,11 @@ func (m *Module) executeCandidateAttempt(
 			venice.ApplyHeaders(upReq, veniceAttestationToken, true)
 		} else {
 			applyUpstreamHeaders(upReq, creds, stream)
+			if cand.ProviderID == providerIDFreePI {
+				applyFreePIHeaders(upReq)
+			} else if isCodeBuddyProvider(cand.ProviderID) {
+				applyCodeBuddyHeaders(upReq, r, cand.ProviderID)
+			}
 		}
 
 		var doErr error
@@ -1026,6 +1038,16 @@ func (m *Module) executeCandidateAttempt(
 		}
 
 		m.shaper.observeRateLimitHeaders(cand.ConnectionID, resp.Header)
+
+		if resp.StatusCode == http.StatusUpgradeRequired && cand.ProviderID == providerIDFreePI && !retriedFreePIUpgrade {
+			errBody, _ = io.ReadAll(io.LimitReader(resp.Body, maxErrorBodyBytes))
+			if _, _, lifted := maybeLiftFreePIClientVersion(errBody); lifted {
+				_ = resp.Body.Close()
+				retriedFreePIUpgrade = true
+				errBody = nil
+				continue
+			}
+		}
 
 		if resp.StatusCode == http.StatusTooManyRequests && cand.ProviderID == "antigravity" {
 			errBody, _ = io.ReadAll(io.LimitReader(resp.Body, maxErrorBodyBytes))
