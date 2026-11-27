@@ -1,14 +1,7 @@
-import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { apiClient, extractErrorMessage } from "@/shared/api/client";
-import type {
-  ModelPricing,
-  UpsertModelPricingRequest,
-  UsageLog,
-  UsageLogsResponse,
-  UsageRange,
-  UsageSummaryResponse,
-} from "./schemas";
+import type { UsageLog, UsageLogsResponse, UsageRange, UsageSummaryResponse } from "./schemas";
 import { prependUsageLogToResponse } from "./streamCache";
 
 export interface UsageLogsFilter {
@@ -26,7 +19,6 @@ export const usageQueryKeys = {
   summary: (range: UsageRange) => ["usage", "summary", range] as const,
   logsRoot: ["usage", "logs"] as const,
   logs: (filters: UsageLogsFilter) => ["usage", "logs", filters] as const,
-  pricing: ["usage", "pricing"] as const,
 };
 
 function buildLogsQueryParams(filters: UsageLogsFilter) {
@@ -87,65 +79,6 @@ export function useUsageLogs(filters: UsageLogsFilter) {
         return data;
       }
       throw new Error(extractErrorMessage(error));
-    },
-  });
-}
-
-export function useModelPricing() {
-  return useQuery<ModelPricing[], Error>({
-    queryKey: usageQueryKeys.pricing,
-    queryFn: async () => {
-      const { data, error } = await apiClient.GET("/api/usage/pricing");
-      if (data) {
-        return data.pricing;
-      }
-      throw new Error(extractErrorMessage(error));
-    },
-  });
-}
-
-export interface UpsertModelPricingVariables {
-  model: string;
-  body: UpsertModelPricingRequest;
-}
-
-export function useUpsertModelPricingMutation() {
-  const queryClient = useQueryClient();
-
-  return useMutation<ModelPricing, Error, UpsertModelPricingVariables>({
-    mutationFn: async ({ model, body }) => {
-      const { data, error } = await apiClient.PUT("/api/usage/pricing/{model}", {
-        params: { path: { model } },
-        body,
-      });
-      if (data) {
-        return data;
-      }
-      throw new Error(extractErrorMessage(error));
-    },
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: usageQueryKeys.pricing });
-    },
-  });
-}
-
-export function useDeleteModelPricingMutation() {
-  const queryClient = useQueryClient();
-
-  return useMutation<void, Error, string>({
-    mutationFn: async (model) => {
-      const { error, response } = await apiClient.DELETE("/api/usage/pricing/{model}", {
-        params: { path: { model } },
-      });
-      if (error) {
-        throw new Error(extractErrorMessage(error));
-      }
-      if (!response.ok) {
-        throw new Error(`Failed to reset custom model pricing (HTTP ${response.status})`);
-      }
-    },
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: usageQueryKeys.pricing });
     },
   });
 }

@@ -864,27 +864,27 @@
     "semantic_hash": ""
   },
   "web/src/features/usage/UsageConsole.tsx": {
-    "mtime": 1795710119.1834748,
-    "seen": 1795770205.4557195,
-    "ast_hash": "e84b01ff3aa6262aacb83a0790ef2ecf",
+    "mtime": 1795808846.1020324,
+    "seen": 1795808887.2815957,
+    "ast_hash": "228648fe0f9e3613876126e003bc46fc",
     "semantic_hash": ""
   },
   "web/src/features/usage/hooks.ts": {
-    "mtime": 1795710119.1840136,
-    "seen": 1795770205.455721,
-    "ast_hash": "add95cf1f747b7bf4bb5c8c4ec1ce4dc",
+    "mtime": 1795808500.7780712,
+    "seen": 1795808685.2735915,
+    "ast_hash": "9954e619c80e23e0986c6452226d1833",
     "semantic_hash": ""
   },
   "web/src/features/usage/schemas.test.ts": {
-    "mtime": 1795710119.1840136,
-    "seen": 1795770205.4557226,
-    "ast_hash": "0e5daa5b14345920de739c94b4ab677f",
+    "mtime": 1795808500.762071,
+    "seen": 1795808685.2735953,
+    "ast_hash": "250e085d5ccc03f3533ad355b4f40b44",
     "semantic_hash": ""
   },
   "web/src/features/usage/schemas.ts": {
-    "mtime": 1795710119.1840136,
-    "seen": 1795770205.455724,
-    "ast_hash": "c16deeba71da1b965c449513f4aee525",
+    "mtime": 1795808381.8862944,
+    "seen": 1795808685.2735987,
+    "ast_hash": "aa9a7f743382a670cead6c77a7e02f60",
     "semantic_hash": ""
   },
   "docs/superpowers/plans/2026-11-23-wave2a-providers-proxypools-translator.md": {
@@ -3468,15 +3468,15 @@
     "semantic_hash": ""
   },
   "web/src/features/usage/streamCache.test.ts": {
-    "mtime": 1795710119.1842067,
-    "seen": 1795770205.4557252,
-    "ast_hash": "b4998790fe8587fa1e0d8d9db8b04e84",
+    "mtime": 1795808329.9525182,
+    "seen": 1795808685.2736025,
+    "ast_hash": "45e2b06bc4bdc0b0d0acbba957086ac0",
     "semantic_hash": ""
   },
   "web/src/features/usage/streamCache.ts": {
-    "mtime": 1795710119.1842067,
-    "seen": 1795770205.455727,
-    "ast_hash": "641bfbd4edef2983b7ae6e05e36c0b9b",
+    "mtime": 1795808383.2423146,
+    "seen": 1795808685.2736063,
+    "ast_hash": "f30d777548eb8d29cb1384066dc34978",
     "semantic_hash": ""
   },
   "web/src/features/system/recentRequests.test.ts": {

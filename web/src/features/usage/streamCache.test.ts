@@ -67,4 +67,24 @@ describe("features/usage/streamCache", () => {
     const paged: UsageLogsResponse = { ...initial, offset: 50 };
     expect(prependUsageLogToResponse(paged, makeLog({ id: 4 }), { offset: 50 })).toBe(paged);
   });
+
+  test("filters incoming SSE logs by exact numeric HTTP status code", () => {
+    const initial: UsageLogsResponse = {
+      logs: [makeLog({ id: 1, status_code: 429, error_summary: "rate limited" })],
+      total: 1,
+      limit: 50,
+      offset: 0,
+    };
+
+    const okLog = makeLog({ id: 2, status_code: 200, error_summary: "" });
+    const otherErrLog = makeLog({ id: 3, status_code: 500, error_summary: "boom" });
+    const matching429 = makeLog({ id: 4, status_code: 429, error_summary: "too many requests" });
+
+    expect(prependUsageLogToResponse(initial, okLog, { status: "429" })).toBe(initial);
+    expect(prependUsageLogToResponse(initial, otherErrLog, { status: "429" })).toBe(initial);
+
+    const next = prependUsageLogToResponse(initial, matching429, { status: "429" });
+    expect(next.logs.map((l) => l.id)).toEqual([4, 1]);
+    expect(next.total).toBe(2);
+  });
 });
