@@ -993,3 +993,52 @@ func TestServerStartNativeTLS(t *testing.T) {
 		t.Fatalf("Start TLS server returned error: %v", err)
 	}
 }
+
+func TestStaticUIHandlerPWAHeaders(t *testing.T) {
+	uiFS := fstest.MapFS{
+		"index.html":           {Data: []byte("<!DOCTYPE html><html><body>spa</body></html>")},
+		"sw.js":                {Data: []byte("self.addEventListener('fetch', () => {});")},
+		"manifest.webmanifest": {Data: []byte(`{"name":"OMEG4MON ROUTER","display":"standalone"}`)},
+	}
+
+	handler := httpserver.NewStaticUIHandler(uiFS)
+
+	t.Run("sw.js serves no-store no-cache and Service-Worker-Allowed root scope", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/sw.js", nil)
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusOK {
+			t.Fatalf("GET /sw.js status = %d, want 200", rec.Code)
+		}
+		cc := rec.Header().Get("Cache-Control")
+		if !strings.Contains(cc, "no-store") || !strings.Contains(cc, "no-cache") {
+			t.Fatalf("GET /sw.js Cache-Control = %q, want no-store and no-cache", cc)
+		}
+		if scope := rec.Header().Get("Service-Worker-Allowed"); scope != "/" {
+			t.Fatalf("GET /sw.js Service-Worker-Allowed = %q, want /", scope)
+		}
+		ct := rec.Header().Get("Content-Type")
+		if !strings.Contains(ct, "javascript") {
+			t.Fatalf("GET /sw.js Content-Type = %q, want javascript", ct)
+		}
+	})
+
+	t.Run("manifest.webmanifest serves application/manifest+json and no-cache", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/manifest.webmanifest", nil)
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusOK {
+			t.Fatalf("GET /manifest.webmanifest status = %d, want 200", rec.Code)
+		}
+		cc := rec.Header().Get("Cache-Control")
+		if !strings.Contains(cc, "no-cache") {
+			t.Fatalf("GET /manifest.webmanifest Cache-Control = %q, want no-cache", cc)
+		}
+		ct := rec.Header().Get("Content-Type")
+		if !strings.Contains(ct, "application/manifest+json") {
+			t.Fatalf("GET /manifest.webmanifest Content-Type = %q, want application/manifest+json", ct)
+		}
+	})
+}

@@ -2,12 +2,19 @@
 <html lang="en" data-theme="light" data-locale="en">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <title>OMEG4MON ROUTER</title>
     <meta
       name="description"
       content="Self-hosted OpenAI and Anthropic compatible LLM routing gateway."
     />
+    <meta name="theme-color" content="#f5f6f8" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="OMEG4MON" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png" />
     <link rel="icon" type="image/svg+xml" href="/icon.svg" />
     <link rel="alternate icon" href="/favicon.ico" />
     <script>
@@ -16,6 +23,10 @@
           const t = localStorage.getItem("omeg4mon-theme");
           if (t === "light" || t === "dark") {
             document.documentElement.setAttribute("data-theme", t);
+            const meta = document.querySelector('meta[name="theme-color"]');
+            if (meta) {
+              meta.setAttribute("content", t === "dark" ? "#050608" : "#f5f6f8");
+            }
           }
           const l = localStorage.getItem("omeg4mon-locale");
           if (l === "en" || l === "id") {

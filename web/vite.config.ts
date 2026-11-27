@@ -2,11 +2,12 @@ import { resolve } from "node:path";
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
+import { omeg4monPwaPlugin } from "./pwaPlugin.ts";
 
 const BACKEND_ORIGIN = process.env.OMEG4MON_BACKEND_URL ?? "http://127.0.0.1:20128";
 
 export default defineConfig({
-  plugins: [react(), tailwindcss()],
+  plugins: [react(), tailwindcss(), omeg4monPwaPlugin()],
   resolve: {
     alias: {
       "@": resolve(import.meta.dirname, "src"),
