@@ -33,6 +33,7 @@ import {
   isKeyExpiredAt,
   type KeyStatusFilter,
   normalizeOrigin,
+  resolveGatewayOrigins,
 } from "./endpointUtils";
 import { GatewayEndpointBar } from "./GatewayEndpointBar";
 import {
@@ -87,7 +88,10 @@ export function KeysConsole() {
   const rotateMutation = useRotateApiKeyMutation();
   const deleteMutation = useDeleteApiKeyMutation();
 
-  const [activeRoute, setActiveRoute] = useState<GatewayRouteId>("local");
+  const [resolvedOrigins] = useState(() =>
+    resolveGatewayOrigins(typeof window !== "undefined" ? window.location?.origin : ""),
+  );
+  const [activeRoute, setActiveRoute] = useState<GatewayRouteId>(resolvedOrigins.defaultRoute);
   const [keySearch, setKeySearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<KeyStatusFilter>("all");
 
@@ -116,13 +120,6 @@ export function KeysConsole() {
   const [busyKeyId, setBusyKeyId] = useState<string | null>(null);
   const [copiedKeyId, setCopiedKeyId] = useState<string | null>(null);
   const copyTimerRef = useRef<number | null>(null);
-
-  const [localOrigin] = useState(() => {
-    if (typeof window !== "undefined" && window.location?.origin) {
-      return window.location.origin;
-    }
-    return "http://127.0.0.1:20128";
-  });
 
   const probeGatewayHealth = useCallback(async () => {
     setHealthState("checking");
@@ -173,6 +170,9 @@ export function KeysConsole() {
   }, [providers]);
 
   const activeEffectiveOrigin = useMemo(() => {
+    if (activeRoute === "domain" && resolvedOrigins.domainOrigin) {
+      return resolvedOrigins.domainOrigin;
+    }
     if (
       activeRoute === "cloudflare" &&
       tunnel?.provider === "cloudflare" &&
@@ -189,19 +189,32 @@ export function KeysConsole() {
     ) {
       return normalizeOrigin(tunnel.public_url);
     }
-    return normalizeOrigin(localOrigin);
-  }, [activeRoute, tunnel, localOrigin]);
+    if (activeRoute === "local") {
+      return normalizeOrigin(resolvedOrigins.localOrigin);
+    }
+    return resolvedOrigins.domainOrigin || normalizeOrigin(resolvedOrigins.localOrigin);
+  }, [activeRoute, tunnel, resolvedOrigins]);
 
   const activeRouteLabel =
-    activeRoute === "cloudflare" && tunnel?.provider === "cloudflare" && tunnel.status === "running"
-      ? "Cloudflare Tunnel"
-      : activeRoute === "tailscale" &&
-          tunnel?.provider === "tailscale" &&
+    activeRoute === "domain" && resolvedOrigins.domainOrigin
+      ? isId
+        ? "Host Server"
+        : "Server Host"
+      : activeRoute === "cloudflare" &&
+          tunnel?.provider === "cloudflare" &&
           tunnel.status === "running"
-        ? "Tailscale Mesh"
-        : isId
-          ? "Host Lokal"
-          : "Local Host";
+        ? "Cloudflare Tunnel"
+        : activeRoute === "tailscale" &&
+            tunnel?.provider === "tailscale" &&
+            tunnel.status === "running"
+          ? "Tailscale Mesh"
+          : activeRoute === "local" || !resolvedOrigins.domainOrigin
+            ? isId
+              ? "Host Lokal"
+              : "Local Host"
+            : isId
+              ? "Host Server"
+              : "Server Host";
 
   const statusBuckets = useMemo(() => countKeyStatusBuckets(keys), [keys]);
   const filteredKeys = useMemo(
@@ -436,7 +449,9 @@ export function KeysConsole() {
       {/* Zona 1: Unified Gateway Route, Base URLs & Quick Integration Snippet */}
       <GatewayEndpointBar
         isId={isId}
-        localOrigin={localOrigin}
+        localOrigin={resolvedOrigins.localOrigin}
+        domainOrigin={resolvedOrigins.domainOrigin}
+        isDomainHost={resolvedOrigins.isDomainHost}
         activeRoute={activeRoute}
         onSelectRoute={setActiveRoute}
         tunnel={tunnel}

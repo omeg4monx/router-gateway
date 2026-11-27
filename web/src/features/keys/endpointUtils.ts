@@ -1,9 +1,16 @@
 import type { ApiKeySummary } from "./schemas";
 
-export type GatewayRouteId = "local" | "cloudflare" | "tailscale";
+export type GatewayRouteId = "domain" | "local" | "cloudflare" | "tailscale";
 export type KeyStatusFilter = "all" | "active" | "disabled" | "expired";
 export type KeySnippetFormat = "openai" | "anthropic";
 export type KeySnippetLang = "curl" | "python" | "node" | "go";
+
+export interface ResolvedGatewayOrigins {
+  domainOrigin: string | null;
+  localOrigin: string;
+  defaultRoute: "domain" | "local";
+  isDomainHost: boolean;
+}
 
 export interface KeyStatusBuckets {
   all: number;
@@ -18,7 +25,32 @@ export interface KeyExpiryState {
 }
 
 const DEFAULT_FALLBACK_ORIGIN = "http://127.0.0.1:20128";
+const DEFAULT_LOCALHOST_ORIGIN = "http://localhost:20128";
 const EXPIRING_SOON_MS = 7 * 24 * 60 * 60 * 1000;
+
+function isLocalHostname(hostname: string): boolean {
+  const clean = hostname
+    .trim()
+    .toLowerCase()
+    .replace(/^\[|\]$/g, "");
+  if (!clean) {
+    return true;
+  }
+  if (
+    clean === "localhost" ||
+    clean.endsWith(".localhost") ||
+    clean === "::1" ||
+    clean === "0.0.0.0"
+  ) {
+    return true;
+  }
+  return /^127(?:\.\d{1,3}){3}$/.test(clean);
+}
+
+function isIpLiteral(hostname: string): boolean {
+  const clean = hostname.trim().replace(/^\[|\]$/g, "");
+  return /^\d{1,3}(?:\.\d{1,3}){3}$/.test(clean) || clean.includes(":");
+}
 
 export function normalizeOrigin(raw: string | undefined | null): string {
   const trimmed = (raw ?? "").trim();
@@ -26,6 +58,47 @@ export function normalizeOrigin(raw: string | undefined | null): string {
     return "";
   }
   return trimmed.replace(/\/+$/, "");
+}
+
+export function resolveGatewayOrigins(
+  windowOrigin: string | undefined | null,
+): ResolvedGatewayOrigins {
+  const normalized = normalizeOrigin(windowOrigin);
+  if (!normalized) {
+    return {
+      domainOrigin: null,
+      localOrigin: DEFAULT_FALLBACK_ORIGIN,
+      defaultRoute: "local",
+      isDomainHost: false,
+    };
+  }
+
+  try {
+    const parsed = new URL(normalized);
+    if (isLocalHostname(parsed.hostname)) {
+      return {
+        domainOrigin: null,
+        localOrigin: normalized,
+        defaultRoute: "local",
+        isDomainHost: false,
+      };
+    }
+
+    const isDomainHost = !isIpLiteral(parsed.hostname) && parsed.hostname.includes(".");
+    return {
+      domainOrigin: normalized,
+      localOrigin: DEFAULT_LOCALHOST_ORIGIN,
+      defaultRoute: "domain",
+      isDomainHost,
+    };
+  } catch {
+    return {
+      domainOrigin: null,
+      localOrigin: normalized,
+      defaultRoute: "local",
+      isDomainHost: false,
+    };
+  }
 }
 
 export function buildGatewayUrls(rawOrigin: string | undefined | null): {

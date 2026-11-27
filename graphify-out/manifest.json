@@ -558,9 +558,9 @@
     "semantic_hash": ""
   },
   "web/src/features/keys/KeysConsole.tsx": {
-    "mtime": 1795710119.1692066,
-    "seen": 1795770205.4555283,
-    "ast_hash": "c8ec4ade6381c15cb75b43832aa171cd",
+    "mtime": 1795809315.3714442,
+    "seen": 1795809366.9928248,
+    "ast_hash": "7740742a73f070a56244810a681d6249",
     "semantic_hash": ""
   },
   "web/src/features/keys/hooks.ts": {
@@ -570,9 +570,9 @@
     "semantic_hash": ""
   },
   "web/src/features/keys/schemas.test.ts": {
-    "mtime": 1795710119.1692066,
-    "seen": 1795770205.4555333,
-    "ast_hash": "ea17c904eac8ba67ae1c57fc28fe17e6",
+    "mtime": 1795809251.2844696,
+    "seen": 1795809366.992896,
+    "ast_hash": "bc9a1a011bb29eead80d4dded9fb719d",
     "semantic_hash": ""
   },
   "web/src/features/keys/schemas.ts": {
@@ -3402,9 +3402,9 @@
     "semantic_hash": ""
   },
   "web/src/features/keys/GatewayEndpointBar.tsx": {
-    "mtime": 1795710119.1689816,
-    "seen": 1795770205.4555247,
-    "ast_hash": "4ccf20c8b75227e707dd1cf0fad3d290",
+    "mtime": 1795809308.51634,
+    "seen": 1795809366.9927516,
+    "ast_hash": "1a48d10d5ac4e0f01331e6511cb57704",
     "semantic_hash": ""
   },
   "web/src/features/keys/KeyModals.tsx": {
@@ -3414,9 +3414,9 @@
     "semantic_hash": ""
   },
   "web/src/features/keys/endpointUtils.ts": {
-    "mtime": 1795710119.1692066,
-    "seen": 1795770205.45553,
-    "ast_hash": "16aecf0832558c08d9a98fd275df7d52",
+    "mtime": 1795809321.861543,
+    "seen": 1795809366.9928293,
+    "ast_hash": "2aaedbdae641872ff8cdb221086bcc51",
     "semantic_hash": ""
   },
   "internal/modules/keys/interceptor.go": {
