@@ -12,6 +12,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"slices"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"syscall"
@@ -331,12 +332,19 @@ func buildApp(ctx context.Context, cfg config.Config, build system.BuildInfo) (*
 	if !cfg.DisabledModules[pluginsMod.Name()] {
 		interceptors = append(interceptors, pluginsMod)
 	}
+	var modelLister contracts.ModelLister = combosMod
+	if !cfg.DisabledModules[modelEditorMod.Name()] {
+		modelLister = &compositeModelLister{
+			base:     combosMod,
+			override: modelEditorMod,
+		}
+	}
 	gatewayMod := gateway.New(gateway.Options{
 		DB:           database,
 		HTTPClient:   httpClient,
 		Keys:         keysMod,
 		Resolver:     combosMod,
-		Models:       combosMod,
+		Models:       modelLister,
 		Providers:    providersMod,
 		Health:       combosMod,
 		Interceptors: interceptors,
@@ -395,14 +403,14 @@ func buildApp(ctx context.Context, cfg config.Config, build system.BuildInfo) (*
 		Bus:           bus,
 		Logger:        logger,
 		Providers:     providersMod,
-		Models:        combosMod,
+		Models:        modelLister,
 		Jobs:          &jobInspectorAdapter{runner: jobRunner},
 		ActiveModules: registry.ActiveNames,
 	})
 	arenaMod := arena.New(arena.Options{
 		DB:        database,
 		Completer: gatewayMod,
-		Models:    combosMod,
+		Models:    modelLister,
 		Bus:       bus,
 		Logger:    logger,
 	})
@@ -677,4 +685,62 @@ func runMain(args []string, getenv func(string) string) int {
 
 	app.logger.Info("omeg4mon-router stopped")
 	return 0
+}
+
+type compositeModelLister struct {
+	base     contracts.ModelLister
+	override interface {
+		ListVirtualModels() []contracts.ModelDescriptor
+	}
+}
+
+func (c *compositeModelLister) ListModels(ctx context.Context, allowed []string) ([]contracts.ModelDescriptor, error) {
+	baseModels, err := c.base.ListModels(ctx, allowed)
+	if err != nil {
+		return nil, err
+	}
+	if c.override == nil {
+		return baseModels, nil
+	}
+	virtual := c.override.ListVirtualModels()
+	if len(virtual) == 0 {
+		return baseModels, nil
+	}
+
+	seen := make(map[string]struct{}, len(baseModels)+len(virtual))
+	out := make([]contracts.ModelDescriptor, 0, len(baseModels)+len(virtual))
+	for _, m := range baseModels {
+		seen[m.ID] = struct{}{}
+		out = append(out, m)
+	}
+	for _, vm := range virtual {
+		if _, exists := seen[vm.ID]; exists {
+			continue
+		}
+		if len(allowed) > 0 && !matchesAllowedModel(vm.ID, allowed) {
+			continue
+		}
+		seen[vm.ID] = struct{}{}
+		out = append(out, vm)
+	}
+	return out, nil
+}
+
+func matchesAllowedModel(modelID string, allowed []string) bool {
+	for _, rule := range allowed {
+		r := strings.TrimSpace(rule)
+		if r == "" {
+			continue
+		}
+		if r == "*" || strings.EqualFold(r, modelID) {
+			return true
+		}
+		if strings.HasSuffix(r, "*") {
+			prefix := strings.TrimSuffix(r, "*")
+			if len(modelID) >= len(prefix) && strings.EqualFold(modelID[:len(prefix)], prefix) {
+				return true
+			}
+		}
+	}
+	return false
 }

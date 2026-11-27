@@ -267,7 +267,12 @@ func applyOverrideToJSON(protocol string, root map[string]any, ov ModelOverride)
 		}
 	}
 
+	promptMode, _ := ov.ExtraParams[internalPromptModeKey].(string)
+
 	for k, v := range ov.ExtraParams {
+		if k == internalPromptModeKey {
+			continue
+		}
 		if existingMap, ok := root[k].(map[string]any); ok {
 			if patchMap, ok2 := v.(map[string]any); ok2 {
 				for pk, pv := range patchMap {
@@ -286,25 +291,62 @@ func applyOverrideToJSON(protocol string, root map[string]any, ov ModelOverride)
 		if wrapSystemPrompt(protocol, root, ov.SystemPromptPrefix, ov.SystemPromptSuffix) {
 			mutated = true
 		}
+		if strings.EqualFold(strings.TrimSpace(promptMode), "dual") {
+			anchor := ov.SystemPromptSuffix
+			if anchor == "" {
+				anchor = ov.SystemPromptPrefix
+			}
+			if injectLatestUserAnchor(protocol, root, anchor) {
+				mutated = true
+			}
+		}
 	}
 
 	return mutated
 }
 
+const internalPromptModeKey = "_prompt_mode"
+
+func hasPromptSegment(haystack, needle string) bool {
+	if haystack == "" || needle == "" {
+		return false
+	}
+	if haystack == needle {
+		return true
+	}
+	for _, seg := range strings.Split(haystack, "\n\n") {
+		if seg == needle {
+			return true
+		}
+	}
+	return false
+}
+
+func hasBlockText(blocks []any, needle string) bool {
+	for _, raw := range blocks {
+		if m, ok := raw.(map[string]any); ok {
+			if txt, ok2 := m["text"].(string); ok2 && hasPromptSegment(txt, needle) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 func wrapText(base, prefix, suffix string) string {
 	out := base
-	if prefix != "" {
+	if prefix != "" && !hasPromptSegment(out, prefix) {
 		if out == "" {
 			out = prefix
 		} else {
-			out = prefix + "\n" + out
+			out = prefix + "\n\n" + out
 		}
 	}
-	if suffix != "" {
+	if suffix != "" && !hasPromptSegment(out, suffix) {
 		if out == "" {
 			out = suffix
 		} else {
-			out = out + "\n" + suffix
+			out = out + "\n\n" + suffix
 		}
 	}
 	return out
@@ -319,10 +361,10 @@ func wrapSystemPrompt(protocol string, root map[string]any, prefix, suffix strin
 			return true
 		case []any:
 			blocks := cur
-			if prefix != "" {
+			if prefix != "" && !hasBlockText(blocks, prefix) {
 				blocks = append([]any{map[string]any{"type": "text", "text": prefix}}, blocks...)
 			}
-			if suffix != "" {
+			if suffix != "" && !hasBlockText(blocks, suffix) {
 				blocks = append(blocks, map[string]any{"type": "text", "text": suffix})
 			}
 			root["system"] = blocks
@@ -379,10 +421,10 @@ func wrapSystemPrompt(protocol string, root map[string]any, prefix, suffix strin
 				return true
 			case []any:
 				blocks := content
-				if prefix != "" {
+				if prefix != "" && !hasBlockText(blocks, prefix) {
 					blocks = append([]any{map[string]any{"type": "text", "text": prefix}}, blocks...)
 				}
-				if suffix != "" {
+				if suffix != "" && !hasBlockText(blocks, suffix) {
 					blocks = append(blocks, map[string]any{"type": "text", "text": suffix})
 				}
 				msg["content"] = blocks
@@ -396,5 +438,115 @@ func wrapSystemPrompt(protocol string, root map[string]any, prefix, suffix strin
 		}
 		root["messages"] = append([]any{sysMsg}, msgs...)
 		return true
+	}
+}
+
+// injectLatestUserAnchor prepends anchor to the most recent user turn (idempotently)
+// to counter multi-turn attention drift while preserving upstream system prefix caching.
+func injectLatestUserAnchor(protocol string, root map[string]any, anchor string) bool {
+	if anchor == "" {
+		return false
+	}
+	switch protocol {
+	case "gemini":
+		contents, ok := root["contents"].([]any)
+		if !ok {
+			return false
+		}
+		for i := len(contents) - 1; i >= 0; i-- {
+			item, ok := contents[i].(map[string]any)
+			if !ok {
+				continue
+			}
+			role, _ := item["role"].(string)
+			if role != "" && role != "user" {
+				continue
+			}
+			parts, ok := item["parts"].([]any)
+			if !ok || len(parts) == 0 {
+				continue
+			}
+			for j, rawPart := range parts {
+				part, ok := rawPart.(map[string]any)
+				if !ok {
+					continue
+				}
+				if txt, ok := part["text"].(string); ok {
+					next := wrapText(txt, anchor, "")
+					if next == txt {
+						return false
+					}
+					part["text"] = next
+					parts[j] = part
+					item["parts"] = parts
+					contents[i] = item
+					root["contents"] = contents
+					return true
+				}
+			}
+		}
+		return false
+	case "openai-responses":
+		inputs, ok := root["input"].([]any)
+		if !ok {
+			return false
+		}
+		for i := len(inputs) - 1; i >= 0; i-- {
+			item, ok := inputs[i].(map[string]any)
+			if !ok {
+				continue
+			}
+			if role, _ := item["role"].(string); role != "user" {
+				continue
+			}
+			if injectMessageAnchor(item, anchor) {
+				inputs[i] = item
+				root["input"] = inputs
+				return true
+			}
+			return false
+		}
+		return false
+	default: // openai-chat & anthropic
+		msgs, ok := root["messages"].([]any)
+		if !ok {
+			return false
+		}
+		for i := len(msgs) - 1; i >= 0; i-- {
+			msg, ok := msgs[i].(map[string]any)
+			if !ok {
+				continue
+			}
+			if role, _ := msg["role"].(string); role != "user" {
+				continue
+			}
+			if injectMessageAnchor(msg, anchor) {
+				msgs[i] = msg
+				root["messages"] = msgs
+				return true
+			}
+			return false
+		}
+		return false
+	}
+}
+
+func injectMessageAnchor(msg map[string]any, anchor string) bool {
+	switch content := msg["content"].(type) {
+	case string:
+		next := wrapText(content, anchor, "")
+		if next == content {
+			return false
+		}
+		msg["content"] = next
+		return true
+	case []any:
+		if hasBlockText(content, anchor) {
+			return false
+		}
+		msg["content"] = append([]any{map[string]any{"type": "text", "text": anchor}}, content...)
+		return true
+	default:
+		return false
 	}
 }

@@ -371,3 +371,84 @@ func TestModelEditorFinalReviewFindings(t *testing.T) {
 		t.Fatalf("expected generationConfig deep-merged (temperature=0.3 & seed=7), got %+v", gc)
 	}
 }
+
+func TestListVirtualModels(t *testing.T) {
+	t.Parallel()
+	m := &Module{
+		overrides: []ModelOverride{
+			{ID: "1", Name: "claude-neon", ModelPattern: "claude-neon", TargetModel: "claude-sonnet-4", Enabled: true},
+			{ID: "2", Name: "disabled-one", ModelPattern: "disabled-one", TargetModel: "gpt-4o", Enabled: false},
+			{ID: "3", Name: "wildcard-rule", ModelPattern: "coding-*", TargetModel: "gpt-4o", Enabled: true},
+			{ID: "4", Name: "no-target", ModelPattern: "gpt-4o", TargetModel: "", Enabled: true},
+			{ID: "5", Name: "dup-alias", ModelPattern: "claude-neon", TargetModel: "claude-sonnet-4", Enabled: true},
+		},
+	}
+
+	got := m.ListVirtualModels()
+	if len(got) != 1 {
+		t.Fatalf("ListVirtualModels() len = %d, want 1 (%+v)", len(got), got)
+	}
+	if got[0].ID != "claude-neon" || got[0].OwnedBy != "model-editor" || got[0].Kind != "override" {
+		t.Fatalf("ListVirtualModels()[0] = %+v, want claude-neon/model-editor/override", got[0])
+	}
+}
+
+func TestDualInjectionAndIdempotency(t *testing.T) {
+	t.Parallel()
+	ov := ModelOverride{
+		ID:                 "ov-dual",
+		Name:               "dual-test",
+		ModelPattern:       "dual-test",
+		TargetModel:        "claude-sonnet-4",
+		SystemPromptSuffix: "ANCHOR_PROMPT",
+		ExtraParams:        map[string]any{"_prompt_mode": "dual", "seed": 7},
+		Enabled:            true,
+	}
+
+	rawBody := []byte(`{
+		"model": "dual-test",
+		"messages": [
+			{"role": "system", "content": "BASE_SYS"},
+			{"role": "user", "content": "TURN_1"},
+			{"role": "assistant", "content": "RESP_1"},
+			{"role": "user", "content": "TURN_2"}
+		]
+	}`)
+
+	outModel, outBody, _, _ := applyPipeline("openai-chat", "dual-test", "", nil, rawBody, map[string]any{}, nil, []ModelOverride{ov})
+	if outModel != "claude-sonnet-4" {
+		t.Fatalf("outModel = %q, want claude-sonnet-4", outModel)
+	}
+	if strings.Contains(string(outBody), "_prompt_mode") {
+		t.Fatalf("internal _prompt_mode leaked into outgoing body: %s", string(outBody))
+	}
+
+	var parsed struct {
+		Seed     int `json:"seed"`
+		Messages []struct {
+			Role    string `json:"role"`
+			Content string `json:"content"`
+		} `json:"messages"`
+	}
+	if err := json.Unmarshal(outBody, &parsed); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if parsed.Seed != 7 {
+		t.Fatalf("seed = %d, want 7", parsed.Seed)
+	}
+	if parsed.Messages[0].Content != "BASE_SYS\n\nANCHOR_PROMPT" {
+		t.Fatalf("system = %q, want cache-safe append", parsed.Messages[0].Content)
+	}
+	if parsed.Messages[1].Content != "TURN_1" {
+		t.Fatalf("turn 1 should remain untouched, got %q", parsed.Messages[1].Content)
+	}
+	if parsed.Messages[3].Content != "ANCHOR_PROMPT\n\nTURN_2" {
+		t.Fatalf("latest user turn = %q, want anchored", parsed.Messages[3].Content)
+	}
+
+	// Re-applying the same override (e.g. retry/fallback) must be strictly idempotent.
+	_, secondBody, _, _ := applyPipeline("openai-chat", "dual-test", "", nil, outBody, map[string]any{}, nil, []ModelOverride{ov})
+	if strings.Count(string(secondBody), "ANCHOR_PROMPT") != 2 {
+		t.Fatalf("expected idempotent 2 occurrences (system + latest user), got %d in %s", strings.Count(string(secondBody), "ANCHOR_PROMPT"), string(secondBody))
+	}
+}

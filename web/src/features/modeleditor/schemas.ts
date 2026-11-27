@@ -5,8 +5,6 @@ export type ModelOverride = components["schemas"]["ModelOverride"];
 export type ModelOverrideList = components["schemas"]["ModelOverrideList"];
 export type CreateModelOverrideRequest = components["schemas"]["CreateModelOverrideRequest"];
 export type UpdateModelOverrideRequest = components["schemas"]["UpdateModelOverrideRequest"];
-export type ModelEditorPreviewRequest = components["schemas"]["ModelEditorPreviewRequest"];
-export type ModelEditorPreviewResult = components["schemas"]["ModelEditorPreviewResult"];
 
 export function parseStripParamsList(csv: string): string[] {
   const seen = new Set<string>();
@@ -56,8 +54,9 @@ function optionalBoundedNumber(min: number, max: number, label: string) {
 
 export const createModelOverrideSchema = z.object({
   name: z.string().trim().min(1, "Name is required").max(128),
-  model_pattern: z.string().trim().min(1, "Model pattern is required").max(128),
-  target_model: z.string().trim().max(128).optional(),
+  target_model: z.string().trim().min(1, "Model is required").max(128),
+  system_prompt: z.string().optional(),
+  system_prompt_position: z.enum(["suffix", "dual", "prefix"]),
   temperature: optionalBoundedNumber(0, 2, "Temperature"),
   max_tokens: optionalBoundedNumber(1, 2000000, "Max tokens"),
   extra_params_json: z

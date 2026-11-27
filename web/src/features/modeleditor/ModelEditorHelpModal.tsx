@@ -153,14 +153,23 @@ export function ModelEditorHelpModal({
             </div>
           </div>
 
-          <div className="flex items-center justify-between gap-2 rounded-md border border-[var(--border-subtle)] bg-[var(--bg-canvas)] px-3 py-2">
-            <span className="font-mono text-[10px] uppercase tracking-wider text-[var(--text-muted)]">
-              {copy.guideExample}
-            </span>
-            <code className="truncate font-mono text-xs text-[var(--text-primary)]">
-              {entry.example}
-            </code>
-          </div>
+          {entry.tip ? (
+            <div className="rounded-md border border-[var(--status-warn-border)] bg-[var(--status-warn-bg)] px-3 py-2.5">
+              <p className="font-mono text-[10px] font-semibold uppercase tracking-wider text-[var(--status-warn)]">
+                {copy.guideTip}
+              </p>
+              <p className="mt-1 leading-relaxed text-[var(--text-primary)]">{entry.tip[locale]}</p>
+            </div>
+          ) : (
+            <div className="flex items-center justify-between gap-2 rounded-md border border-[var(--border-subtle)] bg-[var(--bg-canvas)] px-3 py-2">
+              <span className="font-mono text-[10px] uppercase tracking-wider text-[var(--text-muted)]">
+                {copy.guideExample}
+              </span>
+              <code className="truncate font-mono text-xs text-[var(--text-primary)]">
+                {entry.example}
+              </code>
+            </div>
+          )}
         </div>
       </div>
     </div>
