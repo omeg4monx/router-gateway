@@ -419,6 +419,43 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/providers/quotas": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Fetch normalized upstream provider quota snapshots for all supported connections */
+        get: operations["listProviderQuotas"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/providers/connections/{id}/quota/refresh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Unique provider connection identifier. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Force a live upstream quota refresh for a single supported provider connection */
+        post: operations["refreshProviderConnectionQuota"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/providers/oauth/{provider}/start": {
         parameters: {
             query?: never;
@@ -2650,6 +2687,41 @@ export interface components {
             headers?: {
                 [key: string]: string;
             };
+        };
+        /** @enum {string} */
+        ProviderQuotaStatus: "ok" | "low" | "exhausted" | "not_activated" | "error";
+        ProviderQuotaBucket: {
+            id: string;
+            label: string;
+            used_pct: number;
+            remaining_pct: number;
+            exhausted: boolean;
+            period_started_at: string | null;
+            period_ends_at: string | null;
+            reset_at: string | null;
+        };
+        ProviderConnectionQuota: {
+            connection_id: string;
+            provider_id: string;
+            provider_name: string;
+            fetcher_id: string;
+            connection_name: string;
+            auth_type: string;
+            enabled: boolean;
+            status: components["schemas"]["ProviderQuotaStatus"];
+            plan_name: string | null;
+            on_plan: boolean;
+            activated: boolean;
+            buckets: components["schemas"]["ProviderQuotaBucket"][];
+            models: string[];
+            fetched_at: string;
+            cached: boolean;
+            error: string;
+        };
+        ProviderQuotasResponse: {
+            quotas: components["schemas"]["ProviderConnectionQuota"][];
+            supported_providers: string[];
+            fetched_at: string;
         };
         TestProviderConnectionResponse: {
             ok: boolean;
@@ -5729,6 +5801,108 @@ export interface operations {
                 };
             };
             /** @description Failed to resolve credentials or execute connectivity test. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    listProviderQuotas: {
+        parameters: {
+            query?: {
+                /** @description Optional provider or quota fetcher identifier filter (e.g., tokenharbor). */
+                provider_id?: string;
+                /** @description Bypass the 15-second in-memory cache and fetch fresh quota data upstream. */
+                refresh?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Normalized provider quota snapshots across supported connections. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProviderQuotasResponse"];
+                };
+            };
+            /** @description Administrative authentication is required. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Failed to load provider connections. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    refreshProviderConnectionQuota: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Unique provider connection identifier. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Freshly fetched quota snapshot for the requested connection. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProviderConnectionQuota"];
+                };
+            };
+            /** @description Connection does not support live quota inspection. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Administrative authentication is required. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Provider connection not found. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Failed to load provider connection. */
             500: {
                 headers: {
                     [name: string]: unknown;

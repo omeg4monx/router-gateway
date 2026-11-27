@@ -160,6 +160,15 @@ func defaultBuiltInAdapters() []ProviderAdapter {
 			defaultModels:  []string{"openai/gpt-4o", "anthropic/claude-sonnet-4"},
 		},
 		&builtinAdapter{
+			id:             "tokenharbor",
+			displayName:    "Token Harbor",
+			category:       authTypeAPIKey,
+			protocol:       protocolOpenAIChat,
+			authType:       authTypeAPIKey,
+			defaultBaseURL: "https://tokenharbor.ai/v1",
+			defaultModels:  []string{"deepseek-v4.1-flash:free", "mimo-v2.6-flash:free"},
+		},
+		&builtinAdapter{
 			id:             "openai-compatible",
 			displayName:    "OpenAI Compatible",
 			category:       authTypeAPIKey,

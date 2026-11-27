@@ -98,6 +98,10 @@ paths:
     $ref: './modules/providers.yaml#/paths/~1api~1providers~1connections~1{id}'
   /api/providers/connections/{id}/test:
     $ref: './modules/providers.yaml#/paths/~1api~1providers~1connections~1{id}~1test'
+  /api/providers/quotas:
+    $ref: './modules/providers.yaml#/paths/~1api~1providers~1quotas'
+  /api/providers/connections/{id}/quota/refresh:
+    $ref: './modules/providers.yaml#/paths/~1api~1providers~1connections~1{id}~1quota~1refresh'
   /api/providers/oauth/{provider}/start:
     $ref: './modules/providers.yaml#/paths/~1api~1providers~1oauth~1{provider}~1start'
   /api/providers/oauth/{provider}/exchange:
@@ -418,6 +422,14 @@ components:
       $ref: './modules/providers.yaml#/components/schemas/CreateProviderConnectionRequest'
     UpdateProviderConnectionRequest:
       $ref: './modules/providers.yaml#/components/schemas/UpdateProviderConnectionRequest'
+    ProviderQuotaStatus:
+      $ref: './modules/providers.yaml#/components/schemas/ProviderQuotaStatus'
+    ProviderQuotaBucket:
+      $ref: './modules/providers.yaml#/components/schemas/ProviderQuotaBucket'
+    ProviderConnectionQuota:
+      $ref: './modules/providers.yaml#/components/schemas/ProviderConnectionQuota'
+    ProviderQuotasResponse:
+      $ref: './modules/providers.yaml#/components/schemas/ProviderQuotasResponse'
     TestProviderConnectionResponse:
       $ref: './modules/providers.yaml#/components/schemas/TestProviderConnectionResponse'
     OAuthStartRequest:

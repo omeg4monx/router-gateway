@@ -79,9 +79,11 @@ type Module struct {
 	refreshCalls     map[string]*refreshCall
 	refreshCooldowns map[string]refreshCooldownEntry
 
-	awsQuick    *awsQuickRuntime
-	deviceOAuth *deviceOAuthRuntime
-	oauthProxy  *oauthLoopbackProxy
+	awsQuick      *awsQuickRuntime
+	deviceOAuth   *deviceOAuthRuntime
+	oauthProxy    *oauthLoopbackProxy
+	quotaFetchers []quotaFetcher
+	quotaCache    *quotaCache
 }
 
 var (
@@ -117,6 +119,8 @@ func New(opts Options) *Module {
 		awsQuick:         newAwsQuickRuntime(),
 		deviceOAuth:      newDeviceOAuthRuntime(),
 		oauthProxy:       newOAuthLoopbackProxy(),
+		quotaFetchers:    defaultQuotaFetchers(),
+		quotaCache:       newQuotaCache(quotaCacheTTL),
 	}
 
 	for _, adapter := range allBuiltInAdapters() {
@@ -155,6 +159,7 @@ func (m *Module) RegisterRoutes(mounts lifecycle.RouteMounts) {
 		mounts.AdminAPI.Post("/providers/node-drafts/test", m.handleTestNodeDraft)
 		mounts.AdminAPI.Delete("/providers/nodes/{id}", m.handleDeleteNode)
 
+		mounts.AdminAPI.Get("/providers/quotas", m.handleListProviderQuotas)
 		mounts.AdminAPI.Get("/providers/connections", m.handleListConnections)
 		mounts.AdminAPI.Post("/providers/connections", m.handleCreateConnection)
 		mounts.AdminAPI.Get("/providers/connections/{id}", m.handleGetConnection)
@@ -162,6 +167,7 @@ func (m *Module) RegisterRoutes(mounts lifecycle.RouteMounts) {
 		mounts.AdminAPI.Delete("/providers/connections/{id}", m.handleDeleteConnection)
 		mounts.AdminAPI.Post("/providers/connections/{id}/test", m.handleTestConnection)
 		mounts.AdminAPI.Get("/providers/connections/{id}/models", m.handleFetchConnectionModels)
+		mounts.AdminAPI.Post("/providers/connections/{id}/quota/refresh", m.handleRefreshConnectionQuota)
 
 		mounts.AdminAPI.Post("/providers/oauth/{provider}/start", m.handleOAuthStart)
 		mounts.AdminAPI.Post("/providers/oauth/{provider}/exchange", m.handleOAuthExchange)
