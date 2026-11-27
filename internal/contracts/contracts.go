@@ -139,6 +139,12 @@ type GatewayInterceptor interface {
 	OnStreamChunk(ctx context.Context, ev *StreamEvent) error
 }
 
+// ResponseBodyInterceptor is an optional extension of GatewayInterceptor for
+// modules that inspect or repair non-streaming response bodies before delivery.
+type ResponseBodyInterceptor interface {
+	OnResponseBody(ctx context.Context, meta *ResponseMeta, body []byte) ([]byte, error)
+}
+
 // UsageRecord captures per-request telemetry emitted asynchronously by the
 // gateway to the usage module.
 type UsageRecord struct {

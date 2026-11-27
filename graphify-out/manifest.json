@@ -6,9 +6,9 @@
     "semantic_hash": ""
   },
   "internal/contracts/contracts.go": {
-    "mtime": 1795710119.1249926,
-    "seen": 1795770205.4549692,
-    "ast_hash": "ea5b82cda66560fc11a3f83853f8f02e",
+    "mtime": 1795817875.0181358,
+    "seen": 1795818359.071802,
+    "ast_hash": "2ee775f19380ef177cf3710bd647e967",
     "semantic_hash": ""
   },
   "internal/contracts/contracts_test.go": {
@@ -756,9 +756,9 @@
     "semantic_hash": ""
   },
   "internal/modules/gateway/module.go": {
-    "mtime": 1795807545.907943,
-    "seen": 1795807926.3887582,
-    "ast_hash": "c146f5356760a093213a3e0aef1b14db",
+    "mtime": 1795817876.1791544,
+    "seen": 1795818359.072755,
+    "ast_hash": "27c08541f9c475db229580c269eb596a",
     "semantic_hash": ""
   },
   "internal/modules/gateway/module_test.go": {
@@ -1704,15 +1704,15 @@
     "semantic_hash": ""
   },
   "internal/modules/plugins/interceptor.go": {
-    "mtime": 1795710119.1332061,
-    "seen": 1795770205.4551105,
-    "ast_hash": "9dccf9e1e8f0c989022105e00be6f124",
+    "mtime": 1795818241.2950017,
+    "seen": 1795818359.073772,
+    "ast_hash": "cfcab45644595b4f4dd34c8e07a0d219",
     "semantic_hash": ""
   },
   "internal/modules/plugins/module.go": {
-    "mtime": 1795710119.1336625,
-    "seen": 1795770205.455114,
-    "ast_hash": "b6a2b88a8d565fee952954d169ee6d91",
+    "mtime": 1795818008.1122673,
+    "seen": 1795818359.0737753,
+    "ast_hash": "adb712437e856d16715e48e131fbb17d",
     "semantic_hash": ""
   },
   "internal/modules/plugins/module_test.go": {
@@ -1722,9 +1722,9 @@
     "semantic_hash": ""
   },
   "internal/modules/plugins/repo.go": {
-    "mtime": 1795710119.1336625,
-    "seen": 1795770205.455119,
-    "ast_hash": "78ca2a9f34d43e0830ac6b35fc95cbfe",
+    "mtime": 1795818050.5149465,
+    "seen": 1795818359.0738049,
+    "ast_hash": "ed0f8cb20709e88847e93696d2f324bb",
     "semantic_hash": ""
   },
   "internal/modules/settings/snapshot.go": {
@@ -1746,9 +1746,9 @@
     "semantic_hash": ""
   },
   "web/src/features/plugins/PluginsStudio.tsx": {
-    "mtime": 1795710119.1722066,
-    "seen": 1795770205.4555802,
-    "ast_hash": "5ad76a73228d2602f68175c3399559f4",
+    "mtime": 1795818333.2184389,
+    "seen": 1795818359.0784423,
+    "ast_hash": "bdfca40f2645869f369a3585bcbdf2d5",
     "semantic_hash": ""
   },
   "web/src/features/plugins/hooks.ts": {
@@ -3654,15 +3654,15 @@
     "semantic_hash": ""
   },
   "web/src/features/plugins/pluginHelpers.test.ts": {
-    "mtime": 1795710119.1728194,
-    "seen": 1795770205.4555838,
-    "ast_hash": "07ed885feffb10367112cccb710de409",
+    "mtime": 1795818202.9403875,
+    "seen": 1795818359.0784726,
+    "ast_hash": "77bcf67d7ca76ad0ebb115f139f5c8e4",
     "semantic_hash": ""
   },
   "web/src/features/plugins/pluginHelpers.ts": {
-    "mtime": 1795710119.1728194,
-    "seen": 1795770205.4555855,
-    "ast_hash": "0ac0a0e8d4c45493976b647344d21f1f",
+    "mtime": 1795818183.5420768,
+    "seen": 1795818359.0784743,
+    "ast_hash": "9ce2f674a07cc109ccc013e566cf8116",
     "semantic_hash": ""
   },
   "web/pwaPlugin.ts": {
@@ -3885,6 +3885,36 @@
     "mtime": 1795814099.195689,
     "seen": 1795814113.8764117,
     "ast_hash": "78c769791963f75ae3b5beb4417f4dd5",
+    "semantic_hash": ""
+  },
+  "internal/modules/plugins/antislop.go": {
+    "mtime": 1795818232.2128563,
+    "seen": 1795818359.0737681,
+    "ast_hash": "a7db535397e3234c769307632841c2b6",
+    "semantic_hash": ""
+  },
+  "internal/modules/plugins/context_squeezer.go": {
+    "mtime": 1795818233.2438726,
+    "seen": 1795818359.0737703,
+    "ast_hash": "55b783de57acfbe13a88b4a733e5e9ec",
+    "semantic_hash": ""
+  },
+  "internal/modules/plugins/json_guard.go": {
+    "mtime": 1795818235.254905,
+    "seen": 1795818359.0737739,
+    "ast_hash": "4d283bf902e8bc111b4d18b5f8e8438c",
+    "semantic_hash": ""
+  },
+  "internal/modules/plugins/runtime_test.go": {
+    "mtime": 1795818082.1814535,
+    "seen": 1795818359.0738065,
+    "ast_hash": "bd1fa17cbcaf58033109546e2cbb29a0",
+    "semantic_hash": ""
+  },
+  "internal/modules/plugins/tool_bridge.go": {
+    "mtime": 1795818237.8539467,
+    "seen": 1795818359.0738082,
+    "ast_hash": "560567aac50d010cfc19db55b4b2e3c7",
     "semantic_hash": ""
   }
 }

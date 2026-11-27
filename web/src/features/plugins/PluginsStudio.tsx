@@ -1,5 +1,16 @@
-import { ChevronDown, ChevronUp, Play, RefreshCw, Save, SlidersHorizontal, X } from "lucide-react";
-import { useState } from "react";
+import {
+  Check,
+  ChevronDown,
+  ChevronUp,
+  Play,
+  RefreshCw,
+  Save,
+  Search,
+  SlidersHorizontal,
+  X,
+} from "lucide-react";
+import { useMemo, useState } from "react";
+import { useModelCatalog } from "@/features/models/hooks";
 import { cn } from "@/shared/lib/utils";
 import { type UILocale, useUIStore } from "@/shared/store/uiStore";
 import { Alert, AlertDescription } from "@/shared/ui/alert";
@@ -17,10 +28,13 @@ import {
 import {
   buildPluginDraft,
   buildPluginUpdatePayload,
+  buildToggleEnabledPayload,
   isPluginDraftDirty,
   type PluginDraft,
+  parseModelAllowlist,
   parsePreviewPayload,
   summarizePluginScope,
+  toggleModelInAllowlist,
 } from "./pluginHelpers";
 
 const SAMPLE_PAYLOAD = JSON.stringify(
@@ -32,10 +46,13 @@ const SAMPLE_PAYLOAD = JSON.stringify(
   2,
 );
 
+const SELECT_CLASS =
+  "flex h-9 w-full rounded-md border border-[var(--border-strong)] bg-[var(--bg-input)] px-3 text-xs text-[var(--text-primary)] transition-colors focus:border-[var(--accent-primary)] focus:outline-none";
+
 const COPY = {
   en: {
     title: "Plugins",
-    subtitle: "Toggle and scope gateway request interceptors.",
+    subtitle: "Toggle and scope request & response gateway plugins.",
     activeCount: (active: number, total: number) => `${active}/${total} active`,
     preview: "Preview",
     hidePreview: "Hide preview",
@@ -44,12 +61,29 @@ const COPY = {
     empty: "No plugins available.",
     configure: "Configure",
     close: "Close",
-    modelsLabel: "Model allowlist",
-    modelsHint: "Comma-separated. Leave blank for all models.",
+    modelsLabel: "Model allowlist & wildcards",
+    modelsHint: "Comma-separated (e.g. gpt-4o, claude-*). Leave blank for all models.",
+    pickerLabel: "Quick model picker",
+    pickerSearch: "Filter catalog models...",
+    pickerEmpty: "No matching catalog models.",
     levelLabel: "Strictness level",
-    levelLight: "Light",
-    levelStandard: "Standard",
-    levelFull: "Full",
+    levelLite: "Lite — core filter + obvious patterns",
+    levelStandard: "Standard — patterns + swap test",
+    levelFull: "Full — craftsmanship + hard gates",
+    levelUltra: "Ultra — mandatory PASS/FAIL delivery report",
+    effortLabel: "Reasoning effort (OpenAI)",
+    effortLow: "Low",
+    effortMedium: "Medium",
+    effortHigh: "High",
+    budgetTokensLabel: "Thinking budget tokens (Claude)",
+    maxTokensLabel: "Optional max_tokens cap",
+    maxTokensHint: "0 disables cap (reasoning disabled only).",
+    forceJsonLabel: "Always enforce JSON mode",
+    forceJsonHint: "Off: enforce only when prompt asks for JSON. Always repairs JSON responses.",
+    contextWindowLabel: "Context window (tokens)",
+    minTurnsLabel: "Minimum kept turns",
+    parallelToolCallsLabel: "Allow parallel tool calls",
+    parallelToolCallsHint: "Sets parallel_tool_calls default when tools are present.",
     save: "Save",
     cancel: "Cancel",
     saved: (name: string) => `Saved ${name}.`,
@@ -65,10 +99,11 @@ const COPY = {
     invalidJson: "Payload must be a valid JSON object.",
     outputPlaceholder: "Run preview to inspect transformed payload.",
     toggleAria: (name: string, enabled: boolean) => `${enabled ? "Disable" : "Enable"} ${name}`,
+    removeModelAria: (model: string) => `Remove ${model}`,
   },
   id: {
     title: "Plugin",
-    subtitle: "Aktifkan dan atur cakupan interceptor request gateway.",
+    subtitle: "Aktifkan dan atur cakupan plugin request & response gateway.",
     activeCount: (active: number, total: number) => `${active}/${total} aktif`,
     preview: "Pratinjau",
     hidePreview: "Tutup pratinjau",
@@ -77,12 +112,29 @@ const COPY = {
     empty: "Belum ada plugin tersedia.",
     configure: "Atur",
     close: "Tutup",
-    modelsLabel: "Daftar model",
-    modelsHint: "Pisahkan dengan koma. Kosongkan untuk semua model.",
+    modelsLabel: "Daftar model & wildcard",
+    modelsHint: "Pisahkan dengan koma (mis. gpt-4o, claude-*). Kosongkan untuk semua model.",
+    pickerLabel: "Pilih model dari katalog",
+    pickerSearch: "Cari model katalog...",
+    pickerEmpty: "Tidak ada model katalog yang cocok.",
     levelLabel: "Tingkat ketegasan",
-    levelLight: "Ringan",
-    levelStandard: "Standar",
-    levelFull: "Penuh",
+    levelLite: "Lite — filter inti + pola umum",
+    levelStandard: "Standar — pola slop + swap test",
+    levelFull: "Penuh — standar kualitas + hard gate",
+    levelUltra: "Ultra — wajib laporan PASS/FAIL",
+    effortLabel: "Reasoning effort (OpenAI)",
+    effortLow: "Rendah",
+    effortMedium: "Sedang",
+    effortHigh: "Tinggi",
+    budgetTokensLabel: "Budget token thinking (Claude)",
+    maxTokensLabel: "Batas opsional max_tokens",
+    maxTokensHint: "0 = tanpa batas (hanya matikan reasoning).",
+    forceJsonLabel: "Selalu paksa mode JSON",
+    forceJsonHint: "Mati: aktif saat prompt meminta JSON. Perbaikan JSON response selalu aktif.",
+    contextWindowLabel: "Batas context window (token)",
+    minTurnsLabel: "Minimum turn dipertahankan",
+    parallelToolCallsLabel: "Izinkan parallel tool calls",
+    parallelToolCallsHint: "Mengisi default parallel_tool_calls saat tools tersedia.",
     save: "Simpan",
     cancel: "Batal",
     saved: (name: string) => `${name} disimpan.`,
@@ -100,6 +152,7 @@ const COPY = {
     outputPlaceholder: "Jalankan pratinjau untuk melihat hasil transformasi.",
     toggleAria: (name: string, enabled: boolean) =>
       `${enabled ? "Nonaktifkan" : "Aktifkan"} ${name}`,
+    removeModelAria: (model: string) => `Hapus ${model}`,
   },
 } as const satisfies Record<UILocale, Record<string, unknown>>;
 
@@ -108,11 +161,13 @@ export function PluginsStudio() {
   const copy = COPY[locale];
 
   const pluginsQuery = usePluginsList();
+  const catalogQuery = useModelCatalog();
   const updateMutation = useUpdatePluginMutation();
   const previewMutation = usePreviewPluginsMutation();
 
   const [expandedKey, setExpandedKey] = useState<string | null>(null);
   const [drafts, setDrafts] = useState<Record<string, PluginDraft>>({});
+  const [modelSearch, setModelSearch] = useState("");
   const [pendingKey, setPendingKey] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
@@ -124,8 +179,35 @@ export function PluginsStudio() {
   const plugins = pluginsQuery.data?.plugins ?? [];
   const activeCount = plugins.filter((plugin) => plugin.enabled).length;
 
+  const catalogModelIds = useMemo(() => {
+    const rows = catalogQuery.data ?? [];
+    const seen = new Set<string>();
+    const out: string[] = [];
+    for (const row of rows) {
+      const id = row.qualifiedId || row.id;
+      if (!id || seen.has(id)) continue;
+      seen.add(id);
+      out.push(id);
+    }
+    return out;
+  }, [catalogQuery.data]);
+
+  const filteredCatalogModels = useMemo(() => {
+    const q = modelSearch.trim().toLowerCase();
+    const list = q ? catalogModelIds.filter((id) => id.toLowerCase().includes(q)) : catalogModelIds;
+    return list.slice(0, 24);
+  }, [catalogModelIds, modelSearch]);
+
   const getDraft = (plugin: PluginState): PluginDraft =>
     drafts[plugin.key] ?? buildPluginDraft(plugin);
+
+  const updateDraft = (plugin: PluginState, patch: Partial<PluginDraft>) => {
+    const current = getDraft(plugin);
+    setDrafts((prev) => ({
+      ...prev,
+      [plugin.key]: { ...current, ...patch },
+    }));
+  };
 
   const handleToggleEnabled = (plugin: PluginState) => {
     const nextEnabled = !plugin.enabled;
@@ -134,7 +216,7 @@ export function PluginsStudio() {
     updateMutation.mutate(
       {
         key: plugin.key,
-        body: buildPluginUpdatePayload(plugin, getDraft(plugin), nextEnabled),
+        body: buildToggleEnabledPayload(plugin, nextEnabled),
       },
       {
         onSuccess: () => setStatusMessage(copy.toggled(plugin.name, nextEnabled)),
@@ -146,12 +228,14 @@ export function PluginsStudio() {
   const handleExpandToggle = (plugin: PluginState) => {
     if (expandedKey === plugin.key) {
       setExpandedKey(null);
+      setModelSearch("");
       return;
     }
     setDrafts((prev) => ({
       ...prev,
       [plugin.key]: buildPluginDraft(plugin),
     }));
+    setModelSearch("");
     setExpandedKey(plugin.key);
   };
 
@@ -168,6 +252,7 @@ export function PluginsStudio() {
         onSuccess: () => {
           setStatusMessage(copy.saved(plugin.name));
           setExpandedKey(null);
+          setModelSearch("");
         },
         onSettled: () => setPendingKey(null),
       },
@@ -292,6 +377,7 @@ export function PluginsStudio() {
               const isRowPending = updateMutation.isPending && pendingKey === plugin.key;
               const draft = getDraft(plugin);
               const isDirty = isPluginDraftDirty(plugin, draft);
+              const selectedModels = parseModelAllowlist(draft.modelsText);
 
               return (
                 <div key={plugin.key}>
@@ -357,24 +443,98 @@ export function PluginsStudio() {
                   </div>
 
                   {isExpanded && (
-                    <div className="border-t border-[var(--border-subtle)] bg-[var(--bg-canvas)] px-4 py-4 sm:px-5">
+                    <div className="space-y-4 border-t border-[var(--border-subtle)] bg-[var(--bg-canvas)] px-4 py-4 sm:px-5">
                       <div className="grid gap-4 sm:grid-cols-2">
-                        <div className="space-y-1.5">
+                        <div className="space-y-2">
                           <Label htmlFor={`plugin-models-${plugin.key}`}>{copy.modelsLabel}</Label>
                           <Input
                             id={`plugin-models-${plugin.key}`}
                             type="text"
                             value={draft.modelsText}
-                            onChange={(e) =>
-                              setDrafts((prev) => ({
-                                ...prev,
-                                [plugin.key]: { ...draft, modelsText: e.target.value },
-                              }))
-                            }
+                            onChange={(e) => updateDraft(plugin, { modelsText: e.target.value })}
                             placeholder="gpt-4o, claude-*"
                             className="h-9 text-xs"
                           />
                           <p className="text-[11px] text-[var(--text-muted)]">{copy.modelsHint}</p>
+
+                          {selectedModels.length > 0 && (
+                            <div className="flex flex-wrap gap-1.5 pt-1">
+                              {selectedModels.map((modelId) => (
+                                <Badge
+                                  key={modelId}
+                                  variant="secondary"
+                                  className="gap-1 font-mono text-[11px]"
+                                >
+                                  <span>{modelId}</span>
+                                  <button
+                                    type="button"
+                                    aria-label={copy.removeModelAria(modelId)}
+                                    onClick={() =>
+                                      updateDraft(plugin, {
+                                        modelsText: toggleModelInAllowlist(
+                                          draft.modelsText,
+                                          modelId,
+                                        ),
+                                      })
+                                    }
+                                    className="text-[var(--text-muted)] transition-colors hover:text-[var(--text-primary)]"
+                                  >
+                                    <X className="h-3 w-3" />
+                                  </button>
+                                </Badge>
+                              ))}
+                            </div>
+                          )}
+
+                          {catalogModelIds.length > 0 && (
+                            <div className="space-y-1.5 pt-1">
+                              <div className="relative">
+                                <Search className="pointer-events-none absolute left-2.5 top-2.5 h-3.5 w-3.5 text-[var(--text-muted)]" />
+                                <Input
+                                  type="text"
+                                  value={modelSearch}
+                                  onChange={(e) => setModelSearch(e.target.value)}
+                                  placeholder={copy.pickerSearch}
+                                  aria-label={copy.pickerLabel}
+                                  className="h-8 pl-8 text-xs"
+                                />
+                              </div>
+                              {filteredCatalogModels.length === 0 ? (
+                                <p className="text-[11px] text-[var(--text-muted)]">
+                                  {copy.pickerEmpty}
+                                </p>
+                              ) : (
+                                <div className="flex max-h-28 flex-wrap gap-1.5 overflow-y-auto rounded-md border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-2">
+                                  {filteredCatalogModels.map((modelId) => {
+                                    const active = selectedModels.includes(modelId);
+                                    return (
+                                      <button
+                                        key={modelId}
+                                        type="button"
+                                        onClick={() =>
+                                          updateDraft(plugin, {
+                                            modelsText: toggleModelInAllowlist(
+                                              draft.modelsText,
+                                              modelId,
+                                            ),
+                                          })
+                                        }
+                                        className={cn(
+                                          "inline-flex items-center gap-1 rounded border px-2 py-0.5 font-mono text-[11px] transition-colors",
+                                          active
+                                            ? "border-[var(--accent-primary)] bg-[var(--accent-subtle)] text-[var(--accent-text)]"
+                                            : "border-[var(--border-subtle)] bg-[var(--bg-canvas)] text-[var(--text-secondary)] hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]",
+                                        )}
+                                      >
+                                        {active && <Check className="h-3 w-3" />}
+                                        <span className="max-w-[200px] truncate">{modelId}</span>
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </div>
 
                         {plugin.key === "antiSlop" && (
@@ -383,23 +543,148 @@ export function PluginsStudio() {
                             <select
                               id={`plugin-level-${plugin.key}`}
                               value={draft.level}
-                              onChange={(e) =>
-                                setDrafts((prev) => ({
-                                  ...prev,
-                                  [plugin.key]: { ...draft, level: e.target.value },
-                                }))
-                              }
-                              className="flex h-9 w-full rounded-md border border-[var(--border-strong)] bg-[var(--bg-input)] px-3 text-xs text-[var(--text-primary)] transition-colors focus:border-[var(--accent-primary)] focus:outline-none"
+                              onChange={(e) => updateDraft(plugin, { level: e.target.value })}
+                              className={SELECT_CLASS}
                             >
-                              <option value="light">{copy.levelLight}</option>
+                              <option value="lite">{copy.levelLite}</option>
                               <option value="standard">{copy.levelStandard}</option>
                               <option value="full">{copy.levelFull}</option>
+                              <option value="ultra">{copy.levelUltra}</option>
                             </select>
+                          </div>
+                        )}
+
+                        {plugin.key === "thinkDeeper" && (
+                          <div className="space-y-3">
+                            <div className="space-y-1.5">
+                              <Label htmlFor={`plugin-effort-${plugin.key}`}>
+                                {copy.effortLabel}
+                              </Label>
+                              <select
+                                id={`plugin-effort-${plugin.key}`}
+                                value={draft.effort}
+                                onChange={(e) => updateDraft(plugin, { effort: e.target.value })}
+                                className={SELECT_CLASS}
+                              >
+                                <option value="low">{copy.effortLow}</option>
+                                <option value="medium">{copy.effortMedium}</option>
+                                <option value="high">{copy.effortHigh}</option>
+                              </select>
+                            </div>
+                            <div className="space-y-1.5">
+                              <Label htmlFor={`plugin-budget-${plugin.key}`}>
+                                {copy.budgetTokensLabel}
+                              </Label>
+                              <Input
+                                id={`plugin-budget-${plugin.key}`}
+                                type="number"
+                                min={1024}
+                                step={1024}
+                                value={draft.budgetTokens}
+                                onChange={(e) =>
+                                  updateDraft(plugin, { budgetTokens: e.target.value })
+                                }
+                                className="h-9 text-xs"
+                              />
+                            </div>
+                          </div>
+                        )}
+
+                        {plugin.key === "speedMode" && (
+                          <div className="space-y-1.5">
+                            <Label htmlFor={`plugin-max-tokens-${plugin.key}`}>
+                              {copy.maxTokensLabel}
+                            </Label>
+                            <Input
+                              id={`plugin-max-tokens-${plugin.key}`}
+                              type="number"
+                              min={0}
+                              step={128}
+                              value={draft.maxTokens}
+                              onChange={(e) => updateDraft(plugin, { maxTokens: e.target.value })}
+                              className="h-9 text-xs"
+                            />
+                            <p className="text-[11px] text-[var(--text-muted)]">
+                              {copy.maxTokensHint}
+                            </p>
+                          </div>
+                        )}
+
+                        {plugin.key === "jsonGuard" && (
+                          <div className="space-y-1.5">
+                            <label className="flex cursor-pointer items-center gap-2.5 pt-1 text-xs font-medium text-[var(--text-primary)]">
+                              <input
+                                type="checkbox"
+                                checked={draft.forceJson}
+                                onChange={(e) =>
+                                  updateDraft(plugin, { forceJson: e.target.checked })
+                                }
+                                className="h-4 w-4 rounded border-[var(--border-strong)] accent-[var(--accent-primary)]"
+                              />
+                              <span>{copy.forceJsonLabel}</span>
+                            </label>
+                            <p className="text-[11px] text-[var(--text-muted)]">
+                              {copy.forceJsonHint}
+                            </p>
+                          </div>
+                        )}
+
+                        {plugin.key === "contextSqueezer" && (
+                          <div className="space-y-3">
+                            <div className="space-y-1.5">
+                              <Label htmlFor={`plugin-ctx-window-${plugin.key}`}>
+                                {copy.contextWindowLabel}
+                              </Label>
+                              <Input
+                                id={`plugin-ctx-window-${plugin.key}`}
+                                type="number"
+                                min={1024}
+                                step={4096}
+                                value={draft.contextWindow}
+                                onChange={(e) =>
+                                  updateDraft(plugin, { contextWindow: e.target.value })
+                                }
+                                className="h-9 text-xs"
+                              />
+                            </div>
+                            <div className="space-y-1.5">
+                              <Label htmlFor={`plugin-min-turns-${plugin.key}`}>
+                                {copy.minTurnsLabel}
+                              </Label>
+                              <Input
+                                id={`plugin-min-turns-${plugin.key}`}
+                                type="number"
+                                min={1}
+                                step={1}
+                                value={draft.minTurns}
+                                onChange={(e) => updateDraft(plugin, { minTurns: e.target.value })}
+                                className="h-9 text-xs"
+                              />
+                            </div>
+                          </div>
+                        )}
+
+                        {plugin.key === "openaiToolBridge" && (
+                          <div className="space-y-1.5">
+                            <label className="flex cursor-pointer items-center gap-2.5 pt-1 text-xs font-medium text-[var(--text-primary)]">
+                              <input
+                                type="checkbox"
+                                checked={draft.parallelToolCalls}
+                                onChange={(e) =>
+                                  updateDraft(plugin, { parallelToolCalls: e.target.checked })
+                                }
+                                className="h-4 w-4 rounded border-[var(--border-strong)] accent-[var(--accent-primary)]"
+                              />
+                              <span>{copy.parallelToolCallsLabel}</span>
+                            </label>
+                            <p className="text-[11px] text-[var(--text-muted)]">
+                              {copy.parallelToolCallsHint}
+                            </p>
                           </div>
                         )}
                       </div>
 
-                      <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-[var(--border-subtle)] pt-3">
+                      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[var(--border-subtle)] pt-3">
                         <span className="font-mono text-[11px] text-[var(--text-muted)]">
                           {plugin.key}
                         </span>
@@ -408,7 +693,10 @@ export function PluginsStudio() {
                             type="button"
                             variant="ghost"
                             size="sm"
-                            onClick={() => setExpandedKey(null)}
+                            onClick={() => {
+                              setExpandedKey(null);
+                              setModelSearch("");
+                            }}
                           >
                             {copy.cancel}
                           </Button>

@@ -41,49 +41,49 @@ var builtinPlugins = []PluginSpec{
 	{
 		Key:         "imageVision",
 		Name:        "Image Vision Helper",
-		Description: "Normalizes image content blocks and injects concise visual analysis instructions when multimodal inputs are present.",
+		Description: "Preserves multimodal image blocks and injects visual-inspection instructions only when image blocks are present.",
 		Category:    "multimodal",
 		DefaultCfg:  map[string]any{},
 	},
 	{
 		Key:         "thinkDeeper",
 		Name:        "Think Deeper",
-		Description: "Injects structured step-by-step reasoning instructions and raises reasoning budget hints for complex prompts.",
+		Description: "Enables provider-native deep reasoning (Claude thinking budget or OpenAI reasoning_effort) for thorough multi-step analysis.",
 		Category:    "reasoning",
-		DefaultCfg:  map[string]any{"effort": "high"},
+		DefaultCfg:  map[string]any{"effort": "high", "budget_tokens": 10240},
 	},
 	{
 		Key:         "speedMode",
 		Name:        "Speed Mode",
-		Description: "Biases requests toward low-latency concise responses by capping verbosity and trimming redundant hints.",
+		Description: "Disables provider-native reasoning/thinking overhead for low-latency direct answers with optional max_tokens cap.",
 		Category:    "performance",
-		DefaultCfg:  map[string]any{"max_tokens": 1024},
+		DefaultCfg:  map[string]any{"max_tokens": 0},
 	},
 	{
 		Key:         "jsonGuard",
 		Name:        "JSON Guard",
-		Description: "Enforces strict JSON output formatting via response_format and system-level schema discipline.",
+		Description: "Requests strict JSON when prompted and repairs malformed/fenced/truncated JSON and tool-call arguments on responses.",
 		Category:    "reliability",
-		DefaultCfg:  map[string]any{},
+		DefaultCfg:  map[string]any{"force": false},
 	},
 	{
 		Key:         "contextSqueezer",
 		Name:        "Context Squeezer",
-		Description: "Compacts redundant whitespace and blank lines in long user/system messages before upstream dispatch.",
+		Description: "Fits long conversations into the target context window by shortening oversized messages and summarizing dropped oldest turns.",
 		Category:    "optimization",
-		DefaultCfg:  map[string]any{"min_chars": 256},
+		DefaultCfg:  map[string]any{"context_window": 128000, "fill_ratio": 0.75, "min_turns": 4},
 	},
 	{
 		Key:         "openaiToolBridge",
 		Name:        "OpenAI Tool Bridge",
-		Description: "Ensures tool_choice and parallel_tool_calls defaults are explicitly normalized for OpenAI-compatible upstreams.",
+		Description: "Normalizes tool_choice/parallel_tool_calls on requests and extracts schema-validated tool_calls from prose responses.",
 		Category:    "tools",
 		DefaultCfg:  map[string]any{"parallel_tool_calls": true},
 	},
 	{
 		Key:         "antiSlop",
 		Name:        "Anti-Slop Filter",
-		Description: "Prepends directness directives to eliminate filler preambles, hedging, and repetitive boilerplate.",
+		Description: "Injects tiered anti-slop craftsmanship rules (lite, standard, full, ultra) to eliminate generic AI UI, copy, and code.",
 		Category:    "quality",
 		DefaultCfg:  map[string]any{"level": "full"},
 	},
@@ -191,16 +191,7 @@ func (r *repository) UpsertPlugin(ctx context.Context, key string, enabled bool,
 		return PluginState{}, ErrPluginNotFound
 	}
 	cleanModels := sanitizeStringSlice(models)
-	mergedCfg := mergeDefaults(spec.DefaultCfg, cfg)
-	if key == "antiSlop" {
-		lvl, _ := mergedCfg["level"].(string)
-		switch strings.ToLower(strings.TrimSpace(lvl)) {
-		case "light", "standard", "full":
-			mergedCfg["level"] = strings.ToLower(strings.TrimSpace(lvl))
-		default:
-			mergedCfg["level"] = "full"
-		}
-	}
+	mergedCfg := sanitizePluginConfig(key, mergeDefaults(spec.DefaultCfg, cfg))
 
 	modelsBytes, err := json.Marshal(cleanModels)
 	if err != nil {
@@ -273,6 +264,60 @@ func mergeDefaults(defaults, override map[string]any) map[string]any {
 	out := cloneMap(defaults)
 	for k, v := range override {
 		out[k] = v
+	}
+	return out
+}
+
+func sanitizePluginConfig(key string, cfg map[string]any) map[string]any {
+	out := cloneMap(cfg)
+	switch key {
+	case "antiSlop":
+		lvl, _ := out["level"].(string)
+		out["level"] = normalizeAntiSlopLevel(lvl)
+	case "thinkDeeper":
+		effort, _ := out["effort"].(string)
+		switch strings.ToLower(strings.TrimSpace(effort)) {
+		case "low", "medium", "high":
+			out["effort"] = strings.ToLower(strings.TrimSpace(effort))
+		default:
+			out["effort"] = "high"
+		}
+		budget := intFromAny(out["budget_tokens"])
+		if budget < 1024 {
+			budget = 10240
+		}
+		out["budget_tokens"] = budget
+	case "speedMode":
+		mt := intFromAny(out["max_tokens"])
+		if mt < 0 {
+			mt = 0
+		}
+		out["max_tokens"] = mt
+	case "jsonGuard":
+		force, _ := out["force"].(bool)
+		out["force"] = force
+	case "contextSqueezer":
+		ctxWin := intFromAny(out["context_window"])
+		if ctxWin < 1024 {
+			ctxWin = defaultContextWindow
+		}
+		out["context_window"] = ctxWin
+		ratio := floatFromAny(out["fill_ratio"])
+		if ratio <= 0.1 || ratio > 0.95 {
+			ratio = defaultFillRatio
+		}
+		out["fill_ratio"] = ratio
+		minTurns := intFromAny(out["min_turns"])
+		if minTurns < 1 {
+			minTurns = defaultMinTurns
+		}
+		out["min_turns"] = minTurns
+	case "openaiToolBridge":
+		if ptc, ok := out["parallel_tool_calls"].(bool); ok {
+			out["parallel_tool_calls"] = ptc
+		} else {
+			out["parallel_tool_calls"] = true
+		}
 	}
 	return out
 }
