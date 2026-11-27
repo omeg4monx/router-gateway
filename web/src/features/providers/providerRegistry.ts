@@ -8016,6 +8016,35 @@ export const PROVIDER_REGISTRY: readonly ProviderRegistrySpec[] = [
     noAuth: true,
     priority: 220,
   },
+  {
+    id: "tokenharbor",
+    name: "Token Harbor",
+    alias: "tokenharbor",
+    aliases: ["token-harbor"],
+    category: "apikey",
+    sourceCategory: "freeTier",
+    protocol: "openai-chat",
+    authType: "api_key",
+    baseUrl: "https://tokenharbor.ai/v1",
+    defaultModels: ["deepseek-v4.1-flash:free", "mimo-v2.6-flash:free"],
+    website: "https://tokenharbor.ai",
+    apiKeyUrl: "https://tokenharbor.ai/dashboard/api-keys",
+    noticeText:
+      "Unified OpenAI-compatible AI gateway with subscription pass and rolling 7-day free-tier allowances.",
+    priority: 45,
+    models: [
+      {
+        id: "deepseek-v4.1-flash:free",
+        name: "DeepSeek V4.1 Flash (Free)",
+        isFree: true,
+      },
+      {
+        id: "mimo-v2.6-flash:free",
+        name: "MiMo V2.6 Flash (Free)",
+        isFree: true,
+      },
+    ],
+  },
 ] as const;
 
 export const PROVIDER_REGISTRY_MAP: ReadonlyMap<string, ProviderRegistrySpec> = new Map(

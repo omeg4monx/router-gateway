@@ -11,13 +11,14 @@ import {
 } from "./navigation";
 
 describe("shared/ui/navigation (main LeftRail layout parity)", () => {
-  test("preserves all 23 dashboard routes with unique trailing-slash hrefs and expanded accordions", () => {
-    expect(ALL_NAV_ITEMS).toHaveLength(23);
+  test("preserves all 24 dashboard routes with unique trailing-slash hrefs and expanded accordions", () => {
+    expect(ALL_NAV_ITEMS).toHaveLength(24);
     expect(EXTENSION_GROUPS).toHaveLength(2);
     expect(EXTENSION_GROUPS.every((group) => group.defaultExpanded)).toBe(true);
 
     const hrefs = ALL_NAV_ITEMS.map((item) => item.href);
-    expect(new Set(hrefs).size).toBe(23);
+    expect(new Set(hrefs).size).toBe(24);
+    expect(hrefs).toContain("/dashboard/quota/");
     expect(hrefs).not.toContain("/dashboard/models/");
     for (const href of hrefs) {
       expect(href.startsWith("/dashboard/")).toBe(true);
@@ -46,7 +47,13 @@ describe("shared/ui/navigation (main LeftRail layout parity)", () => {
 
   test("filters menu items across English labels, Indonesian labels, and keywords", () => {
     const all = resolveVisibleNavigation({ query: "" });
-    expect(countVisibleNavItems(all)).toBe(23);
+    expect(countVisibleNavItems(all)).toBe(24);
+
+    const byQuota = resolveVisibleNavigation({ query: "tokenharbor" });
+    expect(byQuota.operations.map((i) => i.href)).toEqual(["/dashboard/quota/"]);
+
+    const byKuota = resolveVisibleNavigation({ query: "kuota" });
+    expect(byKuota.operations.map((i) => i.href)).toEqual(["/dashboard/quota/"]);
 
     const byPlayground = resolveVisibleNavigation({ query: "playground" });
     expect(byPlayground.extensions.flatMap((g) => g.items).map((i) => i.href)).toContain(
@@ -75,7 +82,10 @@ describe("shared/ui/navigation (main LeftRail layout parity)", () => {
     });
 
     expect(restricted.routing.map((i) => i.href)).toEqual(["/dashboard/", "/dashboard/providers/"]);
-    expect(restricted.operations.map((i) => i.href)).toEqual(["/dashboard/keys/"]);
+    expect(restricted.operations.map((i) => i.href)).toEqual([
+      "/dashboard/keys/",
+      "/dashboard/quota/",
+    ]);
     expect(restricted.extensions).toHaveLength(0);
     expect(restricted.settings?.href).toBe("/dashboard/settings/");
   });

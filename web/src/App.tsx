@@ -71,6 +71,9 @@ const ProxyPoolsConsole = lazy(() =>
 const PxpipeConsole = lazy(() =>
   import("@/features/pxpipe/PxpipeConsole").then((m) => ({ default: m.PxpipeConsole })),
 );
+const QuotaConsole = lazy(() =>
+  import("@/features/quota/QuotaConsole").then((m) => ({ default: m.QuotaConsole })),
+);
 const SecurityConsole = lazy(() =>
   import("@/features/security/SecurityConsole").then((m) => ({ default: m.SecurityConsole })),
 );
@@ -145,6 +148,7 @@ export const DASHBOARD_ROUTE_PATHS = [
   "providers/detail",
   "proxy-pools",
   "pxpipe",
+  "quota",
   "security",
   "settings",
   "telegram",
@@ -183,6 +187,7 @@ export function App() {
                 <Route path="providers/detail" element={<ProviderDetailView />} />
                 <Route path="proxy-pools" element={<ProxyPoolsConsole />} />
                 <Route path="pxpipe" element={<PxpipeConsole />} />
+                <Route path="quota" element={<QuotaConsole />} />
                 <Route path="security" element={<SecurityConsole />} />
                 <Route path="settings" element={<SettingsConsole />} />
                 <Route path="telegram" element={<TelegramConsole />} />

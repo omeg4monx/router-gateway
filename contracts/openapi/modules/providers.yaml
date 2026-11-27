@@ -395,6 +395,88 @@ paths:
             application/json:
               schema:
                 $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+  /api/providers/quotas:
+    get:
+      operationId: listProviderQuotas
+      summary: Fetch normalized upstream provider quota snapshots for all supported connections
+      tags:
+        - providers
+      parameters:
+        - name: provider_id
+          in: query
+          required: false
+          description: Optional provider or quota fetcher identifier filter (e.g., tokenharbor).
+          schema:
+            type: string
+        - name: refresh
+          in: query
+          required: false
+          description: Bypass the 15-second in-memory cache and fetch fresh quota data upstream.
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: Normalized provider quota snapshots across supported connections.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProviderQuotasResponse'
+        '401':
+          description: Administrative authentication is required.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '500':
+          description: Failed to load provider connections.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+  /api/providers/connections/{id}/quota/refresh:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: Unique provider connection identifier.
+        schema:
+          type: string
+    post:
+      operationId: refreshProviderConnectionQuota
+      summary: Force a live upstream quota refresh for a single supported provider connection
+      tags:
+        - providers
+      responses:
+        '200':
+          description: Freshly fetched quota snapshot for the requested connection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProviderConnectionQuota'
+        '400':
+          description: Connection does not support live quota inspection.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Administrative authentication is required.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Provider connection not found.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '500':
+          description: Failed to load provider connection.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
   /api/providers/oauth/{provider}/start:
     parameters:
       - name: provider
@@ -1148,3 +1230,123 @@ components:
       properties:
         stopped:
           type: boolean
+    ProviderQuotaStatus:
+      type: string
+      enum:
+        - ok
+        - low
+        - exhausted
+        - not_activated
+        - error
+    ProviderQuotaBucket:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - label
+        - used_pct
+        - remaining_pct
+        - exhausted
+        - period_started_at
+        - period_ends_at
+        - reset_at
+      properties:
+        id:
+          type: string
+        label:
+          type: string
+        used_pct:
+          type: number
+        remaining_pct:
+          type: number
+        exhausted:
+          type: boolean
+        period_started_at:
+          type:
+            - string
+            - 'null'
+        period_ends_at:
+          type:
+            - string
+            - 'null'
+        reset_at:
+          type:
+            - string
+            - 'null'
+    ProviderConnectionQuota:
+      type: object
+      additionalProperties: false
+      required:
+        - connection_id
+        - provider_id
+        - provider_name
+        - fetcher_id
+        - connection_name
+        - auth_type
+        - enabled
+        - status
+        - plan_name
+        - on_plan
+        - activated
+        - buckets
+        - models
+        - fetched_at
+        - cached
+        - error
+      properties:
+        connection_id:
+          type: string
+        provider_id:
+          type: string
+        provider_name:
+          type: string
+        fetcher_id:
+          type: string
+        connection_name:
+          type: string
+        auth_type:
+          type: string
+        enabled:
+          type: boolean
+        status:
+          $ref: '#/components/schemas/ProviderQuotaStatus'
+        plan_name:
+          type:
+            - string
+            - 'null'
+        on_plan:
+          type: boolean
+        activated:
+          type: boolean
+        buckets:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProviderQuotaBucket'
+        models:
+          type: array
+          items:
+            type: string
+        fetched_at:
+          type: string
+        cached:
+          type: boolean
+        error:
+          type: string
+    ProviderQuotasResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - quotas
+        - supported_providers
+        - fetched_at
+      properties:
+        quotas:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProviderConnectionQuota'
+        supported_providers:
+          type: array
+          items:
+            type: string
+        fetched_at:
+          type: string
