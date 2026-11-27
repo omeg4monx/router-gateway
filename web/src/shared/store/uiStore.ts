@@ -3,14 +3,30 @@ import { create } from "zustand";
 export type ThemeMode = "dark" | "light";
 export type UILocale = "en" | "id";
 
+export const THEME_COLOR_BY_MODE: Record<ThemeMode, string> = {
+  light: "#f5f6f8",
+  dark: "#050608",
+};
+
 const THEME_STORAGE_KEY = "omeg4mon-theme";
 const LOCALE_STORAGE_KEY = "omeg4mon-locale";
+
+function syncThemeColorMeta(theme: ThemeMode): void {
+  if (typeof document === "undefined") {
+    return;
+  }
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) {
+    meta.setAttribute("content", THEME_COLOR_BY_MODE[theme]);
+  }
+}
 
 function applyThemeToDocument(theme: ThemeMode): void {
   if (typeof document === "undefined") {
     return;
   }
   document.documentElement.setAttribute("data-theme", theme);
+  syncThemeColorMeta(theme);
   try {
     window.localStorage.setItem(THEME_STORAGE_KEY, theme);
   } catch {
@@ -58,6 +74,7 @@ export const useUIStore = create<UIState>((set, get) => ({
     }
     const attr = document.documentElement.getAttribute("data-theme");
     if (attr === "light" || attr === "dark") {
+      syncThemeColorMeta(attr);
       set({ theme: attr });
     }
   },

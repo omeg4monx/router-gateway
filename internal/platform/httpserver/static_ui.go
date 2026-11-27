@@ -12,6 +12,7 @@ import (
 const (
 	immutableCacheControl = "public, max-age=31536000, immutable"
 	htmlCacheControl      = "no-store, no-cache, must-revalidate"
+	manifestCacheControl  = "no-cache"
 )
 
 // NewStaticUIHandler returns an http.Handler serving a static-exported SPA from
@@ -122,10 +123,18 @@ func isMissingAssetPath(rel string) bool {
 }
 
 func applyStaticCacheHeaders(h http.Header, servedName string) {
+	lower := strings.ToLower(servedName)
 	switch {
 	case strings.HasPrefix(servedName, "assets/"), strings.HasPrefix(servedName, "_next/static/"):
 		h.Set("Cache-Control", immutableCacheControl)
-	case strings.HasSuffix(strings.ToLower(servedName), ".html"):
+	case lower == "sw.js":
+		h.Set("Cache-Control", htmlCacheControl)
+		h.Set("Service-Worker-Allowed", "/")
+		h.Set("Content-Type", "text/javascript; charset=utf-8")
+	case strings.HasSuffix(lower, ".webmanifest"):
+		h.Set("Cache-Control", manifestCacheControl)
+		h.Set("Content-Type", "application/manifest+json")
+	case strings.HasSuffix(lower, ".html"):
 		h.Set("Cache-Control", htmlCacheControl)
 	}
 }

@@ -15,6 +15,8 @@ import { Link, useLocation, useNavigate } from "react-router";
 import { useAuthSession, useLogoutMutation } from "@/features/auth/hooks";
 import { useSystemHealth, useSystemVersion } from "@/features/system/hooks";
 import { cn } from "@/shared/lib/utils";
+import { PwaInstallButton, PwaStatusBanner } from "@/shared/pwa/PwaControls";
+import { usePwaStatus } from "@/shared/pwa/usePwaStatus";
 import { useUIStore } from "@/shared/store/uiStore";
 import { Button } from "./button";
 import { CaduceusLogo } from "./CaduceusLogo";
@@ -65,6 +67,7 @@ export function AppShell({ children }: AppShellProps) {
   const logoutMutation = useLogoutMutation();
   const healthQuery = useSystemHealth();
   const versionQuery = useSystemVersion();
+  const pwaStatus = usePwaStatus();
 
   const mobileNavOpen = useUIStore((state) => state.mobileNavOpen);
   const setMobileNavOpen = useUIStore((state) => state.setMobileNavOpen);
@@ -227,12 +230,28 @@ export function AppShell({ children }: AppShellProps) {
   const activeRouteLabel = activeContext ? activeContext.item.labels[locale] : copy.fallbackTitle;
 
   const gatewayStatus = healthQuery.isPending
-    ? { label: copy.gatewayChecking, dotClass: "bg-[var(--text-muted)]", pulse: false }
+    ? {
+        label: copy.gatewayChecking,
+        dotClass: "bg-[var(--text-muted)]",
+        pulse: false,
+      }
     : healthQuery.isError || !healthQuery.data
-      ? { label: copy.gatewayOffline, dotClass: "bg-[var(--status-error)]", pulse: false }
+      ? {
+          label: copy.gatewayOffline,
+          dotClass: "bg-[var(--status-error)]",
+          pulse: false,
+        }
       : healthQuery.data.status === "ok"
-        ? { label: copy.gatewayOnline, dotClass: "bg-[var(--status-ok)]", pulse: true }
-        : { label: copy.gatewayDegraded, dotClass: "bg-[var(--status-warn)]", pulse: true };
+        ? {
+            label: copy.gatewayOnline,
+            dotClass: "bg-[var(--status-ok)]",
+            pulse: true,
+          }
+        : {
+            label: copy.gatewayDegraded,
+            dotClass: "bg-[var(--status-warn)]",
+            pulse: true,
+          };
 
   const versionTag = versionQuery.data?.version
     ? `v${versionQuery.data.version.replace(/^v/i, "")}`
@@ -555,7 +574,9 @@ export function AppShell({ children }: AppShellProps) {
                             </span>
                             <ChevronRight
                               className="h-3.5 w-3.5 shrink-0 text-[var(--color-text-subtle)] transition-transform duration-200 ease-[var(--ease-spring)]"
-                              style={{ transform: isExpanded ? "rotate(90deg)" : "rotate(0deg)" }}
+                              style={{
+                                transform: isExpanded ? "rotate(90deg)" : "rotate(0deg)",
+                              }}
                               aria-hidden="true"
                             />
                             {groupHasActive ? (
@@ -784,6 +805,13 @@ export function AppShell({ children }: AppShellProps) {
                 </kbd>
               </button>
 
+              <PwaInstallButton
+                canInstall={pwaStatus.canInstall}
+                isInstalling={pwaStatus.isInstalling}
+                onInstall={() => {
+                  void pwaStatus.promptInstall();
+                }}
+              />
               <LocaleToggle />
               <ThemeToggle />
 
@@ -809,6 +837,7 @@ export function AppShell({ children }: AppShellProps) {
         </header>
 
         <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6 lg:px-8">
+          <PwaStatusBanner status={pwaStatus} />
           {children}
         </main>
       </div>
