@@ -18,6 +18,12 @@ describe("OmniRoute provider card flow & styling", () => {
     expect(consoleSource).toContain('"Setup"');
     expect(consoleSource).toContain('"Add API Key"');
   });
+
+  test("ProvidersConsole renders a dedicated top Active & Connected section via buildProviderSectionBuckets", () => {
+    expect(consoleSource).toContain("buildProviderSectionBuckets");
+    expect(consoleSource).toContain("Provider Aktif & Terkoneksi");
+    expect(consoleSource).toContain("Active & Connected Providers");
+  });
 });
 
 describe("OmniRoute provider detail page (?provider=<id>) flow & styling", () => {

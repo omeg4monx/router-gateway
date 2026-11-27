@@ -30,14 +30,15 @@ import { Badge } from "@/shared/ui/badge";
 import { Button } from "@/shared/ui/button";
 import {
   buildProviderEntries,
+  buildProviderSectionBuckets,
   computeFleetTelemetry,
   countCategoryBuckets,
   countStatusBuckets,
   matchesProviderSearch,
   matchesStatusFilter,
-  type ProviderCategory,
   type ProviderCategoryTab,
   type ProviderEntry,
+  type ProviderSectionKey,
   type ProviderSortOrder,
   type ProviderStatusFilter,
   sortProviderEntries,
@@ -125,20 +126,37 @@ function SectionHeader({
   title,
   count,
   action,
+  tone = "default",
 }: {
   icon: ReactNode;
   title: string;
   count: number;
   action?: ReactNode;
+  tone?: "default" | "active";
 }) {
+  const isActiveTone = tone === "active";
   return (
     <div className="flex flex-wrap items-center justify-between gap-2">
       <div className="flex min-w-0 items-center gap-2">
-        <span className="shrink-0 text-[var(--color-primary)]">{icon}</span>
+        <span
+          className={cn(
+            "shrink-0",
+            isActiveTone ? "text-[var(--status-ok)]" : "text-[var(--color-primary)]",
+          )}
+        >
+          {icon}
+        </span>
         <h3 className="truncate text-sm font-semibold tracking-tight text-[var(--color-text-main)]">
           {title}
         </h3>
-        <span className="shrink-0 rounded-full border border-[var(--color-border-subtle)] bg-[var(--color-surface-2)] px-2 py-0.5 font-mono text-[11px] tabular-nums text-[var(--color-text-muted)]">
+        <span
+          className={cn(
+            "shrink-0 rounded-full border px-2 py-0.5 font-mono text-[11px] tabular-nums",
+            isActiveTone
+              ? "border-[var(--status-ok-border)] bg-[var(--status-ok-bg)] text-[var(--status-ok)]"
+              : "border-[var(--color-border-subtle)] bg-[var(--color-surface-2)] text-[var(--color-text-muted)]",
+          )}
+        >
           {count}
         </span>
       </div>
@@ -621,38 +639,38 @@ export function ProvidersConsole() {
     },
   ];
 
-  const allSections: Array<{
-    key: ProviderCategory;
-    title: string;
-    icon: ReactNode;
-    entries: ProviderEntry[];
-  }> = [
-    {
-      key: "custom",
-      title: isId ? "Custom Endpoints" : "Custom Endpoints",
-      icon: <Terminal className="h-4 w-4" aria-hidden="true" />,
-      entries: filteredEntries.filter((e) => e.category === "custom"),
+  const sectionMeta: Record<
+    ProviderSectionKey,
+    { title: string; icon: ReactNode; tone?: "default" | "active" }
+  > = {
+    active: {
+      title: isId ? "Provider Aktif & Terkoneksi" : "Active & Connected Providers",
+      icon: <CheckCircle2 className="h-4 w-4" aria-hidden="true" />,
+      tone: "active",
     },
-    {
-      key: "oauth",
+    custom: {
+      title: "Custom Endpoints",
+      icon: <Terminal className="h-4 w-4" aria-hidden="true" />,
+    },
+    oauth: {
       title: isId ? "Provider OAuth" : "OAuth Providers",
       icon: <ShieldCheck className="h-4 w-4" aria-hidden="true" />,
-      entries: filteredEntries.filter((e) => e.category === "oauth"),
     },
-    {
-      key: "apikey",
+    apikey: {
       title: isId ? "Provider API Key" : "API Key Providers",
       icon: <KeyRound className="h-4 w-4" aria-hidden="true" />,
-      entries: filteredEntries.filter((e) => e.category === "apikey"),
     },
-    {
-      key: "free",
+    free: {
       title: isId ? "Free Tier & Web Session" : "Free Tier & Web Session Providers",
       icon: <Globe className="h-4 w-4" aria-hidden="true" />,
-      entries: filteredEntries.filter((e) => e.category === "free"),
     },
-  ];
-  const sectionsToRender = allSections.filter((sec) => sec.entries.length > 0);
+  };
+  const sectionsToRender = buildProviderSectionBuckets(filteredEntries, {
+    includeActiveSection: statusFilter !== "error",
+  }).map((bucket) => ({
+    ...bucket,
+    ...sectionMeta[bucket.key],
+  }));
 
   return (
     <div className="flex min-w-0 flex-col gap-5">
@@ -1236,11 +1254,20 @@ export function ProvidersConsole() {
             const isTestingSection = testingScope === `cat:${section.key}`;
 
             return (
-              <section key={section.key} className="space-y-3">
+              <section
+                key={section.key}
+                className={cn(
+                  "space-y-3",
+                  section.key === "active" &&
+                    sectionsToRender.length > 1 &&
+                    "border-b border-[var(--color-border-subtle)] pb-6",
+                )}
+              >
                 <SectionHeader
                   icon={section.icon}
                   title={section.title}
                   count={section.entries.length}
+                  tone={section.tone}
                   action={
                     <button
                       type="button"
