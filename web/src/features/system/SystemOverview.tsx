@@ -463,7 +463,7 @@ export function SystemOverview() {
               {
                 step: "3",
                 href: "/dashboard/chat/",
-                title: isId ? "Uji di Obrolan Dasar" : "Test in Basic Chat",
+                title: isId ? "Uji di Playground" : "Test in Playground",
                 sub: isId
                   ? "Verifikasi routing langsung di studio"
                   : "Verify live routing in the studio",

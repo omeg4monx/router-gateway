@@ -37,11 +37,21 @@ describe("shared/ui/navigation (main LeftRail layout parity)", () => {
 
     const pluginCtx = findActiveNavContext("/dashboard/plugins/");
     expect(pluginCtx?.accordionId).toBe("features");
+
+    const playgroundCtx = findActiveNavContext("/dashboard/chat/");
+    expect(playgroundCtx?.accordionId).toBe("features");
+    expect(playgroundCtx?.item.labels.en).toBe("Playground");
+    expect(playgroundCtx?.item.labels.id).toBe("Playground");
   });
 
   test("filters menu items across English labels, Indonesian labels, and keywords", () => {
     const all = resolveVisibleNavigation({ query: "" });
     expect(countVisibleNavItems(all)).toBe(23);
+
+    const byPlayground = resolveVisibleNavigation({ query: "playground" });
+    expect(byPlayground.extensions.flatMap((g) => g.items).map((i) => i.href)).toContain(
+      "/dashboard/chat/",
+    );
 
     const byEn = resolveVisibleNavigation({ query: "token saver" });
     expect(byEn.operations.map((i) => i.href)).toEqual(["/dashboard/token-saver/"]);

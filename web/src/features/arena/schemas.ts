@@ -37,10 +37,23 @@ export const createChatSessionFormSchema = z.object({
   title: z.string().trim().max(120).optional().default(""),
   model: z.string().trim().min(1, "Model is required"),
   system_prompt: z.string().trim().optional().default(""),
+  temperature: z.coerce.number().min(0).max(2).optional(),
+  max_tokens: z.coerce.number().int().min(0).max(128000).optional(),
 });
 
 export type CreateChatSessionFormInput = z.input<typeof createChatSessionFormSchema>;
 export type CreateChatSessionFormOutput = z.output<typeof createChatSessionFormSchema>;
+
+export const updateChatSessionFormSchema = z.object({
+  title: z.string().trim().min(1, "Title is required").max(120),
+  model: z.string().trim().min(1, "Model is required"),
+  system_prompt: z.string().trim().optional().default(""),
+  temperature: z.coerce.number().min(0).max(2).optional(),
+  max_tokens: z.coerce.number().int().min(0).max(128000).optional(),
+});
+
+export type UpdateChatSessionFormInput = z.input<typeof updateChatSessionFormSchema>;
+export type UpdateChatSessionFormOutput = z.output<typeof updateChatSessionFormSchema>;
 
 export const chatMessageFormSchema = z.object({
   content: z.string().trim().min(1, "Message cannot be empty"),
