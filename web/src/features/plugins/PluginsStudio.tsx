@@ -20,6 +20,7 @@ import { Button } from "@/shared/ui/button";
 import { Card, CardContent } from "@/shared/ui/card";
 import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
+import { Skeleton } from "@/shared/ui/skeleton";
 import {
   type PluginState,
   usePluginsList,
@@ -332,13 +333,13 @@ export function PluginsStudio() {
             {[0, 1, 2].map((item) => (
               <div key={item} className="flex items-center justify-between gap-4 px-5 py-4">
                 <div className="flex items-center gap-3.5">
-                  <div className="h-5 w-9 animate-pulse rounded-full bg-[var(--bg-surface-raised)]" />
+                  <Skeleton className="h-5 w-9 rounded-full" />
                   <div className="space-y-1.5">
-                    <div className="h-4 w-36 animate-pulse rounded bg-[var(--bg-surface-raised)]" />
-                    <div className="h-3 w-56 animate-pulse rounded bg-[var(--bg-surface-raised)]" />
+                    <Skeleton className="h-4 w-36" />
+                    <Skeleton className="h-3 w-56" />
                   </div>
                 </div>
-                <div className="h-7 w-16 animate-pulse rounded bg-[var(--bg-surface-raised)]" />
+                <Skeleton className="h-7 w-16" />
               </div>
             ))}
           </div>

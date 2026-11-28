@@ -25,6 +25,7 @@ import { cn } from "@/shared/lib/utils";
 import { useUIStore } from "@/shared/store/uiStore";
 import { Alert, AlertDescription, AlertTitle } from "@/shared/ui/alert";
 import { Button } from "@/shared/ui/button";
+import { Skeleton } from "@/shared/ui/skeleton";
 import {
   countKeyStatusBuckets,
   filterKeysByStatusAndSearch,
@@ -594,11 +595,16 @@ export function KeysConsole() {
             </Button>
           </Alert>
         ) : keysQuery.isPending ? (
-          <div className="space-y-2.5">
+          <div
+            className="space-y-2.5"
+            role="status"
+            aria-busy="true"
+            aria-label={isId ? "Memuat kunci API" : "Loading API keys"}
+          >
             {SKELETON_CARDS.map((id) => (
-              <div
+              <Skeleton
                 key={id}
-                className="h-28 animate-pulse rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-surface)] p-4"
+                className="h-28 w-full rounded-xl border border-[var(--color-border-subtle)]"
               />
             ))}
           </div>

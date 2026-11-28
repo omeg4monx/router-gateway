@@ -1,6 +1,7 @@
 import { Cpu, HardDrive } from "lucide-react";
 import { memo } from "react";
 import { cn } from "@/shared/lib/utils";
+import { Skeleton } from "@/shared/ui/skeleton";
 import { useSystemTelemetry } from "./hooks";
 
 function formatBytesGB(bytes: number | undefined): string {
@@ -87,10 +88,10 @@ export const HostTelemetryCard = memo(function HostTelemetryCard({
         </div>
 
         {telemetryQuery.isPending ? (
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-            <div className="h-12 animate-pulse rounded-lg bg-[var(--color-surface-2)]/70" />
-            <div className="h-12 animate-pulse rounded-lg bg-[var(--color-surface-2)]/70" />
-            <div className="h-12 animate-pulse rounded-lg bg-[var(--color-surface-2)]/70" />
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-3" role="status" aria-busy="true">
+            <Skeleton className="h-12 rounded-lg" />
+            <Skeleton className="h-12 rounded-lg" />
+            <Skeleton className="h-12 rounded-lg" />
           </div>
         ) : !sys ? (
           <p className="text-xs text-[var(--color-text-muted)]">

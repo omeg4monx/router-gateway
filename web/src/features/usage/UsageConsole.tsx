@@ -18,6 +18,7 @@ import { Badge } from "@/shared/ui/badge";
 import { Button } from "@/shared/ui/button";
 import { Card } from "@/shared/ui/card";
 import { Input } from "@/shared/ui/input";
+import { Skeleton } from "@/shared/ui/skeleton";
 import { useUsageLogs, useUsageSummary } from "./hooks";
 import {
   computeBarPercent,
@@ -331,7 +332,7 @@ export function UsageConsole() {
             />
           </div>
           {summaryQuery.isPending ? (
-            <div className="mt-1.5 h-5 w-16 animate-pulse rounded bg-[var(--bg-surface-raised)]" />
+            <Skeleton className="mt-1.5 h-5 w-16" />
           ) : (
             <div className="mt-1 flex items-baseline justify-between gap-1.5">
               <span className="font-mono text-base font-semibold tracking-tight text-[var(--text-primary)] tabular-nums sm:text-lg">
@@ -359,7 +360,7 @@ export function UsageConsole() {
             <Cpu className="h-3.5 w-3.5 shrink-0 text-[var(--accent-primary)]" aria-hidden="true" />
           </div>
           {summaryQuery.isPending ? (
-            <div className="mt-1.5 h-5 w-20 animate-pulse rounded bg-[var(--bg-surface-raised)]" />
+            <Skeleton className="mt-1.5 h-5 w-20" />
           ) : (
             <div className="mt-1 flex items-baseline justify-between gap-1.5">
               <span className="font-mono text-base font-semibold tracking-tight text-[var(--text-primary)] tabular-nums sm:text-lg">
@@ -384,7 +385,7 @@ export function UsageConsole() {
             />
           </div>
           {summaryQuery.isPending ? (
-            <div className="mt-1.5 h-5 w-16 animate-pulse rounded bg-[var(--bg-surface-raised)]" />
+            <Skeleton className="mt-1.5 h-5 w-16" />
           ) : (
             <div className="mt-1 flex items-baseline justify-between gap-1.5">
               <span className="font-mono text-base font-semibold tracking-tight text-[var(--text-primary)] tabular-nums sm:text-lg">
@@ -408,7 +409,7 @@ export function UsageConsole() {
             />
           </div>
           {summaryQuery.isPending ? (
-            <div className="mt-1.5 h-5 w-20 animate-pulse rounded bg-[var(--bg-surface-raised)]" />
+            <Skeleton className="mt-1.5 h-5 w-20" />
           ) : (
             <div className="mt-1 flex items-baseline justify-between gap-1.5">
               <span className="font-mono text-base font-semibold tracking-tight text-[var(--text-primary)] tabular-nums sm:text-lg">
@@ -487,11 +488,11 @@ export function UsageConsole() {
 
           <div className="min-h-0 flex-1 overflow-y-auto p-2.5 sm:p-3">
             {summaryQuery.isPending ? (
-              <div className="space-y-3 p-1">
+              <div className="space-y-3 p-1" role="status" aria-busy="true">
                 {[0, 1, 2, 3].map((idx) => (
                   <div key={idx} className="space-y-1.5">
-                    <div className="h-3.5 w-2/3 animate-pulse rounded bg-[var(--bg-surface-raised)]" />
-                    <div className="h-1.5 w-full animate-pulse rounded bg-[var(--bg-surface-raised)]" />
+                    <Skeleton className="h-3.5 w-2/3" />
+                    <Skeleton className="h-1.5 w-full" />
                   </div>
                 ))}
               </div>
@@ -739,10 +740,7 @@ export function UsageConsole() {
             ) : logsQuery.isPending ? (
               <div className="space-y-2.5 p-3.5">
                 {[0, 1, 2, 3, 4].map((idx) => (
-                  <div
-                    key={idx}
-                    className="h-12 w-full animate-pulse rounded-md bg-[var(--bg-surface-raised)]"
-                  />
+                  <Skeleton key={idx} className="h-12 w-full rounded-md" />
                 ))}
               </div>
             ) : logs.length === 0 ? (

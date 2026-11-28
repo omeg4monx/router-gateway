@@ -39,6 +39,7 @@ import { useUIStore } from "@/shared/store/uiStore";
 import { Alert, AlertDescription, AlertTitle } from "@/shared/ui/alert";
 import { Badge } from "@/shared/ui/badge";
 import { Button } from "@/shared/ui/button";
+import { Skeleton } from "@/shared/ui/skeleton";
 import {
   buildProviderEntries,
   buildProviderSectionBuckets,
@@ -105,37 +106,39 @@ const CARD_SKELETON_KEYS = [
 
 function ProvidersLoadingSkeleton() {
   return (
-    <div className="flex min-w-0 flex-col gap-5 animate-pulse">
+    <div
+      role="status"
+      aria-busy="true"
+      aria-label="Loading providers"
+      className="flex min-w-0 flex-col gap-5"
+    >
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex min-w-0 items-center gap-3">
-          <div className="h-9 w-9 shrink-0 rounded-xl bg-[var(--color-surface-2)]" />
+          <Skeleton className="h-9 w-9 shrink-0 rounded-xl" />
           <div className="min-w-0 flex-1 space-y-1.5">
-            <div className="h-5 w-32 max-w-full rounded bg-[var(--color-surface-2)]" />
-            <div className="h-3 w-64 max-w-full rounded bg-[var(--color-surface-2)]" />
+            <Skeleton className="h-5 w-32 max-w-full" />
+            <Skeleton className="h-3 w-64 max-w-full" />
           </div>
         </div>
         <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:items-center">
-          <div className="h-9 w-full rounded-lg bg-[var(--color-surface-2)] sm:h-8 sm:w-24" />
-          <div className="h-9 w-full rounded-lg bg-[var(--color-surface-2)] sm:h-8 sm:w-28" />
+          <Skeleton className="h-9 w-full rounded-lg sm:h-8 sm:w-24" />
+          <Skeleton className="h-9 w-full rounded-lg sm:h-8 sm:w-28" />
         </div>
       </div>
 
       <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-4">
         {KPI_SKELETON_KEYS.map((key) => (
-          <div
-            key={key}
-            className="h-[72px] rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]"
-          />
+          <Skeleton key={key} className="h-[72px] rounded-xl border border-[var(--color-border)]" />
         ))}
       </div>
 
-      <div className="h-24 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]" />
+      <Skeleton className="h-24 rounded-2xl border border-[var(--color-border)]" />
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {CARD_SKELETON_KEYS.map((key) => (
-          <div
+          <Skeleton
             key={key}
-            className="h-[118px] rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]"
+            className="h-[118px] rounded-xl border border-[var(--color-border)]"
           />
         ))}
       </div>

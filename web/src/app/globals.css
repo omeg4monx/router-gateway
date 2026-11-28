@@ -663,6 +663,49 @@ input:focus-visible {
   }
 }
 
+/* Consistent loading system: shimmer skeleton & route top progress bar */
+@keyframes loading-shimmer-sweep {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+.loading-shimmer {
+  background-color: var(--color-surface-2);
+  background-image: linear-gradient(
+    90deg,
+    var(--color-surface-2) 0%,
+    var(--color-surface-3) 50%,
+    var(--color-surface-2) 100%
+  );
+  background-size: 200% 100%;
+  animation: loading-shimmer-sweep 1.6s ease-in-out infinite;
+}
+
+.top-progress-bar {
+  background-color: var(--accent-primary);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--accent-primary) 55%, transparent);
+  transform-origin: left center;
+  will-change: transform, opacity;
+  transition:
+    transform 180ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 200ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loading-shimmer {
+    animation: none;
+    background-image: none;
+  }
+
+  .top-progress-bar {
+    transition: none;
+  }
+}
+
 /* Subtle thin scrollbar for floating sidebar & internal panels */
 .custom-scrollbar {
   scrollbar-width: thin;

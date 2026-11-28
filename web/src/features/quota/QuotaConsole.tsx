@@ -22,6 +22,7 @@ import { Badge } from "@/shared/ui/badge";
 import { Button } from "@/shared/ui/button";
 import { Card, CardContent } from "@/shared/ui/card";
 import { Input } from "@/shared/ui/input";
+import { Skeleton } from "@/shared/ui/skeleton";
 import {
   type QuotaLiveStatus,
   useProviderQuotas,
@@ -909,9 +910,9 @@ export function QuotaConsole() {
                 key={idx}
                 className="flex items-center justify-between gap-4 px-3.5 py-3.5 sm:px-4"
               >
-                <div className="h-4 w-28 animate-pulse rounded bg-[var(--bg-surface-raised)] sm:w-36" />
-                <div className="h-2 flex-1 max-w-md animate-pulse rounded bg-[var(--bg-surface-raised)]" />
-                <div className="h-4 w-12 animate-pulse rounded bg-[var(--bg-surface-raised)] sm:w-16" />
+                <Skeleton className="h-4 w-28 sm:w-36" />
+                <Skeleton className="h-2 flex-1 max-w-md" />
+                <Skeleton className="h-4 w-12 sm:w-16" />
               </div>
             ))}
           </div>

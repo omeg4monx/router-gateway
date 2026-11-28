@@ -9,6 +9,7 @@ import { Card, CardHeader, CardTitle } from "@/shared/ui/card";
 import { EmberRule } from "@/shared/ui/EmberRule";
 import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
+import { Skeleton } from "@/shared/ui/skeleton";
 import {
   useClearPromptGuardEventsMutation,
   useCreatePromptGuardRuleMutation,
@@ -343,8 +344,8 @@ export function PromptGuardConsole() {
             </select>
           </div>
           <div className="md:col-span-6">
-            <Button type="submit" disabled={createRule.isPending}>
-              <Plus className="mr-2 h-4 w-4" />
+            <Button type="submit" loading={createRule.isPending}>
+              {!createRule.isPending ? <Plus className="h-4 w-4" aria-hidden="true" /> : null}
               {createRule.isPending ? "Creating..." : "Create Rule"}
             </Button>
           </div>
@@ -352,7 +353,16 @@ export function PromptGuardConsole() {
 
         <div className="mt-6 space-y-2">
           {rulesQuery.isLoading ? (
-            <p className="text-sm text-[var(--text-secondary)]">Loading prompt guard rules...</p>
+            <div
+              className="space-y-2"
+              role="status"
+              aria-busy="true"
+              aria-label="Loading prompt guard rules"
+            >
+              <Skeleton className="h-16 w-full rounded-md" />
+              <Skeleton className="h-16 w-full rounded-md" />
+              <Skeleton className="h-16 w-full rounded-md" />
+            </div>
           ) : null}
           {(rulesQuery.data?.rules ?? []).map((rule) => (
             <div
@@ -407,13 +417,22 @@ export function PromptGuardConsole() {
             variant="outline"
             size="sm"
             onClick={() => clearEvents.mutate()}
-            disabled={clearEvents.isPending}
+            loading={clearEvents.isPending}
           >
             Clear Log
           </Button>
         </div>
         {eventsQuery.isLoading ? (
-          <p className="text-sm text-[var(--text-secondary)]">Loading audit events...</p>
+          <div
+            className="space-y-2"
+            role="status"
+            aria-busy="true"
+            aria-label="Loading audit events"
+          >
+            <Skeleton className="h-12 w-full rounded-md" />
+            <Skeleton className="h-12 w-full rounded-md" />
+            <Skeleton className="h-12 w-full rounded-md" />
+          </div>
         ) : (eventsQuery.data?.events ?? []).length === 0 ? (
           <p className="text-sm text-[var(--text-secondary)]">
             No prompt injection events recorded yet.

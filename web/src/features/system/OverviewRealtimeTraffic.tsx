@@ -5,6 +5,7 @@ import { useUsageStream } from "@/features/usage/hooks";
 import { formatCompactTokens, formatDurationMs, type UsageLog } from "@/features/usage/schemas";
 import { cn } from "@/shared/lib/utils";
 import { Badge } from "@/shared/ui/badge";
+import { Skeleton } from "@/shared/ui/skeleton";
 import { formatActivityOriginLabel } from "./overview";
 import {
   computeRelativeClockIntervalMs,
@@ -425,10 +426,7 @@ export const OverviewRealtimeTraffic = memo(function OverviewRealtimeTraffic({
           {isLoadingLogs && logs.length === 0 ? (
             <div className="space-y-2 p-4">
               {["sk-1", "sk-2", "sk-3", "sk-4", "sk-5"].map((key) => (
-                <div
-                  key={key}
-                  className="h-9 animate-pulse rounded-lg bg-[var(--color-surface-2)]/70"
-                />
+                <Skeleton key={key} className="h-9 rounded-lg" />
               ))}
             </div>
           ) : recentFiltered.items.length === 0 ? (

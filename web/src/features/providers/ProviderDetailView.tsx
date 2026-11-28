@@ -45,6 +45,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/sha
 import { EmberRule } from "@/shared/ui/EmberRule";
 import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
+import { Skeleton } from "@/shared/ui/skeleton";
 import {
   type ModelIdentityResult,
   runModelIdentityProbe,
@@ -473,17 +474,22 @@ function ProviderStudioDetail({ providerId }: { providerId: string }) {
 
   if (catalogQuery.isPending || connectionsQuery.isPending) {
     return (
-      <div className="min-w-0 space-y-5 animate-pulse">
-        <div className="h-5 w-40 rounded bg-[var(--color-surface-2)]" />
+      <div
+        role="status"
+        aria-busy="true"
+        aria-label={isId ? "Memuat detail provider" : "Loading provider details"}
+        className="min-w-0 space-y-5"
+      >
+        <Skeleton className="h-5 w-40" />
         <div className="flex items-center gap-3">
-          <div className="size-12 rounded-xl bg-[var(--color-surface-2)]" />
+          <Skeleton className="size-12 rounded-xl" />
           <div className="space-y-2">
-            <div className="h-6 w-48 rounded bg-[var(--color-surface-2)]" />
-            <div className="h-3.5 w-28 rounded bg-[var(--color-surface-2)]" />
+            <Skeleton className="h-6 w-48" />
+            <Skeleton className="h-3.5 w-28" />
           </div>
         </div>
-        <div className="h-44 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]" />
-        <div className="h-44 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]" />
+        <Skeleton className="h-44 rounded-xl border border-[var(--color-border)]" />
+        <Skeleton className="h-44 rounded-xl border border-[var(--color-border)]" />
       </div>
     );
   }

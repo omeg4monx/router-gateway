@@ -1,4 +1,4 @@
-import { AlertTriangle, ArrowRight, Loader2, RefreshCw } from "lucide-react";
+import { AlertTriangle, ArrowRight, RefreshCw } from "lucide-react";
 import { type ReactNode, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router";
 import { cn } from "@/shared/lib/utils";
@@ -8,6 +8,7 @@ import { Button } from "@/shared/ui/button";
 import { CaduceusLogo } from "@/shared/ui/CaduceusLogo";
 import { Card } from "@/shared/ui/card";
 import { EmberRule } from "@/shared/ui/EmberRule";
+import { Spinner } from "@/shared/ui/spinner";
 import { useAuthSession } from "./hooks";
 import { authSessionToRouteState, resolvePostAuthRedirect } from "./schemas";
 
@@ -51,11 +52,13 @@ export function AuthGuard({ children }: AuthGuardProps) {
 
           <EmberRule className="my-5" />
 
-          <div className="flex items-center gap-3 py-1" aria-busy="true" aria-live="polite">
-            <Loader2
-              className="h-4 w-4 shrink-0 animate-spin text-[var(--accent-primary)]"
-              aria-hidden="true"
-            />
+          <div
+            className="flex items-center gap-3 py-1"
+            role="status"
+            aria-busy="true"
+            aria-live="polite"
+          >
+            <Spinner size="sm" decorative className="text-[var(--accent-primary)]" />
             <div className="space-y-0.5">
               <p className="text-sm font-medium text-[var(--text-primary)]">
                 {isId ? "Memverifikasi sesi operator" : "Verifying operator session"}

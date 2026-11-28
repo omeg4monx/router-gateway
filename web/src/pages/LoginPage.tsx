@@ -13,6 +13,7 @@ import { CaduceusLogo } from "@/shared/ui/CaduceusLogo";
 import { Card } from "@/shared/ui/card";
 import { EmberRule } from "@/shared/ui/EmberRule";
 import { LocaleToggle } from "@/shared/ui/LocaleToggle";
+import { Skeleton } from "@/shared/ui/skeleton";
 import { ThemeToggle } from "@/shared/ui/ThemeToggle";
 
 export function LoginPage() {
@@ -63,12 +64,12 @@ export function LoginPage() {
           <EmberRule className="my-5" />
 
           {authSessionQuery.isPending ? (
-            <div className="space-y-4" aria-busy="true" aria-live="polite">
+            <div className="space-y-4" role="status" aria-busy="true" aria-live="polite">
               <div className="space-y-2">
-                <div className="h-3.5 w-24 animate-pulse rounded bg-[var(--bg-surface-raised)]" />
-                <div className="h-11 w-full animate-pulse rounded-md bg-[var(--bg-surface-raised)]" />
+                <Skeleton className="h-3.5 w-24" />
+                <Skeleton className="h-11 w-full rounded-md" />
               </div>
-              <div className="h-11 w-full animate-pulse rounded-md bg-[var(--bg-surface-raised)]" />
+              <Skeleton className="h-11 w-full rounded-md" />
               <p className="sr-only">{copy.pendingLabel}</p>
             </div>
           ) : authSessionQuery.isError ? (
