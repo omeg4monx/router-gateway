@@ -21,6 +21,7 @@ import (
 	"github.com/omeg4monx/router-gateway/internal/contracts"
 	"github.com/omeg4monx/router-gateway/internal/platform/httpclient"
 	"github.com/omeg4monx/router-gateway/internal/platform/httpserver"
+	"github.com/omeg4monx/router-gateway/internal/platform/opencode"
 )
 
 const (
@@ -101,7 +102,11 @@ func (m *Module) handleFetchConnectionModels(w http.ResponseWriter, r *http.Requ
 	start := time.Now()
 	var lastWarning string
 	for _, req := range requests {
-		resp, doErr := m.httpClient.Do(req) //nolint:gosec // G704: upstream provider base_url is configured by operator and validated http/https
+		reqClient := m.httpClient
+		if opencode.IsFreeCreds(creds) {
+			reqClient = opencode.ResolveClient(reqCtx, m.httpClient, req.URL.String())
+		}
+		resp, doErr := reqClient.Do(req) //nolint:gosec // G704: upstream provider base_url is configured by operator and validated http/https
 		if doErr != nil {
 			lastWarning = truncateError(sanitizeUpstreamError(doErr.Error(), creds))
 			continue
@@ -304,7 +309,7 @@ func buildDiscoveryCandidateURLs(providerID, protocol, rawBaseURL string) []stri
 	}
 	trimmed = strings.TrimRight(trimmed, "/")
 
-	out := make([]string, 0, 3)
+	out := make([]string, 0, 4)
 	add := func(u string) {
 		for _, existing := range out {
 			if existing == u {
@@ -312,6 +317,17 @@ func buildDiscoveryCandidateURLs(providerID, protocol, rawBaseURL string) []stri
 			}
 		}
 		out = append(out, u)
+	}
+
+	// OpenCode live model catalogs live at /inference/v1/models (Free) and /inference/go/v1/models (Go).
+	if parsed, err := url.Parse(trimmed); err == nil && parsed.Scheme != "" && parsed.Host != "" {
+		origin := parsed.Scheme + "://" + parsed.Host
+		switch {
+		case opencode.IsFreeProviderID(providerID):
+			add(origin + "/inference/v1/models")
+		case opencode.IsGoProviderID(providerID):
+			add(origin + "/inference/go/v1/models")
+		}
 	}
 
 	switch protocol {
@@ -368,6 +384,11 @@ func newAuthenticatedDiscoveryRequest(
 	if creds.ProviderID == "github-copilot" {
 		req.Header.Set("Editor-Version", "vscode/1.99.0")
 		req.Header.Set("Copilot-Integration-Id", "vscode-chat")
+	}
+	if opencode.IsFreeCreds(creds) {
+		req.Header.Set("Authorization", "Bearer public")
+		req.Header.Set("User-Agent", opencode.DefaultUserAgent())
+		req.Header.Set("x-opencode-client", "cli")
 	}
 	for k, v := range creds.ExtraHeaders {
 		cleanKey := strings.TrimSpace(k)

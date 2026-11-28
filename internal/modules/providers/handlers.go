@@ -17,6 +17,7 @@ import (
 	"github.com/omeg4monx/router-gateway/internal/contracts"
 	"github.com/omeg4monx/router-gateway/internal/platform/httpclient"
 	"github.com/omeg4monx/router-gateway/internal/platform/httpserver"
+	"github.com/omeg4monx/router-gateway/internal/platform/opencode"
 )
 
 const (
@@ -683,7 +684,11 @@ func (m *Module) executeConnectivityTest(ctx context.Context, creds contracts.Up
 	}
 
 	start := time.Now()
-	resp, doErr := m.httpClient.Do(testReq) //nolint:gosec // G704: upstream provider base_url is configured by operator and validated http/https
+	testClient := m.httpClient
+	if opencode.IsFreeCreds(creds) {
+		testClient = opencode.ResolveClient(testCtx, m.httpClient, testReq.URL.String())
+	}
+	resp, doErr := testClient.Do(testReq) //nolint:gosec // G704: upstream provider base_url is configured by operator and validated http/https
 	latencyMS := time.Since(start).Milliseconds()
 
 	result := testConnectionResponse{

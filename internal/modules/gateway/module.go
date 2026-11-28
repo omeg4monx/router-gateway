@@ -28,6 +28,7 @@ import (
 	"github.com/omeg4monx/router-gateway/internal/platform/httpclient"
 	"github.com/omeg4monx/router-gateway/internal/platform/httpserver"
 	"github.com/omeg4monx/router-gateway/internal/platform/lifecycle"
+	"github.com/omeg4monx/router-gateway/internal/platform/opencode"
 	"github.com/omeg4monx/router-gateway/internal/platform/venice"
 )
 
@@ -67,22 +68,24 @@ type Options struct {
 // Module implements lifecycle.Module and exposes multi-protocol AI gateway
 // endpoints onto the streaming Gateway router mount.
 type Module struct {
-	db           *db.DB
-	httpClient   *http.Client
-	keys         contracts.KeyValidator
-	resolver     contracts.ProviderResolver
-	models       contracts.ModelLister
-	providers    contracts.ProviderStore
-	health       contracts.AccountHealthTracker
-	interceptors []contracts.GatewayInterceptor
-	usage        contracts.UsageRecorder
-	bus          *eventbus.Bus
-	logger       *slog.Logger
-	chains       *chainStore
-	agQuota      *antigravityQuotaMonitor
-	veniceMgr    *venice.AttestationManager
-	shaper       *trafficShaper
-	coalescer    *responseCoalescer
+	db               *db.DB
+	httpClient       *http.Client
+	keys             contracts.KeyValidator
+	resolver         contracts.ProviderResolver
+	models           contracts.ModelLister
+	providers        contracts.ProviderStore
+	health           contracts.AccountHealthTracker
+	interceptors     []contracts.GatewayInterceptor
+	usage            contracts.UsageRecorder
+	bus              *eventbus.Bus
+	logger           *slog.Logger
+	chains           *chainStore
+	agQuota          *antigravityQuotaMonitor
+	veniceMgr        *venice.AttestationManager
+	opencodeSessions *opencode.SessionStore
+	opencodePacer    *opencode.Pacer
+	shaper           *trafficShaper
+	coalescer        *responseCoalescer
 }
 
 var (
@@ -177,22 +180,24 @@ func New(opts Options) *Module {
 	}
 
 	return &Module{
-		db:           opts.DB,
-		httpClient:   client,
-		keys:         opts.Keys,
-		resolver:     opts.Resolver,
-		models:       opts.Models,
-		providers:    opts.Providers,
-		health:       opts.Health,
-		interceptors: sorted,
-		usage:        opts.Usage,
-		bus:          opts.Bus,
-		logger:       logger,
-		chains:       newChainStore(opts.DB, opts.ChainTTL),
-		agQuota:      newAntigravityQuotaMonitor(),
-		veniceMgr:    venice.NewAttestationManager(nil),
-		shaper:       newTrafficShaper(opts.MaxGlobalInFlight, opts.MaxConnInFlight, opts.QueueTimeout, nil),
-		coalescer:    coalescer,
+		db:               opts.DB,
+		httpClient:       client,
+		keys:             opts.Keys,
+		resolver:         opts.Resolver,
+		models:           opts.Models,
+		providers:        opts.Providers,
+		health:           opts.Health,
+		interceptors:     sorted,
+		usage:            opts.Usage,
+		bus:              opts.Bus,
+		logger:           logger,
+		chains:           newChainStore(opts.DB, opts.ChainTTL),
+		agQuota:          newAntigravityQuotaMonitor(),
+		veniceMgr:        venice.NewAttestationManager(nil),
+		opencodeSessions: opencode.NewSessionStore(),
+		opencodePacer:    opencode.NewPacer(opencode.DefaultStartGap),
+		shaper:           newTrafficShaper(opts.MaxGlobalInFlight, opts.MaxConnInFlight, opts.QueueTimeout, nil),
+		coalescer:        coalescer,
 	}
 }
 
@@ -227,6 +232,7 @@ func (m *Module) RegisterRoutes(mounts lifecycle.RouteMounts) {
 	mounts.Gateway.Post("/v1/messages/count_tokens", m.handleAnthropicCountTokens)
 	mounts.Gateway.Post("/v1/responses", m.handleOpenAIResponses)
 	mounts.Gateway.Post("/v1/responses/compact", m.handleOpenAIResponsesCompact)
+	mounts.Gateway.Post("/v1/systemone", m.handleOpenCodeSystemOne)
 	mounts.Gateway.Get("/v1/models", m.handleListModels)
 	mounts.Gateway.Get("/v1/models/*", m.handleGetModel)
 
@@ -701,12 +707,18 @@ func (m *Module) executeInferenceCandidates(
 			creds   contracts.UpstreamCredentials
 			credErr error
 		)
-		if venice.IsVirtualConnectionID(cand.ConnectionID) {
+		switch {
+		case venice.IsVirtualConnectionID(cand.ConnectionID):
 			creds = venice.DefaultCredentials()
 			if strings.TrimSpace(cand.Endpoint) != "" {
 				creds.BaseURL = cand.Endpoint
 			}
-		} else {
+		case opencode.IsVirtualConnectionID(cand.ConnectionID):
+			creds = opencode.DefaultCredentials()
+			if strings.TrimSpace(cand.Endpoint) != "" {
+				creds.BaseURL = cand.Endpoint
+			}
+		default:
 			creds, credErr = m.providers.ResolveCredentials(ctx, cand.ConnectionID)
 		}
 		if credErr != nil {
@@ -730,6 +742,9 @@ func (m *Module) executeInferenceCandidates(
 		upstreamModel := cand.UpstreamModel
 		if upstreamModel == "" {
 			upstreamModel = cand.Model
+		}
+		if opencode.IsAnyProviderID(cand.ProviderID) {
+			outProto = opencode.ResolveTargetProtocol(cand.ProviderID, upstreamModel, inProto, outProto)
 		}
 
 		upBody, chainInputMsgs, prepErr := m.prepareUpstreamBody(ctx, inProto, outProto, keyInfo.ID, upstreamModel, icReq.Stream, isCompact, icReq.Body)
@@ -1066,13 +1081,18 @@ func (m *Module) executeCandidateAttempt(
 	capture *cachedGatewayResponse,
 ) attemptOutcome {
 	isVeniceKeyless := venice.IsVeniceKeyless(creds)
+	isOpenCode := opencode.IsAnyProviderID(cand.ProviderID)
+	isOpenCodeFree := opencode.IsFreeCreds(creds)
 	var (
 		upURL string
 		err   error
 	)
-	if isVeniceKeyless {
+	switch {
+	case isVeniceKeyless:
 		upURL = venice.ResolveInferenceURL(baseURL)
-	} else {
+	case isOpenCode:
+		upURL = opencode.ResolveUpstreamURL(cand.ProviderID, baseURL, upstreamModel, outProto, stream)
+	default:
 		upURL, err = buildUpstreamURL(baseURL, outProto, upstreamModel, stream, false, isCompact)
 		if err != nil {
 			m.health.RecordFailure(cand.ConnectionID, http.StatusBadGateway, 0)
@@ -1098,8 +1118,24 @@ func (m *Module) executeCandidateAttempt(
 		veniceAttestationToken string
 		veniceProxyKey         string
 		veniceRequestTools     []json.RawMessage
+		openCodeSessionID      string
+		openCodeRenameMap      map[string]string
 	)
 	curBody := upBody
+	if isOpenCode {
+		isResp := opencode.IsResponsesModel(cand.ProviderID, upstreamModel, outProto)
+		isClaude := opencode.IsMessagesModel(cand.ProviderID, upstreamModel, outProto)
+		if transformed, rmap, tfErr := opencode.TransformRequest(cand.ProviderID, upstreamModel, curBody, isResp, isClaude); tfErr == nil {
+			curBody = transformed
+			openCodeRenameMap = rmap
+		}
+		if m.opencodeSessions != nil {
+			openCodeSessionID = m.opencodeSessions.Resolve(cand.ConnectionID, "", r.Header, upBody)
+		}
+		if isOpenCodeFree {
+			reqClient = opencode.ResolveClient(upCtx, m.httpClient, upURL)
+		}
+	}
 	if cand.ProviderID == "antigravity" {
 		curBody = rewriteAntigravitySystemInstruction(curBody)
 	}
@@ -1175,18 +1211,27 @@ func (m *Module) executeCandidateAttempt(
 	retriedSystemToUser := false
 	retriedFreePIUpgrade := false
 	retriedVeniceAuth := false
+	openCodeOverloadAttempt := 0
 
 	var resp *http.Response
 	var errBody []byte
 	for {
+		if isOpenCodeFree && m.opencodePacer != nil {
+			if paceErr := m.opencodePacer.Wait(upCtx); paceErr != nil {
+				return attemptOutcome{clientCanceled: true}
+			}
+		}
 		upReq, reqErr := http.NewRequestWithContext(upCtx, http.MethodPost, upURL, bytes.NewReader(curBody))
 		if reqErr != nil {
 			m.health.RecordFailure(cand.ConnectionID, http.StatusBadGateway, 0)
 			return attemptOutcome{statusCode: http.StatusBadGateway, errMsg: reqErr.Error()}
 		}
-		if isVeniceKeyless {
+		switch {
+		case isVeniceKeyless:
 			venice.ApplyHeaders(upReq, veniceAttestationToken, true)
-		} else {
+		case isOpenCodeFree:
+			opencode.ApplyFreeHeaders(upReq, openCodeSessionID, r.Header, true, upURL)
+		default:
 			applyUpstreamHeaders(upReq, creds, stream)
 			switch {
 			case cand.ProviderID == providerIDFreePI:
@@ -1195,6 +1240,8 @@ func (m *Module) executeCandidateAttempt(
 				applyCodeBuddyHeaders(upReq, r, cand.ProviderID)
 			case cand.ProviderID == providerIDJetBrains:
 				applyJetBrainsHeaders(upReq, creds, stream)
+			case isOpenCode:
+				opencode.ApplyPaidHeaders(upReq, creds, openCodeSessionID, upURL)
 			}
 		}
 
@@ -1245,6 +1292,34 @@ func (m *Module) executeCandidateAttempt(
 				deferredHealthFail: deferHealthFailure,
 				statusCode:         http.StatusBadGateway,
 				errMsg:             errMsg,
+			}
+		}
+
+		if isOpenCodeFree && (resp.StatusCode == http.StatusTooManyRequests || resp.StatusCode == http.StatusForbidden) {
+			errBody, _ = io.ReadAll(io.LimitReader(resp.Body, maxErrorBodyBytes))
+			if resp.StatusCode == http.StatusTooManyRequests {
+				opencode.ResetClient(upCtx, m.httpClient, upURL)
+				reqClient = opencode.ResolveClient(upCtx, m.httpClient, upURL)
+			}
+			rej := opencode.ClassifyRejection(resp.StatusCode, errBody)
+			if rej == opencode.RejectionSession {
+				if m.opencodeSessions != nil {
+					m.opencodeSessions.Forget(openCodeSessionID)
+				}
+				break
+			}
+			if rej == opencode.RejectionOverload && openCodeOverloadAttempt < opencode.OverloadRetryAttempts-1 {
+				_ = resp.Body.Close()
+				openCodeOverloadAttempt++
+				errBody = nil
+				timer := time.NewTimer(opencode.OverloadBackoff(openCodeOverloadAttempt))
+				select {
+				case <-upCtx.Done():
+					timer.Stop()
+					return attemptOutcome{clientCanceled: true}
+				case <-timer.C:
+				}
+				continue
 			}
 		}
 
@@ -1354,6 +1429,8 @@ func (m *Module) executeCandidateAttempt(
 			streamSrc := resp.Body
 			if isVeniceKeyless {
 				streamSrc = venice.NewNDJSONToOpenAISSEReaderWithTools(ctx, resp.Body, requestedModel, veniceRequestTools)
+			} else if isOpenCode && len(openCodeRenameMap) > 0 {
+				streamSrc = opencode.NewToolNameRestoringSSEReader(resp.Body, openCodeRenameMap)
 			}
 			sres, streamErr := m.streamUpstreamSSE(ctx, w, streamSrc, reqID, inProto, outProto, requestedModel, startTime)
 			if streamErr != nil && ctx.Err() == nil {
@@ -1394,7 +1471,8 @@ func (m *Module) executeCandidateAttempt(
 			}
 			return attemptOutcome{handled: true, statusCode: http.StatusBadGateway, errType: "server_error", errCode: "upstream_read_error", errMsg: readErr.Error()}
 		}
-		if isVeniceKeyless {
+		switch {
+		case isVeniceKeyless:
 			converted, _, convErr := venice.ParseNDJSONToOpenAIWithTools(rawResp, requestedModel, veniceRequestTools)
 			if convErr != nil {
 				m.veniceMgr.EvictForProxy(upURL, veniceProxyKey)
@@ -1404,6 +1482,17 @@ func (m *Module) executeCandidateAttempt(
 				return attemptOutcome{handled: true, statusCode: http.StatusBadGateway, errType: "server_error", errCode: "invalid_upstream_response", errMsg: convErr.Error()}
 			}
 			rawResp = converted
+		case isOpenCodeFree:
+			converted, convErr := opencode.AggregateSSEToJSON(outProto, rawResp, requestedModel, openCodeRenameMap)
+			if convErr != nil {
+				if capture == nil {
+					writeGatewayError(w, r, inProto, http.StatusBadGateway, "server_error", "invalid_upstream_response", convErr.Error())
+				}
+				return attemptOutcome{handled: true, statusCode: http.StatusBadGateway, errType: "server_error", errCode: "invalid_upstream_response", errMsg: convErr.Error()}
+			}
+			rawResp = converted
+		case isOpenCode && len(openCodeRenameMap) > 0:
+			rawResp = opencode.RestoreToolNamesJSON(rawResp, openCodeRenameMap)
 		}
 
 		var usage CanonicalUsage
@@ -1552,6 +1641,9 @@ func (m *Module) executeCandidateAttempt(
 	}
 
 	retryAfter := parseRetryAfter(resp.Header.Get("Retry-After"), time.Now().UTC())
+	if retryAfter == 0 && isOpenCode {
+		retryAfter = opencode.ParseResetAfter(resp.Header, errBody, time.Now().UTC())
+	}
 	shouldDefer := deferHealthFailure && isTransientSingleCandidateStatus(resp.StatusCode)
 	if !shouldDefer {
 		m.health.RecordFailure(cand.ConnectionID, resp.StatusCode, retryAfter)

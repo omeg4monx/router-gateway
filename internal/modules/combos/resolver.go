@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/omeg4monx/router-gateway/internal/contracts"
+	"github.com/omeg4monx/router-gateway/internal/platform/opencode"
 	"github.com/omeg4monx/router-gateway/internal/platform/venice"
 )
 
@@ -377,6 +378,23 @@ func (m *Module) resolveIdentifier(
 						Metadata: map[string]string{
 							"auth_type":       "none",
 							"connection_name": "Venice AI (Keyless Webchat)",
+						},
+					}}, true
+				}
+			}
+			if !matchedAny && opencode.IsFreeProviderID(providerID) && !isModelDisabled(snap.disabled, "opencode", upstreamModel) {
+				matchedAny = true
+				if !m.cooldown.IsInCooldown(opencode.VirtualConnectionID, now) {
+					return []contracts.ResolvedTarget{{
+						ProviderID:    "opencode",
+						ProviderType:  "openai-chat",
+						ConnectionID:  opencode.VirtualConnectionID,
+						Model:         logicalModel,
+						UpstreamModel: upstreamModel,
+						Endpoint:      opencode.DefaultFreeBaseURL,
+						Metadata: map[string]string{
+							"auth_type":       "none",
+							"connection_name": "OpenCode Free",
 						},
 					}}, true
 				}

@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/omeg4monx/router-gateway/internal/contracts"
+	"github.com/omeg4monx/router-gateway/internal/platform/opencode"
 )
 
 var (
@@ -424,6 +425,59 @@ func defaultBuiltInAdapters() []ProviderAdapter {
 			},
 		},
 		&builtinAdapter{
+			id:             "opencode",
+			displayName:    "OpenCode Free",
+			category:       "free",
+			protocol:       protocolOpenAIChat,
+			authType:       "none",
+			defaultBaseURL: "https://opencode.ai/inference/openai/v1",
+			defaultModels: []string{
+				"big-pickle",
+				"mimo-v2.6-flash-free",
+				"deepseek-v4.1-flash-free",
+				"iceman-free",
+				"beam-free",
+				"flint-40b-free",
+				"nemotron-3.5-super-vl-free",
+				"nemotron-3.5-lightning-free",
+				"hy4-flash-free",
+				"tidepool-alpha-free",
+			},
+		},
+		&builtinAdapter{
+			id:             "opencode-zen",
+			displayName:    "OpenCode Zen",
+			category:       "apikey",
+			protocol:       protocolOpenAIChat,
+			authType:       "api_key",
+			defaultBaseURL: "https://opencode.ai/zen/v1",
+			defaultModels: []string{
+				"claude-sonnet-4-6",
+				"claude-opus-4-6",
+				"gpt-5.4",
+				"gemini-3.1-pro",
+				"deepseek-v4-pro",
+				"glm-5.3",
+				"big-pickle",
+			},
+		},
+		&builtinAdapter{
+			id:             "opencode-go",
+			displayName:    "OpenCode Go",
+			category:       "apikey",
+			protocol:       protocolOpenAIChat,
+			authType:       "api_key",
+			defaultBaseURL: "https://opencode.ai/zen/go/v1",
+			defaultModels: []string{
+				"glm-5.3",
+				"kimi-k3.1-pro",
+				"deepseek-v4.1-flash",
+				"minimax-m3",
+				"qwen3.8-max",
+				"mimo-v2.6-pro",
+			},
+		},
+		&builtinAdapter{
 			id:             "freepi",
 			displayName:    "FreePI",
 			category:       authTypeOAuth,
@@ -463,6 +517,22 @@ func buildProtocolTestRequest(ctx context.Context, creds contracts.UpstreamCrede
 		return nil, fmt.Errorf("providers: invalid base_url: %w", err)
 	}
 	trimmedBase := strings.TrimRight(baseURL, "/")
+
+	if opencode.IsFreeCreds(creds) {
+		targetURL := trimmedBase + "/models"
+		if parsed, parseErr := url.Parse(trimmedBase); parseErr == nil && parsed.Scheme != "" && parsed.Host != "" {
+			targetURL = parsed.Scheme + "://" + parsed.Host + "/inference/v1/models"
+		}
+		req, reqErr := http.NewRequestWithContext(ctx, http.MethodGet, targetURL, http.NoBody)
+		if reqErr != nil {
+			return nil, fmt.Errorf("providers: build opencode test request: %w", reqErr)
+		}
+		req.Header.Set("Accept", "application/json")
+		req.Header.Set("Authorization", "Bearer public")
+		req.Header.Set("User-Agent", opencode.DefaultUserAgent())
+		req.Header.Set("x-opencode-client", "cli")
+		return req, nil
+	}
 
 	if creds.ProviderID == providerIDFreePI {
 		targetURL := trimmedBase + "/chat/completions"

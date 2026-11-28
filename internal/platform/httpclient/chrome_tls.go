@@ -5,10 +5,13 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/base64"
+	"encoding/binary"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -146,9 +149,159 @@ func dialThroughHTTPProxy(ctx context.Context, dialer *net.Dialer, proxyURL *url
 	return rawConn, nil
 }
 
+func isSOCKS5Scheme(scheme string) bool {
+	s := strings.ToLower(strings.TrimSpace(scheme))
+	return s == "socks5" || s == "socks5h"
+}
+
+// dialThroughSOCKS5Proxy establishes a TCP tunnel through a SOCKS5/SOCKS5H proxy
+// (RFC 1928 + RFC 1929 username/password auth) so the caller can perform a
+// Chrome/Bun uTLS handshake directly over the tunneled connection.
+func dialThroughSOCKS5Proxy(ctx context.Context, dialer *net.Dialer, proxyURL *url.URL, targetAddr string) (net.Conn, error) {
+	proxyHost := proxyURL.Host
+	if _, _, err := net.SplitHostPort(proxyHost); err != nil {
+		proxyHost = net.JoinHostPort(proxyHost, "1080")
+	}
+	host, portStr, err := net.SplitHostPort(targetAddr)
+	if err != nil {
+		return nil, fmt.Errorf("httpclient: invalid target addr %q: %w", targetAddr, err)
+	}
+	portNum, err := strconv.Atoi(portStr)
+	if err != nil || portNum < 1 || portNum > 65535 {
+		return nil, fmt.Errorf("httpclient: invalid target port %q", portStr)
+	}
+
+	rawConn, err := dialer.DialContext(ctx, "tcp", proxyHost)
+	if err != nil {
+		return nil, fmt.Errorf("httpclient: dial socks5 proxy %s: %w", proxyHost, err)
+	}
+	if deadline, ok := ctx.Deadline(); ok {
+		_ = rawConn.SetDeadline(deadline)
+	}
+	defer func() {
+		_ = rawConn.SetDeadline(time.Time{})
+	}()
+
+	// 1. Greeting & auth method selection.
+	var greeting []byte
+	var user, pass string
+	if proxyURL.User != nil {
+		user = proxyURL.User.Username()
+		pass, _ = proxyURL.User.Password()
+		greeting = []byte{0x05, 0x02, 0x00, 0x02}
+	} else {
+		greeting = []byte{0x05, 0x01, 0x00}
+	}
+	if _, err := rawConn.Write(greeting); err != nil {
+		_ = rawConn.Close()
+		return nil, fmt.Errorf("httpclient: socks5 write greeting: %w", err)
+	}
+	methodResp := make([]byte, 2)
+	if _, err := io.ReadFull(rawConn, methodResp); err != nil {
+		_ = rawConn.Close()
+		return nil, fmt.Errorf("httpclient: socks5 read method: %w", err)
+	}
+	if methodResp[0] != 0x05 {
+		_ = rawConn.Close()
+		return nil, fmt.Errorf("httpclient: socks5 unexpected version %d", methodResp[0])
+	}
+	switch methodResp[1] {
+	case 0x00:
+		// No authentication required.
+	case 0x02:
+		if len(user) > 255 || len(pass) > 255 {
+			_ = rawConn.Close()
+			return nil, fmt.Errorf("httpclient: socks5 credentials too long")
+		}
+		authBuf := make([]byte, 0, 3+len(user)+len(pass))
+		authBuf = append(authBuf, 0x01, byte(len(user)&0xff))
+		authBuf = append(authBuf, user...)
+		authBuf = append(authBuf, byte(len(pass)&0xff))
+		authBuf = append(authBuf, pass...)
+		if _, err := rawConn.Write(authBuf); err != nil {
+			_ = rawConn.Close()
+			return nil, fmt.Errorf("httpclient: socks5 write auth: %w", err)
+		}
+		authResp := make([]byte, 2)
+		if _, err := io.ReadFull(rawConn, authResp); err != nil {
+			_ = rawConn.Close()
+			return nil, fmt.Errorf("httpclient: socks5 read auth: %w", err)
+		}
+		if authResp[1] != 0x00 {
+			_ = rawConn.Close()
+			return nil, fmt.Errorf("httpclient: socks5 auth rejected with status %d", authResp[1])
+		}
+	default:
+		_ = rawConn.Close()
+		return nil, fmt.Errorf("httpclient: socks5 unsupported auth method %d", methodResp[1])
+	}
+
+	// 2. CONNECT command.
+	reqBuf := make([]byte, 0, 7+len(host))
+	reqBuf = append(reqBuf, 0x05, 0x01, 0x00)
+	if ip := net.ParseIP(host); ip != nil {
+		if ip4 := ip.To4(); ip4 != nil {
+			reqBuf = append(reqBuf, 0x01)
+			reqBuf = append(reqBuf, ip4...)
+		} else {
+			reqBuf = append(reqBuf, 0x04)
+			reqBuf = append(reqBuf, ip.To16()...)
+		}
+	} else {
+		if len(host) > 255 {
+			_ = rawConn.Close()
+			return nil, fmt.Errorf("httpclient: socks5 hostname too long")
+		}
+		reqBuf = append(reqBuf, 0x03, byte(len(host)&0xff))
+		reqBuf = append(reqBuf, host...)
+	}
+	var portBytes [2]byte
+	binary.BigEndian.PutUint16(portBytes[:], uint16(portNum))
+	reqBuf = append(reqBuf, portBytes[:]...)
+
+	if _, err := rawConn.Write(reqBuf); err != nil {
+		_ = rawConn.Close()
+		return nil, fmt.Errorf("httpclient: socks5 write CONNECT: %w", err)
+	}
+
+	replyHdr := make([]byte, 4)
+	if _, err := io.ReadFull(rawConn, replyHdr); err != nil {
+		_ = rawConn.Close()
+		return nil, fmt.Errorf("httpclient: socks5 read CONNECT reply: %w", err)
+	}
+	if replyHdr[0] != 0x05 || replyHdr[1] != 0x00 {
+		_ = rawConn.Close()
+		return nil, fmt.Errorf("httpclient: socks5 CONNECT rejected with code %d", replyHdr[1])
+	}
+
+	// Drain bound address + port from reply.
+	var addrLen int
+	switch replyHdr[3] {
+	case 0x01:
+		addrLen = 4
+	case 0x04:
+		addrLen = 16
+	case 0x03:
+		lBuf := make([]byte, 1)
+		if _, err := io.ReadFull(rawConn, lBuf); err != nil {
+			_ = rawConn.Close()
+			return nil, fmt.Errorf("httpclient: socks5 read domain length: %w", err)
+		}
+		addrLen = int(lBuf[0])
+	default:
+		_ = rawConn.Close()
+		return nil, fmt.Errorf("httpclient: socks5 unsupported reply atyp %d", replyHdr[3])
+	}
+	if _, err := io.ReadFull(rawConn, make([]byte, addrLen+2)); err != nil {
+		_ = rawConn.Close()
+		return nil, fmt.Errorf("httpclient: socks5 read bound addr: %w", err)
+	}
+	return rawConn, nil
+}
+
 // NewChromeTLSClientWithProxy returns a pooled *http.Client using BoringSSL/Bun
 // TLS 1.3 ClientHello impersonation and the supplied proxy resolver function.
-// For HTTP proxies targeting HTTPS endpoints, the CONNECT tunnel is established
+// For HTTP and SOCKS5 proxies targeting HTTPS endpoints, the tunnel is established
 // inside DialTLSContext so the inner TLS handshake still uses Chrome uTLS
 // instead of Go's standard crypto/tls.
 func NewChromeTLSClientWithProxy(timeout time.Duration, proxyFunc func(*http.Request) (*url.URL, error)) *http.Client {
@@ -166,9 +319,9 @@ func NewChromeTLSClientWithProxy(timeout time.Duration, proxyFunc func(*http.Req
 			if err != nil || u == nil {
 				return u, err
 			}
-			// Delegate HTTP-proxy HTTPS CONNECT to DialTLSContext so uTLS is preserved.
+			// Delegate HTTP and SOCKS5 HTTPS tunnels to DialTLSContext so uTLS is preserved.
 			if req != nil && req.URL != nil && strings.EqualFold(req.URL.Scheme, "https") &&
-				strings.EqualFold(u.Scheme, "http") {
+				(strings.EqualFold(u.Scheme, "http") || isSOCKS5Scheme(u.Scheme)) {
 				return nil, nil
 			}
 			return u, nil
@@ -185,8 +338,15 @@ func NewChromeTLSClientWithProxy(timeout time.Duration, proxyFunc func(*http.Req
 				err     error
 			)
 			probeReq := &http.Request{URL: &url.URL{Scheme: "https", Host: addr}}
-			if proxyURL, proxyErr := proxyFunc(probeReq.WithContext(ctx)); proxyErr == nil && proxyURL != nil && strings.EqualFold(proxyURL.Scheme, "http") {
-				rawConn, err = dialThroughHTTPProxy(ctx, dialer, proxyURL, addr)
+			if proxyURL, proxyErr := proxyFunc(probeReq.WithContext(ctx)); proxyErr == nil && proxyURL != nil {
+				switch {
+				case strings.EqualFold(proxyURL.Scheme, "http"):
+					rawConn, err = dialThroughHTTPProxy(ctx, dialer, proxyURL, addr)
+				case isSOCKS5Scheme(proxyURL.Scheme):
+					rawConn, err = dialThroughSOCKS5Proxy(ctx, dialer, proxyURL, addr)
+				default:
+					rawConn, err = dialer.DialContext(ctx, network, addr)
+				}
 			} else {
 				rawConn, err = dialer.DialContext(ctx, network, addr)
 			}

@@ -624,15 +624,15 @@
     "semantic_hash": ""
   },
   "internal/modules/providers/adapter.go": {
-    "mtime": 1795866896.4032204,
-    "seen": 1795870873.0578127,
-    "ast_hash": "91ab73333a3d7acb5522e9237a6760fd",
+    "mtime": 1795873243.7559536,
+    "seen": 1795873402.4876406,
+    "ast_hash": "9c114ec9a46976ef151fdef10606618e",
     "semantic_hash": ""
   },
   "internal/modules/providers/handlers.go": {
-    "mtime": 1795866896.4032204,
-    "seen": 1795870873.0580328,
-    "ast_hash": "a8277da43ef0d4a8041a6369d072fd39",
+    "mtime": 1795873271.1279192,
+    "seen": 1795873402.4881077,
+    "ast_hash": "93457a92ee395d6a193e2eac7562d97c",
     "semantic_hash": ""
   },
   "internal/modules/providers/module.go": {
@@ -690,9 +690,9 @@
     "semantic_hash": ""
   },
   "internal/modules/combos/resolver.go": {
-    "mtime": 1795866896.4009035,
-    "seen": 1795870873.0562181,
-    "ast_hash": "ffaaf87d358addb9d9108699ff2adba7",
+    "mtime": 1795872563.0446465,
+    "seen": 1795872924.8049233,
+    "ast_hash": "cf8291d3f86c5ef81a05ea38a00ec380",
     "semantic_hash": ""
   },
   "internal/modules/gateway/ir.go": {
@@ -756,9 +756,9 @@
     "semantic_hash": ""
   },
   "internal/modules/gateway/module.go": {
-    "mtime": 1795871371.9733112,
-    "seen": 1795871496.6366954,
-    "ast_hash": "bd2d10741045338647d99f2ba8746cce",
+    "mtime": 1795873630.7691364,
+    "seen": 1795873802.997386,
+    "ast_hash": "d92a1f3913dee6eb9b2ab5fa3ea4956f",
     "semantic_hash": ""
   },
   "internal/modules/gateway/module_test.go": {
@@ -3126,9 +3126,9 @@
     "semantic_hash": ""
   },
   "internal/modules/providers/models_discovery.go": {
-    "mtime": 1795866896.4042203,
-    "seen": 1795870873.05804,
-    "ast_hash": "6bf0b4b8786915194806078bcc4475ac",
+    "mtime": 1795873312.342517,
+    "seen": 1795873402.4881935,
+    "ast_hash": "39ec873515766e21215912089d5c3a36",
     "semantic_hash": ""
   },
   "internal/modules/providers/models_discovery_test.go": {
@@ -3606,15 +3606,15 @@
     "semantic_hash": ""
   },
   "internal/modules/combos/opencode_probe.go": {
-    "mtime": 1795710119.1265817,
-    "seen": 1795770205.455,
-    "ast_hash": "5d75b3387349ce150816437456589825",
+    "mtime": 1795872796.861083,
+    "seen": 1795872924.8048482,
+    "ast_hash": "451f389a6e1d63ad2e9154192a1236d2",
     "semantic_hash": ""
   },
   "internal/platform/httpclient/chrome_tls.go": {
-    "mtime": 1795871370.6672924,
-    "seen": 1795871496.6406255,
-    "ast_hash": "ab75ccc471c3e028c3358b96d1d18516",
+    "mtime": 1795873708.3702621,
+    "seen": 1795873803.0038557,
+    "ast_hash": "784bd68028ccb8fc2af391ffd82df354",
     "semantic_hash": ""
   },
   "internal/modules/combos/venice_resolver_test.go": {
@@ -3756,9 +3756,9 @@
     "semantic_hash": ""
   },
   "internal/modules/providers/quota.go": {
-    "mtime": 1795866896.4042203,
-    "seen": 1795870873.0582566,
-    "ast_hash": "c1e6c5c87533e60397a45a9f4107a4e6",
+    "mtime": 1795872648.8568919,
+    "seen": 1795872924.8109581,
+    "ast_hash": "a37c7e94f261a6203c90ce64a2aeda13",
     "semantic_hash": ""
   },
   "internal/modules/providers/quota_test.go": {
@@ -4116,9 +4116,63 @@
     "semantic_hash": ""
   },
   "internal/platform/httpclient/chrome_tls_test.go": {
-    "mtime": 1795871396.7526717,
-    "seen": 1795871496.6406279,
-    "ast_hash": "c6f808d1b8f7c2517d3652e83a78c12e",
+    "mtime": 1795873561.881137,
+    "seen": 1795873803.003859,
+    "ast_hash": "80f76c91a32b0b7c66c958f8e3639d1e",
+    "semantic_hash": ""
+  },
+  "internal/modules/combos/opencode_resolver_test.go": {
+    "mtime": 1795872694.90856,
+    "seen": 1795872924.804854,
+    "ast_hash": "aeb76c16d7f001aed0cba62b127dea72",
+    "semantic_hash": ""
+  },
+  "internal/modules/gateway/opencode_test.go": {
+    "mtime": 1795873652.7114546,
+    "seen": 1795873802.9974315,
+    "ast_hash": "9af5e4324e1a180bc904b940492337ac",
+    "semantic_hash": ""
+  },
+  "internal/modules/providers/quota_opencode.go": {
+    "mtime": 1795872650.439915,
+    "seen": 1795872924.8110704,
+    "ast_hash": "6a763d3c4bd4db7ccb9ccaabd51f189d",
+    "semantic_hash": ""
+  },
+  "internal/modules/providers/quota_opencode_test.go": {
+    "mtime": 1795873273.604955,
+    "seen": 1795873402.4887724,
+    "ast_hash": "4a30f005edf22232027bc7afd83a5478",
+    "semantic_hash": ""
+  },
+  "internal/platform/opencode/fingerprint.go": {
+    "mtime": 1795873202.8929293,
+    "seen": 1795873402.492218,
+    "ast_hash": "9fadc46e51503bfc5af2207aed4f8e72",
+    "semantic_hash": ""
+  },
+  "internal/platform/opencode/opencode.go": {
+    "mtime": 1795873626.2920713,
+    "seen": 1795873803.004457,
+    "ast_hash": "f623ed51c584accc21a1aa962d8384db",
+    "semantic_hash": ""
+  },
+  "internal/platform/opencode/opencode_test.go": {
+    "mtime": 1795873563.112155,
+    "seen": 1795873803.0044599,
+    "ast_hash": "b233fd715c5713ed00326d592fcd8af8",
+    "semantic_hash": ""
+  },
+  "internal/platform/opencode/session.go": {
+    "mtime": 1795872496.161672,
+    "seen": 1795872924.8155227,
+    "ast_hash": "8b87bc60cf45632202573788b711967b",
+    "semantic_hash": ""
+  },
+  "internal/modules/gateway/systemone.go": {
+    "mtime": 1795873683.0298944,
+    "seen": 1795873802.9975567,
+    "ast_hash": "9bf91f12ed44bc6ffdbd3a0529a47d5f",
     "semantic_hash": ""
   }
 }
