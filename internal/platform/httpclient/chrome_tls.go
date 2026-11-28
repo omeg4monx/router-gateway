@@ -1,10 +1,15 @@
 package httpclient
 
 import (
+	"bufio"
 	"context"
 	"crypto/tls"
+	"encoding/base64"
+	"fmt"
 	"net"
 	"net/http"
+	"net/url"
+	"strings"
 	"sync"
 	"time"
 
@@ -86,13 +91,88 @@ func bunBoringSSLClientHelloSpec() utls.ClientHelloSpec {
 // NewChromeTLSClient returns a pooled *http.Client whose HTTPS connections use
 // BoringSSL/Bun TLS 1.3 ClientHello impersonation over HTTP/1.1.
 func NewChromeTLSClient(timeout time.Duration) *http.Client {
+	return NewChromeTLSClientWithProxy(timeout, http.ProxyFromEnvironment)
+}
+
+func dialThroughHTTPProxy(ctx context.Context, dialer *net.Dialer, proxyURL *url.URL, targetAddr string) (net.Conn, error) {
+	proxyHost := proxyURL.Host
+	if _, _, err := net.SplitHostPort(proxyHost); err != nil {
+		if strings.EqualFold(proxyURL.Scheme, "https") {
+			proxyHost = net.JoinHostPort(proxyHost, "443")
+		} else {
+			proxyHost = net.JoinHostPort(proxyHost, "80")
+		}
+	}
+
+	rawConn, err := dialer.DialContext(ctx, "tcp", proxyHost)
+	if err != nil {
+		return nil, fmt.Errorf("httpclient: dial proxy %s: %w", proxyHost, err)
+	}
+
+	if deadline, ok := ctx.Deadline(); ok {
+		_ = rawConn.SetDeadline(deadline)
+	}
+	defer func() {
+		_ = rawConn.SetDeadline(time.Time{})
+	}()
+
+	connectReq := &http.Request{
+		Method: http.MethodConnect,
+		URL:    &url.URL{Opaque: targetAddr},
+		Host:   targetAddr,
+		Header: make(http.Header),
+	}
+	if proxyURL.User != nil {
+		creds := proxyURL.User.String()
+		connectReq.Header.Set("Proxy-Authorization", "Basic "+base64.StdEncoding.EncodeToString([]byte(creds)))
+	}
+
+	if err := connectReq.Write(rawConn); err != nil {
+		_ = rawConn.Close()
+		return nil, fmt.Errorf("httpclient: write proxy CONNECT: %w", err)
+	}
+
+	br := bufio.NewReader(rawConn)
+	resp, err := http.ReadResponse(br, connectReq)
+	if err != nil {
+		_ = rawConn.Close()
+		return nil, fmt.Errorf("httpclient: read proxy CONNECT response: %w", err)
+	}
+	_ = resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		_ = rawConn.Close()
+		return nil, fmt.Errorf("httpclient: proxy CONNECT rejected with HTTP %d", resp.StatusCode)
+	}
+	return rawConn, nil
+}
+
+// NewChromeTLSClientWithProxy returns a pooled *http.Client using BoringSSL/Bun
+// TLS 1.3 ClientHello impersonation and the supplied proxy resolver function.
+// For HTTP proxies targeting HTTPS endpoints, the CONNECT tunnel is established
+// inside DialTLSContext so the inner TLS handshake still uses Chrome uTLS
+// instead of Go's standard crypto/tls.
+func NewChromeTLSClientWithProxy(timeout time.Duration, proxyFunc func(*http.Request) (*url.URL, error)) *http.Client {
+	if proxyFunc == nil {
+		proxyFunc = http.ProxyFromEnvironment
+	}
 	dialer := &net.Dialer{
 		Timeout:   defaultDialTimeout,
 		KeepAlive: defaultKeepAlive,
 	}
 
 	transport := &http.Transport{
-		Proxy:                 http.ProxyFromEnvironment,
+		Proxy: func(req *http.Request) (*url.URL, error) {
+			u, err := proxyFunc(req)
+			if err != nil || u == nil {
+				return u, err
+			}
+			// Delegate HTTP-proxy HTTPS CONNECT to DialTLSContext so uTLS is preserved.
+			if req != nil && req.URL != nil && strings.EqualFold(req.URL.Scheme, "https") &&
+				strings.EqualFold(u.Scheme, "http") {
+				return nil, nil
+			}
+			return u, nil
+		},
 		DialContext:           dialer.DialContext,
 		MaxIdleConns:          32,
 		MaxIdleConnsPerHost:   16,
@@ -100,7 +180,16 @@ func NewChromeTLSClient(timeout time.Duration) *http.Client {
 		TLSHandshakeTimeout:   defaultTLSHandshakeTimeout,
 		ResponseHeaderTimeout: defaultResponseHeaderTimeout,
 		DialTLSContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
-			rawConn, err := dialer.DialContext(ctx, network, addr)
+			var (
+				rawConn net.Conn
+				err     error
+			)
+			probeReq := &http.Request{URL: &url.URL{Scheme: "https", Host: addr}}
+			if proxyURL, proxyErr := proxyFunc(probeReq.WithContext(ctx)); proxyErr == nil && proxyURL != nil && strings.EqualFold(proxyURL.Scheme, "http") {
+				rawConn, err = dialThroughHTTPProxy(ctx, dialer, proxyURL, addr)
+			} else {
+				rawConn, err = dialer.DialContext(ctx, network, addr)
+			}
 			if err != nil {
 				return nil, err
 			}

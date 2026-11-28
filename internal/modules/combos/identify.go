@@ -120,13 +120,16 @@ func (m *Module) identifyProviderModel(ctx context.Context, providerID, modelID 
 
 	executeIdentify := func(activeCreds contracts.UpstreamCredentials) (int, http.Header, []byte, int64, error) {
 		var (
-			req    *http.Request
-			reqErr error
+			req            *http.Request
+			reqErr         error
+			veniceProxyKey string
 		)
+		reqClient := client
 		isVenice := venice.IsVeniceKeyless(activeCreds)
 		if isVenice {
 			targetURL := venice.ResolveInferenceURL(activeCreds.BaseURL)
-			attToken, attErr := venice.DefaultAttestationManager().GetToken(probeCtx, client, targetURL)
+			reqClient, veniceProxyKey = venice.ResolveSession(probeCtx, m.httpClient, targetURL)
+			attToken, attErr := venice.DefaultAttestationManager().GetTokenForProxy(probeCtx, reqClient, targetURL, veniceProxyKey)
 			if attErr != nil {
 				return 0, nil, nil, 0, attErr
 			}
@@ -149,11 +152,11 @@ func (m *Module) identifyProviderModel(ctx context.Context, providerID, modelID 
 			return 0, nil, nil, 0, reqErr
 		}
 		start := time.Now()
-		resp, doErr := client.Do(req)
+		resp, doErr := reqClient.Do(req)
 		latency := time.Since(start).Milliseconds()
 		if doErr != nil {
 			if isVenice {
-				venice.DefaultAttestationManager().Evict(activeCreds.BaseURL)
+				venice.DefaultAttestationManager().EvictForProxy(activeCreds.BaseURL, veniceProxyKey)
 			}
 			return 0, nil, nil, latency, doErr
 		}
@@ -161,7 +164,7 @@ func (m *Module) identifyProviderModel(ctx context.Context, providerID, modelID 
 		body, _ := io.ReadAll(io.LimitReader(resp.Body, maxIdentifyResponseBytes))
 		if isVenice {
 			if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
-				venice.DefaultAttestationManager().Evict(activeCreds.BaseURL)
+				venice.DefaultAttestationManager().EvictForProxy(activeCreds.BaseURL, veniceProxyKey)
 			} else if converted, _, convErr := venice.ParseNDJSONToOpenAI(body, modelID); convErr == nil {
 				body = converted
 			}

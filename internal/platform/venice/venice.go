@@ -31,15 +31,19 @@ const (
 	// MiddlefaceVersion matches the official Venice webchat middleface header version.
 	MiddlefaceVersion = "0.1.1272"
 	// DefaultModel is used when no explicit Venice model ID is supplied.
-	DefaultModel = "venice-uncensored-1-2"
+	DefaultModel = "deepseek-v4-1-flash-uncensored"
 	// VirtualConnectionID identifies the virtual keyless connection used when no DB connection exists.
 	VirtualConnectionID = "noauth:venice"
+	// DirectProxyKey is the session/token bucket key used for direct (non-proxied) Venice requests.
+	DirectProxyKey = "direct"
 
 	mintBatchCount        = 5
 	tokenExpirationGrace  = 60 * time.Second
 	defaultTokenTTL       = 5 * time.Minute
+	sessionTTL            = 10 * time.Minute
 	transientRetryDelay   = 400 * time.Millisecond
 	maxAttestationBuckets = 32
+	maxVeniceSessions     = 32
 	maxMintResponseBytes  = 64 << 10
 	maxNDJSONLineBytes    = 1 << 20
 	estimatedPromptTokens = 15
@@ -167,11 +171,25 @@ func ApplyHeaders(req *http.Request, attestationToken string, isInference bool) 
 	}
 }
 
+type pooledVeniceSession struct {
+	client    *http.Client
+	createdAt time.Time
+	lastUsed  time.Time
+}
+
+type veniceSessionPool struct {
+	mu       sync.Mutex
+	sessions map[string]*pooledVeniceSession
+}
+
 var (
 	sharedVeniceClientOnce sync.Once
 	sharedVeniceClient     *http.Client
 	sharedVeniceJarOnce    sync.Once
 	sharedVeniceJar        http.CookieJar
+	defaultSessionPool     = &veniceSessionPool{
+		sessions: make(map[string]*pooledVeniceSession),
+	}
 )
 
 func getSharedCookieJar() http.CookieJar {
@@ -179,6 +197,91 @@ func getSharedCookieJar() http.CookieJar {
 		sharedVeniceJar, _ = cookiejar.New(nil)
 	})
 	return sharedVeniceJar
+}
+
+func normalizeProxyKey(proxyKey string) string {
+	trimmed := strings.TrimSpace(proxyKey)
+	if trimmed == "" {
+		return DirectProxyKey
+	}
+	return trimmed
+}
+
+func (p *veniceSessionPool) getOrCreate(proxyKey string, proxyURL *url.URL, timeout time.Duration) *http.Client {
+	key := normalizeProxyKey(proxyKey)
+	now := time.Now()
+
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	if entry, ok := p.sessions[key]; ok {
+		if now.Sub(entry.createdAt) < sessionTTL {
+			entry.lastUsed = now
+			if entry.client.Timeout == timeout {
+				return entry.client
+			}
+			cloned := *entry.client
+			cloned.Timeout = timeout
+			return &cloned
+		}
+		delete(p.sessions, key)
+	}
+
+	if len(p.sessions) >= maxVeniceSessions {
+		var oldestKey string
+		var oldestTime time.Time
+		for k, s := range p.sessions {
+			if oldestKey == "" || s.lastUsed.Before(oldestTime) {
+				oldestKey = k
+				oldestTime = s.lastUsed
+			}
+		}
+		if oldestKey != "" {
+			delete(p.sessions, oldestKey)
+		}
+	}
+
+	var proxyFn func(*http.Request) (*url.URL, error)
+	if proxyURL != nil {
+		fixedURL := *proxyURL
+		proxyFn = func(*http.Request) (*url.URL, error) {
+			u := fixedURL
+			return &u, nil
+		}
+	} else {
+		proxyFn = func(*http.Request) (*url.URL, error) {
+			return nil, nil
+		}
+	}
+
+	client := httpclient.NewChromeTLSClientWithProxy(0, proxyFn)
+	jar, _ := cookiejar.New(nil)
+	client.Jar = jar
+
+	p.sessions[key] = &pooledVeniceSession{
+		client:    client,
+		createdAt: now,
+		lastUsed:  now,
+	}
+
+	if timeout == 0 {
+		return client
+	}
+	cloned := *client
+	cloned.Timeout = timeout
+	return &cloned
+}
+
+func (p *veniceSessionPool) evict(proxyKey string) {
+	key := normalizeProxyKey(proxyKey)
+	p.mu.Lock()
+	delete(p.sessions, key)
+	p.mu.Unlock()
+}
+
+// EvictSession drops the pooled Chrome uTLS client and CookieJar for proxyKey.
+func EvictSession(proxyKey string) {
+	defaultSessionPool.evict(proxyKey)
 }
 
 // SharedHTTPClient returns a process-wide pooled Chrome uTLS client with an
@@ -206,6 +309,44 @@ func SelectHTTPClient(configured *http.Client) *http.Client {
 	cloned := *configured
 	cloned.Jar = getSharedCookieJar()
 	return &cloned
+}
+
+// ResolveSession returns a Chrome uTLS *http.Client and its canonical proxyKey
+// for a Venice request attempt. When configured uses an *http.Transport with a
+// Proxy resolver (such as omeg4mon-router's Proxy Pool), the proxy URL is
+// resolved once so both attestation mint and inference share the same outbound
+// proxy, Chrome TLS fingerprint, and dedicated CookieJar. Custom non-*http.Transport
+// RoundTrippers (such as unit-test stubs) are preserved verbatim.
+func ResolveSession(ctx context.Context, configured *http.Client, targetURL string) (client *http.Client, proxyKey string) {
+	if configured == nil {
+		return defaultSessionPool.getOrCreate(DirectProxyKey, nil, 0), DirectProxyKey
+	}
+
+	tr, isStdTransport := configured.Transport.(*http.Transport)
+	if !isStdTransport {
+		if configured.Jar != nil {
+			return configured, DirectProxyKey
+		}
+		cloned := *configured
+		cloned.Jar = getSharedCookieJar()
+		return &cloned, DirectProxyKey
+	}
+
+	var proxyURL *url.URL
+	if tr.Proxy != nil {
+		probeTarget := ResolveInferenceURL(targetURL)
+		if req, err := http.NewRequestWithContext(ctx, http.MethodPost, probeTarget, http.NoBody); err == nil {
+			if resolved, proxyErr := tr.Proxy(req); proxyErr == nil && resolved != nil {
+				proxyURL = resolved
+			}
+		}
+	}
+
+	proxyKey = DirectProxyKey
+	if proxyURL != nil {
+		proxyKey = proxyURL.String()
+	}
+	return defaultSessionPool.getOrCreate(proxyKey, proxyURL, configured.Timeout), proxyKey
 }
 
 type tokenBucket struct {
@@ -253,24 +394,42 @@ func DefaultAttestationManager() *AttestationManager {
 	return defaultMgr
 }
 
-// Evict removes cached attestation tokens for the origin of baseURL.
+func attestationBucketKey(mintURL, proxyKey string) string {
+	return mintURL + "|" + normalizeProxyKey(proxyKey)
+}
+
+// Evict removes cached attestation tokens for the direct origin of baseURL.
 func (m *AttestationManager) Evict(baseURL string) {
-	key := ResolveMintURL(baseURL)
+	m.EvictForProxy(baseURL, DirectProxyKey)
+}
+
+// EvictForProxy removes cached attestation tokens for (baseURL, proxyKey) and
+// drops the corresponding pooled Venice session/CookieJar.
+func (m *AttestationManager) EvictForProxy(baseURL, proxyKey string) {
+	key := attestationBucketKey(ResolveMintURL(baseURL), proxyKey)
 	m.mu.Lock()
 	delete(m.buckets, key)
 	m.mu.Unlock()
+	EvictSession(proxyKey)
 }
 
-// GetToken returns a fresh Venice client attestation token, batch-minting and
-// deduplicating concurrent requests when the local queue is empty or near expiry.
+// GetToken returns a fresh Venice client attestation token for direct connections.
 func (m *AttestationManager) GetToken(ctx context.Context, client *http.Client, baseURL string) (string, error) {
+	return m.GetTokenForProxy(ctx, client, baseURL, DirectProxyKey)
+}
+
+// GetTokenForProxy returns a fresh Venice client attestation token isolated to
+// (baseURL, proxyKey), batch-minting and deduplicating concurrent requests when
+// the local queue is empty or near expiry.
+func (m *AttestationManager) GetTokenForProxy(ctx context.Context, client *http.Client, baseURL, proxyKey string) (string, error) {
 	mintURL := ResolveMintURL(baseURL)
+	bucketKey := attestationBucketKey(mintURL, proxyKey)
 	httpClient := SelectHTTPClient(client)
 
 	for {
 		m.mu.Lock()
 		now := m.nowFn()
-		if bucket, ok := m.buckets[mintURL]; ok {
+		if bucket, ok := m.buckets[bucketKey]; ok {
 			if len(bucket.queue) > 0 && bucket.expiresAt.Sub(now) > tokenExpirationGrace {
 				tok := bucket.queue[0]
 				bucket.queue = bucket.queue[1:]
@@ -278,10 +437,10 @@ func (m *AttestationManager) GetToken(ctx context.Context, client *http.Client, 
 				m.mu.Unlock()
 				return tok, nil
 			}
-			delete(m.buckets, mintURL)
+			delete(m.buckets, bucketKey)
 		}
 
-		if call, ok := m.inFlight[mintURL]; ok {
+		if call, ok := m.inFlight[bucketKey]; ok {
 			m.mu.Unlock()
 			select {
 			case <-call.done:
@@ -295,7 +454,7 @@ func (m *AttestationManager) GetToken(ctx context.Context, client *http.Client, 
 		}
 
 		call := &inFlightMint{done: make(chan struct{})}
-		m.inFlight[mintURL] = call
+		m.inFlight[bucketKey] = call
 		m.mu.Unlock()
 
 		go func() {
@@ -313,12 +472,12 @@ func (m *AttestationManager) GetToken(ctx context.Context, client *http.Client, 
 				}
 				m.mu.Lock()
 				call.err = err
-				delete(m.inFlight, mintURL)
+				delete(m.inFlight, bucketKey)
 				if err == nil && len(tokens) > 0 {
 					if len(m.buckets) >= maxAttestationBuckets {
 						m.evictOldestLocked()
 					}
-					m.buckets[mintURL] = &tokenBucket{
+					m.buckets[bucketKey] = &tokenBucket{
 						queue:     tokens,
 						expiresAt: expiresAt,
 						lastUsed:  m.nowFn(),
@@ -374,7 +533,20 @@ func (m *AttestationManager) mintBatch(ctx context.Context, client *http.Client,
 
 	resp, err := doOnce()
 	if err != nil {
-		return nil, time.Time{}, fmt.Errorf("venice: attestation mint request failed: %w", err)
+		if ctx.Err() != nil {
+			return nil, time.Time{}, fmt.Errorf("venice: attestation mint request failed: %w", err)
+		}
+		timer := time.NewTimer(transientRetryDelay)
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return nil, time.Time{}, ctx.Err()
+		case <-timer.C:
+		}
+		resp, err = doOnce()
+		if err != nil {
+			return nil, time.Time{}, fmt.Errorf("venice: attestation mint retry failed: %w", err)
+		}
 	}
 
 	if isTransientMintStatus(resp.StatusCode) {
@@ -708,6 +880,13 @@ type veniceNDJSONLine struct {
 // chat.completion JSON payload. If raw is already a valid OpenAI chat.completion
 // JSON object (with choices), it is returned as-is.
 func ParseNDJSONToOpenAI(raw []byte, model string) (openAIJSON []byte, fullText string, err error) {
+	return ParseNDJSONToOpenAIWithTools(raw, model, nil)
+}
+
+// ParseNDJSONToOpenAIWithTools converts a Venice NDJSON response body into an
+// OpenAI chat.completion JSON payload and, when requestTools is non-empty,
+// bridges prose <tool_call> blocks into structured OpenAI message.tool_calls.
+func ParseNDJSONToOpenAIWithTools(raw []byte, model string, requestTools []json.RawMessage) (openAIJSON []byte, fullText string, err error) {
 	trimmed := bytes.TrimSpace(raw)
 	if len(trimmed) == 0 {
 		return nil, "", errors.New("venice: empty upstream response")
@@ -766,6 +945,20 @@ func ParseNDJSONToOpenAI(raw []byte, model string) (openAIJSON []byte, fullText 
 		completionID = fmt.Sprintf("chatcmpl-vnc-%d", time.Now().UnixMilli())
 	}
 	completionTokens := (len(fullText) + 3) / 4
+
+	msgObj := map[string]any{
+		"role":    "assistant",
+		"content": fullText,
+	}
+	finishReason := "stop"
+	if len(requestTools) > 0 && fullText != "" {
+		if cleaned, calls, applied := ApplyToolBridge(fullText, requestTools); applied {
+			msgObj["content"] = cleaned
+			msgObj["tool_calls"] = calls
+			finishReason = "tool_calls"
+		}
+	}
+
 	respObj := map[string]any{
 		"id":      completionID,
 		"object":  "chat.completion",
@@ -773,12 +966,9 @@ func ParseNDJSONToOpenAI(raw []byte, model string) (openAIJSON []byte, fullText 
 		"model":   model,
 		"choices": []map[string]any{
 			{
-				"index": 0,
-				"message": map[string]any{
-					"role":    "assistant",
-					"content": fullText,
-				},
-				"finish_reason": "stop",
+				"index":         0,
+				"message":       msgObj,
+				"finish_reason": finishReason,
 			},
 		},
 		"usage": map[string]any{
@@ -813,6 +1003,13 @@ func (r *ssePipeReader) Close() error {
 // chat.completion.chunk SSE frames in real time so downstream gateway SSE
 // translators can stream to OpenAI, Anthropic, Responses, or Gemini clients.
 func NewNDJSONToOpenAISSEReader(ctx context.Context, src io.ReadCloser, model string) io.ReadCloser {
+	return NewNDJSONToOpenAISSEReaderWithTools(ctx, src, model, nil)
+}
+
+// NewNDJSONToOpenAISSEReaderWithTools wraps a Venice NDJSON stream into OpenAI
+// SSE chunks and, when requestTools is non-empty, bridges prose <tool_call>
+// blocks into structured delta.tool_calls chunks with finish_reason "tool_calls".
+func NewNDJSONToOpenAISSEReaderWithTools(ctx context.Context, src io.ReadCloser, model string, requestTools []json.RawMessage) io.ReadCloser {
 	pr, pw := io.Pipe()
 	go func() {
 		defer func() {
@@ -822,8 +1019,34 @@ func NewNDJSONToOpenAISSEReader(ctx context.Context, src io.ReadCloser, model st
 		completionID := fmt.Sprintf("chatcmpl-vnc-%d", time.Now().UnixMilli())
 		created := time.Now().Unix()
 
+		writeChunk := func(delta map[string]any, finishReason any) error {
+			chunk := map[string]any{
+				"id":      completionID,
+				"object":  "chat.completion.chunk",
+				"created": created,
+				"model":   model,
+				"choices": []map[string]any{
+					{
+						"index":         0,
+						"delta":         delta,
+						"finish_reason": finishReason,
+					},
+				},
+			}
+			raw, err := json.Marshal(chunk)
+			if err != nil {
+				return err
+			}
+			_, err = fmt.Fprintf(pw, "data: %s\n\n", raw)
+			return err
+		}
+
 		scanner := bufio.NewScanner(src)
 		scanner.Buffer(make([]byte, 0, 16*1024), maxNDJSONLineBytes)
+
+		var toolBuf strings.Builder
+		bufferingForTools := false
+		hasTools := len(requestTools) > 0
 
 		for scanner.Scan() {
 			if ctx.Err() != nil {
@@ -841,29 +1064,50 @@ func NewNDJSONToOpenAISSEReader(ctx context.Context, src io.ReadCloser, model st
 			if item.CompletionID != "" {
 				completionID = item.CompletionID
 			}
-			if item.Kind == "content" && item.Content != "" {
-				chunk := map[string]any{
-					"id":      completionID,
-					"object":  "chat.completion.chunk",
-					"created": created,
-					"model":   model,
-					"choices": []map[string]any{
-						{
-							"index": 0,
-							"delta": map[string]any{
-								"content": item.Content,
-							},
-							"finish_reason": nil,
-						},
-					},
-				}
-				raw, err := json.Marshal(chunk)
-				if err != nil {
+			if item.Kind != "content" || item.Content == "" {
+				continue
+			}
+
+			if !hasTools {
+				if err := writeChunk(map[string]any{"content": item.Content}, nil); err != nil {
 					_ = pw.CloseWithError(err)
 					return
 				}
-				if _, err := fmt.Fprintf(pw, "data: %s\n\n", raw); err != nil {
+				continue
+			}
+
+			if !bufferingForTools {
+				idx := strings.IndexAny(item.Content, "<`")
+				if idx < 0 {
+					if err := writeChunk(map[string]any{"content": item.Content}, nil); err != nil {
+						_ = pw.CloseWithError(err)
+						return
+					}
+					continue
+				}
+				if idx > 0 {
+					if err := writeChunk(map[string]any{"content": item.Content[:idx]}, nil); err != nil {
+						_ = pw.CloseWithError(err)
+						return
+					}
+				}
+				tail := item.Content[idx:]
+				if couldBeToolMarkerPrefix(tail) {
+					bufferingForTools = true
+					toolBuf.WriteString(tail)
+				} else if err := writeChunk(map[string]any{"content": tail}, nil); err != nil {
+					_ = pw.CloseWithError(err)
 					return
+				}
+			} else {
+				toolBuf.WriteString(item.Content)
+				if !couldBeToolMarkerPrefix(toolBuf.String()) {
+					if err := writeChunk(map[string]any{"content": toolBuf.String()}, nil); err != nil {
+						_ = pw.CloseWithError(err)
+						return
+					}
+					toolBuf.Reset()
+					bufferingForTools = false
 				}
 			}
 		}
@@ -877,21 +1121,49 @@ func NewNDJSONToOpenAISSEReader(ctx context.Context, src io.ReadCloser, model st
 			return
 		}
 
-		finalChunk := map[string]any{
-			"id":      completionID,
-			"object":  "chat.completion.chunk",
-			"created": created,
-			"model":   model,
-			"choices": []map[string]any{
-				{
-					"index":         0,
-					"delta":         map[string]any{},
-					"finish_reason": "stop",
-				},
-			},
+		finishReason := "stop"
+		if bufferingForTools && toolBuf.Len() > 0 {
+			buffered := toolBuf.String()
+			if mayContainToolMarker(buffered) {
+				if cleaned, calls, applied := ApplyToolBridge(buffered, requestTools); applied {
+					if cleaned != "" {
+						if err := writeChunk(map[string]any{"content": cleaned}, nil); err != nil {
+							_ = pw.CloseWithError(err)
+							return
+						}
+					}
+					for idx, call := range calls {
+						delta := map[string]any{
+							"tool_calls": []map[string]any{
+								{
+									"index": idx,
+									"id":    call.ID,
+									"type":  call.Type,
+									"function": map[string]any{
+										"name":      call.Function.Name,
+										"arguments": call.Function.Arguments,
+									},
+								},
+							},
+						}
+						if err := writeChunk(delta, nil); err != nil {
+							_ = pw.CloseWithError(err)
+							return
+						}
+					}
+					finishReason = "tool_calls"
+				} else if err := writeChunk(map[string]any{"content": buffered}, nil); err != nil {
+					_ = pw.CloseWithError(err)
+					return
+				}
+			} else if err := writeChunk(map[string]any{"content": buffered}, nil); err != nil {
+				_ = pw.CloseWithError(err)
+				return
+			}
 		}
-		if raw, err := json.Marshal(finalChunk); err == nil {
-			_, _ = fmt.Fprintf(pw, "data: %s\n\ndata: [DONE]\n\n", raw)
+
+		if err := writeChunk(map[string]any{}, finishReason); err == nil {
+			_, _ = io.WriteString(pw, "data: [DONE]\n\n")
 		}
 		_ = pw.Close()
 	}()

@@ -92,6 +92,19 @@ export function canAddProviderConnection(entry: Pick<ProviderEntry, "noAuth">): 
   return !entry.noAuth;
 }
 
+export function isReadyKeylessProvider(
+  entry: Pick<ProviderEntry, "noAuth" | "category" | "baseUrl" | "stats">,
+): boolean {
+  if (!entry.noAuth || entry.category !== "free") {
+    return false;
+  }
+  if (entry.stats.total > 0) {
+    return !entry.stats.allDisabled && entry.stats.connected > 0;
+  }
+  const url = entry.baseUrl.trim();
+  return url.startsWith("https://") || url.startsWith("http://");
+}
+
 export function canProbeProviderModels(
   entry: Pick<ProviderEntry, "noAuth" | "baseUrl" | "stats">,
 ): boolean {
@@ -327,6 +340,9 @@ export function computeFleetTelemetry(
 
   for (const entry of entries) {
     if (entry.stats.total === 0) {
+      if (isReadyKeylessProvider(entry)) {
+        activeProviders += 1;
+      }
       continue;
     }
     if (entry.stats.allDisabled) {
@@ -372,13 +388,16 @@ export function matchesStatusFilter(entry: ProviderEntry, filter: ProviderStatus
     case "all":
       return true;
     case "active":
-      return entry.stats.total > 0 && !entry.stats.allDisabled && entry.stats.connected > 0;
+      return (
+        (entry.stats.total > 0 && !entry.stats.allDisabled && entry.stats.connected > 0) ||
+        isReadyKeylessProvider(entry)
+      );
     case "error":
       return entry.stats.total > 0 && !entry.stats.allDisabled && entry.stats.error > 0;
     case "inactive":
       return entry.stats.allDisabled;
     case "unconfigured":
-      return entry.stats.total === 0;
+      return entry.stats.total === 0 && !isReadyKeylessProvider(entry);
   }
 }
 
@@ -450,9 +469,10 @@ export function countCategoryBuckets(
 function getEntrySortRank(entry: ProviderEntry): number {
   if (entry.stats.total > 0 && !entry.stats.allDisabled && entry.stats.error > 0) return 0;
   if (entry.stats.total > 0 && !entry.stats.allDisabled && entry.stats.connected > 0) return 1;
-  if (entry.stats.allDisabled) return 2;
-  if (entry.isBuiltinAdapter) return 3;
-  return 4;
+  if (isReadyKeylessProvider(entry)) return 2;
+  if (entry.stats.allDisabled) return 3;
+  if (entry.isBuiltinAdapter) return 4;
+  return 5;
 }
 
 export function sortProviderEntries(

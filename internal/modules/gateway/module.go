@@ -1094,7 +1094,11 @@ func (m *Module) executeCandidateAttempt(
 
 	upCtx := httpclient.WithProviderID(ctx, cand.ProviderID)
 	reqClient := m.httpClient
-	var veniceAttestationToken string
+	var (
+		veniceAttestationToken string
+		veniceProxyKey         string
+		veniceRequestTools     []json.RawMessage
+	)
 	curBody := upBody
 	if cand.ProviderID == "antigravity" {
 		curBody = rewriteAntigravitySystemInstruction(curBody)
@@ -1134,20 +1138,30 @@ func (m *Module) executeCandidateAttempt(
 		curBody = transformJetBrainsRequest(curBody, stream)
 	}
 	if isVeniceKeyless {
-		reqClient = venice.SelectHTTPClient(m.httpClient)
+		veniceRequestTools = venice.ExtractRequestTools(curBody)
 		var payloadErr error
 		curBody, _, payloadErr = venice.BuildChatPayload(upstreamModel, curBody)
 		if payloadErr != nil {
 			m.health.RecordFailure(cand.ConnectionID, http.StatusBadGateway, 0)
 			return attemptOutcome{statusCode: http.StatusBadGateway, errMsg: payloadErr.Error()}
 		}
+		const maxVeniceMintAttempts = 3
 		var attErr error
-		veniceAttestationToken, attErr = m.veniceMgr.GetToken(upCtx, reqClient, upURL)
-		if attErr != nil {
+		for attempt := 0; attempt < maxVeniceMintAttempts; attempt++ {
+			reqClient, veniceProxyKey = venice.ResolveSession(upCtx, m.httpClient, upURL)
+			veniceAttestationToken, attErr = m.veniceMgr.GetTokenForProxy(upCtx, reqClient, upURL, veniceProxyKey)
+			if attErr == nil {
+				break
+			}
 			if ctx.Err() != nil {
 				return attemptOutcome{clientCanceled: true}
 			}
-			m.veniceMgr.Evict(upURL)
+			m.veniceMgr.EvictForProxy(upURL, veniceProxyKey)
+			if veniceProxyKey == venice.DirectProxyKey {
+				break
+			}
+		}
+		if attErr != nil {
 			if !deferHealthFailure {
 				m.health.RecordFailure(cand.ConnectionID, http.StatusBadGateway, 0)
 			}
@@ -1160,6 +1174,7 @@ func (m *Module) executeCandidateAttempt(
 	}
 	retriedSystemToUser := false
 	retriedFreePIUpgrade := false
+	retriedVeniceAuth := false
 
 	var resp *http.Response
 	var errBody []byte
@@ -1187,7 +1202,7 @@ func (m *Module) executeCandidateAttempt(
 		resp, doErr = reqClient.Do(upReq)
 		if doErr != nil {
 			if isVeniceKeyless {
-				m.veniceMgr.Evict(upURL)
+				m.veniceMgr.EvictForProxy(upURL, veniceProxyKey)
 			}
 			if ctx.Err() != nil {
 				return attemptOutcome{clientCanceled: true}
@@ -1203,6 +1218,35 @@ func (m *Module) executeCandidateAttempt(
 		}
 
 		m.shaper.observeRateLimitHeaders(cand.ConnectionID, resp.Header)
+
+		if isVeniceKeyless && !retriedVeniceAuth &&
+			(resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden) {
+			_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, maxErrorBodyBytes))
+			_ = resp.Body.Close()
+			m.veniceMgr.EvictForProxy(upURL, veniceProxyKey)
+			reqClient, veniceProxyKey = venice.ResolveSession(upCtx, m.httpClient, upURL)
+			freshToken, attErr := m.veniceMgr.GetTokenForProxy(upCtx, reqClient, upURL, veniceProxyKey)
+			if attErr == nil && freshToken != "" {
+				veniceAttestationToken = freshToken
+				retriedVeniceAuth = true
+				continue
+			}
+			if ctx.Err() != nil {
+				return attemptOutcome{clientCanceled: true}
+			}
+			errMsg := "venice: empty attestation token"
+			if attErr != nil {
+				errMsg = attErr.Error()
+			}
+			if !deferHealthFailure {
+				m.health.RecordFailure(cand.ConnectionID, http.StatusBadGateway, 0)
+			}
+			return attemptOutcome{
+				deferredHealthFail: deferHealthFailure,
+				statusCode:         http.StatusBadGateway,
+				errMsg:             errMsg,
+			}
+		}
 
 		if resp.StatusCode == http.StatusUpgradeRequired && cand.ProviderID == providerIDFreePI && !retriedFreePIUpgrade {
 			errBody, _ = io.ReadAll(io.LimitReader(resp.Body, maxErrorBodyBytes))
@@ -1309,7 +1353,7 @@ func (m *Module) executeCandidateAttempt(
 		if stream {
 			streamSrc := resp.Body
 			if isVeniceKeyless {
-				streamSrc = venice.NewNDJSONToOpenAISSEReader(ctx, resp.Body, requestedModel)
+				streamSrc = venice.NewNDJSONToOpenAISSEReaderWithTools(ctx, resp.Body, requestedModel, veniceRequestTools)
 			}
 			sres, streamErr := m.streamUpstreamSSE(ctx, w, streamSrc, reqID, inProto, outProto, requestedModel, startTime)
 			if streamErr != nil && ctx.Err() == nil {
@@ -1351,9 +1395,9 @@ func (m *Module) executeCandidateAttempt(
 			return attemptOutcome{handled: true, statusCode: http.StatusBadGateway, errType: "server_error", errCode: "upstream_read_error", errMsg: readErr.Error()}
 		}
 		if isVeniceKeyless {
-			converted, _, convErr := venice.ParseNDJSONToOpenAI(rawResp, requestedModel)
+			converted, _, convErr := venice.ParseNDJSONToOpenAIWithTools(rawResp, requestedModel, veniceRequestTools)
 			if convErr != nil {
-				m.veniceMgr.Evict(upURL)
+				m.veniceMgr.EvictForProxy(upURL, veniceProxyKey)
 				if capture == nil {
 					writeGatewayError(w, r, inProto, http.StatusBadGateway, "server_error", "invalid_upstream_response", convErr.Error())
 				}
@@ -1467,7 +1511,7 @@ func (m *Module) executeCandidateAttempt(
 	}
 
 	if isVeniceKeyless {
-		m.veniceMgr.Evict(upURL)
+		m.veniceMgr.EvictForProxy(upURL, veniceProxyKey)
 	}
 
 	if resp.StatusCode == http.StatusUnauthorized && creds.AuthType == "oauth" && allowOAuthRefresh {
