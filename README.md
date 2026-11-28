@@ -6,7 +6,7 @@
 
 **Single-Binary Modular LLM Gateway & Control Plane**
 
-*One zero-CGO Go binary. Embedded React 19 studio. Multi-protocol routing, traffic shaping, observability, and security — running at ~22 MB idle RSS.*
+_One zero-CGO Go binary. Embedded React 19 + Vite 8 PWA studio. Multi-protocol routing, concurrency shaping, observability, and security — running at ~22 MB idle RSS._
 
 [![Release](https://img.shields.io/badge/release-v0.3.0--beta.1-E11D48?style=for-the-badge)](https://github.com/omeg4monx/router-gateway/releases)
 [![Go](https://img.shields.io/badge/Go-1.26+-00ADD8?style=for-the-badge&logo=go&logoColor=white)](go.mod)
@@ -24,13 +24,13 @@
 
 ## Why OMEG4MON Router?
 
-| Pillar | Built-in Guarantee |
-| :--- | :--- |
-| **Single Self-Contained Binary** | Go (`net/http` + `chi/v5`) with the compiled Vite + React 19 SPA embedded via `//go:embed`. Zero external runtime, zero Node.js server, zero CGO. |
-| **Multi-Protocol Wire Compatibility** | Drop-in gateway for **OpenAI** (`/v1/chat/completions`, `/v1/responses`), **Anthropic** (`/v1/messages`, `count_tokens`), and **Gemini** (`/v1beta/models/*`) with live protocol translation. |
-| **Intelligent Routing & Resilience** | **22 combo routing strategies**, account-level traffic shaping, upstream cooldowns, keyless model probes, and automatic failover across providers. |
-| **Defense-in-Depth Security** | AES-256-GCM encrypted credential vault, native TLS (`--tls-cert-file` / `--tls-key-file`), Prompt Injection Guard firewall, audit trails, and automatic remote-bind hardening. |
-| **Tactile Bilingual Control Plane** | Responsive React 19 + TanStack Query dashboard with **English / Bahasa Indonesia** localization, **Omegamon X-Antibody** (light) & **Omegamon Zwart** (dark) themes, and real-time SSE streams. |
+| Pillar                                  | Built-in Guarantee                                                                                                                                                                                                                                                             |
+| :-------------------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Single Self-Contained Binary**        | Go (`net/http` + `chi/v5`) with the compiled Vite 8 + React 19 SPA embedded via `//go:embed all:ui_dist`. Zero external runtime, zero Node.js server, zero CGO.                                                                                                                |
+| **Multi-Protocol Wire Compatibility**   | Drop-in gateway for **OpenAI** (`/v1/chat/completions`, `/v1/responses`), **Anthropic** (`/v1/messages`, `count_tokens`), and **Gemini** (`/v1beta/models/*`) plus compatibility aliases, with live Canonical IR translation.                                                  |
+| **Intelligent Routing & Resilience**    | **22 combo routing strategies**, **13 per-provider account strategies**, global & per-connection concurrency shaping with proactive rate-limit pacing, singleflight response coalescing (`temperature=0`), hot-path routing cache, upstream cooldowns, and automatic failover. |
+| **Defense-in-Depth Security**           | AES-256-GCM encrypted credential vault, native TLS (`--tls-cert-file` / `--tls-key-file`), Prompt Injection Guard firewall, audit trails, and automatic remote-bind hardening.                                                                                                 |
+| **Installable Bilingual Control Plane** | Responsive React 19 + React Router 8 + TanStack Query **installable PWA** with **English / Bahasa Indonesia** localization, **Omegamon X-Antibody** (light) & **Omegamon Zwart** (dark) themes, and real-time SSE streams.                                                     |
 
 ---
 
@@ -40,24 +40,24 @@
 flowchart LR
     subgraph Clients["Clients & SDKs"]
         C1["OpenAI / Anthropic / Gemini SDKs"]
-        C2["Browser / CLI / Telegram Bot"]
+        C2["Browser / PWA / CLI / Telegram Bot"]
     end
 
     subgraph Binary["omeg4mon-router (Single Zero-CGO Binary)"]
         direction TB
-        GW["Gateway Wire API<br/>/v1/* · /v1beta/*"]
+        GW["Gateway Wire API<br/>/v1/* · /v1beta/* · /codex/responses"]
         CP["Control Plane API<br/>/api/* (OpenAPI 3.1)"]
-        UI["Embedded Vite + React 19 SPA<br/>//go:embed web/out"]
+        UI["Embedded Vite 8 + React 19 PWA<br/>//go:embed all:ui_dist"]
 
-        PIPE["Request Pipeline<br/>Prompt Guard · Token Saver · Model Editor · PXPIPE · Plugins"]
-        ROUTE["Combo & Account Router<br/>22 Strategies · Traffic Shaping · Cooldowns"]
+        PIPE["Request & Response Pipeline<br/>Keys · Prompt Guard · Model Editor · Token Saver · PXPIPE · Plugins"]
+        ROUTE["Combo & Account Router<br/>22 Combo / 13 Account Strategies · Singleflight Cache · Traffic Shaper · Cooldowns"]
         EGRESS["Egress Layer<br/>Direct · Proxy Pools (HTTP/SOCKS5) · MITM · Tunnel"]
         STORE[("Pure-Go SQLite WAL<br/>1-Writer / 8-Reader<br/>AES-256-GCM Vault")]
     end
 
     subgraph Upstreams["Upstream Providers"]
-        P1["OpenAI · Anthropic · Gemini"]
-        P2["Venice · Antigravity · AWS Quick · FreePI · Custom Nodes"]
+        P1["OpenAI / Codex · Anthropic / Claude · Gemini"]
+        P2["CodeBuddy · Venice · Antigravity · Copilot · Kiro · AWS Quick · FreePI · Custom"]
     end
 
     C1 --> GW
@@ -68,7 +68,7 @@ flowchart LR
     ROUTE --> STORE
 ```
 
-- **Strict Vertical Slices:** Every domain lives in `internal/modules/<name>/` with its own SQLite migrations and OpenAPI 3.1 module spec (`contracts/openapi/modules/`), mirrored 1:1 in `web/src/features/<name>/`.
+- **Strict Vertical Slices:** Every backend domain lives in `internal/modules/<name>/` with its own embedded SQLite migrations, paired with 22 modular OpenAPI 3.1 control-plane specs (`contracts/openapi/modules/`) and 25 feature-sliced React 19 modules in `web/src/features/`.
 - **Decoupled Internals:** Cross-module communication flows exclusively through narrow interfaces in `internal/contracts/` and the non-blocking `internal/platform/eventbus`.
 - **Split-Pool WAL Persistence:** Pure-Go `modernc.org/sqlite` running a dedicated 1-writer / 8-reader connection pool with `0600` master-key vaulting (`OMEG4MON_MASTER_KEY` or `<DATA_DIR>/master.key`).
 
@@ -77,34 +77,40 @@ flowchart LR
 ## Feature Suite
 
 ### Routing & Gateway Core
-- **Unified Provider Control Studio (`/dashboard/providers/`)** — Full provider registry with logos, custom OpenAI-compatible nodes, pre-save endpoint tests, keyless model probes, and full OAuth flows (**PKCE**, **Device Code**, **AWS Quick loopback**) with refresh cooldowns. Supports OpenAI, Anthropic, Gemini, Venice, Antigravity, FreePI, and custom endpoints.
-- **Combos & Traffic Shaping (`/dashboard/combos/`)** — **22 routing strategies**, fallback chains, model aliases, disabled model lists, per-account strategies, and automatic upstream cooldown recovery.
+
 - **Interactive Overview & Topology (`/dashboard/`)** — Real-time host/OS telemetry, live SSE traffic pulse, interactive `@xyflow/react` provider topology graph, and instant OpenAI/Anthropic copy-paste snippets.
+- **Unified Provider Control Studio (`/dashboard/providers/`)** — Top active providers overview, full provider registry with logos, custom OpenAI-compatible nodes, pre-save endpoint tests, keyless model probes, and full OAuth flows (**PKCE**, **Device Code / RFC 8628**, **AWS Quick loopback**) with refresh cooldowns. Supports OpenAI/Codex, Anthropic/Claude, Gemini, CodeBuddy (CN & Intl), Venice, Antigravity, GitHub Copilot, Kiro, AWS Quick, FreePI, Kimi, Grok CLI, Nous, MiniMax, KiloCode, and custom endpoints.
+- **Combos & Traffic Shaping (`/dashboard/combos/`)** — **22 combo routing strategies**, **13 per-provider account strategies**, nested combo references, fallback chains, model aliases, disabled model lists, and automatic upstream cooldown recovery.
 
 ### Operations & Observability
-- **API Key Lifecycle (`/dashboard/keys/`)** — Scoped gateway keys, secret rotation, expiry rules, rate/quota guardrails, and per-key client snippets.
+
+- **API Keys (`/dashboard/keys/`)** — Scoped gateway keys, secret rotation, expiry rules, rate/quota guardrails, server domain host route configuration, and per-key client snippets.
 - **Usage & Cost Telemetry (`/dashboard/usage/`)** — Request logs, aggregated token/cost analytics, model pricing overrides, and live SSE streaming.
-- **Live Monitor (`/dashboard/monitor/`)** — Real-time terminal-style SSE stream of incoming gateway requests with status filtering, latency inspection, and ring-buffer log capture.
-- **Token Saver (`/dashboard/token-saver/`)** — Configurable context compression, prompt caching, and headroom optimization pipeline with one-click toggle.
+- **Quota / Token Harbor (`/dashboard/quota/`)** — Real-time provider quota & allowance dashboard with coalesced multi-account fetches, bucket progress tracking, reset countdowns, and live SSE sync.
+- **Live Monitor (`/dashboard/monitor/`)** — Zero-latency terminal-style SSE stream of live gateway traffic with status filtering, latency inspection, and ring-buffer log capture.
+- **Token Saver (`/dashboard/token-saver/`)** — Go-native token compression, Headroom prefix cache affinity, and live savings metrics with one-click toggle.
 
 ### AI Studios & Extensions
-- **Compare Models Arena (`/dashboard/arena/`)** — Multi-model side-by-side battle evaluation, streaming comparison, and persistent leaderboard.
-- **Basic Chat (`/dashboard/chat/`)** — Built-in interactive prompt playground routed directly through your configured providers and combos.
-- **Custom Models Editor (`/dashboard/model-editor/`)** — Per-model parameter overrides (temperature, extra JSON params) and request bypass/rewrite rules.
-- **Prompt Guard (`/dashboard/prompt-guard/`)** — Configurable prompt-injection firewall rules, interactive dry-run tester, and security audit log.
-- **Plugins & Skills (`/dashboard/plugins/`)** — Request-enhancement plugin interceptors, snapshot contracts, and skills catalog.
-- **Telegram Bot (`/dashboard/telegram/`)** — Direct Telegram bot bridge for chatting with routed models from mobile or desktop.
 
-### Infrastructure, Networking & Security
-- **Media Gateway (`/dashboard/media/`)** — Unified routing for image, vision, audio, video, and web capabilities.
-- **Protocol Translator (`/dashboard/translator/`)** — Interactive wire-protocol conversion workbench (OpenAI ↔ Anthropic ↔ Gemini) and live console stream.
+- **Compare Models (`/dashboard/arena/`)** — Multi-model side-by-side battle evaluation, streaming comparison, and persistent leaderboard.
+- **Playground (`/dashboard/chat/`)** — Multi-session interactive prompt playground with system prompts, parameter controls, starter prompts, and per-session latency/token telemetry.
+- **Custom Models (`/dashboard/model-editor/`)** — Virtual models, per-model parameter overrides (temperature, max tokens, extra/strip JSON params), dual system-prompt injection (prefix/suffix), conditional bypass/rewrite rules, and interactive quick-prompt probe & dry-run preview.
+- **Prompt Guard (`/dashboard/prompt-guard/`)** — Configurable prompt-injection firewall rules, interactive dry-run tester, and security audit log.
+- **Plugins (`/dashboard/plugins/`)** — Request & response gateway plugins with model allowlists/wildcards, cache-safe idempotent system prompt injection, response repair runtime, and live payload preview.
+- **Telegram Bot (`/dashboard/telegram/`)** — Vaulted Telegram bot controller with fail-closed webhook, command simulator, and eventbus alert forwarding.
+
+### Infrastructure, Networking & System
+
+- **Media Gateway (`/dashboard/media/`)** — Unified routing for image, vision, audio, video, search, and SSRF-safe web fetch capabilities.
+- **Translator (`/dashboard/translator/`)** — Interactive wire-protocol conversion workbench (OpenAI Chat ↔ OpenAI Responses ↔ Anthropic ↔ Gemini) and live console log stream.
 - **Proxy Pools (`/dashboard/proxy-pools/`)** — Encrypted HTTP/SOCKS5 outbound proxy pools, latency probes, auto-scanner, and provider/rotate bindings.
-- **Tunnel (`/dashboard/tunnel/`)** — Integrated Cloudflare / Tailscale remote exposure controls.
-- **MITM Proxy (`/dashboard/mitm/`)** — Local TLS interception & CA certificate management for traffic inspection.
-- **PXPIPE (`/dashboard/pxpipe/`)** — Composable request/response middleware transformation pipeline.
-- **Security & Audit (`/dashboard/security/`)** — Centralized audit log, policy enforcement, and compliance tracking.
-- **Notifications & Jobs (`/dashboard/notifications/`)** — Alert channels, event hooks, and background job scheduling.
-- **Legacy Importer (`/dashboard/importer/`)** — Read-only SQLite inspector with dry-run and live migration from legacy router databases.
+- **Tunnel (`/dashboard/tunnel/`)** — Integrated Cloudflare quick tunnel & Tailscale serve/funnel exposure controls.
+- **MITM Proxy (`/dashboard/mitm/`)** — Local loopback TLS interception, ECDSA Root CA management, IDE tool hosts, and model aliases.
+- **PXPIPE (`/dashboard/pxpipe/`)** — In-process composable request/response middleware transformation pipeline with live self-test health and logs.
+- **Security & Audit (`/dashboard/security/`)** — Live security posture report, policy enforcement, and redacted control-plane audit trail.
+- **Notifications & Jobs (`/dashboard/notifications/`)** — System notifications inbox, live SSE alert stream, and background job telemetry/triggers.
+- **Legacy Importer (`/dashboard/importer/`)** — Read-only legacy `data.sqlite` inspector with dry-run and one-way control-plane migration.
+- **Settings (`/dashboard/settings/`)** — Typed control-plane runtime settings with revision history and atomic rollback.
 
 ---
 
@@ -112,13 +118,17 @@ flowchart LR
 
 Point any standard SDK or CLI tool at `http://127.0.0.1:20128` (or your TLS host):
 
-| Protocol | Method & Route | Purpose |
-| :--- | :--- | :--- |
-| **OpenAI Chat** | `POST /v1/chat/completions` | Chat completions (streaming SSE & non-streaming) |
-| **OpenAI Responses** | `POST /v1/responses` · `POST /v1/responses/compact` | OpenAI Responses API & compaction |
-| **Anthropic Messages** | `POST /v1/messages` · `POST /v1/messages/count_tokens` | Claude Messages API & token counting |
-| **Gemini Native** | `GET /v1beta/models` · `POST /v1beta/models/{modelAction}` | Native Gemini model listing & generation |
-| **Model Catalog** | `GET /v1/models` · `GET /v1/models/*` | Unified model discovery across providers & combos |
+| Protocol                  | Method & Route                                                                | Purpose                                                                    |
+| :------------------------ | :---------------------------------------------------------------------------- | :------------------------------------------------------------------------- |
+| **OpenAI Chat**           | `POST /v1/chat/completions`                                                   | Chat completions (streaming SSE & non-streaming)                           |
+| **OpenAI Responses**      | `POST /v1/responses` · `POST /v1/responses/compact`                           | OpenAI Responses API & compaction                                          |
+| **Anthropic Messages**    | `POST /v1/messages` · `POST /v1/messages/count_tokens`                        | Claude Messages API & token counting                                       |
+| **Gemini Native**         | `GET /v1beta/models` · `POST /v1beta/models/{modelAction}`                    | Native Gemini model listing & generation                                   |
+| **Model Catalog**         | `GET /v1/models` · `GET /v1/models/*`                                         | Unified model discovery across providers, combos, aliases & virtual models |
+| **Compatibility Aliases** | `POST /codex/responses` · `POST /responses` · `GET /models` · `GET /models/*` | Drop-in compatibility aliases for Codex & bare-path clients                |
+
+> [!NOTE]
+> The gateway includes built-in concurrency shaping (global & per-connection semaphores with proactive rate-limit header pacing) and singleflight response coalescing + bounded TTL caching for deterministic (`temperature=0`, non-streaming, stateless) requests.
 
 ```bash
 curl http://127.0.0.1:20128/v1/chat/completions \
@@ -140,7 +150,7 @@ curl http://127.0.0.1:20128/v1/chat/completions \
 Requires **Go `1.26+`** and **Bun `1.4+`**:
 
 ```bash
-# Full production cycle: fmt + lint + tests + codegen + build + smoke test + run
+# Full production cycle: fmt-check + lint + tests + codegen + build + smoke test + run
 make prod
 
 # Or build and run directly
@@ -148,7 +158,7 @@ make build
 ./bin/omeg4mon-router
 ```
 
-Open **`http://127.0.0.1:20128`** to complete first-run admin initialization (`/init/`) and enter the dashboard.
+Open **`http://127.0.0.1:20128`** to complete first-run admin initialization (`/init`) and enter the dashboard (also installable as a standalone PWA from supported browsers).
 
 ### 2. Multi-Platform CLI Launcher (`@omeg4mon/router`)
 
@@ -191,28 +201,28 @@ docker run -d --name omeg4mon-router \
 
 ## Configuration
 
-| Environment Variable | CLI Flag | Default | Description |
-| :--- | :--- | :--- | :--- |
-| `OMEG4MON_HOST` | `--host` | `127.0.0.1` | Listen host address |
-| `OMEG4MON_PORT` | `--port` | `20128` | Listen port (`1–65535`) |
-| `OMEG4MON_DATA_DIR` | `--data-dir` | `~/.omeg4mon-router` | SQLite database and encrypted vault directory |
-| `OMEG4MON_LOG_LEVEL` | `--log-level` | `info` | Structured `slog` level (`debug`, `info`, `warn`, `error`) |
-| `OMEG4MON_TLS_CERT_FILE` | `--tls-cert-file` | — | Path to TLS certificate PEM file (enables native HTTPS) |
-| `OMEG4MON_TLS_KEY_FILE` | `--tls-key-file` | — | Path to TLS private key PEM file (required with cert) |
-| `OMEG4MON_MASTER_KEY` | — | auto-generated | 32-byte hex AES-256-GCM vault key (`<DATA_DIR>/master.key`) |
-| `OMEG4MON_ADMIN_PASSWORD` | — | — | Optional headless first-run administrator password |
-| `OMEG4MON_API_TIMEOUT` | — | `30s` | Timeout for non-streaming `/api/*` control-plane requests |
-| `OMEG4MON_DISABLED_MODULES` | — | — | Comma-separated list of optional modules to disable |
-| `OMEG4MON_ALLOW_INSECURE_REMOTE` | — | `false` | Override non-loopback remote-bind security guard |
+| Environment Variable             | CLI Flag          | Default              | Description                                                 |
+| :------------------------------- | :---------------- | :------------------- | :---------------------------------------------------------- |
+| `OMEG4MON_HOST`                  | `--host`          | `127.0.0.1`          | Listen host address                                         |
+| `OMEG4MON_PORT`                  | `--port`          | `20128`              | Listen port (`1–65535`)                                     |
+| `OMEG4MON_DATA_DIR`              | `--data-dir`      | `~/.omeg4mon-router` | SQLite database and encrypted vault directory               |
+| `OMEG4MON_LOG_LEVEL`             | `--log-level`     | `info`               | Structured `slog` level (`debug`, `info`, `warn`, `error`)  |
+| `OMEG4MON_TLS_CERT_FILE`         | `--tls-cert-file` | —                    | Path to TLS certificate PEM file (enables native HTTPS)     |
+| `OMEG4MON_TLS_KEY_FILE`          | `--tls-key-file`  | —                    | Path to TLS private key PEM file (required with cert)       |
+| `OMEG4MON_MASTER_KEY`            | —                 | auto-generated       | 32-byte hex AES-256-GCM vault key (`<DATA_DIR>/master.key`) |
+| `OMEG4MON_ADMIN_PASSWORD`        | —                 | —                    | Optional headless first-run administrator password          |
+| `OMEG4MON_API_TIMEOUT`           | —                 | `30s`                | Timeout for non-streaming `/api/*` control-plane requests   |
+| `OMEG4MON_DISABLED_MODULES`      | —                 | —                    | Comma-separated list of optional modules to disable         |
+| `OMEG4MON_ALLOW_INSECURE_REMOTE` | —                 | `false`              | Override non-loopback remote-bind security guard            |
 
 ---
 
 ## 23 Vertical-Slice Modules
 
-| Tier | Count | Modules |
-| :--- | :---: | :--- |
-| **Core** *(always enabled)* | **8** | `system`, `auth`, `settings`, `providers`, `keys`, `combos`, `gateway`, `usage` |
-| **Optional** *(toggleable via `OMEG4MON_DISABLED_MODULES`)* | **15** | `arena`, `importer`, `media`, `mitm`, `modeleditor`, `notifications`, `plugins`, `promptinjection`, `proxypools`, `pxpipe`, `security`, `telegram`, `tokensaver`, `translator`, `tunnel` |
+| Tier                                                        | Count  | Modules                                                                                                                                                                                  |
+| :---------------------------------------------------------- | :----: | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Core** _(always enabled)_                                 | **8**  | `system`, `auth`, `settings`, `providers`, `keys`, `combos`, `gateway`, `usage`                                                                                                          |
+| **Optional** _(toggleable via `OMEG4MON_DISABLED_MODULES`)_ | **15** | `arena`, `importer`, `media`, `mitm`, `modeleditor`, `notifications`, `plugins`, `promptinjection`, `proxypools`, `pxpipe`, `security`, `telegram`, `tokensaver`, `translator`, `tunnel` |
 
 ---
 
@@ -225,7 +235,7 @@ make dev
 # Debug single binary with embedded UI on :20128
 make dev-bin
 
-# Full quality gate (golangci-lint + Go -race + zero-CGO DB + Biome + 256 Web tests + tsc + CLI tests)
+# Full quality gate (fmt-check + golangci-lint + Go -race + zero-CGO DB + Biome + Web/CLI tests + tsc)
 make check
 
 # Production build & live single-binary smoke verification
