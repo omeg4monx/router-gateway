@@ -419,6 +419,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/providers/connections/{id}/models": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Unique provider connection identifier. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        /** Discover available upstream models for a provider connection */
+        get: operations["fetchProviderConnectionModels"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/providers/quotas": {
         parameters: {
             query?: never;
@@ -4105,6 +4125,21 @@ export interface components {
         ClearImporterHistoryResponse: {
             deleted: number;
         };
+        DiscoveredModel: {
+            id: string;
+            name?: string;
+            is_free?: boolean;
+        };
+        FetchConnectionModelsResponse: {
+            connection_id: string;
+            provider_id: string;
+            models: components["schemas"]["DiscoveredModel"][];
+            /** @enum {string} */
+            source: "upstream" | "fallback";
+            /** Format: int64 */
+            latency_ms: number;
+            warning?: string;
+        };
         ComboStep: {
             /** @enum {string} */
             kind: "model" | "combo-ref";
@@ -5801,6 +5836,65 @@ export interface operations {
                 };
             };
             /** @description Failed to resolve credentials or execute connectivity test. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    fetchProviderConnectionModels: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Unique provider connection identifier. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Discovered upstream or fallback models for the connection. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FetchConnectionModelsResponse"];
+                };
+            };
+            /** @description Invalid connection identifier. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Administrative authentication is required. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Provider connection not found. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Failed to resolve credentials or discover upstream models. */
             500: {
                 headers: {
                     [name: string]: unknown;

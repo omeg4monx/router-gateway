@@ -98,6 +98,8 @@ paths:
     $ref: './modules/providers.yaml#/paths/~1api~1providers~1connections~1{id}'
   /api/providers/connections/{id}/test:
     $ref: './modules/providers.yaml#/paths/~1api~1providers~1connections~1{id}~1test'
+  /api/providers/connections/{id}/models:
+    $ref: './modules/providers.yaml#/paths/~1api~1providers~1connections~1{id}~1models'
   /api/providers/quotas:
     $ref: './modules/providers.yaml#/paths/~1api~1providers~1quotas'
   /api/providers/connections/{id}/quota/refresh:

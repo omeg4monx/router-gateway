@@ -32,7 +32,10 @@ export const providersQueryKeys = {
 const MODEL_CATALOG_QUERY_KEY = ["models", "catalog"] as const;
 const ARENA_MODELS_QUERY_KEY = ["arena", "models"] as const;
 
-async function invalidateModelRoutingQueries(queryClient: QueryClient, connectionId?: string) {
+export async function invalidateModelRoutingQueries(
+  queryClient: QueryClient,
+  connectionId?: string,
+) {
   const tasks: Promise<void>[] = [
     queryClient.invalidateQueries({ queryKey: providersQueryKeys.connections }),
     queryClient.invalidateQueries({ queryKey: MODEL_CATALOG_QUERY_KEY }),
@@ -46,22 +49,40 @@ async function invalidateModelRoutingQueries(queryClient: QueryClient, connectio
   await Promise.all(tasks);
 }
 
+export async function runWithConcurrency<T, R>(
+  items: readonly T[],
+  limit: number,
+  worker: (item: T, index: number) => Promise<R>,
+): Promise<R[]> {
+  if (items.length === 0) {
+    return [];
+  }
+  const concurrency = Math.max(1, Math.min(Math.floor(limit) || 1, items.length));
+  const results = new Array<R>(items.length);
+  let nextIndex = 0;
+
+  const runWorker = async () => {
+    while (nextIndex < items.length) {
+      const current = nextIndex;
+      nextIndex += 1;
+      results[current] = await worker(items[current] as T, current);
+    }
+  };
+
+  await Promise.all(Array.from({ length: concurrency }, () => runWorker()));
+  return results;
+}
+
 export async function fetchConnectionModels(
   connectionId: string,
 ): Promise<FetchConnectionModelsResponse> {
-  const response = await fetch(
-    `/api/providers/connections/${encodeURIComponent(connectionId)}/models`,
-    {
-      method: "GET",
-      credentials: "include",
-      headers: { Accept: "application/json" },
-    },
-  );
-  const data = await response.json().catch(() => null);
-  if (response.ok && data) {
-    return data as FetchConnectionModelsResponse;
+  const { data, error } = await apiClient.GET("/api/providers/connections/{id}/models", {
+    params: { path: { id: connectionId } },
+  });
+  if (data) {
+    return data;
   }
-  throw new Error(extractErrorMessage(data) || `Failed to load models (HTTP ${response.status})`);
+  throw new Error(extractErrorMessage(error));
 }
 
 function syncConnectionModelsInBackground(queryClient: QueryClient, connectionId: string) {
@@ -208,22 +229,51 @@ export interface UpdateProviderConnectionVariables {
   body: UpdateProviderConnectionRequest;
 }
 
+export async function updateProviderConnection({
+  id,
+  body,
+}: UpdateProviderConnectionVariables): Promise<ProviderConnectionSummary> {
+  const { data, error } = await apiClient.PATCH("/api/providers/connections/{id}", {
+    params: { path: { id } },
+    body,
+  });
+  if (data) {
+    return data;
+  }
+  throw new Error(extractErrorMessage(error));
+}
+
 export function useUpdateProviderConnectionMutation() {
   const queryClient = useQueryClient();
 
   return useMutation<ProviderConnectionSummary, Error, UpdateProviderConnectionVariables>({
-    mutationFn: async ({ id, body }) => {
-      const { data, error } = await apiClient.PATCH("/api/providers/connections/{id}", {
-        params: { path: { id } },
-        body,
-      });
-      if (data) {
-        return data;
-      }
-      throw new Error(extractErrorMessage(error));
-    },
+    mutationFn: updateProviderConnection,
     onSuccess: async (updated) => {
       await invalidateModelRoutingQueries(queryClient, updated.id);
+    },
+  });
+}
+
+export interface BatchToggleConnectionsVariables {
+  connectionIds: string[];
+  enabled: boolean;
+}
+
+export function useBatchToggleProviderConnectionsMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation<ProviderConnectionSummary[], Error, BatchToggleConnectionsVariables>({
+    mutationFn: async ({ connectionIds, enabled }) =>
+      runWithConcurrency(connectionIds, 4, (id) =>
+        updateProviderConnection({ id, body: { enabled } }),
+      ),
+    onSuccess: async (updated) => {
+      await invalidateModelRoutingQueries(queryClient);
+      await Promise.all(
+        updated.map((conn) =>
+          queryClient.invalidateQueries({ queryKey: providersQueryKeys.connection(conn.id) }),
+        ),
+      );
     },
   });
 }
@@ -291,23 +341,75 @@ export function useFetchConnectionModelsMutation() {
   });
 }
 
+export async function testProviderConnection(id: string): Promise<TestProviderConnectionResponse> {
+  const { data, error } = await apiClient.POST("/api/providers/connections/{id}/test", {
+    params: { path: { id } },
+  });
+  if (data) {
+    return data;
+  }
+  throw new Error(extractErrorMessage(error));
+}
+
 export function useTestProviderConnectionMutation() {
   const queryClient = useQueryClient();
 
   return useMutation<TestProviderConnectionResponse, Error, string>({
-    mutationFn: async (id) => {
-      const { data, error } = await apiClient.POST("/api/providers/connections/{id}/test", {
-        params: { path: { id } },
-      });
-      if (data) {
-        return data;
-      }
-      throw new Error(extractErrorMessage(error));
-    },
+    mutationFn: testProviderConnection,
     onSuccess: async (_data, id) => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: providersQueryKeys.connections }),
         queryClient.invalidateQueries({ queryKey: providersQueryKeys.connection(id) }),
+      ]);
+    },
+  });
+}
+
+export interface BatchTestConnectionResult {
+  connectionId: string;
+  connectionName: string;
+  providerId: string;
+  ok: boolean;
+  statusCode: number;
+  latencyMs: number;
+  error?: string;
+}
+
+export function useBatchTestProviderConnectionsMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation<BatchTestConnectionResult[], Error, ProviderConnectionSummary[]>({
+    mutationFn: async (connections) =>
+      runWithConcurrency(connections, 4, async (conn) => {
+        try {
+          const res = await testProviderConnection(conn.id);
+          return {
+            connectionId: conn.id,
+            connectionName: conn.name,
+            providerId: conn.provider_id,
+            ok: res.ok,
+            statusCode: res.status_code,
+            latencyMs: res.latency_ms,
+            error: res.error || undefined,
+          };
+        } catch (err) {
+          return {
+            connectionId: conn.id,
+            connectionName: conn.name,
+            providerId: conn.provider_id,
+            ok: false,
+            statusCode: 0,
+            latencyMs: 0,
+            error: err instanceof Error ? err.message : "Test failed",
+          };
+        }
+      }),
+    onSuccess: async (_results, connections) => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: providersQueryKeys.connections }),
+        ...connections.map((conn) =>
+          queryClient.invalidateQueries({ queryKey: providersQueryKeys.connection(conn.id) }),
+        ),
       ]);
     },
   });
