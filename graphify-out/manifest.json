@@ -306,9 +306,9 @@
     "semantic_hash": ""
   },
   "web/src/shared/api/schema.d.ts": {
-    "mtime": 1795846830.910108,
-    "seen": 1795847254.6024065,
-    "ast_hash": "10aba2b257ec70fcdbb205b32dfe8bf0",
+    "mtime": 1795849069.403637,
+    "seen": 1795849371.0682914,
+    "ast_hash": "34a96e50b46386de1d9a6a325e7c671c",
     "semantic_hash": ""
   },
   "web/src/shared/lib/utils.test.ts": {
@@ -828,9 +828,9 @@
     "semantic_hash": ""
   },
   "contracts/openapi/modules/usage.yaml": {
-    "mtime": 1795710119.0992055,
-    "seen": 1795770205.4549632,
-    "ast_hash": "7f0a3c13b8eaceaafbe3d0426fc9ffc0",
+    "mtime": 1795849058.8914807,
+    "seen": 1795849371.0538604,
+    "ast_hash": "9958be23e1415a56b6604a5cb1d66bed",
     "semantic_hash": ""
   },
   "internal/modules/usage/batcher.go": {
@@ -840,15 +840,15 @@
     "semantic_hash": ""
   },
   "internal/modules/usage/module.go": {
-    "mtime": 1795710119.1412063,
-    "seen": 1795770205.4553518,
-    "ast_hash": "5026ffc200eb7660525bf1955564a8a6",
+    "mtime": 1795849056.1644402,
+    "seen": 1795849371.0613437,
+    "ast_hash": "d772979cb52271b6bf6a2173abbf2057",
     "semantic_hash": ""
   },
   "internal/modules/usage/module_test.go": {
-    "mtime": 1795710119.1412063,
-    "seen": 1795770205.4553547,
-    "ast_hash": "f358e21d2682079024c7af7e5f30fd91",
+    "mtime": 1795848999.783602,
+    "seen": 1795849371.061347,
+    "ast_hash": "4f9ee2ccca3d30a35aa353065e300fac",
     "semantic_hash": ""
   },
   "internal/modules/usage/pricing.go": {
@@ -858,21 +858,21 @@
     "semantic_hash": ""
   },
   "internal/modules/usage/repo.go": {
-    "mtime": 1795710119.1412063,
-    "seen": 1795770205.4553597,
-    "ast_hash": "fbcc5b16900ed395b05762bdf548298a",
+    "mtime": 1795849640.4151263,
+    "seen": 1795849801.133042,
+    "ast_hash": "63f16d8a0bfa6f652586ceff093a228c",
     "semantic_hash": ""
   },
   "web/src/features/usage/UsageConsole.tsx": {
-    "mtime": 1795845958.4834476,
-    "seen": 1795846026.7860441,
-    "ast_hash": "84576dcb6cef6d5ce73d26d630c3ef61",
+    "mtime": 1795849699.792009,
+    "seen": 1795849801.1427488,
+    "ast_hash": "75d43f597c1002a48a95f27b1243d0c9",
     "semantic_hash": ""
   },
   "web/src/features/usage/hooks.ts": {
-    "mtime": 1795843635.34133,
-    "seen": 1795843736.4455023,
-    "ast_hash": "bdd774d62c2cdd02ff7fd7a6a5fbfa23",
+    "mtime": 1795849646.1372116,
+    "seen": 1795849801.1428874,
+    "ast_hash": "ad40149c33d6dbfb1a3cf889c4519c92",
     "semantic_hash": ""
   },
   "web/src/features/usage/schemas.test.ts": {
@@ -882,9 +882,9 @@
     "semantic_hash": ""
   },
   "web/src/features/usage/schemas.ts": {
-    "mtime": 1795808381.8862944,
-    "seen": 1795808685.2735987,
-    "ast_hash": "aa9a7f743382a670cead6c77a7e02f60",
+    "mtime": 1795849641.8431478,
+    "seen": 1795849801.1429527,
+    "ast_hash": "1e84b49c7f363dae68cdcf6e368b979f",
     "semantic_hash": ""
   },
   "docs/superpowers/plans/2026-11-23-wave2a-providers-proxypools-translator.md": {
@@ -3468,15 +3468,15 @@
     "semantic_hash": ""
   },
   "web/src/features/usage/streamCache.test.ts": {
-    "mtime": 1795808329.9525182,
-    "seen": 1795808685.2736025,
-    "ast_hash": "45e2b06bc4bdc0b0d0acbba957086ac0",
+    "mtime": 1795849105.3551714,
+    "seen": 1795849371.068015,
+    "ast_hash": "2bf3260150f6180eecb44ae9bb6f4b34",
     "semantic_hash": ""
   },
   "web/src/features/usage/streamCache.ts": {
-    "mtime": 1795808383.2423146,
-    "seen": 1795808685.2736063,
-    "ast_hash": "f30d777548eb8d29cb1384066dc34978",
+    "mtime": 1795849104.252155,
+    "seen": 1795849371.0680175,
+    "ast_hash": "fbbb31c069a4cc7dead984631d71bd97",
     "semantic_hash": ""
   },
   "web/src/features/system/recentRequests.test.ts": {
@@ -3993,6 +3993,42 @@
     "mtime": 1795847166.200828,
     "seen": 1795847254.593187,
     "ast_hash": "4e82ec8519423230ced930558fba280b",
+    "semantic_hash": ""
+  },
+  "web/src/features/usage/UsageBreakdownPane.tsx": {
+    "mtime": 1795849278.7567496,
+    "seen": 1795849371.0679204,
+    "ast_hash": "8684ac54eb2ce20c4109140eb18d2fba",
+    "semantic_hash": ""
+  },
+  "web/src/features/usage/UsageKpiStrip.tsx": {
+    "mtime": 1795849223.035964,
+    "seen": 1795849371.0679257,
+    "ast_hash": "f88a4e17dde24a5b30dc975280144ace",
+    "semantic_hash": ""
+  },
+  "web/src/features/usage/UsageLogsPane.tsx": {
+    "mtime": 1795849694.6339326,
+    "seen": 1795849801.1428137,
+    "ast_hash": "6e8a19b15dc3a29db15efe8c6ec49136",
+    "semantic_hash": ""
+  },
+  "web/src/features/usage/UsageStreamIndicator.tsx": {
+    "mtime": 1795849221.8489034,
+    "seen": 1795849371.0679293,
+    "ast_hash": "6a75ed36d6d39c26cffdb4e3ca7feb95",
+    "semantic_hash": ""
+  },
+  "web/src/features/usage/usage.test.ts": {
+    "mtime": 1795849715.171238,
+    "seen": 1795849801.1430879,
+    "ast_hash": "68c1b1c9b9148247ca0002babfa54630",
+    "semantic_hash": ""
+  },
+  "web/src/features/usage/UsagePricingModal.tsx": {
+    "mtime": 1795849721.9323385,
+    "seen": 1795849801.1428185,
+    "ast_hash": "9f35d3458decc6acb717ebf3f1010ee9",
     "semantic_hash": ""
   }
 }

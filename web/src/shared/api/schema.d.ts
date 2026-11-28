@@ -7336,6 +7336,8 @@ export interface operations {
             query?: {
                 /** @description Time window for aggregation. */
                 range?: "24h" | "7d" | "30d" | "all";
+                /** @description Whether to compute and return time-series buckets (defaults to true). */
+                include_series?: boolean;
             };
             header?: never;
             path?: never;
@@ -7384,6 +7386,10 @@ export interface operations {
     listUsageLogs: {
         parameters: {
             query?: {
+                /** @description Optional time window filter (24h, 7d, 30d, or all). */
+                range?: "24h" | "7d" | "30d" | "all";
+                /** @description Case-insensitive substring search across model, provider, request ID, and error summary. */
+                q?: string;
                 /** @description Filter by exact model identifier. */
                 model?: string;
                 /** @description Filter by exact provider identifier. */

@@ -239,12 +239,23 @@ type upsertPricingRequest struct {
 }
 
 func (m *Module) handleGetSummary(w http.ResponseWriter, r *http.Request) {
-	rng := strings.TrimSpace(r.URL.Query().Get("range"))
+	q := r.URL.Query()
+	rng := strings.TrimSpace(q.Get("range"))
 	if rng == "" {
 		rng = "24h"
 	}
 
-	summary, err := m.repo.Summary(r.Context(), rng)
+	includeSeries := true
+	if rawInclude := strings.TrimSpace(q.Get("include_series")); rawInclude != "" {
+		parsed, err := strconv.ParseBool(rawInclude)
+		if err != nil {
+			httpserver.WriteError(w, r, http.StatusBadRequest, "invalid_request", "include_series must be a boolean")
+			return
+		}
+		includeSeries = parsed
+	}
+
+	summary, err := m.repo.Summary(r.Context(), rng, includeSeries)
 	if err != nil {
 		if _, _, _, winErr := m.repo.summaryWindow(rng); winErr != nil {
 			httpserver.WriteError(w, r, http.StatusBadRequest, "invalid_request", winErr.Error())
@@ -282,6 +293,8 @@ func (m *Module) handleListLogs(w http.ResponseWriter, r *http.Request) {
 	}
 
 	filter := LogsFilter{
+		Range:      strings.TrimSpace(q.Get("range")),
+		Search:     strings.TrimSpace(q.Get("q")),
 		Model:      strings.TrimSpace(q.Get("model")),
 		ProviderID: strings.TrimSpace(q.Get("provider")),
 		KeyID:      strings.TrimSpace(q.Get("key_id")),
@@ -289,7 +302,7 @@ func (m *Module) handleListLogs(w http.ResponseWriter, r *http.Request) {
 		Limit:      limit,
 		Offset:     offset,
 	}
-	if _, _, err := buildLogsWhere(filter); err != nil {
+	if _, _, err := m.repo.buildLogsWhere(filter); err != nil {
 		httpserver.WriteError(w, r, http.StatusBadRequest, "invalid_request", err.Error())
 		return
 	}

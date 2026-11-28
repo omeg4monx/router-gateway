@@ -1,10 +1,20 @@
-import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { apiClient, extractErrorMessage } from "@/shared/api/client";
-import type { UsageLog, UsageLogsResponse, UsageRange, UsageSummaryResponse } from "./schemas";
+import type {
+  ListModelPricingResponse,
+  ModelPricing,
+  UpsertModelPricingRequest,
+  UsageLog,
+  UsageLogsResponse,
+  UsageRange,
+  UsageSummaryResponse,
+} from "./schemas";
 import { prependUsageLogToResponse } from "./streamCache";
 
 export interface UsageLogsFilter {
+  range?: UsageRange;
+  q?: string;
   model?: string;
   provider?: string;
   key_id?: string;
@@ -16,13 +26,19 @@ export interface UsageLogsFilter {
 export const usageQueryKeys = {
   all: ["usage"] as const,
   summaries: ["usage", "summary"] as const,
-  summary: (range: UsageRange) => ["usage", "summary", range] as const,
+  summary: (range: UsageRange, includeSeries = true) =>
+    includeSeries
+      ? (["usage", "summary", range] as const)
+      : (["usage", "summary", range, "no-series"] as const),
   logsRoot: ["usage", "logs"] as const,
   logs: (filters: UsageLogsFilter) => ["usage", "logs", filters] as const,
+  pricing: ["usage", "pricing"] as const,
 };
 
 function buildLogsQueryParams(filters: UsageLogsFilter) {
   const query: {
+    range?: UsageRange;
+    q?: string;
     model?: string;
     provider?: string;
     key_id?: string;
@@ -31,6 +47,12 @@ function buildLogsQueryParams(filters: UsageLogsFilter) {
     offset?: number;
   } = {};
 
+  if (filters.range) {
+    query.range = filters.range;
+  }
+  if (filters.q?.trim()) {
+    query.q = filters.q.trim();
+  }
   if (filters.model?.trim()) {
     query.model = filters.model.trim();
   }
@@ -52,13 +74,16 @@ function buildLogsQueryParams(filters: UsageLogsFilter) {
   return query;
 }
 
-export function useUsageSummary(range: UsageRange) {
+export function useUsageSummary(range: UsageRange, options?: { includeSeries?: boolean }) {
+  const includeSeries = options?.includeSeries ?? true;
   return useQuery<UsageSummaryResponse, Error>({
-    queryKey: usageQueryKeys.summary(range),
+    queryKey: usageQueryKeys.summary(range, includeSeries),
     placeholderData: keepPreviousData,
     queryFn: async () => {
       const { data, error } = await apiClient.GET("/api/usage/summary", {
-        params: { query: { range } },
+        params: {
+          query: includeSeries ? { range } : { range, include_series: false },
+        },
       });
       if (data) {
         return data;
@@ -228,4 +253,54 @@ export function useUsageStream(enabled: boolean) {
   }, [enabled, queryClient]);
 
   return { status, eventCount, lastEvent };
+}
+
+export function useModelPricing(enabled: boolean) {
+  return useQuery<ListModelPricingResponse, Error>({
+    queryKey: usageQueryKeys.pricing,
+    enabled,
+    queryFn: async () => {
+      const { data, error } = await apiClient.GET("/api/usage/pricing");
+      if (data) {
+        return data;
+      }
+      throw new Error(extractErrorMessage(error));
+    },
+  });
+}
+
+export function useUpsertModelPricingMutation() {
+  const queryClient = useQueryClient();
+  return useMutation<ModelPricing, Error, { model: string; body: UpsertModelPricingRequest }>({
+    mutationFn: async ({ model, body }) => {
+      const { data, error } = await apiClient.PUT("/api/usage/pricing/{model}", {
+        params: { path: { model } },
+        body,
+      });
+      if (data) {
+        return data;
+      }
+      throw new Error(extractErrorMessage(error));
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: usageQueryKeys.pricing });
+    },
+  });
+}
+
+export function useDeleteModelPricingMutation() {
+  const queryClient = useQueryClient();
+  return useMutation<void, Error, string>({
+    mutationFn: async (model) => {
+      const { error } = await apiClient.DELETE("/api/usage/pricing/{model}", {
+        params: { path: { model } },
+      });
+      if (error) {
+        throw new Error(extractErrorMessage(error));
+      }
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: usageQueryKeys.pricing });
+    },
+  });
 }
