@@ -1,9 +1,11 @@
 package gateway
 
 import (
+	"bytes"
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
+	"io"
 	"net/http"
 	"os"
 	"regexp"
@@ -17,10 +19,15 @@ const (
 	defaultFreePICliVersion = "0.6.28"
 	defaultFreePIMinTokens  = 256
 	maxFreePIMinTokens      = 4096
+
+	freePIPinPeekLimit            = 8192
+	freePIPinMismatchNeedle       = "belongs to another free-pi account"
+	freePIPinMismatchErrorMessage = "This conversation belongs to another free-pi account. The router is switching to the account that owns it."
 )
 
 var (
-	freepiVersionPattern = regexp.MustCompile(`(?i)below the required minimum \((\d+\.\d+\.\d+)\)`)
+	freepiVersionPattern    = regexp.MustCompile(`(?i)below the required minimum \((\d+\.\d+\.\d+)\)`)
+	freepiRealOutputPattern = regexp.MustCompile(`"(?:content|delta)"\s*:\s*"[^"]{40,}`)
 
 	freepiVersionMu  sync.RWMutex
 	freepiCliVersion = resolveInitialFreePICliVersion()
@@ -174,4 +181,57 @@ func newRandomHexID(nBytes int) string {
 		return "00000000000000000000000000000000"
 	}
 	return hex.EncodeToString(buf)
+}
+
+type prefixReadCloser struct {
+	reader io.Reader
+	closer io.Closer
+}
+
+func (p *prefixReadCloser) Read(b []byte) (int, error) {
+	return p.reader.Read(b)
+}
+
+func (p *prefixReadCloser) Close() error {
+	return p.closer.Close()
+}
+
+// peekFreePIPinMismatch inspects up to limit bytes of a 200 OK FreePI response
+// body before forwarding anything to the client. If upstream opened with the
+// conversation-pin policy sentence, the underlying body is closed and matched
+// is true so the failover loop can retry on another account without cooldown.
+// Otherwise, a ReadCloser replaying the buffered prefix byte-for-byte followed
+// by the remaining stream is returned.
+func peekFreePIPinMismatch(body io.ReadCloser, limit int) (io.ReadCloser, bool) {
+	if body == nil || limit <= 0 {
+		return body, false
+	}
+	var buffered bytes.Buffer
+	chunk := make([]byte, 1024)
+	for buffered.Len() < limit {
+		remaining := limit - buffered.Len()
+		readBuf := chunk
+		if remaining < len(readBuf) {
+			readBuf = readBuf[:remaining]
+		}
+		n, err := body.Read(readBuf)
+		if n > 0 {
+			buffered.Write(readBuf[:n])
+			cur := buffered.String()
+			if strings.Contains(cur, freePIPinMismatchNeedle) {
+				_ = body.Close()
+				return nil, true
+			}
+			if freepiRealOutputPattern.MatchString(cur) {
+				break
+			}
+		}
+		if err != nil {
+			break
+		}
+	}
+	return &prefixReadCloser{
+		reader: io.MultiReader(bytes.NewReader(buffered.Bytes()), body),
+		closer: body,
+	}, false
 }

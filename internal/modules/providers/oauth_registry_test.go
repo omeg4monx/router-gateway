@@ -39,6 +39,7 @@ func TestOAuthProviderRegistryMetadata(t *testing.T) {
 		"kiro":           {flowType: oauthFlowDeviceCode},
 		"freepi":         {flowType: oauthFlowDeviceCode},
 		"aws-quick":      {flowType: oauthFlowLoopbackProxy},
+		"jetbrains":      {flowType: oauthFlowAuthCodePKCE, fixedPort: 62345, callbackPath: "/"},
 	}
 
 	for id, want := range expected {

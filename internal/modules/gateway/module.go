@@ -1105,6 +1105,34 @@ func (m *Module) executeCandidateAttempt(
 	if isCodeBuddyProvider(cand.ProviderID) {
 		curBody = transformCodeBuddyRequest(curBody)
 	}
+	if cand.ProviderID == providerIDJetBrains {
+		if exceedsJetBrainsInputLimit(curBody) {
+			m.emitUsage(ctx, contracts.UsageRecord{
+				RequestID:    reqID,
+				KeyID:        keyID,
+				Model:        requestedModel,
+				ProviderID:   cand.ProviderID,
+				ConnectionID: cand.ConnectionID,
+				Protocol:     inProto,
+				Latency:      time.Since(startTime),
+				StatusCode:   http.StatusBadRequest,
+				ErrorSummary: jetbrainsContextLimitMessage,
+				Stream:       stream,
+				Timestamp:    time.Now().UTC(),
+			})
+			if capture == nil {
+				writeGatewayError(w, r, inProto, http.StatusBadRequest, "invalid_request_error", "context_length_exceeded", jetbrainsContextLimitMessage)
+			}
+			return attemptOutcome{
+				handled:    true,
+				statusCode: http.StatusBadRequest,
+				errType:    "invalid_request_error",
+				errCode:    "context_length_exceeded",
+				errMsg:     jetbrainsContextLimitMessage,
+			}
+		}
+		curBody = transformJetBrainsRequest(curBody, stream)
+	}
 	if isVeniceKeyless {
 		reqClient = venice.SelectHTTPClient(m.httpClient)
 		var payloadErr error
@@ -1145,10 +1173,13 @@ func (m *Module) executeCandidateAttempt(
 			venice.ApplyHeaders(upReq, veniceAttestationToken, true)
 		} else {
 			applyUpstreamHeaders(upReq, creds, stream)
-			if cand.ProviderID == providerIDFreePI {
+			switch {
+			case cand.ProviderID == providerIDFreePI:
 				applyFreePIHeaders(upReq)
-			} else if isCodeBuddyProvider(cand.ProviderID) {
+			case isCodeBuddyProvider(cand.ProviderID):
 				applyCodeBuddyHeaders(upReq, r, cand.ProviderID)
+			case cand.ProviderID == providerIDJetBrains:
+				applyJetBrainsHeaders(upReq, creds, stream)
 			}
 		}
 
@@ -1226,6 +1257,22 @@ func (m *Module) executeCandidateAttempt(
 	defer resp.Body.Close()
 
 	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
+		if cand.ProviderID == providerIDFreePI {
+			replayedBody, pinMismatch := peekFreePIPinMismatch(resp.Body, freePIPinPeekLimit)
+			if pinMismatch {
+				if m.logger != nil {
+					m.logger.Warn("freepi upstream opened with conversation-pin sentence; rotating account",
+						"request_id", reqID,
+						"connection_id", cand.ConnectionID,
+					)
+				}
+				return attemptOutcome{
+					statusCode: http.StatusForbidden,
+					errMsg:     freePIPinMismatchErrorMessage,
+				}
+			}
+			resp.Body = replayedBody
+		}
 		m.health.RecordSuccess(cand.ConnectionID)
 
 		metaMap := make(map[string]any, len(reqMeta))

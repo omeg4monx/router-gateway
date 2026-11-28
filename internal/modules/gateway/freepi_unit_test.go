@@ -3,6 +3,8 @@ package gateway
 import (
 	"bytes"
 	"encoding/json"
+	"io"
+	"strings"
 	"testing"
 )
 
@@ -74,4 +76,58 @@ func TestFreePIParseRequiredVersionAndCompare(t *testing.T) {
 	if compareSemver("0.6.25", "0.6.28") >= 0 {
 		t.Fatalf("expected 0.6.25 < 0.6.28")
 	}
+}
+
+func TestPeekFreePIPinMismatch(t *testing.T) {
+	t.Run("detects policy sentence in SSE chunk", func(t *testing.T) {
+		payload := "data: {\"choices\":[{\"delta\":{\"content\":\"This conversation belongs to another free-pi account. Sharing or rotating accounts isn't allowed.\"}}]}\n\n"
+		body := io.NopCloser(strings.NewReader(payload))
+		replayed, matched := peekFreePIPinMismatch(body, freePIPinPeekLimit)
+		if !matched {
+			t.Fatalf("matched = false, want true")
+		}
+		if replayed != nil {
+			t.Fatalf("expected nil replay reader on match")
+		}
+	})
+
+	t.Run("replays normal SSE stream byte-for-byte", func(t *testing.T) {
+		parts := []string{
+			`data: {"choices":[{"delta":{"content":"Here is a long enough answer to stop the peek immediately, as designed."}}]}` + "\n\n",
+			`data: {"choices":[{"delta":{"content":" second part"}}]}` + "\n\n",
+			"data: [DONE]\n\n",
+		}
+		want := strings.Join(parts, "")
+		pr, pw := io.Pipe()
+		go func() {
+			for _, p := range parts {
+				_, _ = pw.Write([]byte(p))
+			}
+			_ = pw.Close()
+		}()
+
+		replayed, matched := peekFreePIPinMismatch(pr, freePIPinPeekLimit)
+		if matched {
+			t.Fatalf("matched = true, want false")
+		}
+		defer replayed.Close()
+		got, err := io.ReadAll(replayed)
+		if err != nil {
+			t.Fatalf("read replayed stream: %v", err)
+		}
+		if string(got) != want {
+			t.Fatalf("replayed = %q, want %q", string(got), want)
+		}
+	})
+
+	t.Run("detects policy sentence in non-streaming 200 JSON body", func(t *testing.T) {
+		payload := `{"id":"chatcmpl-1","choices":[{"message":{"role":"assistant","content":"This conversation belongs to another free-pi account."}}]}`
+		replayed, matched := peekFreePIPinMismatch(io.NopCloser(strings.NewReader(payload)), freePIPinPeekLimit)
+		if !matched {
+			t.Fatalf("matched = false, want true")
+		}
+		if replayed != nil {
+			t.Fatalf("expected nil replay reader on match")
+		}
+	})
 }

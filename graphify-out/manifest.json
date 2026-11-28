@@ -306,8 +306,8 @@
     "semantic_hash": ""
   },
   "web/src/shared/api/schema.d.ts": {
-    "mtime": 1795852688.0843458,
-    "seen": 1795852712.343956,
+    "mtime": 1795865848.335607,
+    "seen": 1795865894.771021,
     "ast_hash": "eb211fc6e54c07f857e0c68450e33828",
     "semantic_hash": ""
   },
@@ -402,9 +402,9 @@
     "semantic_hash": ""
   },
   ".github/dependabot.yml": {
-    "mtime": 1795710119.0922055,
-    "seen": 1795770205.4548872,
-    "ast_hash": "3a4c8ea456cbe58f5c298d5e6e5f3d11",
+    "mtime": 1795865190.82794,
+    "seen": 1795865894.7569337,
+    "ast_hash": "dc83576a10cb495f374b81078b9689a3",
     "semantic_hash": ""
   },
   ".github/workflows/ci.yml": {
@@ -624,9 +624,9 @@
     "semantic_hash": ""
   },
   "internal/modules/providers/adapter.go": {
-    "mtime": 1795807545.9081361,
-    "seen": 1795807926.3899853,
-    "ast_hash": "e43b53c68ea49858a7c043e4e7aa424e",
+    "mtime": 1795865688.3207076,
+    "seen": 1795865894.7622766,
+    "ast_hash": "91ab73333a3d7acb5522e9237a6760fd",
     "semantic_hash": ""
   },
   "internal/modules/providers/handlers.go": {
@@ -636,9 +636,9 @@
     "semantic_hash": ""
   },
   "internal/modules/providers/module.go": {
-    "mtime": 1795854066.2772508,
-    "seen": 1795862014.7206776,
-    "ast_hash": "7ab8a2c071a24dec245e130ec9a52486",
+    "mtime": 1795865692.5633135,
+    "seen": 1795865894.76276,
+    "ast_hash": "84af648f3cd2e0d0aa21d6775a8463c7",
     "semantic_hash": ""
   },
   "internal/modules/providers/module_test.go": {
@@ -648,9 +648,9 @@
     "semantic_hash": ""
   },
   "internal/modules/providers/oauth.go": {
-    "mtime": 1795710119.135206,
-    "seen": 1795770205.455176,
-    "ast_hash": "a7c04555ee48aa2542b63972ed0c2365",
+    "mtime": 1795865691.3452952,
+    "seen": 1795865894.7627988,
+    "ast_hash": "3f1bc8312bafbf1bfe321c74f3a81c37",
     "semantic_hash": ""
   },
   "internal/modules/providers/repo.go": {
@@ -756,9 +756,9 @@
     "semantic_hash": ""
   },
   "internal/modules/gateway/module.go": {
-    "mtime": 1795853855.6112094,
-    "seen": 1795862014.7180603,
-    "ast_hash": "ee5ef1d2b8d79e28815e9c70df18e6a4",
+    "mtime": 1795865800.0598998,
+    "seen": 1795865894.7602334,
+    "ast_hash": "90808ca002b5ed14433a035fe0430aeb",
     "semantic_hash": ""
   },
   "internal/modules/gateway/module_test.go": {
@@ -798,9 +798,9 @@
     "semantic_hash": ""
   },
   "web/src/features/providers/schemas.ts": {
-    "mtime": 1795807545.9112787,
-    "seen": 1795807926.3949986,
-    "ast_hash": "00d80e6a389692d8e441f6af203a053e",
+    "mtime": 1795865739.1850078,
+    "seen": 1795865894.7688828,
+    "ast_hash": "83752d70ae8bd62e9eaac454b72b7e42",
     "semantic_hash": ""
   },
   "web/src/features/combos/hooks.ts": {
@@ -1782,9 +1782,9 @@
     "semantic_hash": ""
   },
   "README.md": {
-    "mtime": 1795711294.500602,
-    "seen": 1795770205.4558196,
-    "ast_hash": "cbc718dcf2c085d93f768349832383b2",
+    "mtime": 1795865190.828012,
+    "seen": 1795865894.7723224,
+    "ast_hash": "5788816d580576d7893ca9c515b3cc7d",
     "semantic_hash": ""
   },
   "docs/superpowers/plans/2026-11-23-wave3f-release-cutover-readiness.md": {
@@ -1944,9 +1944,9 @@
     "semantic_hash": ""
   },
   "web/src/features/providers/ProviderLogo.tsx": {
-    "mtime": 1795844161.0372498,
-    "seen": 1795844376.617884,
-    "ast_hash": "40dc2f10efd799cb740de301d27407c4",
+    "mtime": 1795865740.1650221,
+    "seen": 1795865894.768259,
+    "ast_hash": "47efabca8e37d5449538fe7025a6202d",
     "semantic_hash": ""
   },
   "web/public/providers/agentrouter.png": {
@@ -3054,9 +3054,9 @@
     "semantic_hash": ""
   },
   "web/src/features/providers/providerRegistry.ts": {
-    "mtime": 1795807545.9112787,
-    "seen": 1795807926.3949134,
-    "ast_hash": "f6293adcb3cabd5dbc921c829ee31b74",
+    "mtime": 1795865760.0273132,
+    "seen": 1795865894.7687886,
+    "ast_hash": "3132ac173cd894f7a218e15878611d68",
     "semantic_hash": ""
   },
   "web/src/features/providers/modalUtils.test.ts": {
@@ -3120,15 +3120,15 @@
     "semantic_hash": ""
   },
   "web/src/features/providers/modelCatalogSync.test.ts": {
-    "mtime": 1795710119.1762066,
-    "seen": 1795770205.4556193,
-    "ast_hash": "bb85e32c9594c2a5ff72f57ddb2f7d87",
+    "mtime": 1795865775.1175344,
+    "seen": 1795865894.7686327,
+    "ast_hash": "3e3c77b0c6c81517d12f586b2f9f281d",
     "semantic_hash": ""
   },
   "internal/modules/providers/models_discovery.go": {
-    "mtime": 1795807545.9081361,
-    "seen": 1795807926.390181,
-    "ast_hash": "d5daea97435c2ea5174d0db739a164a3",
+    "mtime": 1795865738.1389925,
+    "seen": 1795865894.7627172,
+    "ast_hash": "6bf0b4b8786915194806078bcc4475ac",
     "semantic_hash": ""
   },
   "internal/modules/providers/models_discovery_test.go": {
@@ -3174,21 +3174,21 @@
     "semantic_hash": ""
   },
   "internal/modules/providers/oauth_registry.go": {
-    "mtime": 1795807545.9081361,
-    "seen": 1795807926.3903403,
-    "ast_hash": "7c091fc84b6ab1afb5b886e28c479a72",
+    "mtime": 1795865689.334265,
+    "seen": 1795865894.7629027,
+    "ast_hash": "784eb7bb122224cf3d133cab8631f96b",
     "semantic_hash": ""
   },
   "internal/modules/providers/oauth_registry_test.go": {
-    "mtime": 1795710119.1362062,
-    "seen": 1795770205.4551902,
-    "ast_hash": "663e426a99c7641ac90f25dd3f82f0bc",
+    "mtime": 1795865776.0975487,
+    "seen": 1795865894.7629046,
+    "ast_hash": "6912a193c4ca61e9db30837e6cd0bff8",
     "semantic_hash": ""
   },
   "internal/modules/providers/adapter_xrouter_oauth.go": {
-    "mtime": 1795807545.9081361,
-    "seen": 1795807926.3899872,
-    "ast_hash": "99c24b7c0f710b6fc9da43f350e66aea",
+    "mtime": 1795865800.9099123,
+    "seen": 1795865894.7622795,
+    "ast_hash": "6497971676f38d22775bfce14ac0c5a5",
     "semantic_hash": ""
   },
   "internal/modules/providers/oauth_device_generic.go": {
@@ -3756,9 +3756,9 @@
     "semantic_hash": ""
   },
   "internal/modules/providers/quota.go": {
-    "mtime": 1795850398.1724918,
-    "seen": 1795850516.096735,
-    "ast_hash": "fe5731d26947f0afc040af693639126e",
+    "mtime": 1795865693.5963292,
+    "seen": 1795865894.7629642,
+    "ast_hash": "c1e6c5c87533e60397a45a9f4107a4e6",
     "semantic_hash": ""
   },
   "internal/modules/providers/quota_test.go": {
@@ -3768,9 +3768,9 @@
     "semantic_hash": ""
   },
   "web/src/features/quota/QuotaConsole.tsx": {
-    "mtime": 1795850199.5935018,
-    "seen": 1795850280.0762205,
-    "ast_hash": "e689ba15da6f9732d7babb1bb6bdef28",
+    "mtime": 1795865742.2390525,
+    "seen": 1795865894.7691374,
+    "ast_hash": "32e59c4135b276d43f7ab1194b30d907",
     "semantic_hash": ""
   },
   "web/src/features/quota/hooks.ts": {
@@ -3816,21 +3816,21 @@
     "semantic_hash": ""
   },
   "internal/modules/gateway/freepi.go": {
-    "mtime": 1795807545.9071805,
-    "seen": 1795807926.388726,
-    "ast_hash": "3f4073802edcc858cc97c4a00342f060",
+    "mtime": 1795865525.2749934,
+    "seen": 1795865894.7601686,
+    "ast_hash": "0711991acbbf3fb1c692f150bdd8ba69",
     "semantic_hash": ""
   },
   "internal/modules/gateway/freepi_test.go": {
-    "mtime": 1795807545.9071805,
-    "seen": 1795807926.388728,
-    "ast_hash": "8861d505e0609047ed5b270717a34247",
+    "mtime": 1795865497.6666224,
+    "seen": 1795865894.7601714,
+    "ast_hash": "1fa432bebea1c1ba8af4070ab0579d84",
     "semantic_hash": ""
   },
   "internal/modules/gateway/freepi_unit_test.go": {
-    "mtime": 1795807545.9071805,
-    "seen": 1795807926.3887293,
-    "ast_hash": "ebae95b915ed7da9bf197ebde745af69",
+    "mtime": 1795865496.7856107,
+    "seen": 1795865894.7601805,
+    "ast_hash": "09cd5037568ae1bddef13a766dfd92ae",
     "semantic_hash": ""
   },
   "internal/modules/providers/codebuddy_oauth.go": {
@@ -4065,6 +4065,48 @@
     "mtime": 1795854006.864394,
     "seen": 1795862014.7202842,
     "ast_hash": "5f9ee0b7c8808338d1810b795aa98e6d",
+    "semantic_hash": ""
+  },
+  "internal/modules/gateway/jetbrains.go": {
+    "mtime": 1795865653.0206587,
+    "seen": 1795865894.7602282,
+    "ast_hash": "823782b5aad88c23bc31b6fa1b062acb",
+    "semantic_hash": ""
+  },
+  "internal/modules/gateway/jetbrains_test.go": {
+    "mtime": 1795865582.1567576,
+    "seen": 1795865894.760231,
+    "ast_hash": "cd34e6c16460164305c4c1311d5034a1",
+    "semantic_hash": ""
+  },
+  "internal/modules/providers/jetbrains_oauth.go": {
+    "mtime": 1795865656.7443128,
+    "seen": 1795865894.7627115,
+    "ast_hash": "494ea8d21e4ae00c18a6f4ca6fb3cad9",
+    "semantic_hash": ""
+  },
+  "internal/modules/providers/jetbrains_test.go": {
+    "mtime": 1795865583.4967756,
+    "seen": 1795865894.7627144,
+    "ast_hash": "57a631d9d333824c63b4d9987e5d91c1",
+    "semantic_hash": ""
+  },
+  "internal/modules/providers/quota_jetbrains.go": {
+    "mtime": 1795865658.3370044,
+    "seen": 1795865894.7629955,
+    "ast_hash": "0606457b6133683d043863385fe63c65",
+    "semantic_hash": ""
+  },
+  "web/public/providers/jetbrains.png": {
+    "mtime": 1795865724.8667164,
+    "seen": 1795865894.7762628,
+    "ast_hash": "8a49ccf8c0fdb03a3d13419c733e3bcc",
+    "semantic_hash": ""
+  },
+  "web/public/providers/jetbrains.svg": {
+    "mtime": 1795865724.8642704,
+    "seen": 1795865894.776266,
+    "ast_hash": "34cac388b23c76f997490a47d6d3c56a",
     "semantic_hash": ""
   }
 }

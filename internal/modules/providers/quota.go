@@ -96,6 +96,7 @@ func defaultQuotaFetchers() []quotaFetcher {
 		tokenHarborQuotaFetcher{},
 		codebuddyQuotaFetcher{providerID: providerIDCodeBuddyCN},
 		codebuddyQuotaFetcher{providerID: providerIDCodeBuddyIntl},
+		jetbrainsQuotaFetcher{},
 	}
 }
 
