@@ -2,7 +2,7 @@ version: 2
 updates:
   - package-ecosystem: "gomod"
     directory: "/"
-    target-branch: "migration/ts-go"
+    target-branch: "dev"
     schedule:
       interval: "weekly"
     groups:
@@ -10,9 +10,9 @@ updates:
         patterns:
           - "*"
 
-  - package-ecosystem: "npm"
+  - package-ecosystem: "bun"
     directory: "/web"
-    target-branch: "migration/ts-go"
+    target-branch: "dev"
     schedule:
       interval: "weekly"
     groups:
@@ -22,7 +22,7 @@ updates:
 
   - package-ecosystem: "github-actions"
     directory: "/"
-    target-branch: "migration/ts-go"
+    target-branch: "dev"
     schedule:
       interval: "weekly"
     groups:
