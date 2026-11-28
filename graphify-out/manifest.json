@@ -630,9 +630,9 @@
     "semantic_hash": ""
   },
   "internal/modules/providers/handlers.go": {
-    "mtime": 1795838018.7014031,
-    "seen": 1795838075.2644184,
-    "ast_hash": "20593bf6ef77c3cb04795ee697e86e13",
+    "mtime": 1795866051.4516828,
+    "seen": 1795866082.5171669,
+    "ast_hash": "a8277da43ef0d4a8041a6369d072fd39",
     "semantic_hash": ""
   },
   "internal/modules/providers/module.go": {
@@ -4086,9 +4086,9 @@
     "semantic_hash": ""
   },
   "internal/modules/providers/jetbrains_test.go": {
-    "mtime": 1795865583.4967756,
-    "seen": 1795865894.7627144,
-    "ast_hash": "57a631d9d333824c63b4d9987e5d91c1",
+    "mtime": 1795866052.8537042,
+    "seen": 1795866082.5171962,
+    "ast_hash": "cb664bb0b9387cba6fed19886943eccd",
     "semantic_hash": ""
   },
   "internal/modules/providers/quota_jetbrains.go": {

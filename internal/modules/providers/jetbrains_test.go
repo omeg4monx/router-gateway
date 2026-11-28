@@ -229,3 +229,38 @@ func TestJetBrainsBuildTestRequest(t *testing.T) {
 		t.Fatalf("missing X-Forced-License-Free header")
 	}
 }
+
+func TestJetBrainsConnectivityTestAccepts400And429(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		status int
+		wantOK bool
+	}{
+		{name: "200 ok", status: http.StatusOK, wantOK: true},
+		{name: "400 validation ok", status: http.StatusBadRequest, wantOK: true},
+		{name: "429 rate limited ok", status: http.StatusTooManyRequests, wantOK: true},
+		{name: "401 unauthorized fails", status: http.StatusUnauthorized, wantOK: false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				w.WriteHeader(tc.status)
+			}))
+			defer srv.Close()
+
+			m := New(Options{HTTPClient: srv.Client()})
+			res, statusText, err := m.executeConnectivityTest(context.Background(), contracts.UpstreamCredentials{
+				ConnectionID: "conn-jb-test",
+				ProviderID:   providerIDJetBrains,
+				Protocol:     protocolOpenAIChat,
+				BaseURL:      srv.URL,
+				ExtraHeaders: map[string]string{"Grazie-Authenticate-JWT": "jwt-xyz"},
+			})
+			if err != nil {
+				t.Fatalf("executeConnectivityTest: %v", err)
+			}
+			if res.OK != tc.wantOK {
+				t.Fatalf("status=%d -> OK=%v (statusText=%q), want %v", tc.status, res.OK, statusText, tc.wantOK)
+			}
+		})
+	}
+}
