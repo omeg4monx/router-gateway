@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useModelCatalog } from "@/features/models/hooks";
+import { useProvidersCatalog } from "@/features/providers/hooks";
 import { cn } from "@/shared/lib/utils";
 import { type UILocale, useUIStore } from "@/shared/store/uiStore";
 import { Alert, AlertDescription } from "@/shared/ui/alert";
@@ -26,9 +27,11 @@ import {
   useUpdatePluginMutation,
 } from "./hooks";
 import {
+  buildPluginCatalogModelOptions,
   buildPluginDraft,
   buildPluginUpdatePayload,
   buildToggleEnabledPayload,
+  filterPluginCatalogModelOptions,
   isPluginDraftDirty,
   type PluginDraft,
   parseModelAllowlist,
@@ -162,6 +165,7 @@ export function PluginsStudio() {
 
   const pluginsQuery = usePluginsList();
   const catalogQuery = useModelCatalog();
+  const providersCatalogQuery = useProvidersCatalog();
   const updateMutation = useUpdatePluginMutation();
   const previewMutation = usePreviewPluginsMutation();
 
@@ -179,24 +183,15 @@ export function PluginsStudio() {
   const plugins = pluginsQuery.data?.plugins ?? [];
   const activeCount = plugins.filter((plugin) => plugin.enabled).length;
 
-  const catalogModelIds = useMemo(() => {
-    const rows = catalogQuery.data ?? [];
-    const seen = new Set<string>();
-    const out: string[] = [];
-    for (const row of rows) {
-      const id = row.qualifiedId || row.id;
-      if (!id || seen.has(id)) continue;
-      seen.add(id);
-      out.push(id);
-    }
-    return out;
-  }, [catalogQuery.data]);
+  const catalogModelOptions = useMemo(
+    () => buildPluginCatalogModelOptions(catalogQuery.data, providersCatalogQuery.data),
+    [catalogQuery.data, providersCatalogQuery.data],
+  );
 
-  const filteredCatalogModels = useMemo(() => {
-    const q = modelSearch.trim().toLowerCase();
-    const list = q ? catalogModelIds.filter((id) => id.toLowerCase().includes(q)) : catalogModelIds;
-    return list.slice(0, 24);
-  }, [catalogModelIds, modelSearch]);
+  const filteredCatalogModels = useMemo(
+    () => filterPluginCatalogModelOptions(catalogModelOptions, modelSearch).slice(0, 200),
+    [catalogModelOptions, modelSearch],
+  );
 
   const getDraft = (plugin: PluginState): PluginDraft =>
     drafts[plugin.key] ?? buildPluginDraft(plugin);
@@ -486,7 +481,7 @@ export function PluginsStudio() {
                             </div>
                           )}
 
-                          {catalogModelIds.length > 0 && (
+                          {catalogModelOptions.length > 0 && (
                             <div className="space-y-1.5 pt-1">
                               <div className="relative">
                                 <Search className="pointer-events-none absolute left-2.5 top-2.5 h-3.5 w-3.5 text-[var(--text-muted)]" />
@@ -504,18 +499,19 @@ export function PluginsStudio() {
                                   {copy.pickerEmpty}
                                 </p>
                               ) : (
-                                <div className="flex max-h-28 flex-wrap gap-1.5 overflow-y-auto rounded-md border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-2">
-                                  {filteredCatalogModels.map((modelId) => {
-                                    const active = selectedModels.includes(modelId);
+                                <div className="flex max-h-40 flex-wrap gap-1.5 overflow-y-auto rounded-md border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-2">
+                                  {filteredCatalogModels.map((option) => {
+                                    const active = selectedModels.includes(option.id);
                                     return (
                                       <button
-                                        key={modelId}
+                                        key={option.id}
                                         type="button"
+                                        title={option.providerLabel}
                                         onClick={() =>
                                           updateDraft(plugin, {
                                             modelsText: toggleModelInAllowlist(
                                               draft.modelsText,
-                                              modelId,
+                                              option.id,
                                             ),
                                           })
                                         }
@@ -527,7 +523,7 @@ export function PluginsStudio() {
                                         )}
                                       >
                                         {active && <Check className="h-3 w-3" />}
-                                        <span className="max-w-[200px] truncate">{modelId}</span>
+                                        <span className="max-w-[220px] truncate">{option.id}</span>
                                       </button>
                                     );
                                   })}

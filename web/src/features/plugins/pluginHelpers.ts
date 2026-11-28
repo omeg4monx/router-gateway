@@ -1,5 +1,88 @@
+import type { CatalogModelRow } from "@/features/models/types";
+import type { ProvidersCatalogResponse } from "@/features/providers/schemas";
 import type { UILocale } from "@/shared/store/uiStore";
 import type { PluginState, UpdatePluginRequest } from "./hooks";
+
+export interface PluginCatalogModelOption {
+  id: string;
+  providerId: string;
+  providerLabel: string;
+}
+
+export function buildPluginCatalogModelOptions(
+  modelRows: readonly CatalogModelRow[] | undefined,
+  providersCatalog: ProvidersCatalogResponse | undefined,
+): PluginCatalogModelOption[] {
+  const displayNames = new Map<string, string>();
+  for (const adapter of providersCatalog?.adapters ?? []) {
+    if (adapter.id) {
+      displayNames.set(adapter.id, adapter.display_name || adapter.id);
+    }
+  }
+  for (const node of providersCatalog?.custom_nodes ?? []) {
+    if (node.id) {
+      displayNames.set(node.id, node.name || node.id);
+    }
+  }
+
+  const seen = new Set<string>();
+  const out: PluginCatalogModelOption[] = [];
+
+  const push = (providerId: string, modelId: string, fallbackLabel?: string) => {
+    const pid = providerId.trim();
+    const mid = modelId.trim();
+    if (!mid) return;
+    const normalizedModel = pid && mid.startsWith(`${pid}/`) ? mid.slice(pid.length + 1) : mid;
+    if (!normalizedModel) return;
+    const qualifiedId = pid ? `${pid}/${normalizedModel}` : normalizedModel;
+    if (seen.has(qualifiedId)) return;
+    seen.add(qualifiedId);
+    out.push({
+      id: qualifiedId,
+      providerId: pid,
+      providerLabel: displayNames.get(pid) || fallbackLabel?.trim() || pid,
+    });
+  };
+
+  for (const row of modelRows ?? []) {
+    push(row.providerId, row.id, row.provider);
+  }
+  for (const adapter of providersCatalog?.adapters ?? []) {
+    for (const modelId of adapter.default_models ?? []) {
+      push(adapter.id, modelId, adapter.display_name);
+    }
+  }
+  for (const node of providersCatalog?.custom_nodes ?? []) {
+    for (const modelId of node.models ?? []) {
+      push(node.id, modelId, node.name);
+    }
+  }
+
+  return out;
+}
+
+export function filterPluginCatalogModelOptions(
+  options: readonly PluginCatalogModelOption[],
+  query: string,
+): PluginCatalogModelOption[] {
+  const trimmed = query.trim().toLowerCase();
+  if (!trimmed) return [...options];
+  const compact = trimmed.replace(/\s+/g, "");
+  return options.filter((opt) => {
+    const idLower = opt.id.toLowerCase();
+    const pidLower = opt.providerId.toLowerCase();
+    const labelLower = opt.providerLabel.toLowerCase();
+    const labelCompact = labelLower.replace(/\s+/g, "");
+    return (
+      idLower.includes(trimmed) ||
+      pidLower.includes(trimmed) ||
+      labelLower.includes(trimmed) ||
+      idLower.includes(compact) ||
+      pidLower.includes(compact) ||
+      labelCompact.includes(compact)
+    );
+  });
+}
 
 export interface PluginDraft {
   modelsText: string;

@@ -306,8 +306,8 @@
     "semantic_hash": ""
   },
   "web/src/shared/api/schema.d.ts": {
-    "mtime": 1795807551.480884,
-    "seen": 1795807926.3967018,
+    "mtime": 1795837688.7005992,
+    "seen": 1795838075.271306,
     "ast_hash": "7239e115427cdbb3da59494a6418d231",
     "semantic_hash": ""
   },
@@ -630,9 +630,9 @@
     "semantic_hash": ""
   },
   "internal/modules/providers/handlers.go": {
-    "mtime": 1795780128.4975135,
-    "seen": 1795780344.5187922,
-    "ast_hash": "7a1a973af1ee5c208a51a76346de5107",
+    "mtime": 1795838018.7014031,
+    "seen": 1795838075.2644184,
+    "ast_hash": "20593bf6ef77c3cb04795ee697e86e13",
     "semantic_hash": ""
   },
   "internal/modules/providers/module.go": {
@@ -1746,9 +1746,9 @@
     "semantic_hash": ""
   },
   "web/src/features/plugins/PluginsStudio.tsx": {
-    "mtime": 1795818333.2184389,
-    "seen": 1795818359.0784423,
-    "ast_hash": "bdfca40f2645869f369a3585bcbdf2d5",
+    "mtime": 1795838028.022301,
+    "seen": 1795838075.268771,
+    "ast_hash": "19bc683b21891a255e7f5b0c45d92c54",
     "semantic_hash": ""
   },
   "web/src/features/plugins/hooks.ts": {
@@ -3654,15 +3654,15 @@
     "semantic_hash": ""
   },
   "web/src/features/plugins/pluginHelpers.test.ts": {
-    "mtime": 1795818202.9403875,
-    "seen": 1795818359.0784726,
-    "ast_hash": "77bcf67d7ca76ad0ebb115f139f5c8e4",
+    "mtime": 1795838032.4682522,
+    "seen": 1795838075.2688036,
+    "ast_hash": "df0b3109500b0a4fd0c31fd42a835156",
     "semantic_hash": ""
   },
   "web/src/features/plugins/pluginHelpers.ts": {
-    "mtime": 1795818183.5420768,
-    "seen": 1795818359.0784743,
-    "ast_hash": "9ce2f674a07cc109ccc013e566cf8116",
+    "mtime": 1795838020.4399939,
+    "seen": 1795838075.2688053,
+    "ast_hash": "8c6b8667d4cc99151cd6ed21790b97ed",
     "semantic_hash": ""
   },
   "web/pwaPlugin.ts": {

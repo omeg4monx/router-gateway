@@ -420,7 +420,7 @@ func (m *Module) handleCreateConnection(w http.ResponseWriter, r *http.Request) 
 	}
 
 	var models []string
-	if req.Models != nil {
+	if len(req.Models) > 0 {
 		models, err = validateStringSlice("models", req.Models)
 		if err != nil {
 			httpserver.WriteError(w, r, http.StatusBadRequest, "invalid_request", err.Error())

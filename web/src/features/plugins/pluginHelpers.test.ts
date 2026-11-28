@@ -1,9 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import type { PluginState } from "./hooks";
 import {
+  buildPluginCatalogModelOptions,
   buildPluginDraft,
   buildPluginUpdatePayload,
   buildToggleEnabledPayload,
+  filterPluginCatalogModelOptions,
   formatModelAllowlist,
   isPluginDraftDirty,
   parseModelAllowlist,
@@ -129,5 +131,62 @@ describe("pluginHelpers", () => {
     });
     expect(parsePreviewPayload("[1, 2, 3]")).toEqual({ ok: false });
     expect(parsePreviewPayload("{broken")).toEqual({ ok: false });
+  });
+
+  test("buildPluginCatalogModelOptions merges active catalog with built-in tokenharbor and codebuddy defaults", () => {
+    const options = buildPluginCatalogModelOptions(
+      [
+        {
+          providerId: "openai",
+          provider: "OpenAI",
+          id: "gpt-4o",
+          qualifiedId: "openai/gpt-4o",
+          name: "gpt-4o",
+          type: "chat",
+        },
+      ],
+      {
+        adapters: [
+          {
+            id: "tokenharbor",
+            display_name: "Token Harbor",
+            category: "api_key",
+            protocol: "openai-chat",
+            auth_type: "api_key",
+            default_base_url: "https://tokenharbor.ai/v1",
+            default_models: ["deepseek-v4.1-flash:free", "mimo-v2.6-flash:free"],
+            oauth: null,
+          },
+          {
+            id: "codebuddy-intl",
+            display_name: "CodeBuddy / WorkBuddy AI",
+            category: "oauth",
+            protocol: "openai-chat",
+            auth_type: "oauth",
+            default_base_url: "https://www.codebuddy.ai/v2",
+            default_models: ["glm-5.2", "deepseek-v4.1-flash"],
+            oauth: null,
+          },
+        ],
+        custom_nodes: [],
+      },
+    );
+
+    expect(options.map((o) => o.id)).toEqual([
+      "openai/gpt-4o",
+      "tokenharbor/deepseek-v4.1-flash:free",
+      "tokenharbor/mimo-v2.6-flash:free",
+      "codebuddy-intl/glm-5.2",
+      "codebuddy-intl/deepseek-v4.1-flash",
+    ]);
+
+    expect(filterPluginCatalogModelOptions(options, "token harbor").map((o) => o.id)).toEqual([
+      "tokenharbor/deepseek-v4.1-flash:free",
+      "tokenharbor/mimo-v2.6-flash:free",
+    ]);
+    expect(filterPluginCatalogModelOptions(options, "codebuddy").map((o) => o.id)).toEqual([
+      "codebuddy-intl/glm-5.2",
+      "codebuddy-intl/deepseek-v4.1-flash",
+    ]);
   });
 });
