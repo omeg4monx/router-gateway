@@ -395,6 +395,50 @@ paths:
             application/json:
               schema:
                 $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+  /api/providers/connections/{id}/models:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: Unique provider connection identifier.
+        schema:
+          type: string
+    get:
+      operationId: fetchProviderConnectionModels
+      summary: Discover available upstream models for a provider connection
+      tags:
+        - providers
+      responses:
+        '200':
+          description: Discovered upstream or fallback models for the connection.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FetchConnectionModelsResponse'
+        '400':
+          description: Invalid connection identifier.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Administrative authentication is required.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Provider connection not found.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '500':
+          description: Failed to resolve credentials or discover upstream models.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
   /api/providers/quotas:
     get:
       operationId: listProviderQuotas
@@ -1349,4 +1393,44 @@ components:
           items:
             type: string
         fetched_at:
+          type: string
+    DiscoveredModel:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        is_free:
+          type: boolean
+    FetchConnectionModelsResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - connection_id
+        - provider_id
+        - models
+        - source
+        - latency_ms
+      properties:
+        connection_id:
+          type: string
+        provider_id:
+          type: string
+        models:
+          type: array
+          items:
+            $ref: '#/components/schemas/DiscoveredModel'
+        source:
+          type: string
+          enum:
+            - upstream
+            - fallback
+        latency_ms:
+          type: integer
+          format: int64
+        warning:
           type: string

@@ -1,6 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
-  Activity,
   AlertTriangle,
   Check,
   CheckCircle2,
@@ -9,12 +8,8 @@ import {
   ExternalLink,
   Eye,
   EyeOff,
-  Globe,
   Info,
   KeyRound,
-  Layers,
-  Plus,
-  Power,
   RefreshCw,
   Save,
   Search,
@@ -22,20 +17,18 @@ import {
   Settings2,
   ShieldCheck,
   Sparkles,
-  Trash2,
   X,
   Zap,
 } from "lucide-react";
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
-import { Link } from "react-router";
 import { cn } from "@/shared/lib/utils";
 import { Alert, AlertDescription, AlertTitle } from "@/shared/ui/alert";
 import { Badge } from "@/shared/ui/badge";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
-import { canAddProviderConnection, type ProviderEntry } from "./catalogUtils";
+import type { ProviderEntry } from "./catalogUtils";
 import {
   fetchProviderOAuthStatus,
   useCreateProviderConnectionMutation,
@@ -109,22 +102,6 @@ const MODAL_SIZE_CLASS: Record<ModalSize, string> = {
   lg: "max-w-xl",
   xl: "max-w-2xl",
 };
-
-function formatShortTime(iso: string | null, isId: boolean): string {
-  if (!iso) {
-    return isId ? "Belum pernah" : "Never";
-  }
-  const parsed = new Date(iso);
-  if (Number.isNaN(parsed.getTime())) {
-    return iso;
-  }
-  return parsed.toLocaleString([], {
-    month: "short",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
 
 function getCredentialFieldMeta(entry: ProviderEntry | undefined, isId: boolean) {
   if (!entry) {
@@ -228,6 +205,8 @@ function DraftTestResultCard({
   );
 }
 
+const MODAL_EXIT_MS = 200;
+
 function ModalShell({
   open,
   onClose,
@@ -251,6 +230,32 @@ function ModalShell({
   variant?: "center" | "drawer";
   size?: ModalSize;
 }) {
+  const [rendered, setRendered] = useState(open);
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    if (open) {
+      setRendered(true);
+      let frame2 = 0;
+      const frame1 = window.requestAnimationFrame(() => {
+        frame2 = window.requestAnimationFrame(() => {
+          setVisible(true);
+        });
+      });
+      return () => {
+        window.cancelAnimationFrame(frame1);
+        if (frame2) {
+          window.cancelAnimationFrame(frame2);
+        }
+      };
+    }
+    setVisible(false);
+    const timer = window.setTimeout(() => {
+      setRendered(false);
+    }, MODAL_EXIT_MS);
+    return () => window.clearTimeout(timer);
+  }, [open]);
+
   useEffect(() => {
     if (!open) return;
     const prevOverflow = document.body.style.overflow;
@@ -267,39 +272,48 @@ function ModalShell({
     };
   }, [open, onClose]);
 
-  if (!open) {
+  if (!rendered) {
     return null;
   }
 
   return (
     <div
+      data-state={visible ? "open" : "closed"}
       className={cn(
-        "fixed inset-0 z-50 flex",
+        "provider-modal-root fixed inset-0 z-50 flex",
         variant === "drawer"
           ? "justify-end"
           : "items-end justify-center p-0 sm:items-center sm:p-6",
+        !visible && "pointer-events-none",
       )}
     >
       <button
         type="button"
         aria-label="Close modal backdrop"
         onClick={onClose}
-        className="fixed inset-0 bg-black/55"
+        className="provider-modal-backdrop fixed inset-0 bg-black/55"
       />
       <div
         role="dialog"
         aria-modal="true"
         aria-label={title}
         className={cn(
-          "relative z-10 flex flex-col overflow-hidden border border-[var(--color-border)] bg-[var(--color-surface)] shadow-2xl",
+          "provider-modal-panel relative z-10 flex flex-col overflow-hidden border border-[var(--color-border)] bg-[var(--color-surface)] shadow-2xl",
           variant === "drawer"
-            ? cn("h-[100dvh] w-full border-y-0 border-r-0", MODAL_SIZE_CLASS[size])
+            ? cn(
+                "provider-modal-panel-drawer h-[100dvh] w-full border-y-0 border-r-0",
+                MODAL_SIZE_CLASS[size],
+              )
             : cn(
                 "max-h-[92dvh] w-full rounded-t-2xl sm:max-h-[90dvh] sm:rounded-2xl",
                 MODAL_SIZE_CLASS[size],
               ),
         )}
       >
+        <span
+          aria-hidden="true"
+          className="provider-modal-accent pointer-events-none absolute inset-x-0 top-0 z-20 h-[2px]"
+        />
         <div className="flex shrink-0 items-start justify-between gap-3 border-b border-[var(--color-border-subtle)] px-4 py-3.5 sm:px-6 sm:py-4">
           <div className="flex min-w-0 items-center gap-3">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-2)]/85 p-1.5 text-[var(--color-primary)]">
@@ -3210,708 +3224,6 @@ export function AddCustomNodeModal({
           isId={isId}
         />
       </form>
-    </ModalShell>
-  );
-}
-
-/* ============================================================================
- * 4. Provider Detail & Connections Slide-Over Drawer (rich xrouter metadata)
- * ========================================================================== */
-export function ProviderConnectionsDrawer({
-  entry,
-  onClose,
-  isId,
-  busyConnectionId,
-  isTestingAll = false,
-  liveTestResults,
-  onTestAll,
-  onTestConnection,
-  onToggleConnection,
-  onDeleteConnection,
-  onAddConnection,
-  onDeleteCustomNode,
-  isDeletingNode,
-}: {
-  entry: ProviderEntry | null;
-  onClose: () => void;
-  isId: boolean;
-  busyConnectionId: string | null;
-  isTestingAll?: boolean;
-  liveTestResults: Record<string, TestProviderConnectionResponse>;
-  onTestAll?: (entry: ProviderEntry) => void;
-  onTestConnection: (conn: ProviderConnectionSummary) => void;
-  onToggleConnection: (conn: ProviderConnectionSummary) => void;
-  onDeleteConnection: (conn: ProviderConnectionSummary) => void;
-  onAddConnection: (entry: ProviderEntry, mode?: "oauth" | "apikey") => void;
-  onDeleteCustomNode: (node: ProviderNode) => void;
-  isDeletingNode: boolean;
-}) {
-  const [confirmDeleteConnId, setConfirmDeleteConnId] = useState<string | null>(null);
-  const [confirmDeleteNode, setConfirmDeleteNode] = useState(false);
-  const [modelSearch, setModelSearch] = useState("");
-  const [showAllModels, setShowAllModels] = useState(false);
-  const [copiedModelId, setCopiedModelId] = useState<string | null>(null);
-  const [copiedBaseUrl, setCopiedBaseUrl] = useState(false);
-  const entryId = entry?.id ?? null;
-
-  useEffect(() => {
-    if (entryId !== null) {
-      setConfirmDeleteConnId(null);
-      setConfirmDeleteNode(false);
-      setModelSearch("");
-      setShowAllModels(false);
-      setCopiedModelId(null);
-      setCopiedBaseUrl(false);
-    }
-  }, [entryId]);
-
-  const allModels = useMemo(() => {
-    if (!entry) return [];
-    const seen = new Set<string>();
-    const list: string[] = [];
-    for (const m of entry.defaultModels) {
-      const trimmed = m.trim();
-      if (trimmed && !seen.has(trimmed)) {
-        seen.add(trimmed);
-        list.push(trimmed);
-      }
-    }
-    for (const conn of entry.connections) {
-      for (const m of conn.models) {
-        const trimmed = m.trim();
-        if (trimmed && !seen.has(trimmed)) {
-          seen.add(trimmed);
-          list.push(trimmed);
-        }
-      }
-    }
-    return list;
-  }, [entry]);
-
-  const filteredModels = useMemo(() => {
-    const q = modelSearch.trim().toLowerCase();
-    if (!q) return allModels;
-    return allModels.filter((m) => m.toLowerCase().includes(q));
-  }, [allModels, modelSearch]);
-
-  if (!entry) {
-    return null;
-  }
-
-  const keyUrl = entry.apiKeyUrl ?? entry.signupUrl;
-  const enabledCount = entry.connections.filter((c) => c.enabled).length;
-  const isEntryDeviceCode =
-    entry.adapter?.oauth?.flow_type === "device_code" ||
-    entry.id === "github-copilot" ||
-    entry.id === "kiro" ||
-    entry.id === "freepi" ||
-    entry.id === "codebuddy-cn" ||
-    entry.id === "codebuddy-intl";
-
-  const authFlowBadge =
-    entry.id === "aws-quick"
-      ? "LOOPBACK OIDC"
-      : isEntryDeviceCode
-        ? "DEVICE CODE"
-        : entry.isNativeOAuth
-          ? "OAUTH PKCE"
-          : entry.category === "free"
-            ? entry.noAuth
-              ? "FREE · NO AUTH"
-              : "FREE TIER"
-            : "API KEY";
-
-  const primaryConnectLabel = entry.isNativeOAuth
-    ? entry.id === "aws-quick"
-      ? isId
-        ? "Login Amazon Quick"
-        : "Sign In Amazon Quick"
-      : isEntryDeviceCode
-        ? isId
-          ? "Hubungkan Device Login"
-          : "Connect via Device Code"
-        : isId
-          ? "Hubungkan via OAuth"
-          : "Connect via OAuth"
-    : isId
-      ? "Tambah API Key"
-      : "Add API Key";
-
-  const visibleModels = showAllModels ? filteredModels : filteredModels.slice(0, 10);
-  const modelPrefix = entry.alias || entry.id;
-
-  const handleCopyModel = async (modelId: string) => {
-    const qualified = modelId.includes("/") ? modelId : `${modelPrefix}/${modelId}`;
-    try {
-      await navigator.clipboard.writeText(qualified);
-      setCopiedModelId(modelId);
-      window.setTimeout(() => setCopiedModelId((cur) => (cur === modelId ? null : cur)), 1800);
-    } catch {
-      // Ignore clipboard failures
-    }
-  };
-
-  const handleCopyBaseUrl = async () => {
-    if (!entry.baseUrl) return;
-    try {
-      await navigator.clipboard.writeText(entry.baseUrl);
-      setCopiedBaseUrl(true);
-      window.setTimeout(() => setCopiedBaseUrl(false), 1800);
-    } catch {
-      // Ignore clipboard failures
-    }
-  };
-
-  return (
-    <ModalShell
-      open={Boolean(entry)}
-      onClose={onClose}
-      variant="drawer"
-      size="xl"
-      title={entry.name}
-      subtitle={`${entry.id}${entry.alias && entry.alias !== entry.id ? ` (alias: ${entry.alias})` : ""} · ${entry.protocol.toUpperCase()}`}
-      badge={
-        <Badge variant="outline" className="font-mono text-[10px] uppercase">
-          {authFlowBadge}
-        </Badge>
-      }
-      icon={
-        <ProviderLogo
-          providerId={entry.id}
-          name={entry.name}
-          protocol={entry.protocol}
-          isCustom={entry.isCustom}
-          size={24}
-        />
-      }
-      footer={
-        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
-          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
-            {canAddProviderConnection(entry) ? (
-              <>
-                <Button
-                  type="button"
-                  size="sm"
-                  className="w-full sm:w-auto"
-                  onClick={() => onAddConnection(entry)}
-                >
-                  <Plus className="h-3.5 w-3.5" aria-hidden="true" />
-                  <span>{primaryConnectLabel}</span>
-                </Button>
-                {entry.isNativeOAuth ? (
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="secondary"
-                    className="w-full sm:w-auto"
-                    onClick={() => onAddConnection(entry, "apikey")}
-                  >
-                    <KeyRound className="h-3.5 w-3.5" aria-hidden="true" />
-                    <span>{isId ? "Pakai API Key / Token" : "Use API Key / Token"}</span>
-                  </Button>
-                ) : null}
-              </>
-            ) : null}
-          </div>
-          <Button
-            type="button"
-            variant="secondary"
-            size="sm"
-            className="w-full sm:w-auto"
-            onClick={onClose}
-          >
-            {isId ? "Tutup" : "Close"}
-          </Button>
-        </div>
-      }
-    >
-      <div className="space-y-5">
-        {/* 2-Column Mobile / 3-Column Desktop Proportional Telemetry Strip */}
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-2.5">
-          <div className="min-w-0 rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-surface-2)]/50 px-3 py-2.5">
-            <p className="text-[10px] font-medium uppercase tracking-wider text-[var(--color-text-muted)]">
-              {isId ? "Koneksi" : "Connections"}
-            </p>
-            <div className="mt-1 flex items-baseline gap-1.5">
-              <span className="font-mono text-base font-semibold tabular-nums text-[var(--color-text-main)]">
-                {entry.stats.connected}
-              </span>
-              <span className="truncate font-mono text-[11px] text-[var(--color-text-muted)]">
-                / {entry.stats.total} {isId ? "aktif" : "active"}
-              </span>
-            </div>
-          </div>
-
-          <div className="min-w-0 rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-surface-2)]/50 px-3 py-2.5">
-            <p className="text-[10px] font-medium uppercase tracking-wider text-[var(--color-text-muted)]">
-              {isId ? "Model" : "Models"}
-            </p>
-            <p className="mt-1 font-mono text-base font-semibold tabular-nums text-[var(--color-text-main)]">
-              {allModels.length}
-            </p>
-          </div>
-
-          <div className="col-span-2 min-w-0 rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-surface-2)]/50 px-3 py-2.5 sm:col-span-1">
-            <p className="text-[10px] font-medium uppercase tracking-wider text-[var(--color-text-muted)]">
-              {isId ? "Protokol" : "Protocol"}
-            </p>
-            <p className="mt-1 truncate font-mono text-xs font-semibold text-[var(--color-text-main)]">
-              {entry.protocol}
-            </p>
-          </div>
-        </div>
-
-        {/* Provider Overview, Endpoint & Official Links */}
-        <div className="space-y-3 rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-surface-2)]/40 p-3.5">
-          {entry.baseUrl ? (
-            <div className="flex items-center justify-between gap-2 rounded-lg border border-[var(--color-border-subtle)] bg-[var(--color-surface)] px-3 py-2">
-              <div className="min-w-0">
-                <span className="block text-[10px] font-medium uppercase tracking-wider text-[var(--color-text-subtle)]">
-                  Base Endpoint
-                </span>
-                <p className="truncate font-mono text-xs text-[var(--color-text-main)]">
-                  {entry.baseUrl}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => void handleCopyBaseUrl()}
-                title={isId ? "Salin Base URL" : "Copy Base URL"}
-                className="flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-md border border-[var(--color-border)] bg-[var(--color-surface-2)] text-[var(--color-text-muted)] transition-colors hover:border-[var(--color-primary)]/40 hover:text-[var(--color-primary)] sm:h-7 sm:w-7"
-              >
-                {copiedBaseUrl ? (
-                  <Check className="h-3.5 w-3.5 text-[var(--status-ok)]" aria-hidden="true" />
-                ) : (
-                  <Copy className="h-3.5 w-3.5" aria-hidden="true" />
-                )}
-              </button>
-            </div>
-          ) : null}
-
-          {entry.serviceKinds && entry.serviceKinds.length > 0 ? (
-            <div className="flex flex-wrap items-center gap-1.5">
-              {entry.serviceKinds.map((kind) => (
-                <span
-                  key={kind}
-                  className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-0.5 font-mono text-[10px] uppercase text-[var(--color-text-muted)]"
-                >
-                  {kind}
-                </span>
-              ))}
-            </div>
-          ) : null}
-
-          {entry.noticeText ? (
-            <div className="flex items-start gap-2 rounded-lg border border-[var(--color-border-subtle)] bg-[var(--color-surface)]/70 px-3 py-2 text-[11px] leading-relaxed text-[var(--color-text-muted)]">
-              <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[var(--color-primary)]" />
-              <p>{entry.noticeText}</p>
-            </div>
-          ) : null}
-
-          {entry.website || keyUrl ? (
-            <div className="flex flex-wrap items-center gap-3 pt-0.5 text-xs">
-              {entry.website ? (
-                <a
-                  href={entry.website}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center gap-1 text-[var(--color-text-muted)] hover:text-[var(--color-primary)]"
-                >
-                  <Globe className="h-3.5 w-3.5" />
-                  <span>{isId ? "Website Resmi" : "Official Website"}</span>
-                  <ExternalLink className="h-3 w-3" />
-                </a>
-              ) : null}
-              {keyUrl && keyUrl !== entry.website ? (
-                <a
-                  href={keyUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center gap-1 font-medium text-[var(--color-primary)] hover:underline"
-                >
-                  <KeyRound className="h-3.5 w-3.5" />
-                  <span>
-                    {entry.apiKeyUrl
-                      ? isId
-                        ? "Ambil API Key"
-                        : "Get API Key"
-                      : isId
-                        ? "Portal Akun"
-                        : "Account Portal"}
-                  </span>
-                  <ExternalLink className="h-3 w-3" />
-                </a>
-              ) : null}
-            </div>
-          ) : null}
-        </div>
-
-        {/* Connections Section */}
-        <section className="space-y-3">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
-              <h4 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-main)]">
-                {isId ? "Akun & Koneksi Terdaftar" : "Configured Connections"}
-              </h4>
-              <span className="rounded-full bg-[var(--color-surface-2)] px-2 py-0.5 font-mono text-[10px] text-[var(--color-text-muted)]">
-                {entry.connections.length}
-              </span>
-            </div>
-
-            {enabledCount > 0 && onTestAll ? (
-              <Button
-                type="button"
-                size="sm"
-                variant="secondary"
-                disabled={isTestingAll || busyConnectionId !== null}
-                onClick={() => onTestAll(entry)}
-              >
-                {isTestingAll ? (
-                  <RefreshCw className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
-                ) : (
-                  <Activity className="h-3.5 w-3.5" aria-hidden="true" />
-                )}
-                <span>
-                  {isTestingAll
-                    ? isId
-                      ? "Menguji..."
-                      : "Testing..."
-                    : isId
-                      ? "Tes Semua"
-                      : "Test All"}
-                </span>
-              </Button>
-            ) : null}
-          </div>
-
-          {entry.connections.length === 0 ? (
-            <div className="space-y-3 rounded-xl border border-dashed border-[var(--color-border)] bg-[var(--color-surface-2)]/25 p-5 text-center">
-              <p className="text-sm font-semibold text-[var(--color-text-main)]">
-                {entry.noAuth
-                  ? isId
-                    ? "Siap digunakan (Tanpa Auth)"
-                    : "Ready to use (No Auth Required)"
-                  : isId
-                    ? "Belum ada akun terhubung"
-                    : "No accounts connected yet"}
-              </p>
-              <p className="mx-auto max-w-md text-xs leading-relaxed text-[var(--color-text-muted)]">
-                {entry.noAuth
-                  ? isId
-                    ? `${entry.name} berjalan tanpa API key atau login — langsung gunakan model-model di bawah.`
-                    : `${entry.name} works without an API key or login — use the models below directly.`
-                  : isId
-                    ? `Hubungkan akun ${entry.name} pertama Anda untuk mulai merutekan request ke model-model di bawah.`
-                    : `Connect your first ${entry.name} account to start routing requests to the models below.`}
-              </p>
-              {canAddProviderConnection(entry) ? (
-                <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
-                  <Button type="button" size="sm" onClick={() => onAddConnection(entry)}>
-                    <Plus className="h-3.5 w-3.5" aria-hidden="true" />
-                    <span>{primaryConnectLabel}</span>
-                  </Button>
-                  {entry.isNativeOAuth ? (
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="secondary"
-                      onClick={() => onAddConnection(entry, "apikey")}
-                    >
-                      <KeyRound className="h-3.5 w-3.5" aria-hidden="true" />
-                      <span>{isId ? "Impor Token / API Key" : "Import Token / API Key"}</span>
-                    </Button>
-                  ) : null}
-                </div>
-              ) : null}
-            </div>
-          ) : (
-            <div className="space-y-2.5">
-              {entry.connections.map((conn) => {
-                const live = liveTestResults[conn.id];
-                const isBusy = busyConnectionId === conn.id;
-                const isConfirming = confirmDeleteConnId === conn.id;
-
-                return (
-                  <div
-                    key={conn.id}
-                    className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3.5 transition-colors hover:border-[var(--color-primary)]/35"
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0">
-                        <div className="flex flex-wrap items-center gap-1.5">
-                          <span className="truncate text-sm font-semibold text-[var(--color-text-main)]">
-                            {conn.name}
-                          </span>
-                          <Badge variant={conn.enabled ? "success" : "outline"}>
-                            {conn.enabled
-                              ? isId
-                                ? "Aktif"
-                                : "Enabled"
-                              : isId
-                                ? "Nonaktif"
-                                : "Paused"}
-                          </Badge>
-                          <Badge variant="outline" className="font-mono text-[10px]">
-                            P{conn.priority}
-                          </Badge>
-                          {live ? (
-                            <Badge
-                              variant={live.ok ? "success" : "destructive"}
-                              className="tabular-nums"
-                            >
-                              {live.ok
-                                ? `OK ${live.status_code} · ${live.latency_ms}ms`
-                                : `FAIL ${live.status_code || "ERR"} · ${live.latency_ms}ms`}
-                            </Badge>
-                          ) : conn.last_test_status === "ok" ? (
-                            <Badge variant="success">
-                              <CheckCircle2 className="mr-1 h-3 w-3" />
-                              Healthy
-                            </Badge>
-                          ) : conn.last_test_status === "error" ? (
-                            <Badge variant="destructive">Error</Badge>
-                          ) : null}
-                        </div>
-
-                        <p className="mt-1 truncate font-mono text-[11px] text-[var(--color-text-muted)]">
-                          {conn.base_url} · {isId ? "Tes terakhir:" : "Tested:"}{" "}
-                          {formatShortTime(conn.last_tested_at, isId)}
-                        </p>
-                      </div>
-                    </div>
-
-                    {conn.last_test_error ? (
-                      <p className="mt-2 break-words rounded-lg bg-[var(--status-error-bg)] px-2.5 py-1.5 font-mono text-[11px] text-[var(--status-error)]">
-                        {conn.last_test_error}
-                      </p>
-                    ) : null}
-
-                    <div className="mt-3 flex flex-col gap-2 border-t border-[var(--color-border-subtle)] pt-2.5 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="secondary"
-                          className="flex-1 sm:flex-none"
-                          disabled={busyConnectionId !== null}
-                          onClick={() => onTestConnection(conn)}
-                        >
-                          {isBusy ? (
-                            <RefreshCw className="h-3.5 w-3.5 animate-spin" />
-                          ) : (
-                            <Activity className="h-3.5 w-3.5" />
-                          )}
-                          <span>{isId ? "Tes" : "Test"}</span>
-                        </Button>
-
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="secondary"
-                          className="flex-1 sm:flex-none"
-                          disabled={busyConnectionId !== null}
-                          onClick={() => onToggleConnection(conn)}
-                        >
-                          <Power className="h-3.5 w-3.5" />
-                          <span>
-                            {conn.enabled
-                              ? isId
-                                ? "Nonaktifkan"
-                                : "Disable"
-                              : isId
-                                ? "Aktifkan"
-                                : "Enable"}
-                          </span>
-                        </Button>
-
-                        <Link
-                          to={`/dashboard/providers/detail/?id=${encodeURIComponent(conn.id)}`}
-                          onClick={onClose}
-                          className="inline-flex h-9 flex-1 items-center justify-center gap-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)] px-2.5 text-xs font-medium text-[var(--color-text-main)] transition-colors hover:border-[var(--color-primary)]/40 hover:text-[var(--color-primary)] sm:h-8 sm:flex-none"
-                        >
-                          <Settings2 className="h-3.5 w-3.5" />
-                          <span>{isId ? "Edit Detail" : "Edit Detail"}</span>
-                        </Link>
-                      </div>
-
-                      {isConfirming ? (
-                        <div className="flex items-center gap-1.5">
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="destructive"
-                            disabled={busyConnectionId !== null}
-                            onClick={() => {
-                              onDeleteConnection(conn);
-                              setConfirmDeleteConnId(null);
-                            }}
-                          >
-                            {isId ? "Konfirmasi" : "Confirm"}
-                          </Button>
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="secondary"
-                            onClick={() => setConfirmDeleteConnId(null)}
-                          >
-                            {isId ? "Batal" : "Cancel"}
-                          </Button>
-                        </div>
-                      ) : (
-                        <button
-                          type="button"
-                          disabled={busyConnectionId !== null}
-                          onClick={() => setConfirmDeleteConnId(conn.id)}
-                          aria-label={`Delete ${conn.name}`}
-                          className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg text-[var(--color-text-muted)] transition-colors hover:bg-[var(--status-error-bg)] hover:text-[var(--status-error)] disabled:opacity-40"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </section>
-
-        {/* Interactive Models Catalog Section (xrouter + omniroute parity, click to copy ID) */}
-        {allModels.length > 0 ? (
-          <section className="space-y-2.5">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <Layers className="h-3.5 w-3.5 text-[var(--color-primary)]" aria-hidden="true" />
-                <h4 className="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-main)]">
-                  {isId ? "Katalog Model Tersedia" : "Available Models"}
-                </h4>
-                <span className="rounded-full bg-[var(--color-surface-2)] px-2 py-0.5 font-mono text-[10px] text-[var(--color-text-muted)]">
-                  {allModels.length}
-                </span>
-              </div>
-              <span className="text-[11px] text-[var(--color-text-muted)]">
-                {isId ? "Klik model untuk salin ID" : "Click model to copy ID"}
-              </span>
-            </div>
-
-            {allModels.length > 6 ? (
-              <div className="relative">
-                <Search
-                  className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--color-text-muted)]"
-                  aria-hidden="true"
-                />
-                <Input
-                  value={modelSearch}
-                  onChange={(e) => setModelSearch(e.target.value)}
-                  placeholder={isId ? "Cari model..." : "Filter models..."}
-                  className="h-8 pl-8 text-xs"
-                />
-              </div>
-            ) : null}
-
-            <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
-              {visibleModels.map((modelId) => {
-                const isCopied = copiedModelId === modelId;
-                const qualified = modelId.includes("/") ? modelId : `${modelPrefix}/${modelId}`;
-                return (
-                  <button
-                    key={modelId}
-                    type="button"
-                    onClick={() => void handleCopyModel(modelId)}
-                    title={isId ? `Salin ${qualified}` : `Copy ${qualified}`}
-                    className="group flex min-h-9 cursor-pointer items-center justify-between gap-2 rounded-lg border border-[var(--color-border-subtle)] bg-[var(--color-surface-2)]/40 px-2.5 py-1.5 text-left transition-colors hover:border-[var(--color-primary)]/45 hover:bg-[var(--color-surface-2)] sm:min-h-0"
-                  >
-                    <span className="truncate font-mono text-[11px] text-[var(--color-text-main)]">
-                      {modelId}
-                    </span>
-                    {isCopied ? (
-                      <Check
-                        className="h-3.5 w-3.5 shrink-0 text-[var(--status-ok)]"
-                        aria-hidden="true"
-                      />
-                    ) : (
-                      <Copy
-                        className="h-3 w-3 shrink-0 text-[var(--color-text-muted)] opacity-50 transition-opacity group-hover:opacity-100"
-                        aria-hidden="true"
-                      />
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-
-            {filteredModels.length > 10 ? (
-              <button
-                type="button"
-                onClick={() => setShowAllModels((prev) => !prev)}
-                className="cursor-pointer text-xs font-medium text-[var(--color-primary)] hover:underline"
-              >
-                {showAllModels
-                  ? isId
-                    ? "Tampilkan lebih sedikit"
-                    : "Show fewer models"
-                  : isId
-                    ? `Tampilkan semua (${filteredModels.length} model)`
-                    : `Show all ${filteredModels.length} models`}
-              </button>
-            ) : null}
-          </section>
-        ) : null}
-
-        {/* Delete Custom Node Option */}
-        {entry.node && entry.isCustom ? (
-          <div className="rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-surface-2)]/50 p-3.5">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div>
-                <p className="text-xs font-semibold text-[var(--color-text-main)]">
-                  {isId ? "Hapus Custom Endpoint" : "Remove Custom Endpoint"}
-                </p>
-                <p className="text-[11px] text-[var(--color-text-muted)]">
-                  {isId
-                    ? "Menghapus definisi node ini dari katalog custom provider."
-                    : "Removes this custom node definition from your provider catalog."}
-                </p>
-              </div>
-              {confirmDeleteNode ? (
-                <div className="flex items-center gap-1.5">
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="destructive"
-                    disabled={isDeletingNode}
-                    onClick={() => {
-                      if (entry.node) {
-                        onDeleteCustomNode(entry.node);
-                        onClose();
-                      }
-                    }}
-                  >
-                    {isId ? "Ya, Hapus" : "Yes, Remove"}
-                  </Button>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="secondary"
-                    onClick={() => setConfirmDeleteNode(false)}
-                  >
-                    {isId ? "Batal" : "Cancel"}
-                  </Button>
-                </div>
-              ) : (
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="secondary"
-                  onClick={() => setConfirmDeleteNode(true)}
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                  <span>{isId ? "Hapus Node" : "Delete Node"}</span>
-                </Button>
-              )}
-            </div>
-          </div>
-        ) : null}
-      </div>
     </ModalShell>
   );
 }

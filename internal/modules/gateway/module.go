@@ -15,6 +15,7 @@ import (
 	"net/http"
 	"net/url"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -23,6 +24,7 @@ import (
 
 	"github.com/omeg4monx/router-gateway/internal/contracts"
 	"github.com/omeg4monx/router-gateway/internal/platform/db"
+	"github.com/omeg4monx/router-gateway/internal/platform/eventbus"
 	"github.com/omeg4monx/router-gateway/internal/platform/httpclient"
 	"github.com/omeg4monx/router-gateway/internal/platform/httpserver"
 	"github.com/omeg4monx/router-gateway/internal/platform/lifecycle"
@@ -51,6 +53,7 @@ type Options struct {
 	Health                  contracts.AccountHealthTracker
 	Interceptors            []contracts.GatewayInterceptor
 	Usage                   contracts.UsageRecorder
+	Bus                     *eventbus.Bus
 	Logger                  *slog.Logger
 	ChainTTL                time.Duration
 	MaxGlobalInFlight       int
@@ -73,6 +76,7 @@ type Module struct {
 	health       contracts.AccountHealthTracker
 	interceptors []contracts.GatewayInterceptor
 	usage        contracts.UsageRecorder
+	bus          *eventbus.Bus
 	logger       *slog.Logger
 	chains       *chainStore
 	agQuota      *antigravityQuotaMonitor
@@ -182,6 +186,7 @@ func New(opts Options) *Module {
 		health:       opts.Health,
 		interceptors: sorted,
 		usage:        opts.Usage,
+		bus:          opts.Bus,
 		logger:       logger,
 		chains:       newChainStore(opts.DB, opts.ChainTTL),
 		agQuota:      newAntigravityQuotaMonitor(),
@@ -567,7 +572,7 @@ func (m *Module) handleInferenceWithKey(w http.ResponseWriter, r *http.Request, 
 	if m.coalescer != nil && m.coalescer.isCacheableRequest(inProto, icReq.Stream, isCompact, icReq.Body) {
 		cKey := m.coalescer.cacheKey(keyInfo.ID, inProto, icReq.Model, icReq.Body)
 		cachedResp, cacheStatus, cErr := m.coalescer.do(r.Context(), cKey, func(callCtx context.Context) (cachedGatewayResponse, error) {
-			return m.executeCoalescedInference(callCtx, w, r, reqID, keyInfo, icReq, inProto, isCompact, startTime)
+			return m.executeCoalescedInference(callCtx, r, reqID, keyInfo, icReq, inProto, isCompact, startTime)
 		})
 		if cErr != nil {
 			if r.Context().Err() != nil {
@@ -575,7 +580,14 @@ func (m *Module) handleInferenceWithKey(w http.ResponseWriter, r *http.Request, 
 			}
 			var alreadyHandled *handledGatewayError
 			if errors.As(cErr, &alreadyHandled) {
-				if cacheStatus == cacheStatusCoalesced {
+				switch {
+				case alreadyHandled.resolveErr != nil:
+					writeResolutionError(w, r, inProto, alreadyHandled.resolveErr)
+				case len(alreadyHandled.rawBody) > 0:
+					w.Header().Set("Content-Type", "application/json; charset=utf-8")
+					w.WriteHeader(alreadyHandled.statusCode)
+					_, _ = w.Write(alreadyHandled.rawBody)
+				default:
 					writeGatewayError(w, r, inProto, alreadyHandled.statusCode, alreadyHandled.errType, alreadyHandled.errCode, alreadyHandled.errMsg)
 				}
 				return
@@ -621,13 +633,14 @@ type handledGatewayError struct {
 	errType    string
 	errCode    string
 	errMsg     string
+	rawBody    []byte
+	resolveErr error
 }
 
 func (e *handledGatewayError) Error() string { return e.errMsg }
 
 func (m *Module) executeCoalescedInference(
 	ctx context.Context,
-	w http.ResponseWriter,
 	r *http.Request,
 	reqID string,
 	keyInfo contracts.KeyInfo,
@@ -637,7 +650,7 @@ func (m *Module) executeCoalescedInference(
 	startTime time.Time,
 ) (cachedGatewayResponse, error) {
 	var captured cachedGatewayResponse
-	err := m.executeInferenceCandidates(ctx, w, r, reqID, keyInfo, icReq, inProto, isCompact, startTime, &captured)
+	err := m.executeInferenceCandidates(ctx, nil, r, reqID, keyInfo, icReq, inProto, isCompact, startTime, &captured)
 	if err != nil {
 		return cachedGatewayResponse{}, err
 	}
@@ -658,12 +671,15 @@ func (m *Module) executeInferenceCandidates(
 ) error {
 	candidates, err := m.resolver.Resolve(ctx, icReq.Model, keyInfo.AllowedModels)
 	if err != nil {
-		writeResolutionError(w, r, inProto, err)
+		if capture == nil {
+			writeResolutionError(w, r, inProto, err)
+		}
 		return &handledGatewayError{
 			statusCode: http.StatusNotFound,
 			errType:    "invalid_request_error",
 			errCode:    "model_not_found",
 			errMsg:     err.Error(),
+			resolveErr: err,
 		}
 	}
 	candidates = prioritizeHeadroomAffinity(candidates, icReq.Metadata)
@@ -718,7 +734,9 @@ func (m *Module) executeInferenceCandidates(
 
 		upBody, chainInputMsgs, prepErr := m.prepareUpstreamBody(ctx, inProto, outProto, keyInfo.ID, upstreamModel, icReq.Stream, isCompact, icReq.Body)
 		if prepErr != nil {
-			writeGatewayError(w, r, inProto, http.StatusBadRequest, "invalid_request_error", "invalid_payload", prepErr.Error())
+			if capture == nil {
+				writeGatewayError(w, r, inProto, http.StatusBadRequest, "invalid_request_error", "invalid_payload", prepErr.Error())
+			}
 			return &handledGatewayError{
 				statusCode: http.StatusBadRequest,
 				errType:    "invalid_request_error",
@@ -729,6 +747,11 @@ func (m *Module) executeInferenceCandidates(
 
 		refreshed := false
 		transientRetries := 0
+		maxRetries, hasMaxRetries := parseComboMetadataInt(cand.Metadata, "combo_max_retries")
+		retryDelayMs, hasRetryDelay := parseComboMetadataInt(cand.Metadata, "combo_retry_delay_ms")
+		timeoutMs, hasTimeout := parseComboMetadataInt(cand.Metadata, "combo_timeout_ms")
+		stopCascade := false
+
 		for {
 			releaseConn, connErr := m.shaper.acquireConnection(ctx, cand.ConnectionID)
 			if connErr != nil {
@@ -741,8 +764,39 @@ func (m *Module) executeInferenceCandidates(
 			}
 
 			canRetryTransient := singleCandidate && transientRetries < singleCandidateRetryMax
+			if hasMaxRetries {
+				canRetryTransient = transientRetries < maxRetries
+			}
+
+			attemptCtx := ctx
+			var attemptCancel context.CancelFunc
+			if hasTimeout && timeoutMs >= 1000 {
+				attemptCtx, attemptCancel = context.WithTimeout(ctx, time.Duration(timeoutMs)*time.Millisecond)
+			}
+
+			if m.bus != nil {
+				m.bus.Publish("traffic.started", map[string]any{
+					"request_id":    reqID,
+					"provider_id":   cand.ProviderID,
+					"connection_id": cand.ConnectionID,
+					"model":         upstreamModel,
+					"protocol":      inProto,
+					"stream":        icReq.Stream,
+					"started_at":    startTime.UTC().Format(time.RFC3339Nano),
+				})
+			}
+			if m.logger != nil {
+				m.logger.Info("▶ gateway request",
+					"request_id", reqID,
+					"provider", cand.ProviderID,
+					"model", upstreamModel,
+					"protocol", inProto,
+					"stream", icReq.Stream,
+				)
+			}
+
 			outcome := m.executeCandidateAttempt(
-				ctx,
+				attemptCtx,
 				w,
 				r,
 				reqID,
@@ -764,15 +818,36 @@ func (m *Module) executeInferenceCandidates(
 				canRetryTransient,
 				capture,
 			)
+			attemptTimedOut := attemptCtx.Err() == context.DeadlineExceeded && ctx.Err() == nil
+			if attemptCancel != nil {
+				attemptCancel()
+			}
 			releaseConn()
+
+			if outcome.clientCanceled && attemptTimedOut {
+				outcome = attemptOutcome{
+					statusCode:         http.StatusGatewayTimeout,
+					errMsg:             "combo upstream attempt timed out",
+					deferredHealthFail: true,
+				}
+			}
 
 			if outcome.handled {
 				if capture != nil && outcome.statusCode >= 400 {
+					errType := outcome.errType
+					if errType == "" {
+						errType = "invalid_request_error"
+					}
+					errCode := outcome.errCode
+					if errCode == "" {
+						errCode = "upstream_client_error"
+					}
 					return &handledGatewayError{
 						statusCode: outcome.statusCode,
-						errType:    "invalid_request_error",
-						errCode:    "upstream_client_error",
+						errType:    errType,
+						errCode:    errCode,
 						errMsg:     outcome.errMsg,
+						rawBody:    outcome.rawBody,
 					}
 				}
 				return nil
@@ -796,22 +871,76 @@ func (m *Module) executeInferenceCandidates(
 				continue
 			}
 			if outcome.clientCanceled {
+				if m.bus != nil {
+					m.bus.Publish("traffic.finished", map[string]any{
+						"request_id":    reqID,
+						"key_id":        keyInfo.ID,
+						"provider_id":   cand.ProviderID,
+						"connection_id": cand.ConnectionID,
+						"model":         upstreamModel,
+						"protocol":      inProto,
+						"status_code":   499,
+						"latency_ms":    max(time.Since(startTime).Milliseconds(), 0),
+						"error_summary": "client canceled request",
+						"stream":        icReq.Stream,
+						"created_at":    time.Now().UTC().Format(time.RFC3339Nano),
+					})
+				}
+				if m.logger != nil {
+					m.logger.Warn("✗ client canceled",
+						"request_id", reqID,
+						"provider", cand.ProviderID,
+						"model", upstreamModel,
+						"status", 499,
+						"latency_ms", max(time.Since(startTime).Milliseconds(), 0),
+					)
+				}
 				return context.Canceled
 			}
 			if canRetryTransient && isTransientSingleCandidateStatus(outcome.statusCode) {
-				if delay := computeJitteredRetryDelay(transientRetries, outcome.retryAfter); delay > 0 {
-					transientRetries++
+				var delay time.Duration
+				if hasRetryDelay {
+					delay = max(time.Duration(retryDelayMs)*time.Millisecond, outcome.retryAfter)
+				} else {
+					delay = computeJitteredRetryDelay(transientRetries, outcome.retryAfter)
+				}
+				transientRetries++
+				if m.logger != nil {
+					m.logger.Warn("↻ retrying upstream",
+						"request_id", reqID,
+						"provider", cand.ProviderID,
+						"model", upstreamModel,
+						"status", outcome.statusCode,
+						"attempt", transientRetries,
+					)
+				}
+				if delay > 0 {
 					if err := sleepContext(ctx, delay); err != nil {
 						return err
 					}
-					continue
 				}
+				continue
 			}
 			if outcome.deferredHealthFail {
 				m.health.RecordFailure(cand.ConnectionID, outcome.statusCode, outcome.retryAfter)
 			}
 			lastStatus = outcome.statusCode
 			lastMsg = outcome.errMsg
+			if m.logger != nil {
+				m.logger.Warn("✗ upstream failed",
+					"request_id", reqID,
+					"provider", cand.ProviderID,
+					"model", upstreamModel,
+					"status", outcome.statusCode,
+					"error", outcome.errMsg,
+				)
+			}
+			if cand.Metadata["combo_fallback_only_on_quota"] == "true" && outcome.statusCode != http.StatusTooManyRequests {
+				stopCascade = true
+			}
+			break
+		}
+		if stopCascade {
 			break
 		}
 	}
@@ -829,7 +958,9 @@ func (m *Module) executeInferenceCandidates(
 		Stream:       icReq.Stream,
 		Timestamp:    time.Now().UTC(),
 	})
-	writeGatewayError(w, r, inProto, lastStatus, "server_error", "upstream_failed", lastMsg)
+	if capture == nil {
+		writeGatewayError(w, r, inProto, lastStatus, "server_error", "upstream_failed", lastMsg)
+	}
 	return &handledGatewayError{
 		statusCode: lastStatus,
 		errType:    "server_error",
@@ -845,7 +976,10 @@ type attemptOutcome struct {
 	deferredHealthFail bool
 	statusCode         int
 	retryAfter         time.Duration
+	errType            string
+	errCode            string
 	errMsg             string
+	rawBody            []byte
 }
 
 func (m *Module) prepareUpstreamBody(
@@ -1075,8 +1209,16 @@ func (m *Module) executeCandidateAttempt(
 					Stream:       stream,
 					Timestamp:    time.Now().UTC(),
 				})
-				writeGatewayError(w, r, inProto, http.StatusBadRequest, "invalid_request_error", "antigravity_prompt_rejected", antigravityPromptRejectedMessage)
-				return attemptOutcome{handled: true}
+				if capture == nil {
+					writeGatewayError(w, r, inProto, http.StatusBadRequest, "invalid_request_error", "antigravity_prompt_rejected", antigravityPromptRejectedMessage)
+				}
+				return attemptOutcome{
+					handled:    true,
+					statusCode: http.StatusBadRequest,
+					errType:    "invalid_request_error",
+					errCode:    "antigravity_prompt_rejected",
+					errMsg:     antigravityPromptRejectedMessage,
+				}
 			}
 		}
 		break
@@ -1101,11 +1243,21 @@ func (m *Module) executeCandidateAttempt(
 		}
 		for _, ic := range m.interceptors {
 			if icErr := ic.OnResponseHeaders(ctx, meta); icErr != nil {
-				writeGatewayError(w, r, inProto, http.StatusBadGateway, "server_error", "interceptor_error", icErr.Error())
-				return attemptOutcome{handled: true}
+				if capture == nil {
+					writeGatewayError(w, r, inProto, http.StatusBadGateway, "server_error", "interceptor_error", icErr.Error())
+				}
+				return attemptOutcome{
+					handled:    true,
+					statusCode: http.StatusBadGateway,
+					errType:    "server_error",
+					errCode:    "interceptor_error",
+					errMsg:     icErr.Error(),
+				}
 			}
 		}
-		copyResponseHeaders(w.Header(), meta.Headers)
+		if capture == nil {
+			copyResponseHeaders(w.Header(), meta.Headers)
+		}
 
 		if stream {
 			streamSrc := resp.Body
@@ -1146,15 +1298,19 @@ func (m *Module) executeCandidateAttempt(
 
 		rawResp, readErr := io.ReadAll(io.LimitReader(resp.Body, maxResponseBodyBytes))
 		if readErr != nil {
-			writeGatewayError(w, r, inProto, http.StatusBadGateway, "server_error", "upstream_read_error", readErr.Error())
-			return attemptOutcome{handled: true}
+			if capture == nil {
+				writeGatewayError(w, r, inProto, http.StatusBadGateway, "server_error", "upstream_read_error", readErr.Error())
+			}
+			return attemptOutcome{handled: true, statusCode: http.StatusBadGateway, errType: "server_error", errCode: "upstream_read_error", errMsg: readErr.Error()}
 		}
 		if isVeniceKeyless {
 			converted, _, convErr := venice.ParseNDJSONToOpenAI(rawResp, requestedModel)
 			if convErr != nil {
 				m.veniceMgr.Evict(upURL)
-				writeGatewayError(w, r, inProto, http.StatusBadGateway, "server_error", "invalid_upstream_response", convErr.Error())
-				return attemptOutcome{handled: true}
+				if capture == nil {
+					writeGatewayError(w, r, inProto, http.StatusBadGateway, "server_error", "invalid_upstream_response", convErr.Error())
+				}
+				return attemptOutcome{handled: true, statusCode: http.StatusBadGateway, errType: "server_error", errCode: "invalid_upstream_response", errMsg: convErr.Error()}
 			}
 			rawResp = converted
 		}
@@ -1171,8 +1327,10 @@ func (m *Module) executeCandidateAttempt(
 		default:
 			canon, decErr := DecodeResponse(outProto, rawResp)
 			if decErr != nil {
-				writeGatewayError(w, r, inProto, http.StatusBadGateway, "server_error", "invalid_upstream_response", decErr.Error())
-				return attemptOutcome{handled: true}
+				if capture == nil {
+					writeGatewayError(w, r, inProto, http.StatusBadGateway, "server_error", "invalid_upstream_response", decErr.Error())
+				}
+				return attemptOutcome{handled: true, statusCode: http.StatusBadGateway, errType: "server_error", errCode: "invalid_upstream_response", errMsg: decErr.Error()}
 			}
 			canon.Model = requestedModel
 			if inProto == ProtocolOpenAIResponses && canon.ID == "" {
@@ -1184,15 +1342,19 @@ func (m *Module) executeCandidateAttempt(
 				compactOut := buildCompactedResponse(canon)
 				encoded, encErr := json.Marshal(compactOut)
 				if encErr != nil {
-					writeGatewayError(w, r, inProto, http.StatusBadGateway, "server_error", "encode_error", encErr.Error())
-					return attemptOutcome{handled: true}
+					if capture == nil {
+						writeGatewayError(w, r, inProto, http.StatusBadGateway, "server_error", "encode_error", encErr.Error())
+					}
+					return attemptOutcome{handled: true, statusCode: http.StatusBadGateway, errType: "server_error", errCode: "encode_error", errMsg: encErr.Error()}
 				}
 				outBytes = encoded
 			} else {
 				encoded, encErr := EncodeResponse(inProto, canon)
 				if encErr != nil {
-					writeGatewayError(w, r, inProto, http.StatusBadGateway, "server_error", "encode_error", encErr.Error())
-					return attemptOutcome{handled: true}
+					if capture == nil {
+						writeGatewayError(w, r, inProto, http.StatusBadGateway, "server_error", "encode_error", encErr.Error())
+					}
+					return attemptOutcome{handled: true, statusCode: http.StatusBadGateway, errType: "server_error", errCode: "encode_error", errMsg: encErr.Error()}
 				}
 				outBytes = encoded
 			}
@@ -1285,13 +1447,17 @@ func (m *Module) executeCandidateAttempt(
 			Timestamp:    time.Now().UTC(),
 		})
 		if CanFastPath(inProto, outProto) && json.Valid(errBody) {
-			w.Header().Set("Content-Type", "application/json; charset=utf-8")
-			w.WriteHeader(resp.StatusCode)
-			_, _ = w.Write(errBody)
-			return attemptOutcome{handled: true, statusCode: resp.StatusCode, errMsg: errMsg}
+			if capture == nil {
+				w.Header().Set("Content-Type", "application/json; charset=utf-8")
+				w.WriteHeader(resp.StatusCode)
+				_, _ = w.Write(errBody)
+			}
+			return attemptOutcome{handled: true, statusCode: resp.StatusCode, errMsg: errMsg, rawBody: bytes.Clone(errBody)}
 		}
-		writeGatewayError(w, r, inProto, resp.StatusCode, "invalid_request_error", "upstream_client_error", errMsg)
-		return attemptOutcome{handled: true, statusCode: resp.StatusCode, errMsg: errMsg}
+		if capture == nil {
+			writeGatewayError(w, r, inProto, resp.StatusCode, "invalid_request_error", "upstream_client_error", errMsg)
+		}
+		return attemptOutcome{handled: true, statusCode: resp.StatusCode, errType: "invalid_request_error", errCode: "upstream_client_error", errMsg: errMsg}
 	}
 
 	retryAfter := parseRetryAfter(resp.Header.Get("Retry-After"), time.Now().UTC())
@@ -1308,6 +1474,28 @@ func (m *Module) executeCandidateAttempt(
 }
 
 func (m *Module) emitUsage(ctx context.Context, rec contracts.UsageRecord) {
+	if m.logger != nil {
+		if rec.StatusCode >= http.StatusBadRequest || rec.ErrorSummary != "" {
+			m.logger.Error("✗ gateway response",
+				"request_id", rec.RequestID,
+				"provider", rec.ProviderID,
+				"model", rec.Model,
+				"status", rec.StatusCode,
+				"latency_ms", rec.Latency.Milliseconds(),
+				"error", rec.ErrorSummary,
+			)
+		} else {
+			m.logger.Info("✓ gateway response",
+				"request_id", rec.RequestID,
+				"provider", rec.ProviderID,
+				"model", rec.Model,
+				"status", rec.StatusCode,
+				"latency_ms", rec.Latency.Milliseconds(),
+				"in_tok", rec.InputTokens,
+				"out_tok", rec.OutputTokens,
+			)
+		}
+	}
 	if m.usage == nil {
 		return
 	}
@@ -1410,6 +1598,9 @@ func prioritizeHeadroomAffinity(candidates []contracts.ResolvedTarget, metadata 
 	if len(candidates) <= 1 || len(metadata) == 0 {
 		return candidates
 	}
+	if candidates[0].Metadata["combo_disable_stickiness"] == "true" {
+		return candidates
+	}
 	connID, _ := metadata["headroom_affinity_connection"].(string)
 	if connID == "" {
 		return candidates
@@ -1436,4 +1627,19 @@ func prioritizeHeadroomAffinity(candidates []contracts.ResolvedTarget, metadata 
 	ordered = append(ordered, candidates[:matchIdx]...)
 	ordered = append(ordered, candidates[matchIdx+1:]...)
 	return ordered
+}
+
+func parseComboMetadataInt(meta map[string]string, key string) (int, bool) {
+	if len(meta) == 0 {
+		return 0, false
+	}
+	raw := strings.TrimSpace(meta[key])
+	if raw == "" {
+		return 0, false
+	}
+	val, err := strconv.Atoi(raw)
+	if err != nil || val < 0 {
+		return 0, false
+	}
+	return val, true
 }

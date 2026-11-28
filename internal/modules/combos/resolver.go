@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -173,9 +174,15 @@ func (m *Module) ListModels(ctx context.Context, allowed []string) ([]contracts.
 	return out, nil
 }
 
-func (m *Module) loadSnapshot(ctx context.Context) (*resolveSnapshot, error) {
-	if m.providers == nil {
-		return nil, errors.New("combos: provider store is not initialized")
+func (m *Module) loadRoutingState(ctx context.Context) (*cachedRoutingState, error) {
+	if m.routingCache != nil {
+		if cached, ok := m.routingCache.Get(); ok {
+			return cached, nil
+		}
+	}
+	var ver uint64
+	if m.routingCache != nil {
+		ver = m.routingCache.Version()
 	}
 
 	comboList, err := m.repo.ListCombos(ctx)
@@ -193,10 +200,6 @@ func (m *Module) loadSnapshot(ctx context.Context) (*resolveSnapshot, error) {
 	providerStratList, err := m.repo.ListProviderStrategies(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("combos: load provider strategies: %w", err)
-	}
-	conns, err := m.providers.ListEnabledConnections(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("combos: list enabled provider connections: %w", err)
 	}
 
 	activeCombos := make(map[string]Combo, len(comboList))
@@ -221,6 +224,32 @@ func (m *Module) loadSnapshot(ctx context.Context) (*resolveSnapshot, error) {
 		providerStrategies[ps.ProviderID] = ps.Strategy
 	}
 
+	state := &cachedRoutingState{
+		activeCombos:       activeCombos,
+		aliases:            aliases,
+		disabled:           disabled,
+		providerStrategies: providerStrategies,
+	}
+	if m.routingCache != nil {
+		m.routingCache.SetIfVersion(state, ver)
+	}
+	return state, nil
+}
+
+func (m *Module) loadSnapshot(ctx context.Context) (*resolveSnapshot, error) {
+	if m.providers == nil {
+		return nil, errors.New("combos: provider store is not initialized")
+	}
+
+	state, err := m.loadRoutingState(ctx)
+	if err != nil {
+		return nil, err
+	}
+	conns, err := m.providers.ListEnabledConnections(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("combos: list enabled provider connections: %w", err)
+	}
+
 	enabledConns := make([]contracts.ProviderConnection, 0, len(conns))
 	for _, c := range conns {
 		if c.Enabled {
@@ -235,10 +264,10 @@ func (m *Module) loadSnapshot(ctx context.Context) (*resolveSnapshot, error) {
 	})
 
 	return &resolveSnapshot{
-		activeCombos:       activeCombos,
-		aliases:            aliases,
-		disabled:           disabled,
-		providerStrategies: providerStrategies,
+		activeCombos:       state.activeCombos,
+		aliases:            state.aliases,
+		disabled:           state.disabled,
+		providerStrategies: state.providerStrategies,
 		connections:        enabledConns,
 	}, nil
 }
@@ -264,7 +293,9 @@ func (m *Module) resolveIdentifier(
 		if len(steps) == 0 {
 			steps = stepsFromTargets(combo.Targets)
 		}
+		executeNested := isNestedExecuteMode(combo.Config)
 		weighted := make([]weightedCandidate, 0, len(steps))
+		orderedNested := make([]contracts.ResolvedTarget, 0, len(steps))
 		matchedAny := false
 		for _, step := range steps {
 			targetID := step.targetIdentifier()
@@ -279,16 +310,29 @@ func (m *Module) resolveIdentifier(
 				if step.ConnectionID != "" && cand.ConnectionID != step.ConnectionID {
 					continue
 				}
-				weighted = append(weighted, weightedCandidate{
-					target: cand,
-					weight: step.Weight,
-				})
+				if step.Kind == "combo-ref" && step.FallbackOnlyOnQuotaExhaustion {
+					cand = withMetadataEntry(cand, "combo_fallback_only_on_quota", "true")
+				}
+				if executeNested {
+					orderedNested = append(orderedNested, cand)
+				} else {
+					weighted = append(weighted, weightedCandidate{
+						target: cand,
+						weight: step.Weight,
+					})
+				}
 			}
+		}
+		if executeNested {
+			if len(orderedNested) == 0 {
+				return nil, matchedAny
+			}
+			return applyComboRuntimeMetadata(combo, orderedNested), true
 		}
 		if len(weighted) == 0 {
 			return nil, matchedAny
 		}
-		return applyComboStrategy(combo, weighted, m.stratState), true
+		return applyComboRuntimeMetadata(combo, applyComboStrategy(combo, weighted, m.stratState)), true
 	}
 
 	// Tier 2: Model Alias.
@@ -463,4 +507,90 @@ func buildResolvedTarget(conn contracts.ProviderConnection, logicalModel, upstre
 			"connection_name": conn.Name,
 		},
 	}
+}
+
+func isNestedExecuteMode(cfg map[string]any) bool {
+	if len(cfg) == 0 {
+		return false
+	}
+	mode, _ := cfg["nestedComboMode"].(string)
+	return strings.EqualFold(strings.TrimSpace(mode), "execute")
+}
+
+func configIntValue(cfg map[string]any, key string) (int, bool) {
+	if len(cfg) == 0 {
+		return 0, false
+	}
+	raw, exists := cfg[key]
+	if !exists || raw == nil {
+		return 0, false
+	}
+	switch v := raw.(type) {
+	case int:
+		return v, true
+	case int64:
+		return int(v), true
+	case float64:
+		return int(v), true
+	default:
+		return 0, false
+	}
+}
+
+func withMetadataEntry(cand contracts.ResolvedTarget, key, value string) contracts.ResolvedTarget {
+	cloned := make(map[string]string, len(cand.Metadata)+1)
+	for k, v := range cand.Metadata {
+		cloned[k] = v
+	}
+	cloned[key] = value
+	cand.Metadata = cloned
+	return cand
+}
+
+func applyComboRuntimeMetadata(combo Combo, targets []contracts.ResolvedTarget) []contracts.ResolvedTarget {
+	if len(targets) == 0 {
+		return targets
+	}
+	extra := map[string]string{
+		"combo_name":     combo.Name,
+		"combo_strategy": combo.Strategy,
+	}
+	if maxRetries, ok := configIntValue(combo.Config, "maxRetries"); ok && maxRetries >= 0 {
+		if maxRetries > 10 {
+			maxRetries = 10
+		}
+		extra["combo_max_retries"] = strconv.Itoa(maxRetries)
+	}
+	if retryDelayMs, ok := configIntValue(combo.Config, "retryDelayMs"); ok && retryDelayMs >= 0 {
+		if retryDelayMs > 60000 {
+			retryDelayMs = 60000
+		}
+		extra["combo_retry_delay_ms"] = strconv.Itoa(retryDelayMs)
+	}
+	if timeoutMs, ok := configIntValue(combo.Config, "timeoutMs"); ok && timeoutMs >= 1000 {
+		if timeoutMs > 600000 {
+			timeoutMs = 600000
+		}
+		extra["combo_timeout_ms"] = strconv.Itoa(timeoutMs)
+	}
+	disableSticky, _ := combo.Config["disableSessionStickiness"].(bool)
+	if disableSticky || strings.EqualFold(strings.TrimSpace(combo.Strategy), "strict-random") {
+		extra["combo_disable_stickiness"] = "true"
+	}
+
+	out := make([]contracts.ResolvedTarget, len(targets))
+	for i, cand := range targets {
+		merged := make(map[string]string, len(cand.Metadata)+len(extra))
+		for k, v := range cand.Metadata {
+			merged[k] = v
+		}
+		for k, v := range extra {
+			if _, exists := merged[k]; !exists {
+				merged[k] = v
+			}
+		}
+		cand.Metadata = merged
+		out[i] = cand
+	}
+	return out
 }

@@ -84,6 +84,7 @@ type Module struct {
 	oauthProxy    *oauthLoopbackProxy
 	quotaFetchers []quotaFetcher
 	quotaCache    *quotaCache
+	runtimeCache  *providerRuntimeCache
 }
 
 var (
@@ -105,12 +106,13 @@ func New(opts Options) *Module {
 		overrides[k] = *cloned
 	}
 
+	runtimeCache := newProviderRuntimeCache()
 	m := &Module{
 		db:               opts.DB,
 		vault:            opts.Vault,
 		httpClient:       client,
 		bus:              opts.Bus,
-		repo:             newRepository(opts.DB),
+		repo:             newRepository(opts.DB, runtimeCache.Invalidate),
 		adapters:         make(map[string]ProviderAdapter),
 		oauthOverrides:   overrides,
 		oauthStrategies:  defaultOAuthStrategies(),
@@ -121,6 +123,7 @@ func New(opts Options) *Module {
 		oauthProxy:       newOAuthLoopbackProxy(),
 		quotaFetchers:    defaultQuotaFetchers(),
 		quotaCache:       newQuotaCache(quotaCacheTTL),
+		runtimeCache:     runtimeCache,
 	}
 
 	for _, adapter := range allBuiltInAdapters() {
@@ -196,6 +199,9 @@ func (m *Module) Start(context.Context) error {
 func (m *Module) Stop(context.Context) error {
 	m.shutdownAwsQuickProxy()
 	m.oauthProxy.stopAll()
+	if m.runtimeCache != nil {
+		m.runtimeCache.Invalidate()
+	}
 	return nil
 }
 
@@ -239,11 +245,33 @@ func (m *Module) ListAdapters() []ProviderAdapter {
 // ListEnabledConnections returns all enabled upstream provider connections
 // ordered by ascending priority without exposing secret credentials.
 func (m *Module) ListEnabledConnections(ctx context.Context) ([]contracts.ProviderConnection, error) {
+	if m.runtimeCache != nil {
+		if cached, ok := m.runtimeCache.GetEnabled(); ok {
+			return cached, nil
+		}
+		ver := m.runtimeCache.Version()
+		conns, err := m.repo.ListEnabledConnections(ctx)
+		if err != nil {
+			return nil, err
+		}
+		m.runtimeCache.SetEnabledIfVersion(conns, ver)
+		return conns, nil
+	}
 	return m.repo.ListEnabledConnections(ctx)
 }
 
 // ResolveCredentials decrypts and returns upstream credentials for connectionID.
 func (m *Module) ResolveCredentials(ctx context.Context, connectionID string) (contracts.UpstreamCredentials, error) {
+	if m.runtimeCache != nil {
+		if cached, ok := m.runtimeCache.GetCredentials(connectionID); ok {
+			return cached, nil
+		}
+	}
+	var ver uint64
+	if m.runtimeCache != nil {
+		ver = m.runtimeCache.Version()
+	}
+
 	rec, err := m.repo.GetConnectionRecord(ctx, connectionID)
 	if err != nil {
 		return contracts.UpstreamCredentials{}, err
@@ -254,7 +282,7 @@ func (m *Module) ResolveCredentials(ctx context.Context, connectionID string) (c
 		return contracts.UpstreamCredentials{}, err
 	}
 
-	return contracts.UpstreamCredentials{
+	resolved := contracts.UpstreamCredentials{
 		ConnectionID: rec.Summary.ID,
 		ProviderID:   rec.Summary.ProviderID,
 		Protocol:     rec.Summary.Protocol,
@@ -263,7 +291,11 @@ func (m *Module) ResolveCredentials(ctx context.Context, connectionID string) (c
 		APIKey:       stored.APIKey,
 		AccessToken:  stored.AccessToken,
 		ExtraHeaders: cloneStringMap(rec.Summary.Headers),
-	}, nil
+	}
+	if m.runtimeCache != nil {
+		m.runtimeCache.SetCredentialsIfVersion(connectionID, resolved, ver)
+	}
+	return resolved, nil
 }
 
 func (m *Module) sealCredentials(creds storedCredentials) (string, error) {

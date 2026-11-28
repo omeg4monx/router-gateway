@@ -1,4 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   Activity,
   AlertCircle,
@@ -32,7 +33,7 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { Link, useNavigate, useSearchParams } from "react-router";
 import { cn } from "@/shared/lib/utils";
@@ -44,13 +45,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/sha
 import { EmberRule } from "@/shared/ui/EmberRule";
 import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
+import { Skeleton } from "@/shared/ui/skeleton";
 import {
   type ModelIdentityResult,
   runModelIdentityProbe,
   runSingleModelTest,
 } from "../models/hooks";
 import type { CatalogTestResult } from "../models/types";
-import { AddCustomModelModal } from "./AddCustomModelModal";
 import {
   buildProviderEntries,
   canAddProviderConnection,
@@ -60,6 +61,11 @@ import {
 import { removeModelFromList } from "./customModelUtils";
 import {
   type FetchConnectionModelsResponse,
+  invalidateModelRoutingQueries,
+  providersQueryKeys,
+  runWithConcurrency,
+  testProviderConnection,
+  updateProviderConnection,
   useDeleteProviderConnectionMutation,
   useDeleteProviderNodeMutation,
   useFetchConnectionModelsMutation,
@@ -78,17 +84,35 @@ import {
 } from "./modelIntelligence";
 import { ProviderLogo } from "./ProviderLogo";
 import { ProviderStrategyCard } from "./ProviderStrategyCard";
-import { AddApiKeyModal, EditConnectionModal, OAuthWizardModal } from "./ProvidersModals";
 import {
+  type CatalogAdapterDescriptor,
   connectionToEditFormValues,
   DEFAULT_UPDATE_CONNECTION_VALUES,
   type ProviderConnectionSummary,
+  type ProviderNode,
   type TestProviderConnectionResponse,
   toUpdateConnectionRequest,
   type UpdateConnectionFormInput,
   type UpdateConnectionFormOutput,
   updateConnectionSchema,
 } from "./schemas";
+
+const AddApiKeyModal = lazy(() =>
+  import("./ProvidersModals").then((m) => ({ default: m.AddApiKeyModal })),
+);
+const AddCustomModelModal = lazy(() =>
+  import("./AddCustomModelModal").then((m) => ({ default: m.AddCustomModelModal })),
+);
+const EditConnectionModal = lazy(() =>
+  import("./ProvidersModals").then((m) => ({ default: m.EditConnectionModal })),
+);
+const OAuthWizardModal = lazy(() =>
+  import("./ProvidersModals").then((m) => ({ default: m.OAuthWizardModal })),
+);
+
+const EMPTY_ADAPTERS: CatalogAdapterDescriptor[] = [];
+const EMPTY_CUSTOM_NODES: ProviderNode[] = [];
+const EMPTY_CONNECTIONS: ProviderConnectionSummary[] = [];
 
 const TEXTAREA_CLASS_NAME =
   "flex min-h-[92px] w-full rounded-md border border-[var(--border-strong)] bg-[var(--bg-input)] px-3 py-2 font-mono text-xs text-[var(--text-primary)] placeholder:font-sans placeholder:text-[var(--text-muted)] transition-colors focus:border-[var(--accent-primary)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent-primary)]";
@@ -153,6 +177,7 @@ function formatTimestamp(iso: string | null): string {
 
 function ProviderStudioDetail({ providerId }: { providerId: string }) {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const locale = useUIStore((state) => state.locale);
   const isId = locale === "id";
 
@@ -171,6 +196,19 @@ function ProviderStudioDetail({ providerId }: { providerId: string }) {
   const [editingConnection, setEditingConnection] = useState<ProviderConnectionSummary | null>(
     null,
   );
+  const [modalsActivated, setModalsActivated] = useState(false);
+  const lastEditingConnectionRef = useRef<ProviderConnectionSummary | null>(null);
+  if (editingConnection) {
+    lastEditingConnectionRef.current = editingConnection;
+  }
+  useEffect(() => {
+    if (
+      !modalsActivated &&
+      (showAddApiKeyModal || showOAuthModal || showAddModelModal || editingConnection !== null)
+    ) {
+      setModalsActivated(true);
+    }
+  }, [editingConnection, modalsActivated, showAddApiKeyModal, showAddModelModal, showOAuthModal]);
   const [feedbackBanner, setFeedbackBanner] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [busyConnectionId, setBusyConnectionId] = useState<string | null>(null);
@@ -199,6 +237,7 @@ function ProviderStudioDetail({ providerId }: { providerId: string }) {
   const [modelSortField, setModelSortField] = useState<ModelSortField>("name");
   const [modelSortDirection, setModelSortDirection] = useState<ModelSortDirection>("asc");
   const [copiedModelId, setCopiedModelId] = useState<string | null>(null);
+  const copyTimerRef = useRef<number | null>(null);
   const [testingModelIds, setTestingModelIds] = useState<Record<string, boolean>>({});
   const [modelTestResults, setModelTestResults] = useState<Record<string, CatalogTestResult>>({});
   const modelTestControllersRef = useRef<Map<string, AbortController>>(new Map());
@@ -209,9 +248,11 @@ function ProviderStudioDetail({ providerId }: { providerId: string }) {
   const [openIdentityModelIds, setOpenIdentityModelIds] = useState<Record<string, boolean>>({});
   const modelIdentityControllersRef = useRef<Map<string, AbortController>>(new Map());
 
-  const adapters = catalogQuery.data?.adapters ?? [];
-  const customNodes = catalogQuery.data?.custom_nodes ?? [];
-  const allConnections = connectionsQuery.data ?? [];
+  const adapters = catalogQuery.data?.adapters ?? EMPTY_ADAPTERS;
+  const customNodes = catalogQuery.data?.custom_nodes ?? EMPTY_CUSTOM_NODES;
+  const allConnections = connectionsQuery.data ?? EMPTY_CONNECTIONS;
+  const deferredConnectionSearch = useDeferredValue(connectionSearch);
+  const deferredModelSearch = useDeferredValue(modelSearch);
 
   const allEntries = useMemo(
     () => buildProviderEntries(adapters, customNodes, allConnections),
@@ -254,7 +295,7 @@ function ProviderStudioDetail({ providerId }: { providerId: string }) {
   const isConnectionFiltered = connectionFilter !== "all" || connectionSearch.trim().length > 0;
 
   const filteredConnections = useMemo(() => {
-    const q = connectionSearch.trim().toLowerCase();
+    const q = deferredConnectionSearch.trim().toLowerCase();
     return sortedConnections.filter((conn) => {
       const hasError = isConnectionInError(conn, liveTestResults[conn.id]);
       if (connectionFilter === "issues" && !hasError) {
@@ -275,7 +316,7 @@ function ProviderStudioDetail({ providerId }: { providerId: string }) {
         (conn.last_test_error?.toLowerCase().includes(q) ?? false)
       );
     });
-  }, [sortedConnections, liveTestResults, connectionFilter, connectionSearch]);
+  }, [sortedConnections, liveTestResults, connectionFilter, deferredConnectionSearch]);
 
   const activeConnectionForLoad = sortedConnections.find((c) => c.enabled) ?? sortedConnections[0];
 
@@ -383,7 +424,7 @@ function ProviderStudioDetail({ providerId }: { providerId: string }) {
   );
 
   const filteredModels = useMemo(() => {
-    const q = modelSearch.trim().toLowerCase();
+    const q = deferredModelSearch.trim().toLowerCase();
     const matched = allModels.filter((m) => {
       if (freeModelsOnly && !m.isFree) {
         return false;
@@ -394,7 +435,7 @@ function ProviderStudioDetail({ providerId }: { providerId: string }) {
       return m.id.toLowerCase().includes(q) || (m.name?.toLowerCase().includes(q) ?? false);
     });
     return sortProviderModels(matched, modelSortField, modelSortDirection);
-  }, [allModels, freeModelsOnly, modelSearch, modelSortField, modelSortDirection]);
+  }, [allModels, freeModelsOnly, deferredModelSearch, modelSortField, modelSortDirection]);
 
   // Auto-detect & load live models from upstream whenever any provider with an active connection is opened.
   useEffect(() => {
@@ -416,6 +457,10 @@ function ProviderStudioDetail({ providerId }: { providerId: string }) {
 
   useEffect(() => {
     return () => {
+      if (copyTimerRef.current !== null) {
+        window.clearTimeout(copyTimerRef.current);
+        copyTimerRef.current = null;
+      }
       for (const controller of modelTestControllersRef.current.values()) {
         controller.abort();
       }
@@ -427,19 +472,24 @@ function ProviderStudioDetail({ providerId }: { providerId: string }) {
     };
   }, []);
 
-  if (catalogQuery.isPending && connectionsQuery.isPending) {
+  if (catalogQuery.isPending || connectionsQuery.isPending) {
     return (
-      <div className="min-w-0 space-y-5 animate-pulse">
-        <div className="h-5 w-40 rounded bg-[var(--color-surface-2)]" />
+      <div
+        role="status"
+        aria-busy="true"
+        aria-label={isId ? "Memuat detail provider" : "Loading provider details"}
+        className="min-w-0 space-y-5"
+      >
+        <Skeleton className="h-5 w-40" />
         <div className="flex items-center gap-3">
-          <div className="size-12 rounded-xl bg-[var(--color-surface-2)]" />
+          <Skeleton className="size-12 rounded-xl" />
           <div className="space-y-2">
-            <div className="h-6 w-48 rounded bg-[var(--color-surface-2)]" />
-            <div className="h-3.5 w-28 rounded bg-[var(--color-surface-2)]" />
+            <Skeleton className="h-6 w-48" />
+            <Skeleton className="h-3.5 w-28" />
           </div>
         </div>
-        <div className="h-44 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]" />
-        <div className="h-44 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]" />
+        <Skeleton className="h-44 rounded-xl border border-[var(--color-border)]" />
+        <Skeleton className="h-44 rounded-xl border border-[var(--color-border)]" />
       </div>
     );
   }
@@ -515,8 +565,12 @@ function ProviderStudioDetail({ providerId }: { providerId: string }) {
     const nextPriorityB = connA.priority === connB.priority ? indexA + 1 : connA.priority;
     try {
       await Promise.all([
-        updateConnMutation.mutateAsync({ id: connA.id, body: { priority: nextPriorityA } }),
-        updateConnMutation.mutateAsync({ id: connB.id, body: { priority: nextPriorityB } }),
+        updateProviderConnection({ id: connA.id, body: { priority: nextPriorityA } }),
+        updateProviderConnection({ id: connB.id, body: { priority: nextPriorityB } }),
+      ]);
+      await Promise.all([
+        invalidateModelRoutingQueries(queryClient, connA.id),
+        queryClient.invalidateQueries({ queryKey: providersQueryKeys.connection(connB.id) }),
       ]);
     } catch (err) {
       setActionError(err instanceof Error ? err.message : "Failed to reorder priority");
@@ -554,38 +608,48 @@ function ProviderStudioDetail({ providerId }: { providerId: string }) {
       currentConnectionId: enabled[0]?.id ?? null,
       currentConnectionName: enabled[0]?.name ?? null,
     });
-    for (const conn of enabled) {
-      setTestAllProgress({
-        total: enabled.length,
-        completed,
-        passed,
-        failed,
-        currentConnectionId: conn.id,
-        currentConnectionName: conn.name,
-      });
-      try {
-        const res = await testConnMutation.mutateAsync(conn.id);
-        setLiveTestResults((prev) => ({ ...prev, [conn.id]: res }));
-        if (res.ok) {
-          passed += 1;
-        } else {
+    try {
+      await runWithConcurrency(enabled, 4, async (conn) => {
+        setTestAllProgress((prev) =>
+          prev
+            ? {
+                ...prev,
+                currentConnectionId: conn.id,
+                currentConnectionName: conn.name,
+              }
+            : prev,
+        );
+        try {
+          const res = await testProviderConnection(conn.id);
+          setLiveTestResults((prev) => ({ ...prev, [conn.id]: res }));
+          if (res.ok) {
+            passed += 1;
+          } else {
+            failed += 1;
+          }
+        } catch (err) {
           failed += 1;
+          setActionError(err instanceof Error ? err.message : `Failed testing ${conn.name}`);
         }
-      } catch (err) {
-        failed += 1;
-        setActionError(err instanceof Error ? err.message : `Failed testing ${conn.name}`);
-      }
-      completed += 1;
-      setTestAllProgress({
-        total: enabled.length,
-        completed,
-        passed,
-        failed,
-        currentConnectionId: null,
-        currentConnectionName: null,
+        completed += 1;
+        setTestAllProgress({
+          total: enabled.length,
+          completed,
+          passed,
+          failed,
+          currentConnectionId: completed < enabled.length ? conn.id : null,
+          currentConnectionName: completed < enabled.length ? conn.name : null,
+        });
       });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: providersQueryKeys.connections }),
+        ...enabled.map((conn) =>
+          queryClient.invalidateQueries({ queryKey: providersQueryKeys.connection(conn.id) }),
+        ),
+      ]);
+    } finally {
+      setTestingAll(false);
     }
-    setTestingAll(false);
   };
 
   const handleToggleConnection = (conn: ProviderConnectionSummary) => {
@@ -633,7 +697,13 @@ function ProviderStudioDetail({ providerId }: { providerId: string }) {
     try {
       await navigator.clipboard.writeText(qualified);
       setCopiedModelId(modelId);
-      window.setTimeout(() => setCopiedModelId((cur) => (cur === modelId ? null : cur)), 1800);
+      if (copyTimerRef.current !== null) {
+        window.clearTimeout(copyTimerRef.current);
+      }
+      copyTimerRef.current = window.setTimeout(() => {
+        copyTimerRef.current = null;
+        setCopiedModelId((cur) => (cur === modelId ? null : cur));
+      }, 1800);
     } catch {
       // Ignore clipboard failures
     }
@@ -721,13 +791,19 @@ function ProviderStudioDetail({ providerId }: { providerId: string }) {
     setActionError(null);
     setRemovingModelId(modelId);
     try {
-      for (const conn of targets) {
+      await runWithConcurrency(targets, 4, async (conn) => {
         const nextModels = removeModelFromList(conn.models, modelId);
-        await updateConnMutation.mutateAsync({
+        return updateProviderConnection({
           id: conn.id,
           body: { models: nextModels },
         });
-      }
+      });
+      await Promise.all([
+        invalidateModelRoutingQueries(queryClient),
+        ...targets.map((conn) =>
+          queryClient.invalidateQueries({ queryKey: providersQueryKeys.connection(conn.id) }),
+        ),
+      ]);
       setFeedbackBanner(
         isId
           ? `Model manual "${modelId}" dihapus dari koneksi ${entry.name}.`
@@ -2093,49 +2169,53 @@ function ProviderStudioDetail({ providerId }: { providerId: string }) {
         </CardContent>
       </Card>
 
-      {/* Scoped Add API Key & OAuth Modals */}
-      <AddApiKeyModal
-        open={showAddApiKeyModal}
-        onClose={() => setShowAddApiKeyModal(false)}
-        initialProviderId={entry.id}
-        allEntries={allEntries}
-        isId={isId}
-        lockProvider
-        onCreated={(msg) => setFeedbackBanner(msg)}
-      />
+      {/* Scoped Add API Key, OAuth & Edit Modals (lazy-loaded on first open, kept mounted for smooth close animation) */}
+      {modalsActivated ? (
+        <Suspense fallback={null}>
+          <AddApiKeyModal
+            open={showAddApiKeyModal}
+            onClose={() => setShowAddApiKeyModal(false)}
+            initialProviderId={entry.id}
+            allEntries={allEntries}
+            isId={isId}
+            lockProvider
+            onCreated={(msg) => setFeedbackBanner(msg)}
+          />
 
-      <OAuthWizardModal
-        open={showOAuthModal}
-        onClose={() => setShowOAuthModal(false)}
-        initialProviderId={entry.id}
-        allEntries={allEntries}
-        isId={isId}
-        lockProvider
-        onConnected={(msg) => setFeedbackBanner(msg)}
-        onSwitchToApiKey={() => {
-          setShowOAuthModal(false);
-          setShowAddApiKeyModal(true);
-        }}
-      />
+          <OAuthWizardModal
+            open={showOAuthModal}
+            onClose={() => setShowOAuthModal(false)}
+            initialProviderId={entry.id}
+            allEntries={allEntries}
+            isId={isId}
+            lockProvider
+            onConnected={(msg) => setFeedbackBanner(msg)}
+            onSwitchToApiKey={() => {
+              setShowOAuthModal(false);
+              setShowAddApiKeyModal(true);
+            }}
+          />
 
-      <EditConnectionModal
-        open={editingConnection !== null}
-        connection={editingConnection}
-        isId={isId}
-        onClose={() => setEditingConnection(null)}
-        onUpdated={(msg) => setFeedbackBanner(msg)}
-      />
+          <EditConnectionModal
+            open={editingConnection !== null}
+            connection={editingConnection ?? lastEditingConnectionRef.current}
+            isId={isId}
+            onClose={() => setEditingConnection(null)}
+            onUpdated={(msg) => setFeedbackBanner(msg)}
+          />
 
-      <AddCustomModelModal
-        open={showAddModelModal}
-        onClose={() => setShowAddModelModal(false)}
-        providerId={entry.id}
-        providerName={entry.name}
-        providerAlias={entry.alias}
-        connections={sortedConnections}
-        isId={isId}
-        onAdded={(msg) => setFeedbackBanner(msg)}
-      />
+          <AddCustomModelModal
+            open={showAddModelModal}
+            onClose={() => setShowAddModelModal(false)}
+            providerId={entry.id}
+            providerName={entry.name}
+            providerAlias={entry.alias}
+            connections={sortedConnections}
+            isId={isId}
+            onAdded={(msg) => setFeedbackBanner(msg)}
+          />
+        </Suspense>
+      ) : null}
     </div>
   );
 }

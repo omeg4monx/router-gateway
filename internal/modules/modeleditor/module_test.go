@@ -10,6 +10,7 @@ import (
 	"net/http/httptest"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/go-chi/chi/v5"
@@ -381,6 +382,8 @@ func TestListVirtualModels(t *testing.T) {
 			{ID: "3", Name: "wildcard-rule", ModelPattern: "coding-*", TargetModel: "gpt-4o", Enabled: true},
 			{ID: "4", Name: "no-target", ModelPattern: "gpt-4o", TargetModel: "", Enabled: true},
 			{ID: "5", Name: "dup-alias", ModelPattern: "claude-neon", TargetModel: "claude-sonnet-4", Enabled: true},
+			{ID: "6", Name: "qmark-glob", ModelPattern: "gpt-4?", TargetModel: "gpt-4o", Enabled: true},
+			{ID: "7", Name: "bracket-glob", ModelPattern: "claude-[34]", TargetModel: "claude-sonnet-4", Enabled: true},
 		},
 	}
 
@@ -390,6 +393,74 @@ func TestListVirtualModels(t *testing.T) {
 	}
 	if got[0].ID != "claude-neon" || got[0].OwnedBy != "model-editor" || got[0].Kind != "override" {
 		t.Fatalf("ListVirtualModels()[0] = %+v, want claude-neon/model-editor/override", got[0])
+	}
+}
+
+func TestConcurrentExtraParamsNoDataRaceOrCacheMutation(t *testing.T) {
+	env := setupModelEditorTest(t)
+
+	// Override 1 introduces a nested map ("generationConfig": {"seed": 7}).
+	rec1 := doJSON(t, env.router, http.MethodPost, "/api/model-editor/overrides", map[string]any{
+		"name":          "Base GenConfig",
+		"model_pattern": "race-*",
+		"extra_params":  map[string]any{"generationConfig": map[string]any{"seed": 7}},
+		"priority":      10,
+	})
+	if rec1.Code != http.StatusCreated {
+		t.Fatalf("create override 1: status %d body %s", rec1.Code, rec1.Body.String())
+	}
+
+	// Override 2 merges another key ("topK": 40) into the same nested map.
+	rec2 := doJSON(t, env.router, http.MethodPost, "/api/model-editor/overrides", map[string]any{
+		"name":          "Patch GenConfig",
+		"model_pattern": "race-*",
+		"extra_params":  map[string]any{"generationConfig": map[string]any{"topK": 40}},
+		"priority":      20,
+	})
+	if rec2.Code != http.StatusCreated {
+		t.Fatalf("create override 2: status %d body %s", rec2.Code, rec2.Body.String())
+	}
+
+	var wg sync.WaitGroup
+	for i := range 16 {
+		wg.Add(1)
+		go func(idx int) {
+			defer wg.Done()
+			req := &contracts.CanonicalRequest{
+				RequestID: "race-req",
+				Protocol:  "openai-chat",
+				Model:     "race-model",
+				Body:      []byte(`{"model":"race-model","messages":[{"role":"user","content":"hi"}]}`),
+				Metadata:  make(map[string]any),
+			}
+			if err := env.mod.OnRequest(context.Background(), req); err != nil {
+				t.Errorf("goroutine %d OnRequest: %v", idx, err)
+				return
+			}
+			var out map[string]any
+			if err := json.Unmarshal(req.Body, &out); err != nil {
+				t.Errorf("goroutine %d unmarshal: %v", idx, err)
+				return
+			}
+			gc, ok := out["generationConfig"].(map[string]any)
+			if !ok || gc["seed"] != float64(7) || gc["topK"] != float64(40) {
+				t.Errorf("goroutine %d unexpected generationConfig: %+v", idx, gc)
+			}
+		}(i)
+	}
+	wg.Wait()
+
+	// Cached override 1's ExtraParams must remain untouched (must NOT contain topK).
+	_, overrides := env.mod.snapshot()
+	baseGC, ok := overrides[0].ExtraParams["generationConfig"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected generationConfig map on cached override 0")
+	}
+	if _, leaked := baseGC["topK"]; leaked {
+		t.Fatalf("cached override ExtraParams was mutated in-place: %+v", baseGC)
+	}
+	if overrides[0].compiledPattern == nil {
+		t.Fatalf("expected precompiled pattern regex on cached override 0")
 	}
 }
 

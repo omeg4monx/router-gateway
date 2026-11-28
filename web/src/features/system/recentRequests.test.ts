@@ -1,6 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import type { UsageLog } from "@/features/usage/schemas";
-import { filterRecentRequests, formatRelativeTimeShort, isUsageLogSuccess } from "./recentRequests";
+import {
+  computeRelativeClockIntervalMs,
+  filterRecentRequests,
+  formatRelativeTimeShort,
+  isUsageLogSuccess,
+} from "./recentRequests";
 
 function makeLog(overrides: Partial<UsageLog>): UsageLog {
   return {
@@ -60,5 +65,25 @@ describe("features/system/recentRequests", () => {
 
     const errRes = filterRecentRequests(logs, "error");
     expect(errRes.items.map((l) => l.id)).toEqual([2, 1]);
+  });
+
+  test("computeRelativeClockIntervalMs ticks every 1s only while a recent log is under 60s old", () => {
+    const now = Date.parse("2026-11-24T19:00:00Z");
+    expect(computeRelativeClockIntervalMs([], now)).toBeNull();
+    expect(
+      computeRelativeClockIntervalMs([makeLog({ created_at: "2026-11-24T18:59:30Z" })], now),
+    ).toBe(1_000);
+    expect(
+      computeRelativeClockIntervalMs([makeLog({ created_at: "2026-11-24T18:58:00Z" })], now),
+    ).toBe(30_000);
+    expect(
+      computeRelativeClockIntervalMs(
+        [
+          makeLog({ id: 2, created_at: "2026-11-24T18:50:00Z" }),
+          makeLog({ id: 1, created_at: "2026-11-24T18:59:45Z" }),
+        ],
+        now,
+      ),
+    ).toBe(1_000);
   });
 });

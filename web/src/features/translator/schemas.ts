@@ -7,7 +7,6 @@ export type TranslatorProtocolsResponse = components["schemas"]["TranslatorProto
 export type TranslatePayloadRequest = components["schemas"]["TranslatePayloadRequest"];
 export type TranslatePayloadResponse = components["schemas"]["TranslatePayloadResponse"];
 export type ConsoleLogEntry = components["schemas"]["ConsoleLogEntry"];
-export type ConsoleLogsResponse = components["schemas"]["ConsoleLogsResponse"];
 
 export const TRANSLATOR_PROTOCOLS: readonly TranslatorProtocol[] = [
   "openai-chat",

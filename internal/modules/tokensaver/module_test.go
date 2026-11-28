@@ -609,3 +609,164 @@ func TestTokenSaverToggleIsolationAndAllOffPassThrough(t *testing.T) {
 		t.Fatal("expected all-off config to leave payload untouched byte-for-byte")
 	}
 }
+
+func TestTrimHistoryAnthropicToolResultAndGeminiContents(t *testing.T) {
+	env := setupTokenSaverTest(t)
+
+	rec := doJSON(t, env.router, http.MethodPatch, "/api/token-saver/config", map[string]any{
+		"enabled":              false,
+		"trim_history_enabled": true,
+		"max_history_messages": 4,
+		"headroom_enabled":     false,
+	})
+	if rec.Code != http.StatusOK {
+		t.Fatalf("patch config: status %d body %s", rec.Code, rec.Body.String())
+	}
+
+	// Anthropic payload where keeping last 4 messages would start on an orphaned user tool_result block.
+	anthPayload, _ := json.Marshal(map[string]any{
+		"model":  "claude-sonnet-4",
+		"system": "System prompt",
+		"messages": []any{
+			map[string]any{"role": "user", "content": "turn 1"},
+			map[string]any{
+				"role": "assistant",
+				"content": []any{
+					map[string]any{"type": "tool_use", "id": "tu_1", "name": "read", "input": map[string]any{}},
+				},
+			},
+			map[string]any{
+				"role": "user",
+				"content": []any{
+					map[string]any{"type": "tool_result", "tool_use_id": "tu_1", "content": "file contents"},
+				},
+			},
+			map[string]any{"role": "assistant", "content": "reply 1"},
+			map[string]any{"role": "user", "content": "turn 2"},
+			map[string]any{"role": "assistant", "content": "reply 2"},
+		},
+	})
+	anthReq := &contracts.CanonicalRequest{
+		RequestID: "req-anth-trim",
+		Protocol:  "anthropic",
+		Model:     "claude-sonnet-4",
+		Body:      anthPayload,
+		Metadata:  make(map[string]any),
+	}
+	if err := env.mod.OnRequest(context.Background(), anthReq); err != nil {
+		t.Fatalf("OnRequest anthropic trim: %v", err)
+	}
+	var anthRoot map[string]any
+	if err := json.Unmarshal(anthReq.Body, &anthRoot); err != nil {
+		t.Fatalf("unmarshal anthropic trimmed: %v", err)
+	}
+	msgs := anthRoot["messages"].([]any)
+	if len(msgs) == 0 {
+		t.Fatal("expected non-empty trimmed anthropic messages")
+	}
+	first := msgs[0].(map[string]any)
+	if first["role"] != "user" {
+		t.Fatalf("expected trimmed anthropic history to start with user role, got %v", first["role"])
+	}
+	if hasAnthropicToolResult(first) {
+		t.Fatalf("trimmed anthropic history must not start on an orphaned tool_result: %#v", first)
+	}
+
+	// Gemini payload with >4 contents must also be trimmed.
+	gemPayload, _ := json.Marshal(map[string]any{
+		"contents": []any{
+			map[string]any{"role": "user", "parts": []any{map[string]any{"text": "g1"}}},
+			map[string]any{"role": "model", "parts": []any{map[string]any{"text": "r1"}}},
+			map[string]any{"role": "user", "parts": []any{map[string]any{"text": "g2"}}},
+			map[string]any{"role": "model", "parts": []any{map[string]any{"text": "r2"}}},
+			map[string]any{"role": "user", "parts": []any{map[string]any{"text": "g3"}}},
+			map[string]any{"role": "model", "parts": []any{map[string]any{"text": "r3"}}},
+		},
+	})
+	gemReq := &contracts.CanonicalRequest{
+		RequestID: "req-gem-trim",
+		Protocol:  "gemini",
+		Model:     "gemini-2.5-pro",
+		Body:      gemPayload,
+		Metadata:  make(map[string]any),
+	}
+	if err := env.mod.OnRequest(context.Background(), gemReq); err != nil {
+		t.Fatalf("OnRequest gemini trim: %v", err)
+	}
+	var gemRoot map[string]any
+	if err := json.Unmarshal(gemReq.Body, &gemRoot); err != nil {
+		t.Fatalf("unmarshal gemini trimmed: %v", err)
+	}
+	contents := gemRoot["contents"].([]any)
+	if len(contents) != 4 {
+		t.Fatalf("expected Gemini contents trimmed to 4, got %d", len(contents))
+	}
+}
+
+func TestOutputDirectivesIndependentIdempotency(t *testing.T) {
+	cfg := Config{
+		CavemanEnabled:  true,
+		CavemanLevel:    LevelFull,
+		PonytailEnabled: true,
+		PonytailLevel:   LevelUltra,
+	}
+
+	// Case 1: Payload already has [ponytail:full]; only [caveman:full] should be added, not a second ponytail.
+	bodyWithPonytail := []byte(`{"model":"gpt-4o","messages":[{"role":"system","content":"Base\n\n[ponytail:full] existing"},{"role":"user","content":"hi"}]}`)
+	out1, changed1 := injectOutputDirectives("openai-chat", bodyWithPonytail, cfg)
+	if !changed1 {
+		t.Fatal("expected caveman directive to be injected when only ponytail was present")
+	}
+	if strings.Count(string(out1), "[caveman:") != 1 || strings.Count(string(out1), "[ponytail:") != 1 {
+		t.Fatalf("expected exactly 1 caveman and 1 ponytail directive, got: %s", out1)
+	}
+
+	// Case 2: Payload already has [caveman:full]; only [ponytail:ultra] should be added.
+	bodyWithCaveman := []byte(`{"model":"gpt-4o","messages":[{"role":"system","content":"Base\n\n[caveman:full] existing"},{"role":"user","content":"hi"}]}`)
+	out2, changed2 := injectOutputDirectives("openai-chat", bodyWithCaveman, cfg)
+	if !changed2 {
+		t.Fatal("expected ponytail directive to be injected when only caveman was present")
+	}
+	if strings.Count(string(out2), "[caveman:") != 1 || strings.Count(string(out2), "[ponytail:") != 1 {
+		t.Fatalf("expected exactly 1 caveman and 1 ponytail directive, got: %s", out2)
+	}
+}
+
+func TestResponsesAPIFunctionCallOutputRTKFilter(t *testing.T) {
+	env := setupTokenSaverTest(t)
+
+	rec := doJSON(t, env.router, http.MethodPatch, "/api/token-saver/config", map[string]any{
+		"enabled":               true,
+		"strategy":              "aggressive",
+		"max_tool_output_chars": 80,
+		"headroom_enabled":      false,
+	})
+	if rec.Code != http.StatusOK {
+		t.Fatalf("patch config: status %d", rec.Code)
+	}
+
+	rawOut := "\x1b[32mPASS\x1b[0m\n" + strings.Repeat("same warning line\n", 8) + strings.Repeat("payload-", 30)
+	payload, _ := json.Marshal(map[string]any{
+		"model": "gpt-4o",
+		"input": []any{
+			map[string]any{"type": "function_call_output", "call_id": "call_1", "output": rawOut},
+		},
+	})
+	req := &contracts.CanonicalRequest{
+		RequestID: "req-resp-fnout",
+		Protocol:  "openai-responses",
+		Model:     "gpt-4o",
+		Body:      payload,
+		Metadata:  make(map[string]any),
+	}
+	if err := env.mod.OnRequest(context.Background(), req); err != nil {
+		t.Fatalf("OnRequest responses function_call_output: %v", err)
+	}
+	bodyStr := string(req.Body)
+	if strings.Contains(bodyStr, `\u001b[32m`) {
+		t.Fatalf("expected ANSI codes stripped from function_call_output, got: %s", bodyStr)
+	}
+	if !strings.Contains(bodyStr, "[...truncated ") {
+		t.Fatalf("expected oversized function_call_output truncated, got: %s", bodyStr)
+	}
+}

@@ -1,6 +1,16 @@
 import { useState } from "react";
 import { cn } from "@/shared/lib/utils";
-import { getProviderMonogram } from "./catalogUtils";
+
+export function getProviderMonogram(name: string, id: string): string {
+  const source = (name || id || "PR").trim();
+  const words = source.split(/[\s\-_/]+/).filter(Boolean);
+  const first = words[0];
+  const second = words[1];
+  if (first && second) {
+    return `${first[0] ?? ""}${second[0] ?? ""}`.toUpperCase();
+  }
+  return source.slice(0, 2).toUpperCase();
+}
 
 const PROVIDER_ICON_ALIASES: Record<string, string> = {
   "openai-responses": "oai-r",
@@ -109,7 +119,8 @@ export function ProviderLogo({
       alt={name}
       width={size}
       height={size}
-      loading="eager"
+      loading="lazy"
+      decoding="async"
       className={cn(
         "provider-logo-img object-contain select-none",
         shouldInvertDark && "provider-logo-invert",

@@ -13,6 +13,7 @@ import {
 } from "./endpointUtils";
 import {
   type ApiKeySummary,
+  buildCreateKeySchema,
   createKeySchema,
   parseCommaSeparatedList,
   toCreateApiKeyRequest,
@@ -374,5 +375,44 @@ describe("KeysConsole main Endpoint & Keys parity contract", () => {
     expect(gatewaySource).toContain("claudeBaseUrl");
     expect(modalsSource).toContain('role="dialog"');
     expect(modalsSource).toContain("clearTimeout");
+  });
+
+  test("enforces bilingual validation messages and optimization invariants", () => {
+    const idSchema = buildCreateKeySchema(true);
+    const badName = idSchema.safeParse({
+      name: "  ",
+      allowed_models: "",
+      tags: "",
+      rate_limit_rpm: "-5",
+      quota_usd: "nope",
+      expires_at: "invalid",
+    });
+    expect(badName.success).toBe(false);
+    if (!badName.success) {
+      const messages = badName.error.issues.map((i) => i.message);
+      expect(messages).toContain("Nama kunci wajib diisi.");
+      expect(messages).toContain("Batas RPM harus berupa bilangan bulat non-negatif.");
+      expect(messages).toContain("Kuota USD harus berupa angka non-negatif.");
+      expect(messages).toContain("Tanggal kedaluwarsa harus berupa tanggal dan waktu yang valid.");
+    }
+
+    const consoleSource = readFileSync(resolve(import.meta.dirname, "KeysConsole.tsx"), "utf8");
+    const modalsSource = readFileSync(resolve(import.meta.dirname, "KeyModals.tsx"), "utf8");
+    const gatewaySource = readFileSync(
+      resolve(import.meta.dirname, "GatewayEndpointBar.tsx"),
+      "utf8",
+    );
+
+    // 5s tunnel polling must stay isolated inside GatewayEndpointBar, not top-level KeysConsole.
+    expect(consoleSource).not.toContain("useTunnelStatus");
+    expect(gatewaySource).toContain("useTunnelStatus");
+
+    // Modals must be lazy-loaded with Suspense and conditional mounting.
+    expect(consoleSource).toContain('lazy(() => import("./KeyModals")');
+    expect(consoleSource).toContain("AbortController");
+
+    // KeyFormModal reset effect must not depend on isPending/onClose (prevents form wipe).
+    expect(modalsSource).not.toContain("[isOpen, mode, initialKey, reset, isPending, onClose]");
+    expect(modalsSource).toContain("useDialogA11y");
   });
 });

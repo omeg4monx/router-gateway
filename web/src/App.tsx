@@ -3,8 +3,9 @@ import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation } from "rea
 import { AuthGuard } from "@/features/auth/AuthGuard";
 import { QueryProvider } from "@/shared/api/QueryProvider";
 import { AppShell } from "@/shared/ui/AppShell";
-import { Card, CardContent } from "@/shared/ui/card";
 import { ErrorBoundary } from "@/shared/ui/ErrorBoundary";
+import { PageLoadingScreen, RouteLoadingSkeleton } from "@/shared/ui/skeleton";
+import { TopProgressBar } from "@/shared/ui/TopProgressBar";
 
 const HomePage = lazy(() => import("@/pages/HomePage").then((m) => ({ default: m.HomePage })));
 const InitPage = lazy(() => import("@/pages/InitPage").then((m) => ({ default: m.InitPage })));
@@ -100,29 +101,13 @@ const UsageConsole = lazy(() =>
   import("@/features/usage/UsageConsole").then((m) => ({ default: m.UsageConsole })),
 );
 
-function RouteFallback() {
-  return (
-    <Card>
-      <CardContent className="py-8 text-sm text-[var(--text-muted)]">Loading view...</CardContent>
-    </Card>
-  );
-}
-
-function PageFallback() {
-  return (
-    <main className="flex min-h-screen items-center justify-center bg-[var(--bg-canvas)] px-4 py-12 text-sm text-[var(--text-muted)]">
-      Loading OMEG4MON ROUTER...
-    </main>
-  );
-}
-
 function DashboardLayout() {
   const { pathname } = useLocation();
   return (
     <AuthGuard>
       <AppShell>
         <ErrorBoundary resetKey={pathname} compact>
-          <Suspense fallback={<RouteFallback />}>
+          <Suspense fallback={<RouteLoadingSkeleton />}>
             <Outlet />
           </Suspense>
         </ErrorBoundary>
@@ -163,7 +148,8 @@ export function App() {
     <ErrorBoundary>
       <QueryProvider>
         <BrowserRouter>
-          <Suspense fallback={<PageFallback />}>
+          <TopProgressBar />
+          <Suspense fallback={<PageLoadingScreen />}>
             <Routes>
               <Route path="/" element={<HomePage />} />
               <Route path="/init" element={<InitPage />} />

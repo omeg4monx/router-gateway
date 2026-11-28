@@ -40,6 +40,8 @@ type UsageLog struct {
 
 // LogsFilter constrains queries against persisted usage_logs.
 type LogsFilter struct {
+	Range      string
+	Search     string
 	Model      string
 	ProviderID string
 	KeyID      string
@@ -203,7 +205,7 @@ func (r *repository) ListLogs(ctx context.Context, filter LogsFilter) (LogsRespo
 		return LogsResponse{}, errors.New("usage: database is not initialized")
 	}
 
-	whereSQL, args, err := buildLogsWhere(filter)
+	whereSQL, args, err := r.buildLogsWhere(filter)
 	if err != nil {
 		return LogsResponse{}, err
 	}
@@ -212,6 +214,14 @@ func (r *repository) ListLogs(ctx context.Context, filter LogsFilter) (LogsRespo
 	countQuery := `SELECT COUNT(*) FROM usage_logs` + whereSQL
 	if err := r.db.Reader().QueryRowContext(ctx, countQuery, args...).Scan(&total); err != nil {
 		return LogsResponse{}, fmt.Errorf("usage: count logs: %w", err)
+	}
+	if total == 0 || int64(filter.Offset) >= total {
+		return LogsResponse{
+			Logs:   make([]UsageLog, 0),
+			Total:  total,
+			Limit:  filter.Limit,
+			Offset: filter.Offset,
+		}, nil
 	}
 
 	queryArgs := append(append([]any{}, args...), filter.Limit, filter.Offset)
@@ -274,10 +284,32 @@ func (r *repository) ListLogs(ctx context.Context, filter LogsFilter) (LogsRespo
 	}, nil
 }
 
-func buildLogsWhere(filter LogsFilter) (whereSQL string, args []any, err error) {
-	clauses := make([]string, 0, 4)
-	args = make([]any, 0, 4)
+func escapeLikePattern(s string) string {
+	s = strings.ReplaceAll(s, `\`, `\\`)
+	s = strings.ReplaceAll(s, `%`, `\%`)
+	s = strings.ReplaceAll(s, `_`, `\_`)
+	return s
+}
 
+func (r *repository) buildLogsWhere(filter LogsFilter) (whereSQL string, args []any, err error) {
+	clauses := make([]string, 0, 6)
+	args = make([]any, 0, 8)
+
+	if filter.Range != "" {
+		_, rangeArgs, _, err := r.summaryWindow(filter.Range)
+		if err != nil {
+			return "", nil, err
+		}
+		if len(rangeArgs) > 0 {
+			clauses = append(clauses, `created_at >= ?`)
+			args = append(args, rangeArgs...)
+		}
+	}
+	if filter.Search != "" {
+		pattern := "%" + escapeLikePattern(strings.ToLower(filter.Search)) + "%"
+		clauses = append(clauses, `(LOWER(model) LIKE ? ESCAPE '\' OR LOWER(provider_id) LIKE ? ESCAPE '\' OR LOWER(request_id) LIKE ? ESCAPE '\' OR LOWER(error_summary) LIKE ? ESCAPE '\')`)
+		args = append(args, pattern, pattern, pattern, pattern)
+	}
 	if filter.Model != "" {
 		clauses = append(clauses, `model = ?`)
 		args = append(args, filter.Model)
@@ -312,7 +344,7 @@ func buildLogsWhere(filter LogsFilter) (whereSQL string, args []any, err error) 
 	return " WHERE " + strings.Join(clauses, " AND "), args, nil
 }
 
-func (r *repository) Summary(ctx context.Context, rng string) (SummaryResponse, error) {
+func (r *repository) Summary(ctx context.Context, rng string, includeSeries bool) (SummaryResponse, error) {
 	if r == nil || r.db == nil {
 		return SummaryResponse{}, errors.New("usage: database is not initialized")
 	}
@@ -345,9 +377,16 @@ func (r *repository) Summary(ctx context.Context, rng string) (SummaryResponse, 
 	); err != nil {
 		return SummaryResponse{}, fmt.Errorf("usage: query summary totals: %w", err)
 	}
-	if totals.Requests > 0 {
-		totals.ErrorRate = float64(totals.ErrorCount) / float64(totals.Requests)
+	if totals.Requests == 0 {
+		return SummaryResponse{
+			Range:      rng,
+			Totals:     totals,
+			ByModel:    make([]ModelBreakdown, 0),
+			ByProvider: make([]ProviderBreakdown, 0),
+			Series:     make([]SeriesBucket, 0),
+		}, nil
 	}
+	totals.ErrorRate = float64(totals.ErrorCount) / float64(totals.Requests)
 
 	byModel, err := r.queryModelBreakdown(ctx, whereSQL, args)
 	if err != nil {
@@ -357,9 +396,12 @@ func (r *repository) Summary(ctx context.Context, rng string) (SummaryResponse, 
 	if err != nil {
 		return SummaryResponse{}, err
 	}
-	series, err := r.querySeries(ctx, whereSQL, args, bucketExpr)
-	if err != nil {
-		return SummaryResponse{}, err
+	series := make([]SeriesBucket, 0)
+	if includeSeries {
+		series, err = r.querySeries(ctx, whereSQL, args, bucketExpr)
+		if err != nil {
+			return SummaryResponse{}, err
+		}
 	}
 
 	return SummaryResponse{

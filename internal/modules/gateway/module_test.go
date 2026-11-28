@@ -22,8 +22,10 @@ import (
 	"github.com/omeg4monx/router-gateway/internal/modules/gateway"
 	"github.com/omeg4monx/router-gateway/internal/platform/config"
 	"github.com/omeg4monx/router-gateway/internal/platform/db"
+	"github.com/omeg4monx/router-gateway/internal/platform/eventbus"
 	"github.com/omeg4monx/router-gateway/internal/platform/httpserver"
 	"github.com/omeg4monx/router-gateway/internal/platform/lifecycle"
+	"github.com/omeg4monx/router-gateway/internal/platform/logging"
 )
 
 type stubModule struct {
@@ -253,6 +255,8 @@ type testEnv struct {
 	models    *stubModelLister
 	resolver  *stubResolver
 	module    *gateway.Module
+	logRing   *logging.RingBuffer
+	bus       *eventbus.Bus
 }
 
 func setupGatewayTest(t *testing.T, interceptors []contracts.GatewayInterceptor, chainTTL time.Duration, nilUsage bool) *testEnv {
@@ -307,6 +311,9 @@ func setupGatewayTest(t *testing.T, interceptors []contracts.GatewayInterceptor,
 		usageRec = usage
 	}
 
+	logger, logRing := logging.New("debug", io.Discard, 64)
+	bus := eventbus.New()
+
 	mod := gateway.New(gateway.Options{
 		DB:           database,
 		HTTPClient:   &http.Client{},
@@ -317,7 +324,8 @@ func setupGatewayTest(t *testing.T, interceptors []contracts.GatewayInterceptor,
 		Health:       health,
 		Interceptors: interceptors,
 		Usage:        usageRec,
-		Logger:       slog.New(slog.NewTextHandler(io.Discard, nil)),
+		Bus:          bus,
+		Logger:       logger,
 		ChainTTL:     chainTTL,
 	})
 
@@ -368,6 +376,8 @@ func setupGatewayTest(t *testing.T, interceptors []contracts.GatewayInterceptor,
 		models:    models,
 		resolver:  resolver,
 		module:    mod,
+		logRing:   logRing,
+		bus:       bus,
 	}
 }
 
@@ -1704,5 +1714,141 @@ func TestGatewayCompleteChat(t *testing.T) {
 	}
 	if rewrittenRes.Content != "hello from internal gateway" {
 		t.Fatalf("unexpected rewritten content: %q", rewrittenRes.Content)
+	}
+}
+
+func TestGatewayEmitsLiveLifecycleLogsToRingBuffer(t *testing.T) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, `{"id":"chatcmpl-live","object":"chat.completion","model":"gpt-4o","choices":[{"index":0,"message":{"role":"assistant","content":"ok"},"finish_reason":"stop"}],"usage":{"prompt_tokens":12,"completion_tokens":4,"total_tokens":16}}`)
+	}))
+	t.Cleanup(upstream.Close)
+
+	env := setupGatewayTest(t, nil, time.Hour, false)
+	env.providers.creds["c1"] = contracts.UpstreamCredentials{
+		ConnectionID: "c1",
+		ProviderID:   "openai",
+		Protocol:     "openai-chat",
+		BaseURL:      upstream.URL,
+		APIKey:       "sk-up",
+	}
+	env.resolver.fn = func(context.Context, string, []string) ([]contracts.ResolvedTarget, error) {
+		return []contracts.ResolvedTarget{{
+			ProviderID:    "openai",
+			ProviderType:  "openai-chat",
+			ConnectionID:  "c1",
+			Model:         "gpt-4o",
+			UpstreamModel: "gpt-4o",
+			Endpoint:      upstream.URL,
+		}}, nil
+	}
+
+	req, err := http.NewRequestWithContext(
+		context.Background(),
+		http.MethodPost,
+		env.baseURL+"/v1/chat/completions",
+		strings.NewReader(`{"model":"gpt-4o","messages":[{"role":"user","content":"ping"}]}`),
+	)
+	if err != nil {
+		t.Fatalf("new req: %v", err)
+	}
+	req.Header.Set("Authorization", "Bearer sk-valid")
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("do req: %v", err)
+	}
+	_ = resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d, want 200", resp.StatusCode)
+	}
+
+	entries := env.logRing.Recent(20)
+	var sawStart, sawDone bool
+	for _, entry := range entries {
+		if strings.Contains(entry.Message, "▶") && entry.Attrs["provider"] == "openai" && entry.Attrs["model"] == "gpt-4o" {
+			sawStart = true
+		}
+		if strings.Contains(entry.Message, "✓") && entry.Attrs["provider"] == "openai" && entry.Attrs["status"] == int64(200) {
+			sawDone = true
+		}
+	}
+	if !sawStart || !sawDone {
+		t.Fatalf("expected live lifecycle logs (start=%v, done=%v) in ring buffer, got: %+v", sawStart, sawDone, entries)
+	}
+}
+
+func TestGatewayPublishesTrafficFinishedOnClientCancel(t *testing.T) {
+	startedUpstream := make(chan struct{})
+	stopUpstream := make(chan struct{})
+	upstream := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+		close(startedUpstream)
+		select {
+		case <-r.Context().Done():
+		case <-stopUpstream:
+		}
+	}))
+	t.Cleanup(func() {
+		close(stopUpstream)
+		upstream.Close()
+	})
+
+	env := setupGatewayTest(t, nil, time.Hour, false)
+	env.providers.creds["c1"] = contracts.UpstreamCredentials{
+		ConnectionID: "c1",
+		ProviderID:   "openai",
+		Protocol:     "openai-chat",
+		BaseURL:      upstream.URL,
+		APIKey:       "sk-up",
+	}
+	env.resolver.fn = func(context.Context, string, []string) ([]contracts.ResolvedTarget, error) {
+		return []contracts.ResolvedTarget{{
+			ProviderID:    "openai",
+			ProviderType:  "openai-chat",
+			ConnectionID:  "c1",
+			Model:         "gpt-4o",
+			UpstreamModel: "gpt-4o",
+			Endpoint:      upstream.URL,
+		}}, nil
+	}
+
+	finishedCh, unsub := env.bus.Subscribe("traffic.finished", 8)
+	defer unsub()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	req, err := http.NewRequestWithContext(
+		ctx,
+		http.MethodPost,
+		env.baseURL+"/v1/chat/completions",
+		strings.NewReader(`{"model":"gpt-4o","messages":[{"role":"user","content":"cancel me"}]}`),
+	)
+	if err != nil {
+		t.Fatalf("new req: %v", err)
+	}
+	req.Header.Set("Authorization", "Bearer sk-valid")
+	req.Header.Set("Content-Type", "application/json")
+
+	go func() {
+		<-startedUpstream
+		cancel()
+	}()
+
+	resp, err := http.DefaultClient.Do(req)
+	if resp != nil {
+		_ = resp.Body.Close()
+	}
+	if err == nil {
+		t.Fatal("expected canceled client request error")
+	}
+
+	select {
+	case evt := <-finishedCh:
+		raw, _ := json.Marshal(evt.Payload)
+		if !strings.Contains(string(raw), `"status_code":499`) {
+			t.Fatalf("expected status_code 499 in traffic.finished payload, got %s", raw)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for traffic.finished event on client cancel")
 	}
 }

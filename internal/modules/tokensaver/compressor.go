@@ -107,6 +107,13 @@ func compressPayload(body []byte, cfg Config) (out []byte, bytesSaved, tokensSav
 	if err := json.Unmarshal(body, &root); err != nil || root == nil {
 		return body, 0, 0, false
 	}
+	return compressRoot(root, body, cfg)
+}
+
+func compressRoot(root map[string]any, origBody []byte, cfg Config) (out []byte, bytesSaved, tokensSaved int64, mutated bool) {
+	if cfg.Strategy == StrategyOff || root == nil || len(origBody) == 0 {
+		return origBody, 0, 0, false
+	}
 
 	if msgs, ok := root["messages"].([]any); ok {
 		root["messages"] = compressMessages(msgs, cfg)
@@ -163,15 +170,18 @@ func compressPayload(body []byte, cfg Config) (out []byte, bytesSaved, tokensSav
 			}
 			contents[i] = item
 		}
+		if cfg.TrimHistoryEnabled && cfg.MaxHistoryMessages > 2 && len(contents) > cfg.MaxHistoryMessages {
+			contents = trimChatHistoryMessages(contents, cfg.MaxHistoryMessages)
+		}
 		root["contents"] = contents
 	}
 
 	encoded, err := json.Marshal(root)
-	if err != nil || len(encoded) >= len(body) {
-		return body, 0, 0, false
+	if err != nil || len(encoded) >= len(origBody) {
+		return origBody, 0, 0, false
 	}
-	savedBytes := int64(len(body) - len(encoded))
-	savedTokens := estimateTokens(body) - estimateTokens(encoded)
+	savedBytes := int64(len(origBody) - len(encoded))
+	savedTokens := estimateTokens(origBody) - estimateTokens(encoded)
 	if savedTokens < 0 {
 		savedTokens = 0
 	}
@@ -189,7 +199,8 @@ func compressMessages(msgs []any, cfg Config) []any {
 			continue
 		}
 		role, _ := msg["role"].(string)
-		isTool := role == "tool"
+		itemType, _ := msg["type"].(string)
+		isTool := role == "tool" || itemType == "function_call_output"
 
 		switch content := msg["content"].(type) {
 		case string:
@@ -200,6 +211,17 @@ func compressMessages(msgs []any, cfg Config) []any {
 			}
 		case []any:
 			msg["content"] = compressContentBlocks(content, isTool, cfg)
+		}
+
+		// OpenAI Responses API function_call_output carries tool output in "output".
+		if itemType == "function_call_output" {
+			if outputStr, ok := msg["output"].(string); ok {
+				if cfg.Strategy == StrategyAggressive {
+					msg["output"] = compressText(filterToolOutput(outputStr, cfg.MaxToolOutputChars))
+				} else {
+					msg["output"] = compressText(outputStr)
+				}
+			}
 		}
 
 		if cfg.Strategy == StrategyDedupe || cfg.Strategy == StrategyAggressive {
@@ -218,6 +240,51 @@ func compressMessages(msgs []any, cfg Config) []any {
 	}
 
 	return out
+}
+
+func hasAnthropicToolResult(m map[string]any) bool {
+	blocks, ok := m["content"].([]any)
+	if !ok {
+		return false
+	}
+	for _, raw := range blocks {
+		if bm, ok := raw.(map[string]any); ok {
+			if btype, _ := bm["type"].(string); btype == "tool_result" {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func hasGeminiFunctionResponse(m map[string]any) bool {
+	parts, ok := m["parts"].([]any)
+	if !ok {
+		return false
+	}
+	for _, raw := range parts {
+		if pm, ok := raw.(map[string]any); ok {
+			if _, exists := pm["functionResponse"]; exists {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func isOrphanedTailStart(m map[string]any) bool {
+	role, _ := m["role"].(string)
+	itemType, _ := m["type"].(string)
+	if role == "tool" || itemType == "function_call_output" {
+		return true
+	}
+	if role == "assistant" || role == "model" {
+		return true
+	}
+	if hasAnthropicToolResult(m) || hasGeminiFunctionResponse(m) {
+		return true
+	}
+	return false
 }
 
 func trimChatHistoryMessages(msgs []any, maxHistory int) []any {
@@ -249,17 +316,20 @@ func trimChatHistoryMessages(msgs []any, maxHistory int) []any {
 	if start < restIdx {
 		start = restIdx
 	}
-	// Avoid starting the retained tail on an orphaned tool result.
-	for start < len(msgs)-1 {
-		m, ok := msgs[start].(map[string]any)
-		if !ok {
+	// Avoid starting the retained tail on an orphaned tool result or assistant/model turn
+	// (OpenAI tool, Anthropic tool_result, Gemini functionResponse, or dangling assistant).
+	if start > restIdx {
+		for start < len(msgs)-1 {
+			m, ok := msgs[start].(map[string]any)
+			if !ok {
+				break
+			}
+			if isOrphanedTailStart(m) {
+				start++
+				continue
+			}
 			break
 		}
-		if role, _ := m["role"].(string); role == "tool" {
-			start++
-			continue
-		}
-		break
 	}
 	tail := msgs[start:]
 	combined := make([]any, 0, len(leading)+len(tail))
@@ -268,13 +338,9 @@ func trimChatHistoryMessages(msgs []any, maxHistory int) []any {
 	return combined
 }
 
-func trimPayloadHistory(body []byte, maxHistory int) (out []byte, bytesSaved, tokensSaved int64, mutated bool) {
-	if maxHistory <= 2 || len(body) == 0 {
-		return body, 0, 0, false
-	}
-	var root map[string]any
-	if err := json.Unmarshal(body, &root); err != nil || root == nil {
-		return body, 0, 0, false
+func trimRootHistory(root map[string]any, origBody []byte, maxHistory int) (out []byte, bytesSaved, tokensSaved int64, mutated bool) {
+	if maxHistory <= 2 || root == nil || len(origBody) == 0 {
+		return origBody, 0, 0, false
 	}
 	changed := false
 	if msgs, ok := root["messages"].([]any); ok && len(msgs) > maxHistory {
@@ -285,15 +351,19 @@ func trimPayloadHistory(body []byte, maxHistory int) (out []byte, bytesSaved, to
 		root["input"] = trimChatHistoryMessages(inp, maxHistory)
 		changed = true
 	}
+	if contents, ok := root["contents"].([]any); ok && len(contents) > maxHistory {
+		root["contents"] = trimChatHistoryMessages(contents, maxHistory)
+		changed = true
+	}
 	if !changed {
-		return body, 0, 0, false
+		return origBody, 0, 0, false
 	}
 	encoded, err := json.Marshal(root)
-	if err != nil || len(encoded) >= len(body) {
-		return body, 0, 0, false
+	if err != nil || len(encoded) >= len(origBody) {
+		return origBody, 0, 0, false
 	}
-	savedBytes := int64(len(body) - len(encoded))
-	savedTokens := estimateTokens(body) - estimateTokens(encoded)
+	savedBytes := int64(len(origBody) - len(encoded))
+	savedTokens := estimateTokens(origBody) - estimateTokens(encoded)
 	if savedTokens < 0 {
 		savedTokens = 0
 	}
@@ -316,9 +386,9 @@ const (
 		"Active every response; no drift back to over-building."
 )
 
-func buildOutputDirective(cfg Config) string {
+func buildOutputDirective(cfg Config, existing string) string {
 	var parts []string
-	if cfg.CavemanEnabled {
+	if cfg.CavemanEnabled && !strings.Contains(existing, "[caveman:") {
 		switch cfg.CavemanLevel {
 		case LevelLite:
 			parts = append(parts, "[caveman:lite] Respond tersely. Keep grammar and full sentences; drop filler, hedging, and pleasantries. Pattern: state thing, action, reason, next step. "+cavemanSharedRules)
@@ -328,7 +398,7 @@ func buildOutputDirective(cfg Config) string {
 			parts = append(parts, "[caveman:full] Respond terse. Technical substance stays exact, fluff dies. Drop articles (a/an/the), filler, pleasantries, hedging; fragments OK; short synonyms. Pattern: [thing] [action] [reason]. [next step]. "+cavemanSharedRules)
 		}
 	}
-	if cfg.PonytailEnabled {
+	if cfg.PonytailEnabled && !strings.Contains(existing, "[ponytail:") {
 		switch cfg.PonytailLevel {
 		case LevelLite:
 			parts = append(parts, "[ponytail:lite] Build what was asked, and name the lazier alternative in one line so the user can pick. "+ponytailSharedRules)
@@ -344,56 +414,75 @@ func buildOutputDirective(cfg Config) string {
 // injectOutputDirectives appends Caveman / Ponytail system directives idempotently
 // using the wire-valid system field for each protocol.
 func injectOutputDirectives(protocol string, body []byte, cfg Config) ([]byte, bool) {
-	directive := buildOutputDirective(cfg)
-	if directive == "" || len(body) == 0 {
+	if (!cfg.CavemanEnabled && !cfg.PonytailEnabled) || len(body) == 0 {
 		return body, false
 	}
 	var root map[string]any
 	if err := json.Unmarshal(body, &root); err != nil || root == nil {
 		return body, false
 	}
+	if !injectOutputDirectivesRoot(protocol, root, cfg) {
+		return body, false
+	}
+	encoded, err := json.Marshal(root)
+	if err != nil {
+		return body, false
+	}
+	return encoded, true
+}
 
-	marker := "[caveman:"
-	if !cfg.CavemanEnabled {
-		marker = "[ponytail:"
+func injectOutputDirectivesRoot(protocol string, root map[string]any, cfg Config) bool {
+	if (!cfg.CavemanEnabled && !cfg.PonytailEnabled) || root == nil {
+		return false
 	}
 
-	mutated := false
 	switch {
 	case protocol == "anthropic" || root["system"] != nil:
 		switch sys := root["system"].(type) {
 		case nil:
+			directive := buildOutputDirective(cfg, "")
+			if directive == "" {
+				return false
+			}
 			root["system"] = directive
-			mutated = true
+			return true
 		case string:
-			if strings.Contains(sys, marker) {
-				return body, false
+			directive := buildOutputDirective(cfg, sys)
+			if directive == "" {
+				return false
 			}
 			root["system"] = strings.TrimSpace(sys + "\n\n" + directive)
-			mutated = true
+			return true
 		case []any:
+			var existing strings.Builder
 			for _, item := range sys {
 				if bm, ok := item.(map[string]any); ok {
-					if txt, _ := bm["text"].(string); strings.Contains(txt, marker) {
-						return body, false
+					if txt, _ := bm["text"].(string); txt != "" {
+						existing.WriteString(txt)
+						existing.WriteByte('\n')
 					}
 				}
 			}
+			directive := buildOutputDirective(cfg, existing.String())
+			if directive == "" {
+				return false
+			}
 			root["system"] = append(sys, map[string]any{"type": "text", "text": directive})
-			mutated = true
+			return true
 		}
 
 	case protocol == "openai-responses" || root["instructions"] != nil || root["input"] != nil:
 		inst, _ := root["instructions"].(string)
-		if strings.Contains(inst, marker) {
-			return body, false
+		directive := buildOutputDirective(cfg, inst)
+		if directive == "" {
+			return false
 		}
 		if strings.TrimSpace(inst) == "" {
 			root["instructions"] = directive
 		} else {
 			root["instructions"] = strings.TrimSpace(inst + "\n\n" + directive)
 		}
-		mutated = true
+		return true
 
 	case protocol == "gemini" || root["contents"] != nil:
 		siKey := "systemInstruction"
@@ -405,28 +494,40 @@ func injectOutputDirectives(protocol string, body []byte, cfg Config) ([]byte, b
 			si = map[string]any{"parts": []any{}}
 		}
 		parts, _ := si["parts"].([]any)
+		var existing strings.Builder
 		for _, pr := range parts {
 			if pm, ok := pr.(map[string]any); ok {
-				if txt, _ := pm["text"].(string); strings.Contains(txt, marker) {
-					return body, false
+				if txt, _ := pm["text"].(string); txt != "" {
+					existing.WriteString(txt)
+					existing.WriteByte('\n')
 				}
 			}
 		}
+		directive := buildOutputDirective(cfg, existing.String())
+		if directive == "" {
+			return false
+		}
 		si["parts"] = append(parts, map[string]any{"text": directive})
 		root[siKey] = si
-		mutated = true
+		return true
 
 	default:
 		msgs, ok := root["messages"].([]any)
 		if !ok {
-			return body, false
+			return false
 		}
+		var existing strings.Builder
 		for _, raw := range msgs {
 			if m, ok := raw.(map[string]any); ok {
-				if c, _ := m["content"].(string); strings.Contains(c, marker) {
-					return body, false
+				if c, _ := m["content"].(string); c != "" {
+					existing.WriteString(c)
+					existing.WriteByte('\n')
 				}
 			}
+		}
+		directive := buildOutputDirective(cfg, existing.String())
+		if directive == "" {
+			return false
 		}
 		if len(msgs) > 0 {
 			if first, ok := msgs[0].(map[string]any); ok {
@@ -436,26 +537,17 @@ func injectOutputDirectives(protocol string, body []byte, cfg Config) ([]byte, b
 						first["content"] = strings.TrimSpace(content + "\n\n" + directive)
 						msgs[0] = first
 						root["messages"] = msgs
-						mutated = true
+						return true
 					}
 				}
 			}
 		}
-		if !mutated {
-			sysMsg := map[string]any{"role": "system", "content": directive}
-			root["messages"] = append([]any{sysMsg}, msgs...)
-			mutated = true
-		}
+		sysMsg := map[string]any{"role": "system", "content": directive}
+		root["messages"] = append([]any{sysMsg}, msgs...)
+		return true
 	}
 
-	if !mutated {
-		return body, false
-	}
-	encoded, err := json.Marshal(root)
-	if err != nil {
-		return body, false
-	}
-	return encoded, true
+	return false
 }
 
 func compressContentBlocks(blocks []any, isTool bool, cfg Config) []any {
@@ -491,7 +583,20 @@ func injectAnthropicCacheControl(body []byte) ([]byte, bool) {
 	if err := json.Unmarshal(body, &root); err != nil || root == nil {
 		return body, false
 	}
+	if !injectAnthropicCacheControlRoot(root) {
+		return body, false
+	}
+	encoded, err := json.Marshal(root)
+	if err != nil {
+		return body, false
+	}
+	return encoded, true
+}
 
+func injectAnthropicCacheControlRoot(root map[string]any) bool {
+	if root == nil {
+		return false
+	}
 	mutated := false
 	switch sys := root["system"].(type) {
 	case string:
@@ -529,12 +634,5 @@ func injectAnthropicCacheControl(body []byte) ([]byte, bool) {
 		}
 	}
 
-	if !mutated {
-		return body, false
-	}
-	encoded, err := json.Marshal(root)
-	if err != nil {
-		return body, false
-	}
-	return encoded, true
+	return mutated
 }

@@ -1,24 +1,5 @@
-import {
-  AlertCircle,
-  BookOpen,
-  Check,
-  CheckCircle2,
-  Copy,
-  CopyPlus,
-  FlaskConical,
-  KeyRound,
-  Layers,
-  Pencil,
-  Plus,
-  Power,
-  RefreshCw,
-  Search,
-  Sparkles,
-  Trash2,
-  X,
-  XCircle,
-} from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { AlertCircle, BookOpen, Layers, Plus, RefreshCw, Search, X } from "lucide-react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { runSingleComboTest, useModelCatalog } from "@/features/models/hooks";
 import type { CatalogTestResult } from "@/features/models/types";
 import { useProviderConnections, useProvidersCatalog } from "@/features/providers/hooks";
@@ -28,17 +9,20 @@ import { Badge } from "@/shared/ui/badge";
 import { Button } from "@/shared/ui/button";
 import { Card } from "@/shared/ui/card";
 import { Input } from "@/shared/ui/input";
+import { ComboCard } from "./ComboCard";
 import { ComboRegistrationForm } from "./ComboRegistrationForm";
-import { formatStepAccountLabel } from "./comboHelpers";
 import {
   useCombos,
   useCreateComboMutation,
   useDeleteComboMutation,
   useUpdateComboMutation,
 } from "./hooks";
-import { StrategyGuideModal } from "./StrategyGuideModal";
-import type { Combo, ComboStep, ComboStrategy, CreateComboRequest } from "./schemas";
-import { COMBO_STRATEGY_OPTIONS, getStrategyMeta } from "./strategies";
+import type { Combo, ComboStrategy, CreateComboRequest } from "./schemas";
+import { COMBO_STRATEGY_OPTIONS } from "./strategies";
+
+const StrategyGuideModal = lazy(() =>
+  import("./StrategyGuideModal").then((m) => ({ default: m.StrategyGuideModal })),
+);
 
 export function CombosConsole() {
   const locale = useUIStore((s) => s.locale);
@@ -74,14 +58,20 @@ export function CombosConsole() {
   const [copiedName, setCopiedName] = useState<string | null>(null);
   const copyTimerRef = useRef<number | null>(null);
 
-  const [testingNames, setTestingNames] = useState<Set<string>>(() => new Set());
+  const [testingIds, setTestingIds] = useState<Set<string>>(() => new Set());
   const [testResults, setTestResults] = useState<Record<string, CatalogTestResult>>({});
+  const testControllersRef = useRef<Map<string, AbortController>>(new Map());
 
   useEffect(() => {
+    const controllers = testControllersRef.current;
     return () => {
       if (copyTimerRef.current !== null) {
         window.clearTimeout(copyTimerRef.current);
       }
+      for (const controller of controllers.values()) {
+        controller.abort();
+      }
+      controllers.clear();
     };
   }, []);
 
@@ -152,103 +142,124 @@ export function CombosConsole() {
 
   const activeCount = useMemo(() => combos.filter((c) => c.enabled).length, [combos]);
 
-  const handleEditCombo = (combo: Combo) => {
+  const clearTestResult = useCallback((comboId: string) => {
+    setTestResults((prev) => {
+      if (!(comboId in prev)) return prev;
+      const next = { ...prev };
+      delete next[comboId];
+      return next;
+    });
+  }, []);
+
+  const handleEditCombo = useCallback((combo: Combo) => {
     setFormMode("edit");
     setEditingCombo(combo);
     setFormSubmitError(null);
     setMobilePane("form");
-  };
+  }, []);
 
-  const handleDuplicateCombo = (combo: Combo) => {
+  const handleDuplicateCombo = useCallback((combo: Combo) => {
     setFormMode("create");
     setEditingCombo(combo);
     setFormSubmitError(null);
     setMobilePane("form");
-  };
+  }, []);
 
-  const handleCancelEdit = () => {
+  const handleCancelEdit = useCallback(() => {
     setFormMode("create");
     setEditingCombo(null);
     setFormSubmitError(null);
     setMobilePane("list");
-  };
+  }, []);
 
-  const handleFormSubmit = (
-    payload: CreateComboRequest,
-    editComboId?: string,
-    onDone?: () => void,
-  ) => {
-    setFormSubmitError(null);
-    if (editComboId) {
-      updateMutation.mutate(
-        { id: editComboId, body: payload },
-        {
-          onSuccess: () => {
-            setFormMode("create");
-            setEditingCombo(null);
-            setMobilePane("list");
-            onDone?.();
+  const handleFormSubmit = useCallback(
+    (payload: CreateComboRequest, editComboId?: string, onDone?: () => void) => {
+      setFormSubmitError(null);
+      if (editComboId) {
+        updateMutation.mutate(
+          { id: editComboId, body: payload },
+          {
+            onSuccess: () => {
+              clearTestResult(editComboId);
+              setFormMode("create");
+              setEditingCombo(null);
+              setMobilePane("list");
+              onDone?.();
+            },
+            onError: (err) => setFormSubmitError(err.message),
           },
-          onError: (err) => setFormSubmitError(err.message),
+        );
+        return;
+      }
+      createMutation.mutate(payload, {
+        onSuccess: () => {
+          setEditingCombo(null);
+          setMobilePane("list");
+          onDone?.();
+        },
+        onError: (err) => setFormSubmitError(err.message),
+      });
+    },
+    [clearTestResult, createMutation, updateMutation],
+  );
+
+  const handleToggleEnabled = useCallback(
+    (combo: Combo) => {
+      if (busyComboId) return;
+      setRowError(null);
+      setBusyComboId(combo.id);
+      updateMutation.mutate(
+        { id: combo.id, body: { enabled: !combo.enabled } },
+        {
+          onError: (err) => setRowError(err.message),
+          onSettled: () => setBusyComboId(null),
         },
       );
-      return;
-    }
-    createMutation.mutate(payload, {
-      onSuccess: () => {
-        setEditingCombo(null);
-        setMobilePane("list");
-        onDone?.();
-      },
-      onError: (err) => setFormSubmitError(err.message),
-    });
-  };
+    },
+    [busyComboId, updateMutation],
+  );
 
-  const handleToggleEnabled = (combo: Combo) => {
-    if (busyComboId) return;
-    setRowError(null);
-    setBusyComboId(combo.id);
-    updateMutation.mutate(
-      { id: combo.id, body: { enabled: !combo.enabled } },
-      {
+  const handleDelete = useCallback(
+    (combo: Combo) => {
+      if (busyComboId) return;
+      setRowError(null);
+      setBusyComboId(combo.id);
+      deleteMutation.mutate(combo.id, {
+        onSuccess: () => {
+          setConfirmDeleteId(null);
+          clearTestResult(combo.id);
+          if (editingCombo?.id === combo.id) {
+            handleCancelEdit();
+          }
+        },
         onError: (err) => setRowError(err.message),
         onSettled: () => setBusyComboId(null),
-      },
-    );
-  };
+      });
+    },
+    [busyComboId, clearTestResult, deleteMutation, editingCombo?.id, handleCancelEdit],
+  );
 
-  const handleDelete = (combo: Combo) => {
-    if (busyComboId) return;
-    setRowError(null);
-    setBusyComboId(combo.id);
-    deleteMutation.mutate(combo.id, {
-      onSuccess: () => {
-        setConfirmDeleteId(null);
-        if (editingCombo?.id === combo.id) {
-          handleCancelEdit();
-        }
-      },
-      onError: (err) => setRowError(err.message),
-      onSettled: () => setBusyComboId(null),
-    });
-  };
-
-  const handleTestCombo = async (combo: Combo) => {
-    if (testingNames.has(combo.name)) return;
-    setTestingNames((prev) => new Set(prev).add(combo.name));
+  const handleTestCombo = useCallback(async (combo: Combo) => {
+    if (testControllersRef.current.has(combo.id)) return;
+    const controller = new AbortController();
+    testControllersRef.current.set(combo.id, controller);
+    setTestingIds((prev) => new Set(prev).add(combo.id));
     try {
-      const res = await runSingleComboTest(combo.name);
-      setTestResults((prev) => ({ ...prev, [combo.name]: res }));
+      const res = await runSingleComboTest(combo.name, controller.signal);
+      if (!controller.signal.aborted) {
+        setTestResults((prev) => ({ ...prev, [combo.id]: res }));
+      }
     } finally {
-      setTestingNames((prev) => {
+      testControllersRef.current.delete(combo.id);
+      setTestingIds((prev) => {
         const next = new Set(prev);
-        next.delete(combo.name);
+        next.delete(combo.id);
         return next;
       });
     }
-  };
+  }, []);
 
-  const handleCopyName = async (comboName: string) => {
+  const handleCopyName = useCallback(async (comboName: string) => {
     try {
       await navigator.clipboard.writeText(comboName);
       setCopiedName(comboName);
@@ -261,7 +272,7 @@ export function CombosConsole() {
     } catch {
       // Ignore clipboard permission errors
     }
-  };
+  }, []);
 
   const openStrategyGuide = useCallback((strategy: ComboStrategy) => {
     setGuideStrategy(strategy);
@@ -272,11 +283,22 @@ export function CombosConsole() {
     setStrategyOverride(null);
   }, []);
 
+  const handleRequestDelete = useCallback((comboId: string) => {
+    setConfirmDeleteId(comboId);
+  }, []);
+
+  const handleCancelDelete = useCallback(() => {
+    setConfirmDeleteId(null);
+  }, []);
+
   const isRefreshing =
-    combosQuery.isFetching || connectionsQuery.isFetching || modelCatalogQuery.isFetching;
+    combosQuery.isFetching ||
+    connectionsQuery.isFetching ||
+    catalogQuery.isFetching ||
+    modelCatalogQuery.isFetching;
 
   return (
-    <div className="flex h-[calc(100vh-7.25rem)] min-h-[440px] flex-col gap-3 overflow-hidden supports-[height:100dvh]:h-[calc(100dvh-7.25rem)]">
+    <div className="flex flex-col gap-3 lg:h-[calc(100vh-7.25rem)] lg:min-h-[440px] lg:overflow-hidden lg:supports-[height:100dvh]:h-[calc(100dvh-7.25rem)]">
       {/* Compact Single-Row Top Bar */}
       <section className="flex shrink-0 items-center justify-between gap-2">
         {/* Mobile-first segmented switcher (hidden on lg+ where both panes sit side-by-side) */}
@@ -292,7 +314,7 @@ export function CombosConsole() {
             onClick={() => setMobilePane("list")}
             className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
               mobilePane === "list"
-                ? "bg-[var(--accent-primary)] text-[var(--accent-fg)]"
+                ? "bg-[var(--accent-primary)] text-[var(--accent-primary-ink)]"
                 : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
             }`}
           >
@@ -308,12 +330,12 @@ export function CombosConsole() {
             onClick={() => setMobilePane("form")}
             className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
               mobilePane === "form"
-                ? "bg-[var(--accent-primary)] text-[var(--accent-fg)]"
+                ? "bg-[var(--accent-primary)] text-[var(--accent-primary-ink)]"
                 : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
             }`}
           >
             <Plus className="h-3.5 w-3.5" aria-hidden="true" />
-            <span>{formMode === "edit" ? (isId ? "Edit" : "Edit") : isId ? "Baru" : "New"}</span>
+            <span>{formMode === "edit" ? "Edit" : isId ? "Baru" : "New"}</span>
           </button>
         </div>
 
@@ -352,6 +374,7 @@ export function CombosConsole() {
             onClick={() => {
               void combosQuery.refetch();
               void connectionsQuery.refetch();
+              void catalogQuery.refetch();
               void modelCatalogQuery.refetch();
             }}
             disabled={isRefreshing}
@@ -367,11 +390,11 @@ export function CombosConsole() {
         </div>
       </section>
 
-      {/* Main 1-Screen Fixed Workspace: Form (Left) + Scrollable Combos List (Right) */}
-      <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 overflow-hidden lg:grid-cols-12">
+      {/* Main 2-Pane Workspace: Form (Left) + Scrollable Combos List (Right) */}
+      <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 lg:grid-cols-12 lg:overflow-hidden">
         <div
-          className={`min-h-0 overflow-hidden lg:col-span-5 lg:block ${
-            mobilePane === "form" ? "block h-full" : "hidden"
+          className={`min-h-0 lg:col-span-5 lg:block lg:overflow-hidden ${
+            mobilePane === "form" ? "block" : "hidden"
           }`}
         >
           <ComboRegistrationForm
@@ -394,8 +417,8 @@ export function CombosConsole() {
         </div>
 
         <div
-          className={`min-h-0 flex-col gap-2.5 overflow-hidden lg:col-span-7 lg:flex ${
-            mobilePane === "list" ? "flex h-full" : "hidden"
+          className={`min-h-0 flex-col gap-2.5 lg:col-span-7 lg:flex lg:overflow-hidden ${
+            mobilePane === "list" ? "flex" : "hidden"
           }`}
         >
           {/* Compact Filter Bar */}
@@ -463,7 +486,7 @@ export function CombosConsole() {
           ) : null}
 
           {/* Scrollable Registered Combos List */}
-          <div className="custom-scrollbar min-h-0 flex-1 overflow-y-auto pr-0.5">
+          <div className="custom-scrollbar min-h-0 flex-1 pr-0.5 lg:overflow-y-auto">
             {combosQuery.isError ? (
               <Alert variant="destructive">
                 <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-[var(--status-error)]" />
@@ -506,293 +529,46 @@ export function CombosConsole() {
               </Card>
             ) : (
               <div className="space-y-2.5 pb-1">
-                {filteredCombos.map((combo) => {
-                  const stratMeta = getStrategyMeta(combo.strategy);
-                  const steps: ComboStep[] =
-                    combo.steps && combo.steps.length > 0
-                      ? combo.steps
-                      : combo.targets.map((t): ComboStep => ({ kind: "model", model: t }));
-                  const testRes = testResults[combo.name];
-                  const isTesting = testingNames.has(combo.name);
-                  const isBusy = busyComboId === combo.id;
-                  const confirmingDelete = confirmDeleteId === combo.id;
-                  const isCurrentlyEditing = formMode === "edit" && editingCombo?.id === combo.id;
-
-                  return (
-                    <Card
-                      key={combo.id}
-                      className={`overflow-hidden transition-colors ${
-                        isCurrentlyEditing ? "border-[var(--accent-primary)]" : ""
-                      }`}
-                    >
-                      <div className="space-y-2 p-3">
-                        {/* Top Row: Name + Badges + Compact Actions */}
-                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                          <div className="min-w-0 flex-1">
-                            <div className="flex flex-wrap items-center gap-1.5">
-                              <span
-                                className={`h-2 w-2 shrink-0 rounded-full ${
-                                  combo.enabled
-                                    ? "bg-[var(--status-ok)]"
-                                    : "bg-[var(--status-warn)]"
-                                }`}
-                                aria-hidden="true"
-                              />
-                              <span className="truncate font-mono text-sm font-semibold text-[var(--text-primary)]">
-                                {combo.name}
-                              </span>
-                              <button
-                                type="button"
-                                onClick={() => void handleCopyName(combo.name)}
-                                className="rounded p-0.5 text-[var(--text-muted)] hover:bg-[var(--bg-canvas)] hover:text-[var(--text-primary)]"
-                                aria-label={isId ? "Salin nama combo" : "Copy combo name"}
-                                title={isId ? "Salin nama combo" : "Copy combo name"}
-                              >
-                                {copiedName === combo.name ? (
-                                  <Check className="h-3.5 w-3.5 text-[var(--status-ok)]" />
-                                ) : (
-                                  <Copy className="h-3.5 w-3.5" />
-                                )}
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => openStrategyGuide(combo.strategy)}
-                                title={
-                                  isId
-                                    ? `${stratMeta.labelId} — klik untuk panduan`
-                                    : `${stratMeta.labelEn} — click for guide`
-                                }
-                                className="inline-flex items-center gap-1 rounded-full border border-[var(--border-strong)] bg-[var(--bg-canvas)] px-2 py-0.5 font-mono text-[10px] text-[var(--text-primary)] transition-colors hover:border-[var(--accent-primary)] hover:text-[var(--accent-text)]"
-                              >
-                                <span>{combo.strategy}</span>
-                              </button>
-                            </div>
-
-                            {combo.description ? (
-                              <p className="mt-0.5 truncate text-xs text-[var(--text-secondary)]">
-                                {combo.description}
-                              </p>
-                            ) : null}
-                          </div>
-
-                          {/* Compact Actions */}
-                          <div className="flex shrink-0 flex-wrap items-center gap-1">
-                            {confirmingDelete ? (
-                              <>
-                                <Button
-                                  type="button"
-                                  variant="destructive"
-                                  size="xs"
-                                  disabled={isBusy}
-                                  onClick={() => handleDelete(combo)}
-                                >
-                                  {isBusy
-                                    ? isId
-                                      ? "Menghapus..."
-                                      : "Deleting..."
-                                    : isId
-                                      ? "Hapus"
-                                      : "Confirm"}
-                                </Button>
-                                <Button
-                                  type="button"
-                                  variant="secondary"
-                                  size="xs"
-                                  disabled={isBusy}
-                                  onClick={() => setConfirmDeleteId(null)}
-                                >
-                                  {isId ? "Batal" : "Cancel"}
-                                </Button>
-                              </>
-                            ) : (
-                              <>
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="xs"
-                                  disabled={isTesting}
-                                  onClick={() => void handleTestCombo(combo)}
-                                  title={isId ? "Uji combo" : "Test combo"}
-                                >
-                                  <FlaskConical className="h-3 w-3" />
-                                  <span>
-                                    {isTesting
-                                      ? isId
-                                        ? "Menguji..."
-                                        : "Testing..."
-                                      : isId
-                                        ? "Uji"
-                                        : "Test"}
-                                  </span>
-                                </Button>
-                                <Button
-                                  type="button"
-                                  variant={isCurrentlyEditing ? "default" : "outline"}
-                                  size="xs"
-                                  disabled={isBusy}
-                                  onClick={() => handleEditCombo(combo)}
-                                  title="Edit"
-                                >
-                                  <Pencil className="h-3 w-3" />
-                                  <span className="hidden sm:inline">Edit</span>
-                                </Button>
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="xs"
-                                  disabled={isBusy}
-                                  onClick={() => handleDuplicateCombo(combo)}
-                                  aria-label={isId ? "Duplikat ke form" : "Duplicate into form"}
-                                  title={isId ? "Duplikat ke form" : "Duplicate into form"}
-                                >
-                                  <CopyPlus className="h-3.5 w-3.5" />
-                                </Button>
-                                <Button
-                                  type="button"
-                                  variant="secondary"
-                                  size="xs"
-                                  disabled={isBusy}
-                                  onClick={() => handleToggleEnabled(combo)}
-                                  aria-label={
-                                    combo.enabled
-                                      ? isId
-                                        ? "Jeda combo"
-                                        : "Pause combo"
-                                      : isId
-                                        ? "Aktifkan combo"
-                                        : "Enable combo"
-                                  }
-                                  title={
-                                    combo.enabled
-                                      ? isId
-                                        ? "Jeda combo"
-                                        : "Pause combo"
-                                      : isId
-                                        ? "Aktifkan combo"
-                                        : "Enable combo"
-                                  }
-                                >
-                                  <Power className="h-3 w-3" />
-                                </Button>
-                                <Button
-                                  type="button"
-                                  variant="destructive"
-                                  size="xs"
-                                  disabled={isBusy}
-                                  onClick={() => setConfirmDeleteId(combo.id)}
-                                  aria-label={isId ? "Hapus combo" : "Delete combo"}
-                                  title={isId ? "Hapus combo" : "Delete combo"}
-                                >
-                                  <Trash2 className="h-3 w-3" />
-                                </Button>
-                              </>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Compact Steps Chain */}
-                        <div className="flex flex-wrap items-center gap-1">
-                          {steps.map((step, idx) => {
-                            const isRef = step.kind === "combo-ref";
-                            const ident = isRef ? (step.comboName ?? "") : (step.model ?? "");
-                            const isPinned = Boolean(step.connectionId?.trim());
-                            const accountLabel = isRef
-                              ? null
-                              : formatStepAccountLabel(step.connectionId, connectionsById, isId);
-
-                            return (
-                              <div
-                                key={`${step.kind}-${ident}-${step.connectionId ?? "dynamic"}`}
-                                className="inline-flex max-w-full items-center gap-1 rounded border border-[var(--border-subtle)] bg-[var(--bg-canvas)] px-2 py-0.5 text-[11px]"
-                              >
-                                <span className="font-mono text-[10px] text-[var(--text-muted)]">
-                                  #{idx + 1}
-                                </span>
-                                {isRef ? (
-                                  <Badge variant="default" className="px-1 py-0 text-[9px]">
-                                    ref
-                                  </Badge>
-                                ) : null}
-                                <span className="truncate font-mono font-medium text-[var(--text-primary)]">
-                                  {ident}
-                                </span>
-                                {accountLabel ? (
-                                  <span
-                                    className={`inline-flex shrink-0 items-center gap-0.5 rounded px-1 py-0.25 text-[10px] ${
-                                      isPinned
-                                        ? "bg-[var(--bg-surface-raised)] text-[var(--accent-text)]"
-                                        : "bg-[var(--bg-surface)] text-[var(--text-muted)]"
-                                    }`}
-                                  >
-                                    {isPinned ? (
-                                      <KeyRound className="h-2.5 w-2.5" aria-hidden="true" />
-                                    ) : (
-                                      <Sparkles className="h-2.5 w-2.5" aria-hidden="true" />
-                                    )}
-                                    <span>{isPinned ? accountLabel : "Dynamic"}</span>
-                                  </span>
-                                ) : null}
-                                {step.weight && step.weight > 0 ? (
-                                  <span className="font-mono text-[10px] font-semibold text-[var(--accent-text)]">
-                                    {step.weight}%
-                                  </span>
-                                ) : null}
-                              </div>
-                            );
-                          })}
-                        </div>
-
-                        {/* Inline Live Test Result */}
-                        {testRes ? (
-                          <div className="flex flex-wrap items-center gap-2 border-t border-[var(--border-subtle)] pt-1.5 text-xs">
-                            {testRes.status === "ok" || testRes.status === "slow" ? (
-                              <Badge
-                                variant={testRes.status === "ok" ? "success" : "warning"}
-                                className="gap-1"
-                              >
-                                <CheckCircle2 className="h-3 w-3" />
-                                <span>
-                                  {testRes.status.toUpperCase()}
-                                  {typeof testRes.latencyMs === "number"
-                                    ? ` · ${testRes.latencyMs}ms`
-                                    : ""}
-                                </span>
-                              </Badge>
-                            ) : (
-                              <Badge variant="destructive" className="gap-1">
-                                <XCircle className="h-3 w-3" />
-                                <span>ERROR</span>
-                              </Badge>
-                            )}
-                            {testRes.resolvedBy ? (
-                              <span className="font-mono text-[11px] text-[var(--text-secondary)]">
-                                {testRes.resolvedBy}
-                              </span>
-                            ) : null}
-                            {testRes.error ? (
-                              <span className="font-mono text-[11px] text-[var(--status-error)]">
-                                {testRes.error}
-                              </span>
-                            ) : null}
-                          </div>
-                        ) : null}
-                      </div>
-                    </Card>
-                  );
-                })}
+                {filteredCombos.map((combo) => (
+                  <ComboCard
+                    key={combo.id}
+                    combo={combo}
+                    connectionsById={connectionsById}
+                    testResult={testResults[combo.id]}
+                    isTesting={testingIds.has(combo.id)}
+                    isBusy={busyComboId === combo.id}
+                    isCopied={copiedName === combo.name}
+                    isConfirmingDelete={confirmDeleteId === combo.id}
+                    isCurrentlyEditing={formMode === "edit" && editingCombo?.id === combo.id}
+                    isId={isId}
+                    onCopyName={handleCopyName}
+                    onOpenStrategyGuide={openStrategyGuide}
+                    onTestCombo={handleTestCombo}
+                    onEditCombo={handleEditCombo}
+                    onDuplicateCombo={handleDuplicateCombo}
+                    onToggleEnabled={handleToggleEnabled}
+                    onRequestDelete={handleRequestDelete}
+                    onCancelDelete={handleCancelDelete}
+                    onConfirmDelete={handleDelete}
+                  />
+                ))}
               </div>
             )}
           </div>
         </div>
       </div>
 
-      <StrategyGuideModal
-        open={guideOpen}
-        selectedStrategy={guideStrategy}
-        onSelectStrategy={(chosen) => setStrategyOverride(chosen)}
-        onClose={() => setGuideOpen(false)}
-        isId={isId}
-      />
+      {guideOpen ? (
+        <Suspense fallback={null}>
+          <StrategyGuideModal
+            open={guideOpen}
+            selectedStrategy={guideStrategy}
+            onSelectStrategy={(chosen) => setStrategyOverride(chosen)}
+            onClose={() => setGuideOpen(false)}
+            isId={isId}
+          />
+        </Suspense>
+      ) : null}
     </div>
   );
 }

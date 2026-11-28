@@ -87,4 +87,35 @@ describe("features/usage/streamCache", () => {
     expect(next.logs.map((l) => l.id)).toEqual([4, 1]);
     expect(next.total).toBe(2);
   });
+
+  test("filters incoming SSE logs by case-insensitive substring query q", () => {
+    const initial: UsageLogsResponse = {
+      logs: [makeLog({ id: 1, model: "claude-sonnet-4", provider_id: "anthropic" })],
+      total: 1,
+      limit: 50,
+      offset: 0,
+    };
+
+    const unmatched = makeLog({
+      id: 2,
+      model: "gpt-4o",
+      provider_id: "openai",
+      request_id: "req_other",
+      error_summary: "",
+    });
+    const matchedByError = makeLog({
+      id: 3,
+      model: "gpt-4o",
+      provider_id: "openai",
+      error_summary: "Upstream Claude fallback timeout",
+    });
+
+    expect(prependUsageLogToResponse(initial, unmatched, { range: "24h", q: "CLAUDE" })).toBe(
+      initial,
+    );
+
+    const next = prependUsageLogToResponse(initial, matchedByError, { range: "24h", q: "CLAUDE" });
+    expect(next.logs.map((l) => l.id)).toEqual([3, 1]);
+    expect(next.total).toBe(2);
+  });
 });

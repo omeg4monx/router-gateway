@@ -203,3 +203,36 @@ func TestCodeBuddyQuotaFetcherRefillAndBonusPacks(t *testing.T) {
 		t.Fatalf("bucket[1] = %+v, want Bonus Pack 1 25%%/75%%", res.Buckets[1])
 	}
 }
+
+func TestCodeBuddyQuotaExcludesExpiredBonusAndZeroCapacityIsExhausted(t *testing.T) {
+	now := time.Now().UTC().Truncate(time.Second)
+
+	res := mapCodeBuddyQuota([]codebuddyQuotaAccount{
+		{
+			PackageName:              "Zero Capacity Refill",
+			CycleStartTime:           now.Add(-24 * time.Hour).UnixMilli(),
+			CycleEndTime:             now.Add(29 * 24 * time.Hour).UnixMilli(),
+			DeductionEndTime:         now.Add(365 * 24 * time.Hour).UnixMilli(),
+			CycleCapacityUsedPrecise: "0",
+			CycleCapacitySizePrecise: "0",
+		},
+		{
+			PackageName:         "Expired Promo",
+			CycleStartTime:      now.Add(-60 * 24 * time.Hour).UnixMilli(),
+			CycleEndTime:        now.Add(-30 * 24 * time.Hour).UnixMilli(),
+			DeductionEndTime:    now.Add(-30 * 24 * time.Hour).UnixMilli(),
+			CapacityUsedPrecise: "0",
+			CapacitySizePrecise: "500",
+		},
+	})
+
+	if len(res.Buckets) != 1 {
+		t.Fatalf("expected expired bonus pack to be excluded (1 bucket), got %d: %+v", len(res.Buckets), res.Buckets)
+	}
+	if res.Buckets[0].RemainingPct != 0 || res.Buckets[0].UsedPct != 100 || !res.Buckets[0].Exhausted {
+		t.Fatalf("zero-capacity bucket should be 100%% used / 0%% remaining / exhausted, got %+v", res.Buckets[0])
+	}
+	if res.Status != "exhausted" {
+		t.Fatalf("status = %q, want exhausted", res.Status)
+	}
+}

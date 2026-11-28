@@ -30,6 +30,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/sha
 import { EmberRule } from "@/shared/ui/EmberRule";
 import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
+import { Skeleton } from "@/shared/ui/skeleton";
 import {
   useChangePasswordMutation,
   usePatchSettingsMutation,
@@ -948,8 +949,15 @@ export function SettingsConsole() {
             </Alert>
           </CardContent>
         ) : historyQuery.isPending ? (
-          <CardContent className="text-sm text-[var(--text-muted)]">
-            Loading setting revision history...
+          <CardContent
+            className="space-y-2.5"
+            role="status"
+            aria-busy="true"
+            aria-label="Loading setting revision history"
+          >
+            <Skeleton className="h-14 w-full rounded-lg" />
+            <Skeleton className="h-14 w-full rounded-lg" />
+            <Skeleton className="h-14 w-full rounded-lg" />
           </CardContent>
         ) : historyItems.length === 0 ? (
           <CardContent className="py-10 text-center">

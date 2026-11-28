@@ -115,7 +115,33 @@ export function AddCustomModelModal({
     };
   }, [open, onClose, connections, enabledConnections.length]);
 
-  if (!open) {
+  const [rendered, setRendered] = useState(open);
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    if (open) {
+      setRendered(true);
+      let frame2 = 0;
+      const frame1 = window.requestAnimationFrame(() => {
+        frame2 = window.requestAnimationFrame(() => {
+          setVisible(true);
+        });
+      });
+      return () => {
+        window.cancelAnimationFrame(frame1);
+        if (frame2) {
+          window.cancelAnimationFrame(frame2);
+        }
+      };
+    }
+    setVisible(false);
+    const timer = window.setTimeout(() => {
+      setRendered(false);
+    }, 200);
+    return () => window.clearTimeout(timer);
+  }, [open]);
+
+  if (!rendered) {
     return null;
   }
 
@@ -217,13 +243,19 @@ export function AddCustomModelModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center p-0 sm:items-center sm:p-6">
+    <div
+      data-state={visible ? "open" : "closed"}
+      className={cn(
+        "provider-modal-root fixed inset-0 z-50 flex items-end justify-center p-0 sm:items-center sm:p-6",
+        !visible && "pointer-events-none",
+      )}
+    >
       <button
         type="button"
         tabIndex={-1}
         aria-label="Close modal backdrop"
         onClick={onClose}
-        className="fixed inset-0 bg-black/55"
+        className="provider-modal-backdrop fixed inset-0 bg-black/55"
       />
       <div
         role="dialog"
@@ -231,8 +263,12 @@ export function AddCustomModelModal({
         aria-label={
           isId ? `Tambah Model Manual — ${providerName}` : `Add Custom Model — ${providerName}`
         }
-        className="relative z-10 flex max-h-[90dvh] w-full max-w-lg flex-col overflow-hidden rounded-t-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-2xl sm:rounded-2xl"
+        className="provider-modal-panel relative z-10 flex max-h-[90dvh] w-full max-w-lg flex-col overflow-hidden rounded-t-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-2xl sm:rounded-2xl"
       >
+        <span
+          aria-hidden="true"
+          className="provider-modal-accent pointer-events-none absolute inset-x-0 top-0 z-20 h-[2px]"
+        />
         <div className="flex shrink-0 items-start justify-between gap-3 border-b border-[var(--color-border-subtle)] px-5 py-4">
           <div className="flex min-w-0 items-center gap-3">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-2)] text-[var(--color-primary)]">

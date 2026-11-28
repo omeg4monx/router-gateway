@@ -1,6 +1,18 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { AlertTriangle, CircleHelp, Play, Plus, RefreshCw, Sliders, Trash2, X } from "lucide-react";
-import { useCallback, useMemo, useState } from "react";
+import {
+  AlertTriangle,
+  CircleHelp,
+  Code2,
+  Pencil,
+  Play,
+  Plus,
+  RefreshCw,
+  Save,
+  Sliders,
+  Trash2,
+  X,
+} from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useModelCatalog } from "@/features/models/hooks";
 import { cn } from "@/shared/lib/utils";
@@ -11,11 +23,11 @@ import { Button } from "@/shared/ui/button";
 import { Card } from "@/shared/ui/card";
 import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
-import { BUILTIN_PROMPT_TEMPLATES } from "./builtinPromptTemplates";
 import {
   useCreateModelOverrideMutation,
   useDeleteModelOverrideMutation,
   useModelOverrides,
+  usePreviewModelEditorMutation,
   useRunQuickPromptTestMutation,
   useUpdateModelOverrideMutation,
 } from "./hooks";
@@ -31,14 +43,29 @@ import {
   type QuickTestPresetId,
 } from "./parameterGuide";
 import {
+  buildOverridePatchPayload,
   type CreateModelOverrideFormValues,
   createModelOverrideSchema,
+  type ModelOverride,
+  overrideToFormValues,
   parseExtraParamsJson,
   parseStripParamsList,
 } from "./schemas";
 import { buildTargetModelOptions, TargetModelCombobox } from "./TargetModelCombobox";
 
 type MobileTab = "override" | "rules" | "test";
+type RightOutputMode = "test" | "preview";
+
+const EMPTY_FORM_VALUES: CreateModelOverrideFormValues = {
+  name: "",
+  target_model: "",
+  system_prompt: "",
+  system_prompt_position: "suffix",
+  temperature: "",
+  max_tokens: "",
+  extra_params_json: "{}",
+  strip_params_csv: "",
+};
 
 interface FieldLabelProps {
   htmlFor: string;
@@ -78,6 +105,7 @@ export function ModelEditorConsole() {
   const updateOverride = useUpdateModelOverrideMutation();
   const deleteOverride = useDeleteModelOverrideMutation();
   const quickTestMutation = useRunQuickPromptTestMutation();
+  const previewMutation = usePreviewModelEditorMutation();
 
   const targetModelOptions = useMemo(
     () => buildTargetModelOptions(modelCatalogQuery.data ?? []),
@@ -89,11 +117,25 @@ export function ModelEditorConsole() {
   const [helpTopic, setHelpTopic] = useState<ParameterGuideId>("temperature");
   const [dismissedError, setDismissedError] = useState<string | null>(null);
 
+  const [editingOverride, setEditingOverride] = useState<ModelOverride | null>(null);
+  const [pendingToggleId, setPendingToggleId] = useState<string | null>(null);
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+
   const [activePresetId, setActivePresetId] = useState<QuickTestPresetId>(QUICK_TEST_PRESETS[0].id);
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>("custom");
   const [customTestModel, setCustomTestModel] = useState("");
   const [testPrompt, setTestPrompt] = useState(QUICK_TEST_PRESETS[0].prompt[locale]);
+  const [isPromptCustomized, setIsPromptCustomized] = useState(false);
   const [testValidationError, setTestValidationError] = useState<string | null>(null);
+  const [outputMode, setOutputMode] = useState<RightOutputMode>("test");
+
+  useEffect(() => {
+    if (isPromptCustomized) return;
+    const preset =
+      QUICK_TEST_PRESETS.find((item) => item.id === activePresetId) ?? QUICK_TEST_PRESETS[0];
+    setTestPrompt(preset.prompt[locale]);
+  }, [locale, activePresetId, isPromptCustomized]);
 
   const openHelp = useCallback((topic: ParameterGuideId) => {
     setHelpTopic(topic);
@@ -106,22 +148,43 @@ export function ModelEditorConsole() {
 
   const overrideForm = useForm<CreateModelOverrideFormValues>({
     resolver: zodResolver(createModelOverrideSchema),
-    defaultValues: {
-      name: "",
-      target_model: "",
-      system_prompt: "",
-      system_prompt_position: "suffix",
-      temperature: "",
-      max_tokens: "",
-      extra_params_json: "{}",
-      strip_params_csv: "",
-    },
+    defaultValues: EMPTY_FORM_VALUES,
   });
 
-  const handleCreateOverride = overrideForm.handleSubmit((values) => {
+  const resetFormToCreate = useCallback(() => {
+    setEditingOverride(null);
+    setSelectedTemplateId("custom");
+    overrideForm.reset(EMPTY_FORM_VALUES);
+  }, [overrideForm]);
+
+  const handleStartEdit = (override: ModelOverride) => {
+    setEditingOverride(override);
+    setSelectedTemplateId("custom");
+    setConfirmDeleteId(null);
+    setDismissedError(null);
+    overrideForm.reset(overrideToFormValues(override));
+    setMobileTab("override");
+  };
+
+  const handleSubmitOverride = overrideForm.handleSubmit((values) => {
+    setDismissedError(null);
+
+    if (editingOverride) {
+      const patch = buildOverridePatchPayload(values, editingOverride);
+      if (!patch.ok) return;
+      updateOverride.mutate(
+        { id: editingOverride.id, body: patch.value },
+        {
+          onSuccess: () => {
+            resetFormToCreate();
+          },
+        },
+      );
+      return;
+    }
+
     const extra = parseExtraParamsJson(values.extra_params_json ?? "");
     if (!extra.ok) return;
-    setDismissedError(null);
     const trimmedPrompt = values.system_prompt?.trim() || undefined;
     const isDual = values.system_prompt_position === "dual" && Boolean(trimmedPrompt);
     const extraParams = isDual ? { ...extra.value, _prompt_mode: "dual" } : extra.value;
@@ -142,8 +205,7 @@ export function ModelEditorConsole() {
       },
       {
         onSuccess: () => {
-          overrideForm.reset();
-          setSelectedTemplateId("custom");
+          resetFormToCreate();
         },
       },
     );
@@ -163,6 +225,7 @@ export function ModelEditorConsole() {
     setActivePresetId(presetId);
     const preset = QUICK_TEST_PRESETS.find((item) => item.id === presetId) ?? QUICK_TEST_PRESETS[0];
     setTestPrompt(preset.prompt[locale]);
+    setIsPromptCustomized(false);
     setTestValidationError(null);
   };
 
@@ -183,12 +246,60 @@ export function ModelEditorConsole() {
     const temperature = tempRaw && Number.isFinite(Number(tempRaw)) ? Number(tempRaw) : undefined;
     const max_tokens = maxRaw && Number.isFinite(Number(maxRaw)) ? Number(maxRaw) : undefined;
 
+    setOutputMode("test");
     quickTestMutation.mutate({
       model,
       prompt,
       system_prompt: systemPrompt,
       temperature,
       max_tokens,
+    });
+  };
+
+  const handlePreviewPayload = () => {
+    setTestValidationError(null);
+    setDismissedError(null);
+    const model = (customTestModel || overrideForm.getValues("name") || targetModelValue).trim();
+    if (!model) {
+      setTestValidationError(copy.quickTestSelectModelError);
+      return;
+    }
+    const prompt = testPrompt.trim() || "Hello";
+    setOutputMode("preview");
+    previewMutation.mutate({
+      protocol: "openai-chat",
+      model,
+      body: {
+        model,
+        messages: [{ role: "user", content: prompt }],
+      },
+    });
+  };
+
+  const handleToggleEnabled = (override: ModelOverride) => {
+    setPendingToggleId(override.id);
+    updateOverride.mutate(
+      { id: override.id, body: { enabled: !override.enabled } },
+      {
+        onSettled: () => {
+          setPendingToggleId((prev) => (prev === override.id ? null : prev));
+        },
+      },
+    );
+  };
+
+  const handleConfirmDelete = (override: ModelOverride) => {
+    setPendingDeleteId(override.id);
+    setConfirmDeleteId(null);
+    deleteOverride.mutate(override.id, {
+      onSuccess: () => {
+        if (editingOverride?.id === override.id) {
+          resetFormToCreate();
+        }
+      },
+      onSettled: () => {
+        setPendingDeleteId((prev) => (prev === override.id ? null : prev));
+      },
     });
   };
 
@@ -199,6 +310,7 @@ export function ModelEditorConsole() {
     updateOverride.error?.message ??
     deleteOverride.error?.message ??
     quickTestMutation.error?.message ??
+    previewMutation.error?.message ??
     testValidationError;
 
   const activeError = rawError && rawError !== dismissedError ? rawError : null;
@@ -212,9 +324,11 @@ export function ModelEditorConsole() {
     null;
 
   const overrides = overridesQuery.data?.overrides ?? [];
+  const isFormSubmitting =
+    createOverride.isPending || (editingOverride !== null && updateOverride.isPending);
 
   const testOutcome =
-    quickTestMutation.isError || quickTestMutation.data
+    outputMode === "test" && (quickTestMutation.isError || quickTestMutation.data)
       ? classifyPromptTestOutcome(
           {
             content: quickTestMutation.data?.content,
@@ -234,8 +348,10 @@ export function ModelEditorConsole() {
       "border-[var(--status-error-border)] bg-[var(--status-error-bg)] text-[var(--status-error)]",
   };
 
+  const systemPromptRegister = overrideForm.register("system_prompt");
+
   return (
-    <div className="flex h-[calc(100dvh-7.25rem)] flex-col gap-3 overflow-hidden">
+    <div className="flex min-h-[calc(100dvh-7.25rem)] flex-col gap-3 lg:h-[calc(100dvh-7.25rem)] lg:overflow-hidden">
       {/* Compact top toolbar */}
       <div className="flex shrink-0 items-center justify-between gap-2">
         <p className="min-w-0 truncate text-xs text-[var(--text-secondary)]">{copy.subtitle}</p>
@@ -323,31 +439,31 @@ export function ModelEditorConsole() {
       </div>
 
       {/* Main 1-screen split workspace */}
-      <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 overflow-hidden lg:grid-cols-2 lg:gap-4">
-        {/* Left column: New Model Override + Active Overrides */}
+      <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 lg:grid-cols-2 lg:gap-4 lg:overflow-hidden">
+        {/* Left column: Model Override form + Active Overrides */}
         <Card
           className={cn(
             "min-h-0 flex-col overflow-hidden",
             mobileTab === "test" ? "hidden lg:flex" : "flex",
           )}
         >
-          {/* New Model Override form */}
+          {/* Model Override form (bounded scroll on short viewports so Active Overrides stays visible) */}
           <div
             className={cn(
-              "shrink-0 flex-col p-3.5 sm:p-4",
+              "shrink-0 flex-col p-3.5 sm:p-4 lg:max-h-[66%] lg:overflow-y-auto",
               mobileTab === "rules" ? "hidden lg:flex" : "flex",
             )}
           >
             <div className="mb-2.5 flex items-center justify-between gap-2">
               <h2 className="text-sm font-semibold tracking-tight text-[var(--text-primary)]">
-                {copy.newOverrideTitle}
+                {editingOverride ? copy.editOverrideTitle : copy.newOverrideTitle}
               </h2>
               <Badge variant="outline" className="font-mono text-[10px]">
-                POST /overrides
+                {editingOverride ? "PATCH /overrides" : "POST /overrides"}
               </Badge>
             </div>
 
-            <form onSubmit={handleCreateOverride} className="space-y-2.5">
+            <form onSubmit={handleSubmitOverride} className="space-y-2.5">
               <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
                 <div className="space-y-1">
                   <FieldLabel
@@ -407,11 +523,15 @@ export function ModelEditorConsole() {
                       </span>
                     ) : null}
                   </div>
-                  <div className="inline-flex rounded border border-[var(--border-subtle)] bg-[var(--bg-surface-raised)] p-0.5 text-[10px]">
+                  <fieldset
+                    aria-label={copy.systemPromptLabel}
+                    className="inline-flex rounded border border-[var(--border-subtle)] bg-[var(--bg-surface-raised)] p-0.5 text-[10px]"
+                  >
                     {(["suffix", "dual", "prefix"] as const).map((pos) => (
                       <button
                         key={pos}
                         type="button"
+                        aria-pressed={promptPosition === pos}
                         onClick={() => overrideForm.setValue("system_prompt_position", pos)}
                         className={cn(
                           "cursor-pointer rounded px-1.5 py-0.5 font-mono font-medium transition-colors",
@@ -427,7 +547,7 @@ export function ModelEditorConsole() {
                             : copy.promptPrefixLabel}
                       </button>
                     ))}
-                  </div>
+                  </fieldset>
                 </div>
                 <div className="flex items-center justify-between gap-2 rounded border border-[var(--status-warn-border)] bg-[var(--status-warn-bg)] px-2 py-1 text-[10.5px] text-[var(--status-warn)]">
                   <div className="flex min-w-0 items-center gap-1.5">
@@ -444,7 +564,6 @@ export function ModelEditorConsole() {
                 </div>
                 <PromptTemplateCombobox
                   selectedId={selectedTemplateId}
-                  templates={BUILTIN_PROMPT_TEMPLATES}
                   locale={locale}
                   onSelectCustom={() => {
                     setSelectedTemplateId("custom");
@@ -463,7 +582,13 @@ export function ModelEditorConsole() {
                   rows={2}
                   placeholder={copy.systemPromptPlaceholder}
                   className="w-full resize-none rounded-md border border-[var(--border-strong)] bg-[var(--bg-input)] px-3 py-1.5 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:border-[var(--accent-primary)] focus:outline-none"
-                  {...overrideForm.register("system_prompt")}
+                  {...systemPromptRegister}
+                  onChange={(event) => {
+                    void systemPromptRegister.onChange(event);
+                    if (selectedTemplateId !== "custom") {
+                      setSelectedTemplateId("custom");
+                    }
+                  }}
                 />
               </div>
 
@@ -573,15 +698,39 @@ export function ModelEditorConsole() {
                 </p>
               ) : null}
 
-              <Button
-                type="submit"
-                size="sm"
-                className="w-full sm:w-auto"
-                disabled={createOverride.isPending}
-              >
-                <Plus className="h-3.5 w-3.5" aria-hidden="true" />
-                {createOverride.isPending ? copy.creatingButton : copy.createButton}
-              </Button>
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  type="submit"
+                  size="sm"
+                  className="w-full sm:w-auto"
+                  disabled={isFormSubmitting}
+                >
+                  {editingOverride ? (
+                    <Save className="h-3.5 w-3.5" aria-hidden="true" />
+                  ) : (
+                    <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+                  )}
+                  {editingOverride
+                    ? isFormSubmitting
+                      ? copy.savingButton
+                      : copy.saveButton
+                    : isFormSubmitting
+                      ? copy.creatingButton
+                      : copy.createButton}
+                </Button>
+                {editingOverride ? (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="w-full sm:w-auto"
+                    onClick={resetFormToCreate}
+                    disabled={isFormSubmitting}
+                  >
+                    {copy.cancelEditButton}
+                  </Button>
+                ) : null}
+              </div>
             </form>
           </div>
 
@@ -609,88 +758,131 @@ export function ModelEditorConsole() {
                   {copy.emptyOverrides}
                 </p>
               ) : (
-                overrides.map((override) => (
-                  <div
-                    key={override.id}
-                    className="flex items-center justify-between gap-2 rounded-md border border-[var(--border-subtle)] bg-[var(--bg-surface-raised)] px-3 py-2 text-xs"
-                  >
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        <span className="truncate font-medium text-[var(--text-primary)]">
-                          {override.name}
-                        </span>
-                        <Badge variant="outline" className="font-mono text-[10px]">
-                          {override.model_pattern}
-                        </Badge>
-                        {override.target_model ? (
-                          <Badge variant="secondary" className="font-mono text-[10px]">
-                            -&gt; {override.target_model}
-                          </Badge>
-                        ) : null}
-                        {override.extra_params?._prompt_mode === "dual" ? (
-                          <Badge variant="secondary" className="font-mono text-[10px]">
-                            dual
-                          </Badge>
+                overrides.map((override) => {
+                  const isEditingThis = editingOverride?.id === override.id;
+                  const isTogglingThis = pendingToggleId === override.id;
+                  const isDeletingThis = pendingDeleteId === override.id;
+                  const isConfirmingDelete = confirmDeleteId === override.id;
+                  return (
+                    <div
+                      key={override.id}
+                      className={cn(
+                        "flex items-center justify-between gap-2 rounded-md border px-3 py-2 text-xs transition-colors",
+                        isEditingThis
+                          ? "border-[var(--accent-primary)] bg-[var(--accent-primary)]/8"
+                          : "border-[var(--border-subtle)] bg-[var(--bg-surface-raised)]",
+                      )}
+                    >
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <span className="truncate font-medium text-[var(--text-primary)]">
+                            {override.name}
+                          </span>
+                          {override.model_pattern !== override.name ? (
+                            <Badge variant="outline" className="font-mono text-[10px]">
+                              {override.model_pattern}
+                            </Badge>
+                          ) : null}
+                          {override.target_model ? (
+                            <Badge variant="secondary" className="font-mono text-[10px]">
+                              -&gt; {override.target_model}
+                            </Badge>
+                          ) : null}
+                          {override.extra_params?._prompt_mode === "dual" ? (
+                            <Badge variant="secondary" className="font-mono text-[10px]">
+                              dual
+                            </Badge>
+                          ) : (
+                            <>
+                              {override.system_prompt_suffix ? (
+                                <Badge variant="secondary" className="font-mono text-[10px]">
+                                  append
+                                </Badge>
+                              ) : null}
+                              {override.system_prompt_prefix ? (
+                                <Badge variant="secondary" className="font-mono text-[10px]">
+                                  prepend
+                                </Badge>
+                              ) : null}
+                            </>
+                          )}
+                          {override.temperature !== undefined ? (
+                            <span className="font-mono text-[10px] text-[var(--text-muted)]">
+                              T={override.temperature}
+                            </span>
+                          ) : null}
+                          {override.max_tokens !== undefined ? (
+                            <span className="font-mono text-[10px] text-[var(--text-muted)]">
+                              max={override.max_tokens}
+                            </span>
+                          ) : null}
+                        </div>
+                      </div>
+                      <div className="flex shrink-0 items-center gap-1.5">
+                        <Button
+                          type="button"
+                          size="xs"
+                          variant={override.enabled ? "outline" : "secondary"}
+                          disabled={isTogglingThis || isDeletingThis}
+                          onClick={() => handleToggleEnabled(override)}
+                        >
+                          {override.enabled ? copy.disableLabel : copy.enableLabel}
+                        </Button>
+                        <Button
+                          type="button"
+                          size="icon-sm"
+                          variant={isEditingThis ? "default" : "outline"}
+                          disabled={isDeletingThis}
+                          aria-label={`${copy.editAriaLabel} ${override.name}`}
+                          onClick={() =>
+                            isEditingThis ? resetFormToCreate() : handleStartEdit(override)
+                          }
+                        >
+                          <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
+                        </Button>
+                        {isConfirmingDelete ? (
+                          <div className="flex items-center gap-1">
+                            <Button
+                              type="button"
+                              size="xs"
+                              variant="destructive"
+                              disabled={isDeletingThis}
+                              onClick={() => handleConfirmDelete(override)}
+                            >
+                              {copy.confirmDeleteLabel}
+                            </Button>
+                            <Button
+                              type="button"
+                              size="icon-sm"
+                              variant="ghost"
+                              aria-label={copy.cancelDeleteLabel}
+                              onClick={() => setConfirmDeleteId(null)}
+                            >
+                              <X className="h-3.5 w-3.5" aria-hidden="true" />
+                            </Button>
+                          </div>
                         ) : (
-                          <>
-                            {override.system_prompt_suffix ? (
-                              <Badge variant="secondary" className="font-mono text-[10px]">
-                                append
-                              </Badge>
-                            ) : null}
-                            {override.system_prompt_prefix ? (
-                              <Badge variant="secondary" className="font-mono text-[10px]">
-                                prepend
-                              </Badge>
-                            ) : null}
-                          </>
+                          <Button
+                            type="button"
+                            size="icon-sm"
+                            variant="outline"
+                            disabled={isDeletingThis}
+                            aria-label={`${copy.deleteAriaLabel} ${override.name}`}
+                            onClick={() => setConfirmDeleteId(override.id)}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                          </Button>
                         )}
-                        {override.temperature !== undefined ? (
-                          <span className="font-mono text-[10px] text-[var(--text-muted)]">
-                            T={override.temperature}
-                          </span>
-                        ) : null}
-                        {override.max_tokens !== undefined ? (
-                          <span className="font-mono text-[10px] text-[var(--text-muted)]">
-                            max={override.max_tokens}
-                          </span>
-                        ) : null}
                       </div>
                     </div>
-                    <div className="flex shrink-0 items-center gap-1.5">
-                      <Button
-                        type="button"
-                        size="xs"
-                        variant={override.enabled ? "outline" : "secondary"}
-                        disabled={updateOverride.isPending}
-                        onClick={() =>
-                          updateOverride.mutate({
-                            id: override.id,
-                            body: { enabled: !override.enabled },
-                          })
-                        }
-                      >
-                        {override.enabled ? copy.disableLabel : copy.enableLabel}
-                      </Button>
-                      <Button
-                        type="button"
-                        size="icon-sm"
-                        variant="outline"
-                        disabled={deleteOverride.isPending}
-                        aria-label={`${copy.deleteAriaLabel} ${override.name}`}
-                        onClick={() => deleteOverride.mutate(override.id)}
-                      >
-                        <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
-                      </Button>
-                    </div>
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
           </div>
         </Card>
 
-        {/* Right column: Quick Prompt Test (4 presets) */}
+        {/* Right column: Quick Prompt Test + Dry-Run Payload Preview */}
         <Card
           className={cn(
             "min-h-0 flex-col overflow-hidden",
@@ -707,8 +899,8 @@ export function ModelEditorConsole() {
           </div>
 
           <div className="flex min-h-0 flex-1 flex-col gap-2.5 overflow-hidden p-3.5 sm:p-4">
-            {/* Test model selector + Run button */}
-            <div className="flex shrink-0 items-end gap-2">
+            {/* Test model selector + Preview + Run buttons */}
+            <div className="flex shrink-0 flex-wrap items-end gap-2 sm:flex-nowrap">
               <div className="min-w-0 flex-1 space-y-1">
                 <Label htmlFor="me-test-model" className="text-xs">
                   {copy.quickTestModelLabel}
@@ -725,18 +917,35 @@ export function ModelEditorConsole() {
                   }}
                 />
               </div>
-              <Button
-                type="button"
-                size="sm"
-                className="h-9 shrink-0"
-                disabled={quickTestMutation.isPending || !testPrompt.trim()}
-                onClick={handleRunQuickTest}
-              >
-                <Play className="h-3.5 w-3.5" aria-hidden="true" />
-                {quickTestMutation.isPending
-                  ? copy.quickTestRunningButton
-                  : copy.quickTestRunButton}
-              </Button>
+              <div className="flex shrink-0 items-center gap-1.5">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="h-9 shrink-0"
+                  disabled={previewMutation.isPending}
+                  onClick={handlePreviewPayload}
+                >
+                  <Code2 className="h-3.5 w-3.5" aria-hidden="true" />
+                  <span className="hidden sm:inline">
+                    {previewMutation.isPending
+                      ? copy.quickTestPreviewingButton
+                      : copy.quickTestPreviewButton}
+                  </span>
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  className="h-9 shrink-0"
+                  disabled={quickTestMutation.isPending || !testPrompt.trim()}
+                  onClick={handleRunQuickTest}
+                >
+                  <Play className="h-3.5 w-3.5" aria-hidden="true" />
+                  {quickTestMutation.isPending
+                    ? copy.quickTestRunningButton
+                    : copy.quickTestRunButton}
+                </Button>
+              </div>
             </div>
 
             {/* 4 preset prompt buttons */}
@@ -770,17 +979,22 @@ export function ModelEditorConsole() {
                 id="me-test-prompt"
                 rows={3}
                 value={testPrompt}
-                onChange={(event) => setTestPrompt(event.target.value)}
+                onChange={(event) => {
+                  setTestPrompt(event.target.value);
+                  setIsPromptCustomized(true);
+                }}
                 className="w-full resize-none rounded-md border border-[var(--border-strong)] bg-[var(--bg-input)] p-2.5 text-xs text-[var(--text-primary)] focus:border-[var(--accent-primary)] focus:outline-none"
               />
             </div>
 
-            {/* Scrollable model response output */}
+            {/* Scrollable model response or dry-run preview output */}
             <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-md border border-[var(--border-subtle)] bg-[var(--bg-surface-raised)]">
               <div className="flex shrink-0 flex-wrap items-center justify-between gap-1.5 border-b border-[var(--border-subtle)] px-3 py-1.5">
                 <div className="flex items-center gap-2">
                   <span className="font-mono text-[11px] font-medium text-[var(--text-secondary)]">
-                    {copy.quickTestOutputLabel}
+                    {outputMode === "preview"
+                      ? copy.quickTestPreviewLabel
+                      : copy.quickTestOutputLabel}
                   </span>
                   {testOutcome && !quickTestMutation.isPending ? (
                     <span
@@ -793,7 +1007,16 @@ export function ModelEditorConsole() {
                     </span>
                   ) : null}
                 </div>
-                {quickTestMutation.data ? (
+                {outputMode === "preview" && previewMutation.data ? (
+                  <div className="flex items-center gap-1.5">
+                    <Badge variant="secondary" className="font-mono text-[10px]">
+                      {previewMutation.data.model}
+                    </Badge>
+                    <Badge variant="outline" className="font-mono text-[10px]">
+                      {previewMutation.data.applied_overrides.length} rules
+                    </Badge>
+                  </div>
+                ) : outputMode === "test" && quickTestMutation.data ? (
                   <div className="flex items-center gap-1.5">
                     <Badge variant="secondary" className="font-mono text-[10px]">
                       {quickTestMutation.data.model}
@@ -812,11 +1035,25 @@ export function ModelEditorConsole() {
               ) : null}
 
               <div className="min-h-0 flex-1 overflow-y-auto whitespace-pre-wrap p-3 text-xs leading-relaxed text-[var(--text-primary)]">
-                {quickTestMutation.isPending
-                  ? copy.quickTestRunningButton
-                  : quickTestMutation.isError
-                    ? quickTestMutation.error.message
-                    : quickTestMutation.data?.content || copy.quickTestPlaceholder}
+                {outputMode === "preview" ? (
+                  previewMutation.isPending ? (
+                    copy.quickTestPreviewingButton
+                  ) : previewMutation.isError ? (
+                    previewMutation.error.message
+                  ) : previewMutation.data ? (
+                    <pre className="font-mono text-[11px] leading-relaxed">
+                      {JSON.stringify(previewMutation.data, null, 2)}
+                    </pre>
+                  ) : (
+                    copy.quickTestPlaceholder
+                  )
+                ) : quickTestMutation.isPending ? (
+                  copy.quickTestRunningButton
+                ) : quickTestMutation.isError ? (
+                  quickTestMutation.error.message
+                ) : (
+                  quickTestMutation.data?.content || copy.quickTestPlaceholder
+                )}
               </div>
             </div>
 

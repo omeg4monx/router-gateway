@@ -8,6 +8,9 @@ export type ModelUsageBreakdown = components["schemas"]["ModelUsageBreakdown"];
 export type ProviderUsageBreakdown = components["schemas"]["ProviderUsageBreakdown"];
 export type UsageSeriesBucket = components["schemas"]["UsageSeriesBucket"];
 export type UsageSummaryResponse = components["schemas"]["UsageSummaryResponse"];
+export type ModelPricing = components["schemas"]["ModelPricing"];
+export type ListModelPricingResponse = components["schemas"]["ListModelPricingResponse"];
+export type UpsertModelPricingRequest = components["schemas"]["UpsertModelPricingRequest"];
 
 export const USAGE_RANGES = ["24h", "7d", "30d", "all"] as const;
 

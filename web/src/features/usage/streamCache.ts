@@ -1,6 +1,8 @@
-import { isUsageLogError, type UsageLog, type UsageLogsResponse } from "./schemas";
+import { isUsageLogError, type UsageLog, type UsageLogsResponse, type UsageRange } from "./schemas";
 
 export interface StreamLogsFilter {
+  range?: UsageRange;
+  q?: string;
   model?: string;
   provider?: string;
   key_id?: string;
@@ -15,6 +17,17 @@ function matchesLogFilter(log: UsageLog, filter?: StreamLogsFilter): boolean {
   }
   if (typeof filter.offset === "number" && filter.offset > 0) {
     return false;
+  }
+  const search = filter.q?.trim().toLowerCase();
+  if (search) {
+    const matchesSearch =
+      log.model.toLowerCase().includes(search) ||
+      log.provider_id.toLowerCase().includes(search) ||
+      log.request_id.toLowerCase().includes(search) ||
+      log.error_summary.toLowerCase().includes(search);
+    if (!matchesSearch) {
+      return false;
+    }
   }
   const model = filter.model?.trim();
   if (model && log.model !== model) {

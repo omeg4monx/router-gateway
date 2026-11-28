@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { AlertCircle, ArrowRight, Eye, EyeOff, Loader2, Lock } from "lucide-react";
+import { AlertCircle, ArrowRight, Eye, EyeOff, Lock } from "lucide-react";
 import { type KeyboardEvent, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useNavigate } from "react-router";
@@ -151,14 +151,11 @@ export function LoginForm() {
 
       <Button
         type="submit"
-        disabled={loginMutation.isPending}
+        loading={loginMutation.isPending}
         className="h-11 w-full rounded-md text-sm font-semibold"
       >
         {loginMutation.isPending ? (
-          <>
-            <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-            <span>{copy.submittingLabel}</span>
-          </>
+          <span>{copy.submittingLabel}</span>
         ) : (
           <>
             <span>{copy.submitLabel}</span>

@@ -76,17 +76,25 @@ type updateComboValues struct {
 }
 
 type repository struct {
-	db  *db.DB
-	now func() time.Time
+	db       *db.DB
+	now      func() time.Time
+	onChange func()
 }
 
-func newRepository(database *db.DB, clock func() time.Time) *repository {
+func newRepository(database *db.DB, clock func() time.Time, onChange func()) *repository {
 	if clock == nil {
 		clock = func() time.Time { return time.Now().UTC() }
 	}
 	return &repository{
-		db:  database,
-		now: clock,
+		db:       database,
+		now:      clock,
+		onChange: onChange,
+	}
+}
+
+func (r *repository) notifyChanged() {
+	if r != nil && r.onChange != nil {
+		r.onChange()
 	}
 }
 
@@ -232,7 +240,7 @@ func (r *repository) CreateCombo(ctx context.Context, p createComboParams) (Comb
 		return Combo{}, fmt.Errorf("combos: insert combo: %w", err)
 	}
 
-	return Combo{
+	created := Combo{
 		ID:          p.ID,
 		Name:        p.Name,
 		Description: p.Description,
@@ -243,7 +251,9 @@ func (r *repository) CreateCombo(ctx context.Context, p createComboParams) (Comb
 		Enabled:     p.Enabled,
 		CreatedAt:   now,
 		UpdatedAt:   now,
-	}, nil
+	}
+	r.notifyChanged()
+	return created, nil
 }
 
 func (r *repository) UpdateCombo(ctx context.Context, id string, fn func(cur Combo) (updateComboValues, error)) (Combo, error) {
@@ -338,6 +348,7 @@ func (r *repository) UpdateCombo(ctx context.Context, id string, fn func(cur Com
 	cur.Config = cloneConfig(next.Config)
 	cur.Enabled = next.Enabled
 	cur.UpdatedAt = now
+	r.notifyChanged()
 	return cur, nil
 }
 
@@ -357,6 +368,7 @@ func (r *repository) DeleteCombo(ctx context.Context, id string) (string, error)
 	if affected == 0 {
 		return "", ErrComboNotFound
 	}
+	r.notifyChanged()
 	return r.nowUTCString(), nil
 }
 
@@ -429,6 +441,7 @@ func (r *repository) UpsertAlias(ctx context.Context, alias, targetModel string)
 	if err := tx.Commit(); err != nil {
 		return ModelAlias{}, fmt.Errorf("combos: commit upsert alias tx: %w", err)
 	}
+	r.notifyChanged()
 	return out, nil
 }
 
@@ -448,6 +461,7 @@ func (r *repository) DeleteAlias(ctx context.Context, alias string) (string, err
 	if affected == 0 {
 		return "", ErrAliasNotFound
 	}
+	r.notifyChanged()
 	return r.nowUTCString(), nil
 }
 
@@ -518,6 +532,7 @@ func (r *repository) UpsertDisabledModel(ctx context.Context, model, reason stri
 	if err := tx.Commit(); err != nil {
 		return DisabledModel{}, fmt.Errorf("combos: commit upsert disabled_model tx: %w", err)
 	}
+	r.notifyChanged()
 	return out, nil
 }
 
@@ -537,6 +552,7 @@ func (r *repository) DeleteDisabledModel(ctx context.Context, model string) (str
 	if affected == 0 {
 		return "", ErrDisabledModelNotFound
 	}
+	r.notifyChanged()
 	return r.nowUTCString(), nil
 }
 
@@ -626,13 +642,15 @@ func (r *repository) UpsertProviderStrategy(ctx context.Context, providerID, str
 		return ProviderStrategyState{}, fmt.Errorf("combos: upsert provider_strategy %q: %w", providerID, err)
 	}
 
-	return ProviderStrategyState{
+	state := ProviderStrategyState{
 		ProviderID:      providerID,
 		Strategy:        strategy,
 		DefaultStrategy: DefaultProviderStrategy,
 		IsDefault:       false,
 		UpdatedAt:       now,
-	}, nil
+	}
+	r.notifyChanged()
+	return state, nil
 }
 
 func cloneStringSlice(items []string) []string {

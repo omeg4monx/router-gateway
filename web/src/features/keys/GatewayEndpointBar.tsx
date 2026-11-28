@@ -11,19 +11,29 @@ import {
   Network,
   Power,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router";
-import type { TunnelStatus } from "@/features/tunnel/schemas";
+import {
+  useStartTunnelMutation,
+  useStopTunnelMutation,
+  useTunnelStatus,
+} from "@/features/tunnel/hooks";
 import { cn } from "@/shared/lib/utils";
 import { Button } from "@/shared/ui/button";
 import {
   buildGatewayUrls,
+  copyTextToClipboard,
   type GatewayRouteId,
   generateKeySnippet,
   type KeySnippetFormat,
   type KeySnippetLang,
   normalizeOrigin,
 } from "./endpointUtils";
+
+export interface ResolvedActiveRoute {
+  origin: string;
+  label: string;
+}
 
 interface GatewayEndpointBarProps {
   isId: boolean;
@@ -32,10 +42,8 @@ interface GatewayEndpointBarProps {
   isDomainHost?: boolean;
   activeRoute: GatewayRouteId;
   onSelectRoute: (route: GatewayRouteId) => void;
-  tunnel: TunnelStatus | undefined;
-  tunnelPending: boolean;
-  onStartTunnel: (provider: "cloudflare" | "tailscale") => void;
-  onStopTunnel: () => void;
+  onResolvedRouteChange?: (target: ResolvedActiveRoute) => void;
+  onTunnelError?: (message: string) => void;
   defaultModel: string;
   sampleApiKey?: string;
 }
@@ -47,20 +55,26 @@ const SNIPPET_LANGS: ReadonlyArray<{ id: KeySnippetLang; label: string }> = [
   { id: "go", label: "Go" },
 ];
 
-export function GatewayEndpointBar({
+export const GatewayEndpointBar = memo(function GatewayEndpointBar({
   isId,
   localOrigin,
   domainOrigin,
   isDomainHost = false,
   activeRoute,
   onSelectRoute,
-  tunnel,
-  tunnelPending,
-  onStartTunnel,
-  onStopTunnel,
+  onResolvedRouteChange,
+  onTunnelError,
   defaultModel,
   sampleApiKey,
 }: GatewayEndpointBarProps) {
+  // Encapsulate 5s tunnel status polling inside this leaf section so parent KeysConsole
+  // and API key cards do not re-render on every poll tick.
+  const tunnelQuery = useTunnelStatus();
+  const startTunnelMutation = useStartTunnelMutation();
+  const stopTunnelMutation = useStopTunnelMutation();
+  const tunnel = tunnelQuery.data;
+  const tunnelPending = startTunnelMutation.isPending || stopTunnelMutation.isPending;
+
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [showSnippet, setShowSnippet] = useState(false);
   const [snippetFormat, setSnippetFormat] = useState<KeySnippetFormat>("openai");
@@ -76,19 +90,33 @@ export function GatewayEndpointBar({
   }, []);
 
   const copyValue = async (text: string, id: string) => {
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopiedId(id);
-      if (copyTimerRef.current !== null) {
-        window.clearTimeout(copyTimerRef.current);
-      }
-      copyTimerRef.current = window.setTimeout(() => {
-        copyTimerRef.current = null;
-        setCopiedId(null);
-      }, 2000);
-    } catch {
-      // Clipboard blocked; users can still select-all from the read-only input.
+    const ok = await copyTextToClipboard(text);
+    if (!ok) {
+      return;
     }
+    setCopiedId(id);
+    if (copyTimerRef.current !== null) {
+      window.clearTimeout(copyTimerRef.current);
+    }
+    copyTimerRef.current = window.setTimeout(() => {
+      copyTimerRef.current = null;
+      setCopiedId(null);
+    }, 2000);
+  };
+
+  const handleStartTunnel = (provider: "cloudflare" | "tailscale") => {
+    startTunnelMutation.mutate(
+      { provider },
+      {
+        onError: (err) => onTunnelError?.(err.message),
+      },
+    );
+  };
+
+  const handleStopTunnel = () => {
+    stopTunnelMutation.mutate(undefined, {
+      onError: (err) => onTunnelError?.(err.message),
+    });
   };
 
   const cfLive =
@@ -131,6 +159,23 @@ export function GatewayEndpointBar({
           : isId
             ? "Host Lokal"
             : "Local Host";
+
+  const effectiveRouteLabel = usingPrimaryFallback
+    ? cleanDomain
+      ? isId
+        ? "Host Server"
+        : "Server Host"
+      : isId
+        ? "Host Lokal"
+        : "Local Host"
+    : activeRouteLabel;
+
+  useEffect(() => {
+    onResolvedRouteChange?.({
+      origin: effectiveOrigin,
+      label: effectiveRouteLabel,
+    });
+  }, [effectiveOrigin, effectiveRouteLabel, onResolvedRouteChange]);
 
   const { openaiBaseUrl, claudeBaseUrl } = useMemo(
     () => buildGatewayUrls(effectiveOrigin),
@@ -317,7 +362,7 @@ export function GatewayEndpointBar({
                   size="xs"
                   variant="destructive"
                   disabled={tunnelPending}
-                  onClick={onStopTunnel}
+                  onClick={handleStopTunnel}
                 >
                   <Power className="h-3.5 w-3.5" aria-hidden="true" />
                   <span>{isId ? "Matikan" : "Stop"}</span>
@@ -328,7 +373,7 @@ export function GatewayEndpointBar({
                   size="xs"
                   variant="secondary"
                   disabled={tunnelPending}
-                  onClick={() => onStartTunnel(activeRoute)}
+                  onClick={() => handleStartTunnel(activeRoute)}
                 >
                   <Power className="h-3.5 w-3.5" aria-hidden="true" />
                   <span>
@@ -554,4 +599,4 @@ export function GatewayEndpointBar({
       </div>
     </section>
   );
-}
+});

@@ -2,8 +2,10 @@ import { describe, expect, test } from "bun:test";
 import {
   computeQuotaOverviewStats,
   filterProviderQuotas,
+  formatRelativeSyncTime,
   formatResetCountdown,
   getBucketProgressTone,
+  getPrimaryResetInfo,
   getQuotaStatusVariant,
   groupProviderQuotas,
   type ProviderConnectionQuota,
@@ -247,8 +249,8 @@ describe("features/quota/schemas", () => {
       notActivated: 1,
       error: 1,
     });
-    // conn-1 min remaining = 63, conn-2 = 15, conn-4 = 100 (conn-5 error has no buckets) -> avg = (63 + 15 + 100) / 3 = 59.3
-    expect(harborGroup?.avgRemainingPct).toBeCloseTo(59.3, 1);
+    // conn-1 min remaining = 63, conn-2 = 15 (conn-4 not_activated & conn-5 error excluded) -> avg = (63 + 15) / 2 = 39
+    expect(harborGroup?.avgRemainingPct).toBeCloseTo(39, 1);
 
     const customGroup = groups.find((group) => group.providerId === "my-harbor");
     expect(customGroup).toBeDefined();
@@ -291,5 +293,62 @@ describe("features/quota/schemas", () => {
     expect(next.quotas[1]?.buckets[0]?.remaining_pct).toBe(0);
     // Original object untouched
     expect(initial.quotas[1]?.status).toBe("low");
+
+    // Stale out-of-order patch must not overwrite newer cache entry
+    const staleConn2: ProviderConnectionQuota = {
+      ...conn2,
+      status: "ok",
+      fetched_at: "2026-11-27T01:02:00Z",
+    };
+    const afterStale = patchConnectionQuotaInResponse(next, staleConn2);
+    expect(afterStale).toBe(next);
+    expect(afterStale.quotas[1]?.status).toBe("exhausted");
+  });
+
+  test("resolves earliest reset schedule across multi-bucket accounts", () => {
+    const info = getPrimaryResetInfo([
+      {
+        id: "monthly",
+        label: "Monthly",
+        used_pct: 20,
+        remaining_pct: 80,
+        exhausted: false,
+        period_started_at: null,
+        period_ends_at: "2026-12-27T00:00:00Z",
+        reset_at: "2026-12-27T00:00:00Z",
+      },
+      {
+        id: "daily",
+        label: "Daily",
+        used_pct: 40,
+        remaining_pct: 60,
+        exhausted: false,
+        period_started_at: null,
+        period_ends_at: "2026-11-28T00:00:00Z",
+        reset_at: "2026-11-28T00:00:00Z",
+      },
+    ]);
+
+    expect(info.earliestIso).toBe("2026-11-28T00:00:00Z");
+    expect(info.distinctCount).toBe(2);
+    expect(info.schedules).toHaveLength(2);
+
+    expect(getPrimaryResetInfo([])).toEqual({
+      earliestIso: null,
+      distinctCount: 0,
+      schedules: [],
+    });
+  });
+
+  test("formats relative sync timestamps cleanly in English and Indonesian", () => {
+    const now = new Date("2026-11-28T12:00:00Z").getTime();
+
+    expect(formatRelativeSyncTime("2026-11-28T11:59:30Z", "en", now)).toBe("Just now");
+    expect(formatRelativeSyncTime("2026-11-28T11:59:30Z", "id", now)).toBe("Baru saja");
+    expect(formatRelativeSyncTime("2026-11-28T11:55:00Z", "en", now)).toBe("5m ago");
+    expect(formatRelativeSyncTime("2026-11-28T11:55:00Z", "id", now)).toBe("5m lalu");
+    expect(formatRelativeSyncTime("2026-11-28T09:00:00Z", "en", now)).toBe("3h ago");
+    expect(formatRelativeSyncTime("2026-11-28T09:00:00Z", "id", now)).toBe("3j lalu");
+    expect(formatRelativeSyncTime(null, "en", now)).toBeNull();
   });
 });

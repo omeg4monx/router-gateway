@@ -444,24 +444,34 @@ func (q *antigravityQuotaMonitor) checkDrained(
 	}
 
 	inflight := &agQuotaCacheEntry{done: make(chan struct{})}
+	done := inflight.done
 	q.cache[key] = inflight
 	q.mu.Unlock()
 
-	summary := fetchAntigravityQuotaSummary(ctx, client, baseURL, accessToken)
-	ttl := agQuotaCacheTTL
-	if summary == nil {
-		ttl = agQuotaFailBackoff
+	go func() {
+		var summary *agQuotaSummary
+		defer func() {
+			_ = recover()
+			ttl := agQuotaCacheTTL
+			if summary == nil {
+				ttl = agQuotaFailBackoff
+			}
+			q.mu.Lock()
+			inflight.summary = summary
+			inflight.expiresAt = time.Now().UTC().Add(ttl)
+			inflight.done = nil
+			close(done)
+			q.mu.Unlock()
+		}()
+		summary = fetchAntigravityQuotaSummary(context.WithoutCancel(ctx), client, baseURL, accessToken)
+	}()
+
+	select {
+	case <-done:
+		return evaluateAntigravityQuota(inflight.summary, model, time.Now().UTC())
+	case <-ctx.Done():
+		return false, 0
 	}
-
-	q.mu.Lock()
-	inflight.summary = summary
-	inflight.expiresAt = time.Now().UTC().Add(ttl)
-	done := inflight.done
-	inflight.done = nil
-	close(done)
-	q.mu.Unlock()
-
-	return evaluateAntigravityQuota(summary, model, time.Now().UTC())
 }
 
 func fetchAntigravityQuotaSummary(ctx context.Context, client *http.Client, baseURL, accessToken string) *agQuotaSummary {

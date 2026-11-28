@@ -5,6 +5,7 @@ import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import type { ComboStrategy } from "./schemas";
 import { COMBO_STRATEGY_OPTIONS, STRATEGY_CATEGORIES, type StrategyCategory } from "./strategies";
+import { STRATEGY_GUIDE_CONTENT } from "./strategyGuideContent";
 
 interface StrategyGuideModalProps {
   open: boolean;
@@ -55,18 +56,19 @@ export function StrategyGuideModal({
         return false;
       }
       if (!q) return true;
+      const guide = STRATEGY_GUIDE_CONTENT[item.value];
       const haystack = [
         item.value,
         item.labelEn,
         item.labelId,
         item.descEn,
         item.descId,
-        item.howItWorksEn,
-        item.howItWorksId,
-        item.bestForEn,
-        item.bestForId,
-        item.whenToUseEn,
-        item.whenToUseId,
+        guide.howItWorksEn,
+        guide.howItWorksId,
+        guide.bestForEn,
+        guide.bestForId,
+        guide.whenToUseEn,
+        guide.whenToUseId,
       ]
         .join(" ")
         .toLowerCase();
@@ -198,6 +200,7 @@ export function StrategyGuideModal({
             filteredStrategies.map((item) => {
               const isSelected = item.value === selectedStrategy;
               const categoryLabel = categoryLabels.get(item.category) ?? item.category;
+              const guide = STRATEGY_GUIDE_CONTENT[item.value];
 
               return (
                 <article
@@ -269,7 +272,7 @@ export function StrategyGuideModal({
                         <span>{isId ? "Cara Kerja" : "How It Works"}</span>
                       </div>
                       <p className="mt-1.5 text-xs leading-relaxed text-[var(--text-secondary)]">
-                        {isId ? item.howItWorksId : item.howItWorksEn}
+                        {isId ? guide.howItWorksId : guide.howItWorksEn}
                       </p>
                     </div>
 
@@ -282,7 +285,7 @@ export function StrategyGuideModal({
                         <span>{isId ? "Cocok Untuk" : "Best For"}</span>
                       </div>
                       <p className="mt-1.5 text-xs leading-relaxed text-[var(--text-secondary)]">
-                        {isId ? item.bestForId : item.bestForEn}
+                        {isId ? guide.bestForId : guide.bestForEn}
                       </p>
                     </div>
 
@@ -295,7 +298,7 @@ export function StrategyGuideModal({
                         <span>{isId ? "Kapan Digunakan" : "When To Use"}</span>
                       </div>
                       <p className="mt-1.5 text-xs leading-relaxed text-[var(--text-secondary)]">
-                        {isId ? item.whenToUseId : item.whenToUseEn}
+                        {isId ? guide.whenToUseId : guide.whenToUseEn}
                       </p>
                     </div>
                   </div>

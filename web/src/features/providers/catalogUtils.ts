@@ -101,16 +101,7 @@ export function canProbeProviderModels(
   return Boolean(entry.noAuth && entry.baseUrl.trim() !== "");
 }
 
-export function getProviderMonogram(name: string, id: string): string {
-  const source = (name || id || "PR").trim();
-  const words = source.split(/[\s\-_/]+/).filter(Boolean);
-  const first = words[0];
-  const second = words[1];
-  if (first && second) {
-    return `${first[0] ?? ""}${second[0] ?? ""}`.toUpperCase();
-  }
-  return source.slice(0, 2).toUpperCase();
-}
+export { getProviderMonogram } from "./ProviderLogo";
 
 function computeEntryStats(connections: ProviderConnectionSummary[]): ProviderEntryStats {
   let connected = 0;

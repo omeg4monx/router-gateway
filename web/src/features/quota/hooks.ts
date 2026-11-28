@@ -5,7 +5,7 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
-import { useEffect, useRef, useState } from "react";
+import { type RefObject, useEffect, useState } from "react";
 import { apiClient, extractErrorMessage } from "@/shared/api/client";
 import {
   type ProviderConnectionQuota,
@@ -14,6 +14,7 @@ import {
 } from "./schemas";
 
 const LIVE_POLL_INTERVAL_MS = 15_000;
+const LIVE_SSE_FALLBACK_POLL_INTERVAL_MS = 60_000;
 const PER_CONNECTION_REFRESH_COOLDOWN_MS = 2_500;
 const USAGE_EVENT_DEBOUNCE_MS = 450;
 
@@ -65,16 +66,27 @@ function upsertConnectionQuotaInCache(queryClient: QueryClient, updated: Provide
   );
 }
 
-export function useProviderQuotas(options?: { providerId?: string; liveEnabled?: boolean }) {
+export function useProviderQuotas(options?: {
+  providerId?: string;
+  liveEnabled?: boolean;
+  liveStatus?: QuotaLiveStatus;
+}) {
   const providerId = options?.providerId;
   const liveEnabled = options?.liveEnabled ?? true;
+  const liveStatus = options?.liveStatus ?? "idle";
+
+  const refetchInterval = !liveEnabled
+    ? false
+    : liveStatus === "live"
+      ? LIVE_SSE_FALLBACK_POLL_INTERVAL_MS
+      : LIVE_POLL_INTERVAL_MS;
 
   return useQuery<ProviderQuotasResponse, Error>({
     queryKey: quotaQueryKeys.list(providerId),
     queryFn: () => fetchProviderQuotas({ providerId }),
     staleTime: 10_000,
     placeholderData: keepPreviousData,
-    refetchInterval: liveEnabled ? LIVE_POLL_INTERVAL_MS : false,
+    refetchInterval,
     refetchIntervalInBackground: false,
     refetchOnWindowFocus: true,
   });
@@ -109,13 +121,10 @@ export function useRefreshConnectionQuotaMutation() {
   });
 }
 
-export function useQuotaLiveSync(enabled: boolean, trackedConnectionIds: readonly string[]) {
+export function useQuotaLiveSync(enabled: boolean, trackedIdsRef: RefObject<ReadonlySet<string>>) {
   const queryClient = useQueryClient();
   const [liveStatus, setLiveStatus] = useState<QuotaLiveStatus>("idle");
   const [syncingIds, setSyncingIds] = useState<ReadonlySet<string>>(() => new Set());
-
-  const trackedIdsRef = useRef<Set<string>>(new Set(trackedConnectionIds));
-  trackedIdsRef.current = new Set(trackedConnectionIds);
 
   useEffect(() => {
     if (!enabled || typeof EventSource === "undefined") {
@@ -279,7 +288,7 @@ export function useQuotaLiveSync(enabled: boolean, trackedConnectionIds: readonl
       setLiveStatus("idle");
       setSyncingIds(new Set());
     };
-  }, [enabled, queryClient]);
+  }, [enabled, queryClient, trackedIdsRef]);
 
   return { liveStatus, syncingIds };
 }

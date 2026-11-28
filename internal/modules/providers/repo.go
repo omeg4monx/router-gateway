@@ -117,11 +117,18 @@ type oauthSessionRecord struct {
 }
 
 type repository struct {
-	db *db.DB
+	db       *db.DB
+	onChange func()
 }
 
-func newRepository(database *db.DB) *repository {
-	return &repository{db: database}
+func newRepository(database *db.DB, onChange func()) *repository {
+	return &repository{db: database, onChange: onChange}
+}
+
+func (r *repository) notifyChanged() {
+	if r != nil && r.onChange != nil {
+		r.onChange()
+	}
 }
 
 type rowScanner interface {
@@ -300,6 +307,7 @@ func (r *repository) CreateNode(ctx context.Context, node ProviderNode) (Provide
 	node.Headers = cloneStringMap(node.Headers)
 	node.CreatedAt = now
 	node.UpdatedAt = now
+	r.notifyChanged()
 	return node, nil
 }
 
@@ -319,6 +327,7 @@ func (r *repository) DeleteNode(ctx context.Context, id string) (string, error) 
 	if affected == 0 {
 		return "", ErrNodeNotFound
 	}
+	r.notifyChanged()
 	return time.Now().UTC().Format(rfc3339NanoFixed), nil
 }
 
@@ -452,6 +461,7 @@ func (r *repository) CreateConnection(ctx context.Context, p createConnectionPar
 	if err := tx.Commit(); err != nil {
 		return ConnectionSummary{}, fmt.Errorf("providers: commit create connection tx: %w", err)
 	}
+	r.notifyChanged()
 	return summary, nil
 }
 
@@ -503,7 +513,7 @@ func insertConnectionTx(ctx context.Context, tx *sql.Tx, p createConnectionParam
 		return ConnectionSummary{}, fmt.Errorf("providers: insert provider_connection: %w", err)
 	}
 
-	return ConnectionSummary{
+	created := ConnectionSummary{
 		ID:             p.ID,
 		ProviderID:     p.ProviderID,
 		Name:           p.Name,
@@ -521,7 +531,8 @@ func insertConnectionTx(ctx context.Context, tx *sql.Tx, p createConnectionParam
 		LastTestError:  "",
 		CreatedAt:      now,
 		UpdatedAt:      now,
-	}, nil
+	}
+	return created, nil
 }
 
 func (r *repository) UpdateConnection(ctx context.Context, id string, fn func(cur connectionRecord) (updateConnectionValues, error)) (ConnectionSummary, error) {
@@ -544,6 +555,7 @@ func (r *repository) UpdateConnection(ctx context.Context, id string, fn func(cu
 	if err := tx.Commit(); err != nil {
 		return ConnectionSummary{}, fmt.Errorf("providers: commit update connection tx: %w", err)
 	}
+	r.notifyChanged()
 	return summary, nil
 }
 
@@ -653,6 +665,7 @@ func (r *repository) DeleteConnection(ctx context.Context, id string) (providerI
 	if err := tx.Commit(); err != nil {
 		return "", "", fmt.Errorf("providers: commit delete connection tx: %w", err)
 	}
+	r.notifyChanged()
 	return providerID, time.Now().UTC().Format(rfc3339NanoFixed), nil
 }
 
@@ -715,6 +728,7 @@ func (r *repository) UpdateOAuthCredentials(ctx context.Context, id, credsEnc st
 	if affected == 0 {
 		return "", contracts.ErrConnectionNotFound
 	}
+	r.notifyChanged()
 	return now, nil
 }
 
@@ -868,6 +882,7 @@ func (r *repository) CompleteOAuthExchange(
 	if err := tx.Commit(); err != nil {
 		return ConnectionSummary{}, "", fmt.Errorf("providers: commit oauth exchange tx: %w", err)
 	}
+	r.notifyChanged()
 	return summary, action, nil
 }
 

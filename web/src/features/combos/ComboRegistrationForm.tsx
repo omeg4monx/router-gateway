@@ -1,16 +1,11 @@
 import {
   AlertCircle,
-  ArrowDown,
-  ArrowUp,
   ChevronDown,
   ChevronRight,
   HelpCircle,
   KeyRound,
-  Layers,
   Plus,
   RotateCcw,
-  Scale,
-  Sparkles,
   Workflow,
   X,
 } from "lucide-react";
@@ -22,16 +17,16 @@ import { Button } from "@/shared/ui/button";
 import { Card } from "@/shared/ui/card";
 import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
+import { ComboStepList } from "./ComboStepList";
 import {
   buildProviderAccountGroups,
   formatAuthTypeBadge,
-  formatStepAccountLabel,
   getModelsForSelection,
   isDuplicateModelStep,
   qualifyProviderModel,
 } from "./comboHelpers";
 import type { Combo, ComboStep, ComboStrategy, CreateComboRequest } from "./schemas";
-import { MAX_MODEL_IDENTIFIER_RUNES, MAX_TARGETS_COUNT } from "./schemas";
+import { MAX_DESCRIPTION_RUNES, MAX_MODEL_IDENTIFIER_RUNES, MAX_TARGETS_COUNT } from "./schemas";
 import {
   AUTO_ROUTER_STRATEGIES,
   COMBO_STRATEGY_OPTIONS,
@@ -283,15 +278,18 @@ export function ComboRegistrationForm({
     }
 
     setFormError(null);
-    setSteps((prev) => [
-      ...prev,
-      {
-        kind: "model",
-        model: qualified,
-        ...(pinnedConnectionId ? { connectionId: pinnedConnectionId } : {}),
-        weight: strategyMeta.usesWeights ? Math.round(100 / (prev.length + 1)) : 0,
-      },
-    ]);
+    setSteps((prev) => {
+      const currentTotal = prev.reduce((sum, s) => sum + (s.weight ?? 0), 0);
+      return [
+        ...prev,
+        {
+          kind: "model",
+          model: qualified,
+          ...(pinnedConnectionId ? { connectionId: pinnedConnectionId } : {}),
+          weight: strategyMeta.usesWeights ? Math.max(0, 100 - currentTotal) : 0,
+        },
+      ];
+    });
     if (useCustom) {
       setCustomModelInput("");
     }
@@ -309,6 +307,14 @@ export function ComboRegistrationForm({
       );
       return;
     }
+    if (steps.length >= MAX_TARGETS_COUNT) {
+      setFormError(
+        isId
+          ? `Maksimal ${MAX_TARGETS_COUNT} model dalam 1 combo.`
+          : `Maximum ${MAX_TARGETS_COUNT} steps per combo.`,
+      );
+      return;
+    }
     if (steps.some((s) => s.kind === "combo-ref" && s.comboName === trimmed)) {
       setFormError(
         isId ? `Combo "${trimmed}" sudah ada di daftar.` : `Combo "${trimmed}" is already added.`,
@@ -316,18 +322,21 @@ export function ComboRegistrationForm({
       return;
     }
     setFormError(null);
-    setSteps((prev) => [
-      ...prev,
-      {
-        kind: "combo-ref",
-        comboName: trimmed,
-        weight: strategyMeta.usesWeights ? Math.round(100 / (prev.length + 1)) : 0,
-      },
-    ]);
+    setSteps((prev) => {
+      const currentTotal = prev.reduce((sum, s) => sum + (s.weight ?? 0), 0);
+      return [
+        ...prev,
+        {
+          kind: "combo-ref",
+          comboName: trimmed,
+          weight: strategyMeta.usesWeights ? Math.max(0, 100 - currentTotal) : 0,
+        },
+      ];
+    });
     setComboRefDraft("");
   };
 
-  const moveStep = (index: number, delta: -1 | 1) => {
+  const moveStep = useCallback((index: number, delta: -1 | 1) => {
     setSteps((prev) => {
       const nextIdx = index + delta;
       if (nextIdx < 0 || nextIdx >= prev.length) return prev;
@@ -339,37 +348,47 @@ export function ComboRegistrationForm({
       copy[nextIdx] = current;
       return copy;
     });
-  };
+  }, []);
 
-  const updateStep = (index: number, patch: Partial<ComboStep>) => {
+  const updateStep = useCallback((index: number, patch: Partial<ComboStep>) => {
     setSteps((prev) => prev.map((s, i) => (i === index ? { ...s, ...patch } : s)));
-  };
+  }, []);
 
-  const removeStep = (index: number) => {
+  const removeStep = useCallback((index: number) => {
     setSteps((prev) => prev.filter((_, i) => i !== index));
-  };
+  }, []);
 
-  const autoBalanceWeights = () => {
-    if (steps.length === 0) return;
-    const base = Math.floor(100 / steps.length);
-    const rem = 100 - base * steps.length;
-    setSteps((prev) =>
-      prev.map((s, i) => ({
+  const autoBalanceWeights = useCallback(() => {
+    setSteps((prev) => {
+      if (prev.length === 0) return prev;
+      const base = Math.floor(100 / prev.length);
+      const rem = 100 - base * prev.length;
+      return prev.map((s, i) => ({
         ...s,
         weight: base + (i < rem ? 1 : 0),
-      })),
-    );
-  };
+      }));
+    });
+  }, []);
 
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault();
     const cleanName = name.trim();
+    const cleanDesc = description.trim();
     if (
       !cleanName ||
       cleanName === "*" ||
+      /[\r\n\t]/.test(cleanName) ||
       Array.from(cleanName).length > MAX_MODEL_IDENTIFIER_RUNES
     ) {
       setFormError(isId ? "Nama combo wajib diisi dan valid." : "A valid combo name is required.");
+      return;
+    }
+    if (Array.from(cleanDesc).length > MAX_DESCRIPTION_RUNES) {
+      setFormError(
+        isId
+          ? `Deskripsi tidak boleh melebihi ${MAX_DESCRIPTION_RUNES} karakter.`
+          : `Description must not exceed ${MAX_DESCRIPTION_RUNES} characters.`,
+      );
       return;
     }
     if (steps.length === 0) {
@@ -706,7 +725,9 @@ export function ComboRegistrationForm({
                         }}
                         placeholder={
                           selectedProviderId
-                            ? `cth. gpt-4o atau ${selectedProviderId}/model-id`
+                            ? isId
+                              ? `cth. gpt-4o atau ${selectedProviderId}/model-id`
+                              : `e.g. gpt-4o or ${selectedProviderId}/model-id`
                             : "provider/model-id"
                         }
                         className="h-9 min-w-0 flex-1 font-mono text-xs"
@@ -723,7 +744,7 @@ export function ComboRegistrationForm({
                       className="h-9 shrink-0"
                     >
                       <Plus className="h-3.5 w-3.5" aria-hidden="true" />
-                      <span>{isId ? "Add Model" : "Add Model"}</span>
+                      <span>{isId ? "Tambah Model" : "Add Model"}</span>
                     </Button>
                   </div>
                 </div>
@@ -755,177 +776,23 @@ export function ComboRegistrationForm({
                   className="h-9 shrink-0"
                 >
                   <Plus className="h-3.5 w-3.5" aria-hidden="true" />
-                  <span>{isId ? "Add Model" : "Add Model"}</span>
+                  <span>{isId ? "Tambah Model" : "Add Model"}</span>
                 </Button>
               </div>
             ) : null}
 
             {/* Added Models Queue */}
-            <div className="space-y-2 border-t border-[var(--border-subtle)] pt-3">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-medium text-[var(--text-primary)]">
-                    {isId ? "Daftar Model Terpilih" : "Selected Models"}
-                  </span>
-                  <Badge variant="outline" className="text-[10px] tabular-nums">
-                    {steps.length}
-                  </Badge>
-                  {strategyMeta.usesWeights && steps.length > 0 ? (
-                    <Badge
-                      variant={totalWeight === 100 ? "success" : "warning"}
-                      className="text-[10px] tabular-nums"
-                    >
-                      {isId ? `Bobot: ${totalWeight}%` : `Weight: ${totalWeight}%`}
-                    </Badge>
-                  ) : null}
-                </div>
-
-                {strategyMeta.usesWeights && steps.length > 0 ? (
-                  <Button type="button" size="xs" variant="outline" onClick={autoBalanceWeights}>
-                    <Scale className="h-3 w-3" aria-hidden="true" />
-                    <span>{isId ? "Seimbangkan" : "Auto-Balance"}</span>
-                  </Button>
-                ) : null}
-              </div>
-
-              {steps.length === 0 ? (
-                <div className="rounded-md border border-dashed border-[var(--border-strong)] bg-[var(--bg-surface)]/50 px-3 py-5 text-center">
-                  <Layers className="mx-auto h-5 w-5 text-[var(--text-muted)]" aria-hidden="true" />
-                  <p className="mt-1.5 text-xs text-[var(--text-muted)]">
-                    {isId
-                      ? "Belum ada model ditambahkan. Pilih provider & model lalu klik Add Model."
-                      : "No models added yet. Pick a provider & model above and click Add Model."}
-                  </p>
-                </div>
-              ) : (
-                <ol className="space-y-1.5">
-                  {steps.map((step, idx) => {
-                    const isRef = step.kind === "combo-ref";
-                    const ident = isRef ? (step.comboName ?? "") : (step.model ?? "");
-                    const accountLabel = isRef
-                      ? null
-                      : formatStepAccountLabel(step.connectionId, connectionsById, isId);
-                    const isPinned = Boolean(step.connectionId?.trim());
-
-                    return (
-                      <li
-                        key={`${step.kind}-${ident}-${step.connectionId ?? "dynamic"}`}
-                        className="rounded-md border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-2.5"
-                      >
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="min-w-0 flex-1 space-y-1">
-                            <div className="flex flex-wrap items-center gap-1.5">
-                              <span className="font-mono text-[10px] font-semibold text-[var(--text-muted)]">
-                                #{idx + 1}
-                              </span>
-                              {isRef ? (
-                                <Badge variant="default" className="px-1.5 py-0 text-[9px]">
-                                  combo-ref
-                                </Badge>
-                              ) : null}
-                              <span className="truncate font-mono text-xs font-semibold text-[var(--text-primary)]">
-                                {ident}
-                              </span>
-                            </div>
-
-                            {accountLabel ? (
-                              <div className="flex items-center gap-1 text-[11px] text-[var(--text-secondary)]">
-                                {isPinned ? (
-                                  <KeyRound
-                                    className="h-3 w-3 shrink-0 text-[var(--accent-primary)]"
-                                    aria-hidden="true"
-                                  />
-                                ) : (
-                                  <Sparkles
-                                    className="h-3 w-3 shrink-0 text-[var(--status-ok)]"
-                                    aria-hidden="true"
-                                  />
-                                )}
-                                <span className="truncate">{accountLabel}</span>
-                              </div>
-                            ) : null}
-                          </div>
-
-                          <div className="flex shrink-0 items-center gap-1">
-                            {strategyMeta.usesWeights ? (
-                              <div className="mr-1 flex items-center gap-1">
-                                <Input
-                                  type="number"
-                                  min={0}
-                                  max={100}
-                                  value={step.weight ?? 0}
-                                  onChange={(e) =>
-                                    updateStep(idx, {
-                                      weight: Math.max(
-                                        0,
-                                        Math.min(100, Number(e.target.value) || 0),
-                                      ),
-                                    })
-                                  }
-                                  className="h-7 w-14 px-1.5 text-right font-mono text-xs"
-                                  aria-label={isId ? "Bobot persen" : "Weight percentage"}
-                                />
-                                <span className="text-[11px] text-[var(--text-muted)]">%</span>
-                              </div>
-                            ) : null}
-
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon-sm"
-                              disabled={idx === 0}
-                              onClick={() => moveStep(idx, -1)}
-                              aria-label={isId ? "Naikkan urutan" : "Move up"}
-                            >
-                              <ArrowUp className="h-3.5 w-3.5" />
-                            </Button>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon-sm"
-                              disabled={idx === steps.length - 1}
-                              onClick={() => moveStep(idx, 1)}
-                              aria-label={isId ? "Turunkan urutan" : "Move down"}
-                            >
-                              <ArrowDown className="h-3.5 w-3.5" />
-                            </Button>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon-sm"
-                              onClick={() => removeStep(idx)}
-                              aria-label={isId ? "Hapus langkah" : "Remove step"}
-                            >
-                              <X className="h-3.5 w-3.5 text-[var(--status-error)]" />
-                            </Button>
-                          </div>
-                        </div>
-
-                        {isRef ? (
-                          <label className="mt-2 flex cursor-pointer items-center gap-1.5 border-t border-[var(--border-subtle)] pt-2 text-[11px] text-[var(--text-secondary)]">
-                            <input
-                              type="checkbox"
-                              checked={Boolean(step.fallbackOnlyOnQuotaExhaustion)}
-                              onChange={(e) =>
-                                updateStep(idx, {
-                                  fallbackOnlyOnQuotaExhaustion: e.target.checked,
-                                })
-                              }
-                              className="h-3.5 w-3.5 accent-[var(--accent-primary)]"
-                            />
-                            <span>
-                              {isId
-                                ? "Failover hanya saat kuota habis"
-                                : "Fallback only on quota exhaustion"}
-                            </span>
-                          </label>
-                        ) : null}
-                      </li>
-                    );
-                  })}
-                </ol>
-              )}
-            </div>
+            <ComboStepList
+              steps={steps}
+              connectionsById={connectionsById}
+              usesWeights={Boolean(strategyMeta.usesWeights)}
+              totalWeight={totalWeight}
+              isId={isId}
+              onAutoBalanceWeights={autoBalanceWeights}
+              onMoveStep={moveStep}
+              onUpdateStep={updateStep}
+              onRemoveStep={removeStep}
+            />
           </div>
 
           {/* 3. Strategy Selection + Helper Modal Trigger */}
@@ -1018,7 +885,11 @@ export function ComboRegistrationForm({
                   type="text"
                   value={judgeModel}
                   onChange={(e) => setJudgeModel(e.target.value)}
-                  placeholder="e.g. openai/gpt-4o (default: model pertama)"
+                  placeholder={
+                    isId
+                      ? "cth. openai/gpt-4o (default: model pertama)"
+                      : "e.g. openai/gpt-4o (default: first model)"
+                  }
                   className="mt-1 h-8 font-mono text-xs"
                 />
               </div>
@@ -1081,11 +952,15 @@ export function ComboRegistrationForm({
               <div className="space-y-3 border-t border-[var(--border-subtle)] p-3.5">
                 {/* Nested Combo-Ref */}
                 <div>
-                  <Label className="text-[11px] text-[var(--text-secondary)]">
+                  <Label
+                    htmlFor="adv-combo-ref"
+                    className="text-[11px] text-[var(--text-secondary)]"
+                  >
                     {isId ? "Sisipkan Combo Lain (combo-ref)" : "Nest Another Combo (combo-ref)"}
                   </Label>
                   <div className="mt-1 flex gap-2">
                     <select
+                      id="adv-combo-ref"
                       value={comboRefDraft}
                       onChange={(e) => setComboRefDraft(e.target.value)}
                       className="h-8 flex-1 rounded-md border border-[var(--border-strong)] bg-[var(--bg-surface)] px-2 font-mono text-xs text-[var(--text-primary)]"

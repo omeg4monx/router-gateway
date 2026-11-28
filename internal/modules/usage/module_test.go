@@ -535,6 +535,12 @@ func TestUsageSummaryLogsAndRetentionPrune(t *testing.T) {
 		t.Fatalf("unexpected 24h breakdowns: models=%d providers=%d series=%d", len(s24.ByModel), len(s24.ByProvider), len(s24.Series))
 	}
 
+	// Summary 24h without series skips time-series scan and returns empty slice.
+	sum24NoSeries := decodeJSON[usage.SummaryResponse](t, h.doJSON(t, http.MethodGet, "/api/usage/summary?range=24h&include_series=false", nil, false))
+	if sum24NoSeries.Totals.Requests != 2 || len(sum24NoSeries.ByModel) != 2 || len(sum24NoSeries.Series) != 0 {
+		t.Fatalf("unexpected 24h summary with include_series=false: %+v", sum24NoSeries)
+	}
+
 	// Summary 7d
 	sum7d := decodeJSON[usage.SummaryResponse](t, h.doJSON(t, http.MethodGet, "/api/usage/summary?range=7d", nil, false))
 	if sum7d.Totals.Requests != 3 || math.Abs(sum7d.Totals.CostUSD-1.60) > 1e-6 {
@@ -546,7 +552,32 @@ func TestUsageSummaryLogsAndRetentionPrune(t *testing.T) {
 		t.Fatalf("invalid range = %d, want 400", rec.Code)
 	}
 
-	// Logs filtering: model, provider, status
+	// Logs filtering: range, q (case-insensitive substring), model, provider, status
+	byRange24h := decodeJSON[usage.LogsResponse](t, h.doJSON(t, http.MethodGet, "/api/usage/logs?range=24h", nil, false))
+	if byRange24h.Total != 2 || len(byRange24h.Logs) != 2 {
+		t.Fatalf("filtered logs by range=24h = total %d len %d, want 2", byRange24h.Total, len(byRange24h.Logs))
+	}
+	byRange7d := decodeJSON[usage.LogsResponse](t, h.doJSON(t, http.MethodGet, "/api/usage/logs?range=7d", nil, false))
+	if byRange7d.Total != 3 || len(byRange7d.Logs) != 3 {
+		t.Fatalf("filtered logs by range=7d = total %d len %d, want 3", byRange7d.Total, len(byRange7d.Logs))
+	}
+	if rec := h.doJSON(t, http.MethodGet, "/api/usage/logs?range=invalid", nil, false); rec.Code != http.StatusBadRequest {
+		t.Fatalf("invalid logs range = %d, want 400", rec.Code)
+	}
+
+	bySearchModel := decodeJSON[usage.LogsResponse](t, h.doJSON(t, http.MethodGet, "/api/usage/logs?q=CLAUDE", nil, false))
+	if bySearchModel.Total != 1 || bySearchModel.Logs[0].RequestID != "req_2" {
+		t.Fatalf("filtered logs by q=CLAUDE = %+v", bySearchModel)
+	}
+	bySearchErr := decodeJSON[usage.LogsResponse](t, h.doJSON(t, http.MethodGet, "/api/usage/logs?q=bad+gateway", nil, false))
+	if bySearchErr.Total != 1 || bySearchErr.Logs[0].RequestID != "req_2" {
+		t.Fatalf("filtered logs by q='bad gateway' = %+v", bySearchErr)
+	}
+	bySearchWildcard := decodeJSON[usage.LogsResponse](t, h.doJSON(t, http.MethodGet, "/api/usage/logs?q=%25", nil, false))
+	if bySearchWildcard.Total != 0 {
+		t.Fatalf("filtered logs by literal %% wildcard = %d, want 0", bySearchWildcard.Total)
+	}
+
 	byModel := decodeJSON[usage.LogsResponse](t, h.doJSON(t, http.MethodGet, "/api/usage/logs?model=gpt-4o&provider=openai", nil, false))
 	if byModel.Total != 2 || len(byModel.Logs) != 2 {
 		t.Fatalf("filtered logs by model/provider = total %d len %d, want 2", byModel.Total, len(byModel.Logs))
@@ -785,5 +816,69 @@ func TestUsageStreamForwardsInventoryInvalidations(t *testing.T) {
 	}
 	if !gotEvent || !gotTopic {
 		t.Fatalf("expected SSE invalidation event for providers.changed, gotEvent=%v gotTopic=%v", gotEvent, gotTopic)
+	}
+}
+
+func TestUsageStreamEmitsTrafficStartedAndFinishedImmediately(t *testing.T) {
+	t.Parallel()
+
+	h := newTestHarness(t, usage.Options{FlushInterval: 10 * time.Second}, true)
+	ts := httptest.NewServer(h.server.Handler())
+	t.Cleanup(ts.Close)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, ts.URL+"/api/usage/stream?live=1", nil)
+	if err != nil {
+		t.Fatalf("NewRequest: %v", err)
+	}
+	req.Header.Set("Authorization", "Bearer test-admin-token")
+
+	resp, err := ts.Client().Do(req)
+	if err != nil {
+		t.Fatalf("stream GET: %v", err)
+	}
+	t.Cleanup(func() { _ = resp.Body.Close() })
+
+	go func() {
+		time.Sleep(40 * time.Millisecond)
+		h.bus.Publish(usage.TopicTrafficStarted, map[string]any{
+			"request_id":  "req-live-1",
+			"provider_id": "openai",
+			"model":       "gpt-4o",
+			"stream":      true,
+		})
+		h.mod.Record(context.Background(), contracts.UsageRecord{
+			RequestID:    "req-live-1",
+			ProviderID:   "openai",
+			Model:        "gpt-4o",
+			StatusCode:   200,
+			InputTokens:  50,
+			OutputTokens: 20,
+			Latency:      120 * time.Millisecond,
+			Stream:       true,
+			Timestamp:    time.Now().UTC(),
+		})
+	}()
+
+	scanner := bufio.NewScanner(resp.Body)
+	sawStarted := false
+	sawFinished := false
+	for scanner.Scan() {
+		line := scanner.Text()
+		if line == "event: traffic_started" {
+			sawStarted = true
+		}
+		if line == "event: traffic_finished" {
+			sawFinished = true
+		}
+		if sawStarted && sawFinished {
+			cancel()
+			break
+		}
+	}
+	if !sawStarted || !sawFinished {
+		t.Fatalf("expected immediate traffic_started (%v) and traffic_finished (%v) before 10s batcher flush", sawStarted, sawFinished)
 	}
 }

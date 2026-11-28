@@ -14,10 +14,12 @@ import (
 )
 
 const (
-	interceptorPriority = 1
-	usageSubBufSize     = 256
-	lastUsedThrottle    = 5 * time.Second
-	limiterShardCount   = 32
+	interceptorPriority  = 1
+	usageSubBufSize      = 256
+	touchLastUsedBufSize = 256
+	touchWriteTimeout    = 5 * time.Second
+	lastUsedThrottle     = 5 * time.Second
+	limiterShardCount    = 32
 )
 
 type statusError struct {
@@ -283,15 +285,60 @@ func (m *Module) ensureSpendSeeded(ctx context.Context, keyID string) {
 	sh.mu.Unlock()
 }
 
+func (l *keyLimiter) lastTouchedAt(id string) (time.Time, bool) {
+	sh := l.shardFor(id)
+	sh.mu.RLock()
+	ts, ok := sh.lastTouched[id]
+	sh.mu.RUnlock()
+	return ts, ok
+}
+
+func (m *Module) overlayLastUsed(summary *APIKeySummary) {
+	if summary == nil || m.limiter == nil {
+		return
+	}
+	ts, ok := m.limiter.lastTouchedAt(summary.ID)
+	if !ok {
+		return
+	}
+	formatted := ts.UTC().Format(rfc3339NanoFixed)
+	if summary.LastUsedAt == nil || *summary.LastUsedAt < formatted {
+		summary.LastUsedAt = &formatted
+	}
+}
+
 func (m *Module) recordLastUsed(ctx context.Context, keyID string) {
 	now := time.Now().UTC()
 	if !m.limiter.shouldTouchLastUsed(keyID, now) {
 		return
 	}
+	at := now.Format(rfc3339NanoFixed)
+
+	m.lifeMu.RLock()
+	ch := m.touchCh
+	if ch != nil {
+		select {
+		case ch <- touchLastUsedEvent{keyID: keyID, at: at}:
+		default:
+		}
+		m.lifeMu.RUnlock()
+		return
+	}
+	m.lifeMu.RUnlock()
+
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	_ = m.repo.TouchLastUsed(ctx, keyID, now.Format(rfc3339NanoFixed))
+	_ = m.repo.TouchLastUsed(ctx, keyID, at)
+}
+
+func (m *Module) consumeLastUsed(baseCtx context.Context, ch <-chan touchLastUsedEvent) {
+	defer m.wg.Done()
+	for evt := range ch {
+		writeCtx, cancel := context.WithTimeout(baseCtx, touchWriteTimeout)
+		_ = m.repo.TouchLastUsed(writeCtx, evt.keyID, evt.at)
+		cancel()
+	}
 }
 
 func (m *Module) consumeUsage(ctx context.Context, ch <-chan eventbus.Event, unsub func()) {

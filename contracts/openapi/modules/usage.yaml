@@ -22,6 +22,13 @@ paths:
               - 30d
               - all
             default: 24h
+        - name: include_series
+          in: query
+          required: false
+          description: Whether to compute and return time-series buckets (defaults to true).
+          schema:
+            type: boolean
+            default: true
       responses:
         '200':
           description: Usage summary statistics for the requested time window.
@@ -54,6 +61,23 @@ paths:
       tags:
         - usage
       parameters:
+        - name: range
+          in: query
+          required: false
+          description: Optional time window filter (24h, 7d, 30d, or all).
+          schema:
+            type: string
+            enum:
+              - 24h
+              - 7d
+              - 30d
+              - all
+        - name: q
+          in: query
+          required: false
+          description: Case-insensitive substring search across model, provider, request ID, and error summary.
+          schema:
+            type: string
         - name: model
           in: query
           required: false

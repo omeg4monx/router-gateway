@@ -21,13 +21,25 @@ import {
   Terminal,
   X,
 } from "lucide-react";
-import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import {
+  lazy,
+  memo,
+  type ReactNode,
+  Suspense,
+  useCallback,
+  useDeferredValue,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { Link } from "react-router";
 import { cn } from "@/shared/lib/utils";
 import { useUIStore } from "@/shared/store/uiStore";
 import { Alert, AlertDescription, AlertTitle } from "@/shared/ui/alert";
 import { Badge } from "@/shared/ui/badge";
 import { Button } from "@/shared/ui/button";
+import { Skeleton } from "@/shared/ui/skeleton";
 import {
   buildProviderEntries,
   buildProviderSectionBuckets,
@@ -44,29 +56,40 @@ import {
   sortProviderEntries,
 } from "./catalogUtils";
 import {
+  type BatchTestConnectionResult,
+  useBatchTestProviderConnectionsMutation,
+  useBatchToggleProviderConnectionsMutation,
   useProviderConnections,
   useProvidersCatalog,
-  useTestProviderConnectionMutation,
-  useUpdateProviderConnectionMutation,
 } from "./hooks";
 import { ProviderLogo } from "./ProviderLogo";
-import { AddApiKeyModal, AddCustomNodeModal, OAuthWizardModal } from "./ProvidersModals";
-import type { ProviderConnectionSummary, ProviderProtocol } from "./schemas";
+import type {
+  CatalogAdapterDescriptor,
+  ProviderConnectionSummary,
+  ProviderNode,
+  ProviderProtocol,
+} from "./schemas";
+
+const AddApiKeyModal = lazy(() =>
+  import("./ProvidersModals").then((m) => ({ default: m.AddApiKeyModal })),
+);
+const AddCustomNodeModal = lazy(() =>
+  import("./ProvidersModals").then((m) => ({ default: m.AddCustomNodeModal })),
+);
+const OAuthWizardModal = lazy(() =>
+  import("./ProvidersModals").then((m) => ({ default: m.OAuthWizardModal })),
+);
+
+const EMPTY_ADAPTERS: CatalogAdapterDescriptor[] = [];
+const EMPTY_CUSTOM_NODES: ProviderNode[] = [];
+const EMPTY_CONNECTIONS: ProviderConnectionSummary[] = [];
 
 interface BatchTestSummary {
   label: string;
   total: number;
   passed: number;
   failed: number;
-  results: Array<{
-    connectionId: string;
-    connectionName: string;
-    providerId: string;
-    ok: boolean;
-    statusCode: number;
-    latencyMs: number;
-    error?: string;
-  }>;
+  results: BatchTestConnectionResult[];
 }
 
 const KPI_SKELETON_KEYS = ["kpi-1", "kpi-2", "kpi-3", "kpi-4"] as const;
@@ -83,37 +106,39 @@ const CARD_SKELETON_KEYS = [
 
 function ProvidersLoadingSkeleton() {
   return (
-    <div className="flex min-w-0 flex-col gap-5 animate-pulse">
+    <div
+      role="status"
+      aria-busy="true"
+      aria-label="Loading providers"
+      className="flex min-w-0 flex-col gap-5"
+    >
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex min-w-0 items-center gap-3">
-          <div className="h-9 w-9 shrink-0 rounded-xl bg-[var(--color-surface-2)]" />
+          <Skeleton className="h-9 w-9 shrink-0 rounded-xl" />
           <div className="min-w-0 flex-1 space-y-1.5">
-            <div className="h-5 w-32 max-w-full rounded bg-[var(--color-surface-2)]" />
-            <div className="h-3 w-64 max-w-full rounded bg-[var(--color-surface-2)]" />
+            <Skeleton className="h-5 w-32 max-w-full" />
+            <Skeleton className="h-3 w-64 max-w-full" />
           </div>
         </div>
         <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:items-center">
-          <div className="h-9 w-full rounded-lg bg-[var(--color-surface-2)] sm:h-8 sm:w-24" />
-          <div className="h-9 w-full rounded-lg bg-[var(--color-surface-2)] sm:h-8 sm:w-28" />
+          <Skeleton className="h-9 w-full rounded-lg sm:h-8 sm:w-24" />
+          <Skeleton className="h-9 w-full rounded-lg sm:h-8 sm:w-28" />
         </div>
       </div>
 
       <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-4">
         {KPI_SKELETON_KEYS.map((key) => (
-          <div
-            key={key}
-            className="h-[72px] rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]"
-          />
+          <Skeleton key={key} className="h-[72px] rounded-xl border border-[var(--color-border)]" />
         ))}
       </div>
 
-      <div className="h-24 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]" />
+      <Skeleton className="h-24 rounded-2xl border border-[var(--color-border)]" />
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {CARD_SKELETON_KEYS.map((key) => (
-          <div
+          <Skeleton
             key={key}
-            className="h-[118px] rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]"
+            className="h-[118px] rounded-xl border border-[var(--color-border)]"
           />
         ))}
       </div>
@@ -165,7 +190,7 @@ function SectionHeader({
   );
 }
 
-function ProviderCard({
+const ProviderCard = memo(function ProviderCard({
   entry,
   isId,
   onQuickTest,
@@ -275,7 +300,7 @@ function ProviderCard({
                   onQuickTest(entry);
                 }}
                 title={isId ? `Tes koneksi ${entry.name}` : `Test ${entry.name} connections`}
-                aria-label={`Test ${entry.name}`}
+                aria-label={isId ? `Tes ${entry.name}` : `Test ${entry.name}`}
                 className={cn(
                   "flex h-9 w-9 cursor-pointer items-center justify-center rounded-lg border transition-colors sm:h-7 sm:w-7",
                   isTesting
@@ -311,7 +336,15 @@ function ProviderCard({
                     ? "Nonaktifkan provider"
                     : "Disable provider"
               }
-              aria-label={`${stats.allDisabled ? "Enable" : "Disable"} ${entry.name}`}
+              aria-label={
+                stats.allDisabled
+                  ? isId
+                    ? `Aktifkan ${entry.name}`
+                    : `Enable ${entry.name}`
+                  : isId
+                    ? `Nonaktifkan ${entry.name}`
+                    : `Disable ${entry.name}`
+              }
               className={cn(
                 "relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full border transition-colors disabled:opacity-50",
                 !stats.allDisabled
@@ -373,7 +406,7 @@ function ProviderCard({
       </div>
     </div>
   );
-}
+});
 
 export function ProvidersConsole() {
   const locale = useUIStore((state) => state.locale);
@@ -382,8 +415,8 @@ export function ProvidersConsole() {
   const catalogQuery = useProvidersCatalog();
   const connectionsQuery = useProviderConnections();
 
-  const updateConnMutation = useUpdateProviderConnectionMutation();
-  const testConnMutation = useTestProviderConnectionMutation();
+  const batchToggleMutation = useBatchToggleProviderConnectionsMutation();
+  const batchTestMutation = useBatchTestProviderConnectionsMutation();
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<ProviderStatusFilter>("all");
@@ -413,6 +446,13 @@ export function ProvidersConsole() {
     open: boolean;
     protocol: ProviderProtocol;
   }>({ open: false, protocol: "openai-chat" });
+  const [modalsActivated, setModalsActivated] = useState(false);
+
+  useEffect(() => {
+    if (!modalsActivated && (apiKeyModal.open || oauthModal.open || customNodeModal.open)) {
+      setModalsActivated(true);
+    }
+  }, [apiKeyModal.open, customNodeModal.open, modalsActivated, oauthModal.open]);
 
   const [feedbackBanner, setFeedbackBanner] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -463,9 +503,10 @@ export function ProvidersConsole() {
     return () => document.removeEventListener("keydown", onKeyDown);
   }, []);
 
-  const adapters = catalogQuery.data?.adapters ?? [];
-  const customNodes = catalogQuery.data?.custom_nodes ?? [];
-  const connections = connectionsQuery.data ?? [];
+  const adapters = catalogQuery.data?.adapters ?? EMPTY_ADAPTERS;
+  const customNodes = catalogQuery.data?.custom_nodes ?? EMPTY_CUSTOM_NODES;
+  const connections = connectionsQuery.data ?? EMPTY_CONNECTIONS;
+  const deferredSearch = useDeferredValue(search);
 
   const allEntries = useMemo(
     () => buildProviderEntries(adapters, customNodes, connections),
@@ -484,11 +525,11 @@ export function ProvidersConsole() {
     const matched = allEntries.filter((entry) => {
       if (categoryTab !== "all" && entry.category !== categoryTab) return false;
       if (!matchesStatusFilter(entry, statusFilter)) return false;
-      if (!matchesProviderSearch(entry, search)) return false;
+      if (!matchesProviderSearch(entry, deferredSearch)) return false;
       return true;
     });
     return sortProviderEntries(matched, sortOrder);
-  }, [allEntries, categoryTab, statusFilter, search, sortOrder]);
+  }, [allEntries, categoryTab, statusFilter, deferredSearch, sortOrder]);
 
   const hasActiveFilters =
     search.trim().length > 0 ||
@@ -512,86 +553,71 @@ export function ProvidersConsole() {
     void Promise.all([catalogQuery.refetch(), connectionsQuery.refetch()]);
   };
 
-  const runBatchTests = async (
-    scopeKey: string,
-    label: string,
-    targetConnections: ProviderConnectionSummary[],
-  ) => {
-    const enabledTargets = targetConnections.filter((c) => c.enabled);
-    if (enabledTargets.length === 0 || testingScope !== null) {
-      return;
-    }
-    setActionError(null);
-    setTestingScope(scopeKey);
-    setBatchSummary(null);
+  const runBatchTests = useCallback(
+    async (scopeKey: string, label: string, targetConnections: ProviderConnectionSummary[]) => {
+      const enabledTargets = targetConnections.filter((c) => c.enabled);
+      if (enabledTargets.length === 0 || testingScope !== null) {
+        return;
+      }
+      setActionError(null);
+      setTestingScope(scopeKey);
+      setBatchSummary(null);
 
-    const results: BatchTestSummary["results"] = [];
-    for (const conn of enabledTargets) {
       try {
-        const res = await testConnMutation.mutateAsync(conn.id);
-        results.push({
-          connectionId: conn.id,
-          connectionName: conn.name,
-          providerId: conn.provider_id,
-          ok: res.ok,
-          statusCode: res.status_code,
-          latencyMs: res.latency_ms,
-          error: res.error || undefined,
+        const results = await batchTestMutation.mutateAsync(enabledTargets);
+        const passed = results.filter((r) => r.ok).length;
+        setBatchSummary({
+          label,
+          total: results.length,
+          passed,
+          failed: results.length - passed,
+          results,
         });
       } catch (err) {
-        results.push({
-          connectionId: conn.id,
-          connectionName: conn.name,
-          providerId: conn.provider_id,
-          ok: false,
-          statusCode: 0,
-          latencyMs: 0,
-          error: err instanceof Error ? err.message : "Test failed",
-        });
+        setActionError(err instanceof Error ? err.message : "Failed to run connection tests.");
+      } finally {
+        setTestingScope(null);
       }
-    }
+    },
+    [batchTestMutation, testingScope],
+  );
 
-    const passed = results.filter((r) => r.ok).length;
-    setBatchSummary({
-      label,
-      total: results.length,
-      passed,
-      failed: results.length - passed,
-      results,
-    });
-    setTestingScope(null);
-  };
+  const handleQuickTest = useCallback(
+    (entry: ProviderEntry) => {
+      void runBatchTests(`provider:${entry.id}`, entry.name, entry.connections);
+    },
+    [runBatchTests],
+  );
 
-  const handleToggleProvider = async (entry: ProviderEntry, nextActive: boolean) => {
-    if (togglingProviderId !== null || entry.connections.length === 0) return;
-    setActionError(null);
-    setTogglingProviderId(entry.id);
-    try {
-      await Promise.all(
-        entry.connections.map((conn) =>
-          updateConnMutation.mutateAsync({
-            id: conn.id,
-            body: { enabled: nextActive },
-          }),
-        ),
-      );
-      setFeedbackBanner(
-        nextActive
-          ? isId
-            ? `${entry.name} diaktifkan.`
-            : `Enabled ${entry.name}.`
-          : isId
-            ? `${entry.name} dinonaktifkan.`
-            : `Disabled ${entry.name}.`,
-      );
-    } catch (err) {
-      setActionError(err instanceof Error ? err.message : "Failed to update provider state.");
-    } finally {
-      setTogglingProviderId(null);
-    }
-  };
+  const handleToggleProvider = useCallback(
+    async (entry: ProviderEntry, nextActive: boolean) => {
+      if (togglingProviderId !== null || entry.connections.length === 0) return;
+      setActionError(null);
+      setTogglingProviderId(entry.id);
+      try {
+        await batchToggleMutation.mutateAsync({
+          connectionIds: entry.connections.map((conn) => conn.id),
+          enabled: nextActive,
+        });
+        setFeedbackBanner(
+          nextActive
+            ? isId
+              ? `${entry.name} diaktifkan.`
+              : `Enabled ${entry.name}.`
+            : isId
+              ? `${entry.name} dinonaktifkan.`
+              : `Disabled ${entry.name}.`,
+        );
+      } catch (err) {
+        setActionError(err instanceof Error ? err.message : "Failed to update provider state.");
+      } finally {
+        setTogglingProviderId(null);
+      }
+    },
+    [batchToggleMutation, isId, togglingProviderId],
+  );
 
-  if (catalogQuery.isPending && connectionsQuery.isPending) {
+  if (catalogQuery.isPending || connectionsQuery.isPending) {
     return <ProvidersLoadingSkeleton />;
   }
 
@@ -978,12 +1004,26 @@ export function ProvidersConsole() {
       {/* Feedback / Error / Batch Test Banners */}
       {catalogQuery.isError || connectionsQuery.isError ? (
         <Alert variant="destructive">
-          <AlertTitle>
-            {isId ? "Gagal memuat data provider" : "Failed to load providers"}
-          </AlertTitle>
-          <AlertDescription>
-            {catalogQuery.error?.message ?? connectionsQuery.error?.message}
-          </AlertDescription>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <AlertTitle>
+                {isId ? "Gagal memuat data provider" : "Failed to load providers"}
+              </AlertTitle>
+              <AlertDescription>
+                {catalogQuery.error?.message ?? connectionsQuery.error?.message}
+              </AlertDescription>
+            </div>
+            <Button
+              type="button"
+              size="xs"
+              variant="secondary"
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+            >
+              <RefreshCw className={cn("h-3 w-3", isRefreshing && "animate-spin")} />
+              <span>{isId ? "Coba Lagi" : "Retry"}</span>
+            </Button>
+          </div>
         </Alert>
       ) : null}
 
@@ -994,8 +1034,8 @@ export function ProvidersConsole() {
             <button
               type="button"
               onClick={() => setActionError(null)}
-              aria-label="Dismiss error"
-              className="cursor-pointer rounded p-1 hover:bg-black/10"
+              aria-label={isId ? "Tutup pesan error" : "Dismiss error"}
+              className="cursor-pointer rounded p-1 hover:bg-[var(--color-surface-2)]"
             >
               <X className="h-3.5 w-3.5" />
             </button>
@@ -1010,8 +1050,8 @@ export function ProvidersConsole() {
             <button
               type="button"
               onClick={() => setFeedbackBanner(null)}
-              aria-label="Dismiss notice"
-              className="cursor-pointer rounded p-1 hover:bg-black/10"
+              aria-label={isId ? "Tutup notifikasi" : "Dismiss notice"}
+              className="cursor-pointer rounded p-1 hover:bg-[var(--color-surface-2)]"
             >
               <X className="h-3.5 w-3.5" />
             </button>
@@ -1026,15 +1066,19 @@ export function ProvidersConsole() {
               <span className="text-xs font-semibold text-[var(--color-text-main)]">
                 {isId ? "Hasil Tes:" : "Test Results:"} {batchSummary.label}
               </span>
-              <Badge variant="success">{batchSummary.passed} Passed</Badge>
+              <Badge variant="success">
+                {batchSummary.passed} {isId ? "Berhasil" : "Passed"}
+              </Badge>
               {batchSummary.failed > 0 ? (
-                <Badge variant="destructive">{batchSummary.failed} Failed</Badge>
+                <Badge variant="destructive">
+                  {batchSummary.failed} {isId ? "Gagal" : "Failed"}
+                </Badge>
               ) : null}
             </div>
             <button
               type="button"
               onClick={() => setBatchSummary(null)}
-              aria-label="Close test results"
+              aria-label={isId ? "Tutup hasil tes" : "Close test results"}
               className="cursor-pointer rounded p-1 text-[var(--color-text-muted)] hover:bg-[var(--color-surface-2)] hover:text-[var(--color-text-main)]"
             >
               <X className="h-3.5 w-3.5" />
@@ -1091,7 +1135,7 @@ export function ProvidersConsole() {
               <button
                 type="button"
                 onClick={() => setSearch("")}
-                aria-label="Clear search"
+                aria-label={isId ? "Hapus pencarian" : "Clear search"}
                 className="absolute top-1/2 right-2 -translate-y-1/2 cursor-pointer rounded p-1 text-[var(--color-text-muted)] hover:bg-[var(--color-surface-3)] hover:text-[var(--color-text-main)]"
               >
                 <X className="h-3.5 w-3.5" />
@@ -1311,7 +1355,7 @@ export function ProvidersConsole() {
                       key={entry.id}
                       entry={entry}
                       isId={isId}
-                      onQuickTest={(e) => runBatchTests(`provider:${e.id}`, e.name, e.connections)}
+                      onQuickTest={handleQuickTest}
                       onToggleProvider={handleToggleProvider}
                       isTesting={testingScope === `provider:${entry.id}`}
                       isToggling={togglingProviderId === entry.id}
@@ -1343,43 +1387,47 @@ export function ProvidersConsole() {
         </div>
       )}
 
-      {/* Modals */}
-      <AddApiKeyModal
-        open={apiKeyModal.open}
-        onClose={() => setApiKeyModal({ open: false, providerId: null })}
-        initialProviderId={apiKeyModal.providerId}
-        allEntries={allEntries}
-        isId={isId}
-        onCreated={(msg) => setFeedbackBanner(msg)}
-      />
+      {/* Modals (lazy-loaded on first open, kept mounted for smooth close animation) */}
+      {modalsActivated ? (
+        <Suspense fallback={null}>
+          <AddApiKeyModal
+            open={apiKeyModal.open}
+            onClose={() => setApiKeyModal({ open: false, providerId: null })}
+            initialProviderId={apiKeyModal.providerId}
+            allEntries={allEntries}
+            isId={isId}
+            onCreated={(msg) => setFeedbackBanner(msg)}
+          />
 
-      <OAuthWizardModal
-        open={oauthModal.open}
-        onClose={() => setOauthModal({ open: false, providerId: null })}
-        initialProviderId={oauthModal.providerId}
-        allEntries={allEntries}
-        isId={isId}
-        onConnected={(msg) => setFeedbackBanner(msg)}
-        onSwitchToApiKey={(providerId) => setApiKeyModal({ open: true, providerId })}
-      />
+          <OAuthWizardModal
+            open={oauthModal.open}
+            onClose={() => setOauthModal({ open: false, providerId: null })}
+            initialProviderId={oauthModal.providerId}
+            allEntries={allEntries}
+            isId={isId}
+            onConnected={(msg) => setFeedbackBanner(msg)}
+            onSwitchToApiKey={(providerId) => setApiKeyModal({ open: true, providerId })}
+          />
 
-      <AddCustomNodeModal
-        open={customNodeModal.open}
-        onClose={() => setCustomNodeModal((prev) => ({ ...prev, open: false }))}
-        initialProtocol={customNodeModal.protocol}
-        isId={isId}
-        onCreated={(node, meta) =>
-          setFeedbackBanner(
-            meta?.connectionCreated
-              ? isId
-                ? `Custom endpoint "${node.name}" beserta koneksi awalnya berhasil disimpan.`
-                : `Registered custom endpoint "${node.name}" with its initial connection.`
-              : isId
-                ? `Custom endpoint "${node.name}" berhasil didaftarkan.`
-                : `Registered custom endpoint "${node.name}".`,
-          )
-        }
-      />
+          <AddCustomNodeModal
+            open={customNodeModal.open}
+            onClose={() => setCustomNodeModal((prev) => ({ ...prev, open: false }))}
+            initialProtocol={customNodeModal.protocol}
+            isId={isId}
+            onCreated={(node, meta) =>
+              setFeedbackBanner(
+                meta?.connectionCreated
+                  ? isId
+                    ? `Custom endpoint "${node.name}" beserta koneksi awalnya berhasil disimpan.`
+                    : `Registered custom endpoint "${node.name}" with its initial connection.`
+                  : isId
+                    ? `Custom endpoint "${node.name}" berhasil didaftarkan.`
+                    : `Registered custom endpoint "${node.name}".`,
+              )
+            }
+          />
+        </Suspense>
+      ) : null}
     </div>
   );
 }

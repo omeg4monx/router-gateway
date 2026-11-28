@@ -69,6 +69,11 @@ type Options struct {
 	Bus *eventbus.Bus
 }
 
+type touchLastUsedEvent struct {
+	keyID string
+	at    string
+}
+
 // Module implements lifecycle.Module, contracts.KeyValidator,
 // contracts.KeyProvisioner, and contracts.GatewayInterceptor for gateway API keys.
 type Module struct {
@@ -78,9 +83,10 @@ type Module struct {
 	cache   *keyCache
 	limiter *keyLimiter
 
-	lifeMu  sync.Mutex
+	lifeMu  sync.RWMutex
 	started bool
 	cancel  context.CancelFunc
+	touchCh chan touchLastUsedEvent
 	wg      sync.WaitGroup
 }
 
@@ -133,14 +139,15 @@ func (m *Module) RegisterRoutes(mounts lifecycle.RouteMounts) {
 	}
 }
 
-// Start validates that required dependencies are wired and subscribes to
-// usage.recorded events to enforce real-time per-key USD quotas.
+// Start validates that required dependencies are wired, starts the async
+// last_used_at writer, and subscribes to usage.recorded events when a bus is
+// attached.
 func (m *Module) Start(ctx context.Context) error {
 	if m.db == nil {
 		return errors.New("keys: database is required")
 	}
-	if m.bus == nil {
-		return nil
+	if ctx == nil {
+		ctx = context.Background()
 	}
 
 	m.lifeMu.Lock()
@@ -148,27 +155,44 @@ func (m *Module) Start(ctx context.Context) error {
 		m.lifeMu.Unlock()
 		return nil
 	}
-	runCtx, cancel := context.WithCancel(context.WithoutCancel(ctx))
+	baseCtx := context.WithoutCancel(ctx)
+	runCtx, cancel := context.WithCancel(baseCtx)
 	m.cancel = cancel
 	m.started = true
-	ch, unsub := m.bus.Subscribe("usage.recorded", usageSubBufSize)
+
+	touchCh := make(chan touchLastUsedEvent, touchLastUsedBufSize)
+	m.touchCh = touchCh
 	m.wg.Add(1)
-	go m.consumeUsage(runCtx, ch, unsub)
+	go m.consumeLastUsed(baseCtx, touchCh)
+
+	if m.bus != nil {
+		ch, unsub := m.bus.Subscribe("usage.recorded", usageSubBufSize)
+		m.wg.Add(1)
+		go m.consumeUsage(runCtx, ch, unsub)
+	}
 	m.lifeMu.Unlock()
 	return nil
 }
 
-// Stop stops the usage.recorded subscriber and clears in-memory caches during graceful shutdown.
+// Stop stops background workers, flushes queued last_used_at updates, and clears
+// in-memory caches during graceful shutdown.
 func (m *Module) Stop(ctx context.Context) error {
 	m.lifeMu.Lock()
 	wasStarted := m.started
 	cancel := m.cancel
+	touchCh := m.touchCh
 	m.started = false
 	m.cancel = nil
+	m.touchCh = nil
+	if touchCh != nil {
+		close(touchCh)
+	}
 	m.lifeMu.Unlock()
 
-	if wasStarted && cancel != nil {
-		cancel()
+	if wasStarted {
+		if cancel != nil {
+			cancel()
+		}
 		done := make(chan struct{})
 		go func() {
 			m.wg.Wait()
@@ -374,6 +398,9 @@ func (m *Module) handleListKeys(w http.ResponseWriter, r *http.Request) {
 		httpserver.WriteError(w, r, http.StatusInternalServerError, "internal_error", "failed to list API keys")
 		return
 	}
+	for i := range items {
+		m.overlayLastUsed(&items[i])
+	}
 	httpserver.WriteJSON(w, http.StatusOK, listKeysResponse{
 		Keys: items,
 	})
@@ -478,6 +505,7 @@ func (m *Module) handleGetKey(w http.ResponseWriter, r *http.Request) {
 		httpserver.WriteError(w, r, http.StatusInternalServerError, "internal_error", "failed to load API key")
 		return
 	}
+	m.overlayLastUsed(&summary)
 	httpserver.WriteJSON(w, http.StatusOK, summary)
 }
 

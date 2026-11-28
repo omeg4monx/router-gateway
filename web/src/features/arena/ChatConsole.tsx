@@ -21,6 +21,7 @@ import { Button } from "@/shared/ui/button";
 import { EmberRule } from "@/shared/ui/EmberRule";
 import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
+import { Skeleton } from "@/shared/ui/skeleton";
 import {
   useArenaModels,
   useChatSessionDetail,
@@ -557,9 +558,9 @@ export function ChatConsole() {
               {sessionsQuery.isLoading ? (
                 <div className="space-y-2 p-1">
                   {[0, 1, 2].map((item) => (
-                    <div
+                    <Skeleton
                       key={item}
-                      className="h-14 animate-pulse rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface-raised)]"
+                      className="h-14 rounded-lg border border-[var(--border-subtle)]"
                     />
                   ))}
                 </div>
@@ -844,9 +845,9 @@ export function ChatConsole() {
                 ) : null}
 
                 {detailQuery.isLoading && activeSessionId ? (
-                  <div className="space-y-3 py-4">
-                    <div className="ml-auto h-16 w-2/3 animate-pulse rounded-xl bg-[var(--bg-surface-raised)]" />
-                    <div className="h-24 w-4/5 animate-pulse rounded-xl bg-[var(--bg-canvas)]" />
+                  <div className="space-y-3 py-4" role="status" aria-busy="true">
+                    <Skeleton className="ml-auto h-16 w-2/3 rounded-xl" />
+                    <Skeleton className="h-24 w-4/5 rounded-xl" />
                   </div>
                 ) : messages.length > 0 ? (
                   <>

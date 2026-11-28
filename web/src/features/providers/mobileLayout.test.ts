@@ -49,11 +49,6 @@ describe("ProvidersModals mobile-first layout contracts", () => {
     expect(modalsSource).toContain("env(safe-area-inset-bottom)");
   });
 
-  test("ProviderConnectionsDrawer telemetry strip uses 2 columns on mobile and 3 columns on sm+", () => {
-    expect(modalsSource).not.toContain('<div className="grid grid-cols-3 gap-2.5">');
-    expect(modalsSource).toContain("grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-2.5");
-  });
-
   test("OAuthWizardModal AWS Quick paste buttons stack on mobile", () => {
     expect(modalsSource).toContain("grid grid-cols-1 gap-2 sm:grid-cols-2");
   });

@@ -69,6 +69,7 @@ export function TargetModelCombobox({
   const copy = MODEL_EDITOR_COPY[locale];
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
+  const [activeIndex, setActiveIndex] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -104,6 +105,25 @@ export function TargetModelCombobox({
     setOpen(false);
   };
 
+  const handleSearchKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (filtered.length === 0) return;
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      setActiveIndex((prev) => (prev + 1) % filtered.length);
+    } else if (event.key === "ArrowUp") {
+      event.preventDefault();
+      setActiveIndex((prev) => (prev - 1 + filtered.length) % filtered.length);
+    } else if (event.key === "Enter") {
+      event.preventDefault();
+      const chosen = filtered[activeIndex];
+      if (chosen) {
+        handleSelect(chosen.id);
+      }
+    }
+  };
+
+  const activeOptionId = open && filtered[activeIndex] ? `${id}-opt-${activeIndex}` : undefined;
+
   return (
     <div ref={containerRef} className="relative">
       <div className="relative flex items-center">
@@ -114,7 +134,10 @@ export function TargetModelCombobox({
           aria-expanded={open}
           aria-haspopup="listbox"
           aria-controls={`${id}-listbox`}
-          onClick={() => setOpen((prev) => !prev)}
+          onClick={() => {
+            setActiveIndex(0);
+            setOpen((prev) => !prev);
+          }}
           className={cn(
             "flex h-9 w-full cursor-pointer items-center justify-between gap-1.5 rounded-md border border-[var(--border-strong)] bg-[var(--bg-input)] px-3 text-left text-xs transition-colors focus:border-[var(--accent-primary)] focus:outline-none",
             value ? "pr-12 font-mono text-[var(--text-primary)]" : "text-[var(--text-muted)]",
@@ -149,9 +172,14 @@ export function TargetModelCombobox({
               ref={searchInputRef}
               type="text"
               value={search}
-              onChange={(event) => setSearch(event.target.value)}
+              onChange={(event) => {
+                setSearch(event.target.value);
+                setActiveIndex(0);
+              }}
+              onKeyDown={handleSearchKeyDown}
               placeholder={copy.targetSearchPlaceholder}
               aria-label={copy.targetSearchPlaceholder}
+              aria-activedescendant={activeOptionId}
               className="w-full bg-transparent text-xs text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none"
             />
           </div>
@@ -166,20 +194,25 @@ export function TargetModelCombobox({
                 {copy.targetEmpty}
               </p>
             ) : (
-              filtered.map((opt) => {
+              filtered.map((opt, idx) => {
                 const selected = opt.id === value;
+                const isActive = activeIndex === idx;
                 return (
                   <button
                     key={opt.id}
+                    id={`${id}-opt-${idx}`}
                     type="button"
                     role="option"
                     aria-selected={selected}
+                    onMouseEnter={() => setActiveIndex(idx)}
                     onClick={() => handleSelect(opt.id)}
                     className={cn(
                       "flex w-full cursor-pointer items-center justify-between gap-2 rounded px-2 py-1.5 text-left text-xs transition-colors",
                       selected
                         ? "bg-[var(--accent-primary)]/15 text-[var(--accent-text)]"
-                        : "text-[var(--text-primary)] hover:bg-[var(--bg-surface-raised)]",
+                        : isActive
+                          ? "bg-[var(--bg-surface-raised)] text-[var(--text-primary)]"
+                          : "text-[var(--text-primary)] hover:bg-[var(--bg-surface-raised)]",
                     )}
                   >
                     <div className="min-w-0 flex-1">

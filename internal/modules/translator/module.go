@@ -67,6 +67,7 @@ func (m *Module) RegisterRoutes(mounts lifecycle.RouteMounts) {
 		mounts.AdminAPI.Get("/translator/protocols", m.handleProtocols)
 		mounts.AdminAPI.Post("/translator/translate", m.handleTranslate)
 		mounts.AdminAPI.Get("/translator/logs", m.handleLogs)
+		mounts.AdminAPI.Delete("/translator/logs", m.handleClearLogs)
 	}
 	streamMount := mounts.AdminStreamAPI
 	if streamMount == nil {
@@ -173,6 +174,15 @@ func (m *Module) handleLogs(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func (m *Module) handleClearLogs(w http.ResponseWriter, _ *http.Request) {
+	if m.logRing != nil {
+		m.logRing.Clear()
+	}
+	httpserver.WriteJSON(w, http.StatusOK, map[string]any{
+		"cleared": true,
+	})
+}
+
 func (m *Module) handleLogsStream(w http.ResponseWriter, r *http.Request) {
 	tail := parseIntParam(r.URL.Query().Get("tail"), defaultStreamTail, 0, maxLogsLimit)
 	minLevel := normalizeLevelFilter(r.URL.Query().Get("level"))
@@ -202,12 +212,16 @@ func (m *Module) handleLogsStream(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var (
-		subCh <-chan logging.LogEntry
-		unsub func()
+		subCh      <-chan logging.LogEntry
+		unsub      func()
+		clearCh    <-chan struct{}
+		unsubClear func()
 	)
 	if m.logRing != nil {
 		subCh, unsub = m.logRing.Subscribe()
 		defer unsub()
+		clearCh, unsubClear = m.logRing.SubscribeClear()
+		defer unsubClear()
 
 		if tail > 0 {
 			recent := m.logRing.Recent(tail)
@@ -234,6 +248,14 @@ func (m *Module) handleLogsStream(w http.ResponseWriter, r *http.Request) {
 			if !writeEntry(entry) {
 				return
 			}
+		case _, ok := <-clearCh:
+			if !ok {
+				return
+			}
+			if _, err := fmt.Fprint(w, "event: clear\ndata: {}\n\n"); err != nil {
+				return
+			}
+			_ = rc.Flush()
 		case <-ticker.C:
 			if _, err := fmt.Fprint(w, ": keepalive\n\n"); err != nil {
 				return

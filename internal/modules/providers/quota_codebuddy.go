@@ -137,7 +137,7 @@ func (f codebuddyQuotaFetcher) Fetch(
 	}
 
 	if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden {
-		return quotaFetchResult{}, fmt.Errorf("upstream rejected credentials (HTTP %d)", resp.StatusCode)
+		return quotaFetchResult{}, fmt.Errorf("%w (HTTP %d)", errQuotaUnauthorized, resp.StatusCode)
 	}
 	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
 		snippet := strings.TrimSpace(string(body))
@@ -181,11 +181,24 @@ func mapCodeBuddyQuota(accounts []codebuddyQuotaAccount) quotaFetchResult {
 		return okCE && okDE && de.Sub(ce) > codebuddyRefillGap
 	}
 
+	const expiredBonusGrace = 5 * time.Minute
+	now := time.Now().UTC()
+
+	isExpiredBonus := func(acc codebuddyQuotaAccount) bool {
+		if de, ok := parseCodeBuddyTimestamp(acc.DeductionEndTime); ok {
+			return de.Before(now.Add(-expiredBonusGrace))
+		}
+		if ce, ok := parseCodeBuddyTimestamp(acc.CycleEndTime); ok {
+			return ce.Before(now.Add(-expiredBonusGrace))
+		}
+		return false
+	}
+
 	var refills, bonuses []codebuddyQuotaAccount
 	for _, acc := range accounts {
 		if isRefill(acc) {
 			refills = append(refills, acc)
-		} else {
+		} else if !isExpiredBonus(acc) {
 			bonuses = append(bonuses, acc)
 		}
 	}
@@ -292,10 +305,7 @@ func mapCodeBuddyQuota(accounts []codebuddyQuotaAccount) quotaFetchResult {
 
 func computeBucketPercentages(used, total float64) (usedPct, remainingPct float64, exhausted bool) {
 	if total <= 0 {
-		if used > 0 {
-			return 100, 0, true
-		}
-		return 0, 100, false
+		return 100, 0, true
 	}
 	usedPct = clampPercent((used / total) * 100)
 	remainingPct = clampPercent(100 - usedPct)

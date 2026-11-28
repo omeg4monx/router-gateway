@@ -1,7 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { modelCatalogQueryKeys } from "@/features/models/hooks";
 import { apiClient, extractErrorMessage } from "@/shared/api/client";
 import type {
   CreateModelOverrideRequest,
+  ModelEditorPreviewRequest,
+  ModelEditorPreviewResult,
   ModelOverride,
   ModelOverrideList,
   UpdateModelOverrideRequest,
@@ -11,6 +14,12 @@ export const modelEditorQueryKeys = {
   overrides: ["modeleditor", "overrides"] as const,
   arenaModels: ["arena", "models"] as const,
 };
+
+function invalidateModelEditorQueries(queryClient: ReturnType<typeof useQueryClient>) {
+  void queryClient.invalidateQueries({ queryKey: modelEditorQueryKeys.overrides });
+  void queryClient.invalidateQueries({ queryKey: modelEditorQueryKeys.arenaModels });
+  void queryClient.invalidateQueries({ queryKey: modelCatalogQueryKeys.catalog });
+}
 
 export function useModelOverrides() {
   return useQuery<ModelOverrideList, Error>({
@@ -32,8 +41,7 @@ export function useCreateModelOverrideMutation() {
       throw new Error(extractErrorMessage(error));
     },
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: modelEditorQueryKeys.overrides });
-      void queryClient.invalidateQueries({ queryKey: modelEditorQueryKeys.arenaModels });
+      invalidateModelEditorQueries(queryClient);
     },
   });
 }
@@ -50,8 +58,7 @@ export function useUpdateModelOverrideMutation() {
       throw new Error(extractErrorMessage(error));
     },
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: modelEditorQueryKeys.overrides });
-      void queryClient.invalidateQueries({ queryKey: modelEditorQueryKeys.arenaModels });
+      invalidateModelEditorQueries(queryClient);
     },
   });
 }
@@ -66,8 +73,17 @@ export function useDeleteModelOverrideMutation() {
       if (error) throw new Error(extractErrorMessage(error));
     },
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: modelEditorQueryKeys.overrides });
-      void queryClient.invalidateQueries({ queryKey: modelEditorQueryKeys.arenaModels });
+      invalidateModelEditorQueries(queryClient);
+    },
+  });
+}
+
+export function usePreviewModelEditorMutation() {
+  return useMutation<ModelEditorPreviewResult, Error, ModelEditorPreviewRequest>({
+    mutationFn: async (body) => {
+      const { data, error } = await apiClient.POST("/api/model-editor/preview", { body });
+      if (data) return data;
+      throw new Error(extractErrorMessage(error));
     },
   });
 }
