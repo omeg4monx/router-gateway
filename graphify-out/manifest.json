@@ -558,9 +558,9 @@
     "semantic_hash": ""
   },
   "web/src/features/keys/KeysConsole.tsx": {
-    "mtime": 1795845678.709523,
-    "seen": 1795845719.8847835,
-    "ast_hash": "ad5d1f013b97b7c9455f6337325ec98e",
+    "mtime": 1795848039.4919457,
+    "seen": 1795848061.273404,
+    "ast_hash": "aeb2a4752a1b5b875af0aca0dd3fd7bb",
     "semantic_hash": ""
   },
   "web/src/features/keys/hooks.ts": {
@@ -570,15 +570,15 @@
     "semantic_hash": ""
   },
   "web/src/features/keys/schemas.test.ts": {
-    "mtime": 1795809251.2844696,
-    "seen": 1795809366.992896,
-    "ast_hash": "bc9a1a011bb29eead80d4dded9fb719d",
+    "mtime": 1795848022.886691,
+    "seen": 1795848061.273465,
+    "ast_hash": "8d4bc7da43d532fe2f57273110e874d9",
     "semantic_hash": ""
   },
   "web/src/features/keys/schemas.ts": {
-    "mtime": 1795710119.1692066,
-    "seen": 1795770205.4555354,
-    "ast_hash": "9e68848dcd92d9c3ebb4a13cf25a3741",
+    "mtime": 1795847892.114684,
+    "seen": 1795848061.273468,
+    "ast_hash": "7486b1d73c1b822d907824e885037e73",
     "semantic_hash": ""
   },
   "web/src/features/settings/SettingsConsole.tsx": {
@@ -3402,21 +3402,21 @@
     "semantic_hash": ""
   },
   "web/src/features/keys/GatewayEndpointBar.tsx": {
-    "mtime": 1795809308.51634,
-    "seen": 1795809366.9927516,
-    "ast_hash": "1a48d10d5ac4e0f01331e6511cb57704",
+    "mtime": 1795847976.2259748,
+    "seen": 1795848061.2733953,
+    "ast_hash": "f81fd2f96ad172eec87ca408c9d18d33",
     "semantic_hash": ""
   },
   "web/src/features/keys/KeyModals.tsx": {
-    "mtime": 1795710119.1692066,
-    "seen": 1795770205.4555264,
-    "ast_hash": "f06c73675967cb4e70fb7479bdb82050",
+    "mtime": 1795848039.4739456,
+    "seen": 1795848061.2734008,
+    "ast_hash": "950a9402be3a1ff550962e5d510e72e4",
     "semantic_hash": ""
   },
   "web/src/features/keys/endpointUtils.ts": {
-    "mtime": 1795809321.861543,
-    "seen": 1795809366.9928293,
-    "ast_hash": "2aaedbdae641872ff8cdb221086bcc51",
+    "mtime": 1795848039.444945,
+    "seen": 1795848061.273407,
+    "ast_hash": "20b4db567b8da1ae7d858f2f54ca2fa2",
     "semantic_hash": ""
   },
   "internal/modules/keys/interceptor.go": {

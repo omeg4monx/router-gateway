@@ -26,90 +26,110 @@ export function parseCommaSeparatedList(input: string): string[] {
   return out;
 }
 
-const commaListSchema = (label: string) =>
+const commaListSchema = (label: string, isId: boolean) =>
   z
     .string()
     .transform(parseCommaSeparatedList)
     .refine(
       (items) => items.length <= MAX_KEY_SLICE_ITEMS,
-      `${label} must not exceed ${MAX_KEY_SLICE_ITEMS} items.`,
+      isId
+        ? `${label} tidak boleh melebihi ${MAX_KEY_SLICE_ITEMS} item.`
+        : `${label} must not exceed ${MAX_KEY_SLICE_ITEMS} items.`,
     )
     .refine(
       (items) => items.every((item) => Array.from(item).length <= MAX_KEY_SLICE_ITEM_RUNES),
-      `${label} entries must not exceed ${MAX_KEY_SLICE_ITEM_RUNES} characters.`,
+      isId
+        ? `Setiap entri ${label} tidak boleh melebihi ${MAX_KEY_SLICE_ITEM_RUNES} karakter.`
+        : `${label} entries must not exceed ${MAX_KEY_SLICE_ITEM_RUNES} characters.`,
     );
 
-export const createKeySchema = z.object({
-  name: z
-    .string()
-    .trim()
-    .min(1, "Key name is required.")
-    .refine(
-      (value) => Array.from(value).length <= MAX_KEY_NAME_RUNES,
-      `Key name must not exceed ${MAX_KEY_NAME_RUNES} characters.`,
-    ),
-  allowed_models: commaListSchema("Allowed models"),
-  tags: commaListSchema("Tags"),
-  rate_limit_rpm: z.string().transform((raw, ctx) => {
-    const trimmed = raw.trim();
-    if (trimmed === "") {
-      return 0;
-    }
-    if (!/^\d+$/.test(trimmed)) {
-      ctx.addIssue({
-        code: "custom",
-        message: "Rate limit RPM must be a non-negative whole number.",
-      });
-      return z.NEVER;
-    }
-    const parsed = Number.parseInt(trimmed, 10);
-    if (!Number.isSafeInteger(parsed) || parsed < 0) {
-      ctx.addIssue({
-        code: "custom",
-        message: "Rate limit RPM must be a non-negative whole number.",
-      });
-      return z.NEVER;
-    }
-    return parsed;
-  }),
-  quota_usd: z.string().transform((raw, ctx) => {
-    const trimmed = raw.trim();
-    if (trimmed === "") {
-      return 0;
-    }
-    if (!/^\d+(\.\d+)?$/.test(trimmed)) {
-      ctx.addIssue({
-        code: "custom",
-        message: "Quota USD must be a non-negative number.",
-      });
-      return z.NEVER;
-    }
-    const parsed = Number(trimmed);
-    if (!Number.isFinite(parsed) || parsed < 0) {
-      ctx.addIssue({
-        code: "custom",
-        message: "Quota USD must be a non-negative number.",
-      });
-      return z.NEVER;
-    }
-    return parsed;
-  }),
-  expires_at: z.string().transform((raw, ctx) => {
-    const trimmed = raw.trim();
-    if (trimmed === "") {
-      return null;
-    }
-    const parsedDate = new Date(trimmed);
-    if (Number.isNaN(parsedDate.getTime())) {
-      ctx.addIssue({
-        code: "custom",
-        message: "Expiration must be a valid date and time.",
-      });
-      return z.NEVER;
-    }
-    return parsedDate.toISOString();
-  }),
-});
+export function buildCreateKeySchema(isId = false) {
+  return z.object({
+    name: z
+      .string()
+      .trim()
+      .min(1, isId ? "Nama kunci wajib diisi." : "Key name is required.")
+      .refine(
+        (value) => Array.from(value).length <= MAX_KEY_NAME_RUNES,
+        isId
+          ? `Nama kunci tidak boleh melebihi ${MAX_KEY_NAME_RUNES} karakter.`
+          : `Key name must not exceed ${MAX_KEY_NAME_RUNES} characters.`,
+      ),
+    allowed_models: commaListSchema(isId ? "Model yang diizinkan" : "Allowed models", isId),
+    tags: commaListSchema("Tags", isId),
+    rate_limit_rpm: z.string().transform((raw, ctx) => {
+      const trimmed = raw.trim();
+      if (trimmed === "") {
+        return 0;
+      }
+      if (!/^\d+$/.test(trimmed)) {
+        ctx.addIssue({
+          code: "custom",
+          message: isId
+            ? "Batas RPM harus berupa bilangan bulat non-negatif."
+            : "Rate limit RPM must be a non-negative whole number.",
+        });
+        return z.NEVER;
+      }
+      const parsed = Number.parseInt(trimmed, 10);
+      if (!Number.isSafeInteger(parsed) || parsed < 0) {
+        ctx.addIssue({
+          code: "custom",
+          message: isId
+            ? "Batas RPM harus berupa bilangan bulat non-negatif."
+            : "Rate limit RPM must be a non-negative whole number.",
+        });
+        return z.NEVER;
+      }
+      return parsed;
+    }),
+    quota_usd: z.string().transform((raw, ctx) => {
+      const trimmed = raw.trim();
+      if (trimmed === "") {
+        return 0;
+      }
+      if (!/^\d+(\.\d+)?$/.test(trimmed)) {
+        ctx.addIssue({
+          code: "custom",
+          message: isId
+            ? "Kuota USD harus berupa angka non-negatif."
+            : "Quota USD must be a non-negative number.",
+        });
+        return z.NEVER;
+      }
+      const parsed = Number(trimmed);
+      if (!Number.isFinite(parsed) || parsed < 0) {
+        ctx.addIssue({
+          code: "custom",
+          message: isId
+            ? "Kuota USD harus berupa angka non-negatif."
+            : "Quota USD must be a non-negative number.",
+        });
+        return z.NEVER;
+      }
+      return parsed;
+    }),
+    expires_at: z.string().transform((raw, ctx) => {
+      const trimmed = raw.trim();
+      if (trimmed === "") {
+        return null;
+      }
+      const parsedDate = new Date(trimmed);
+      if (Number.isNaN(parsedDate.getTime())) {
+        ctx.addIssue({
+          code: "custom",
+          message: isId
+            ? "Tanggal kedaluwarsa harus berupa tanggal dan waktu yang valid."
+            : "Expiration must be a valid date and time.",
+        });
+        return z.NEVER;
+      }
+      return parsedDate.toISOString();
+    }),
+  });
+}
+
+export const createKeySchema = buildCreateKeySchema(false);
 
 export type CreateKeyFormInput = z.input<typeof createKeySchema>;
 export type CreateKeyFormOutput = z.output<typeof createKeySchema>;

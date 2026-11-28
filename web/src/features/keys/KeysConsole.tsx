@@ -14,19 +14,15 @@ import {
   Waypoints,
   X,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useProviderConnections } from "@/features/providers/hooks";
-import {
-  useStartTunnelMutation,
-  useStopTunnelMutation,
-  useTunnelStatus,
-} from "@/features/tunnel/hooks";
 import { cn } from "@/shared/lib/utils";
 import { useUIStore } from "@/shared/store/uiStore";
 import { Alert, AlertDescription, AlertTitle } from "@/shared/ui/alert";
 import { Button } from "@/shared/ui/button";
 import { Skeleton } from "@/shared/ui/skeleton";
 import {
+  copyTextToClipboard,
   countKeyStatusBuckets,
   filterKeysByStatusAndSearch,
   type GatewayRouteId,
@@ -36,7 +32,7 @@ import {
   normalizeOrigin,
   resolveGatewayOrigins,
 } from "./endpointUtils";
-import { GatewayEndpointBar } from "./GatewayEndpointBar";
+import { GatewayEndpointBar, type ResolvedActiveRoute } from "./GatewayEndpointBar";
 import {
   useApiKeys,
   useCreateApiKeyMutation,
@@ -44,8 +40,15 @@ import {
   useRotateApiKeyMutation,
   useUpdateApiKeyMutation,
 } from "./hooks";
-import { KeyFormModal, KeyReadyModal, KeySnippetModal } from "./KeyModals";
 import { type ApiKeySummary, type CreateKeyFormOutput, toCreateApiKeyRequest } from "./schemas";
+
+const KeyFormModal = lazy(() => import("./KeyModals").then((m) => ({ default: m.KeyFormModal })));
+const KeyReadyModal = lazy(() => import("./KeyModals").then((m) => ({ default: m.KeyReadyModal })));
+const KeySnippetModal = lazy(() =>
+  import("./KeyModals").then((m) => ({ default: m.KeySnippetModal })),
+);
+
+const HEALTH_PROBE_TIMEOUT_MS = 5000;
 
 interface SecretRevealState {
   action: "created" | "rotated";
@@ -80,9 +83,6 @@ export function KeysConsole() {
 
   const keysQuery = useApiKeys();
   const providersQuery = useProviderConnections();
-  const tunnelQuery = useTunnelStatus();
-  const startTunnelMutation = useStartTunnelMutation();
-  const stopTunnelMutation = useStopTunnelMutation();
 
   const createMutation = useCreateApiKeyMutation();
   const updateMutation = useUpdateApiKeyMutation();
@@ -93,6 +93,16 @@ export function KeysConsole() {
     resolveGatewayOrigins(typeof window !== "undefined" ? window.location?.origin : ""),
   );
   const [activeRoute, setActiveRoute] = useState<GatewayRouteId>(resolvedOrigins.defaultRoute);
+  const [resolvedRoute, setResolvedRoute] = useState<ResolvedActiveRoute>(() => ({
+    origin: resolvedOrigins.domainOrigin || normalizeOrigin(resolvedOrigins.localOrigin),
+    label: resolvedOrigins.domainOrigin
+      ? isId
+        ? "Host Server"
+        : "Server Host"
+      : isId
+        ? "Host Lokal"
+        : "Local Host",
+  }));
   const [keySearch, setKeySearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<KeyStatusFilter>("all");
 
@@ -100,6 +110,7 @@ export function KeysConsole() {
   const [healthState, setHealthState] = useState<"checking" | "online" | "offline">("checking");
   const [healthLatencyMs, setHealthLatencyMs] = useState<number | null>(null);
   const mountedRef = useRef(true);
+  const healthAbortRef = useRef<AbortController | null>(null);
 
   // Unified Create / Edit modal
   const [formModal, setFormModal] = useState<{
@@ -123,15 +134,27 @@ export function KeysConsole() {
   const copyTimerRef = useRef<number | null>(null);
 
   const probeGatewayHealth = useCallback(async () => {
+    healthAbortRef.current?.abort();
+    const controller = new AbortController();
+    healthAbortRef.current = controller;
+    let timedOut = false;
+    const timeoutId = window.setTimeout(() => {
+      timedOut = true;
+      controller.abort();
+    }, HEALTH_PROBE_TIMEOUT_MS);
+
     setHealthState("checking");
     const t0 = typeof performance !== "undefined" ? performance.now() : Date.now();
     try {
-      const res = await fetch("/api/health", { cache: "no-store" });
+      const res = await fetch("/api/health", {
+        cache: "no-store",
+        signal: controller.signal,
+      });
       const elapsed = Math.max(
         1,
         Math.round((typeof performance !== "undefined" ? performance.now() : Date.now()) - t0),
       );
-      if (!mountedRef.current) return;
+      if (!mountedRef.current || healthAbortRef.current !== controller) return;
       if (res.ok) {
         setHealthState("online");
         setHealthLatencyMs(elapsed);
@@ -140,9 +163,12 @@ export function KeysConsole() {
         setHealthLatencyMs(null);
       }
     } catch {
-      if (!mountedRef.current) return;
+      if (!mountedRef.current || healthAbortRef.current !== controller) return;
+      if (controller.signal.aborted && !timedOut) return;
       setHealthState("offline");
       setHealthLatencyMs(null);
+    } finally {
+      window.clearTimeout(timeoutId);
     }
   }, []);
 
@@ -151,6 +177,8 @@ export function KeysConsole() {
     void probeGatewayHealth();
     return () => {
       mountedRef.current = false;
+      healthAbortRef.current?.abort();
+      healthAbortRef.current = null;
       if (copyTimerRef.current !== null) {
         window.clearTimeout(copyTimerRef.current);
       }
@@ -159,7 +187,6 @@ export function KeysConsole() {
 
   const keys = keysQuery.data ?? [];
   const providers = providersQuery.data ?? [];
-  const tunnel = tunnelQuery.data;
 
   const defaultModel = useMemo(() => {
     for (const conn of providers) {
@@ -170,57 +197,25 @@ export function KeysConsole() {
     return "gpt-4o";
   }, [providers]);
 
-  const activeEffectiveOrigin = useMemo(() => {
-    if (activeRoute === "domain" && resolvedOrigins.domainOrigin) {
-      return resolvedOrigins.domainOrigin;
-    }
-    if (
-      activeRoute === "cloudflare" &&
-      tunnel?.provider === "cloudflare" &&
-      tunnel.status === "running" &&
-      normalizeOrigin(tunnel.public_url)
-    ) {
-      return normalizeOrigin(tunnel.public_url);
-    }
-    if (
-      activeRoute === "tailscale" &&
-      tunnel?.provider === "tailscale" &&
-      tunnel.status === "running" &&
-      normalizeOrigin(tunnel.public_url)
-    ) {
-      return normalizeOrigin(tunnel.public_url);
-    }
-    if (activeRoute === "local") {
-      return normalizeOrigin(resolvedOrigins.localOrigin);
-    }
-    return resolvedOrigins.domainOrigin || normalizeOrigin(resolvedOrigins.localOrigin);
-  }, [activeRoute, tunnel, resolvedOrigins]);
+  const handleResolvedRouteChange = useCallback((next: ResolvedActiveRoute) => {
+    setResolvedRoute((prev) =>
+      prev.origin === next.origin && prev.label === next.label ? prev : next,
+    );
+  }, []);
 
-  const activeRouteLabel =
-    activeRoute === "domain" && resolvedOrigins.domainOrigin
-      ? isId
-        ? "Host Server"
-        : "Server Host"
-      : activeRoute === "cloudflare" &&
-          tunnel?.provider === "cloudflare" &&
-          tunnel.status === "running"
-        ? "Cloudflare Tunnel"
-        : activeRoute === "tailscale" &&
-            tunnel?.provider === "tailscale" &&
-            tunnel.status === "running"
-          ? "Tailscale Mesh"
-          : activeRoute === "local" || !resolvedOrigins.domainOrigin
-            ? isId
-              ? "Host Lokal"
-              : "Local Host"
-            : isId
-              ? "Host Server"
-              : "Server Host";
+  const handleTunnelError = useCallback((message: string) => {
+    setRowError(message);
+  }, []);
 
-  const statusBuckets = useMemo(() => countKeyStatusBuckets(keys), [keys]);
+  const nowMs = useMemo(() => {
+    void keys;
+    return Date.now();
+  }, [keys]);
+
+  const statusBuckets = useMemo(() => countKeyStatusBuckets(keys, nowMs), [keys, nowMs]);
   const filteredKeys = useMemo(
-    () => filterKeysByStatusAndSearch(keys, statusFilter, keySearch),
-    [keys, statusFilter, keySearch],
+    () => filterKeysByStatusAndSearch(keys, statusFilter, keySearch, nowMs),
+    [keys, statusFilter, keySearch, nowMs],
   );
 
   const sampleApiKey = useMemo(() => {
@@ -333,19 +328,23 @@ export function KeysConsole() {
   };
 
   const handleCopyKeyValue = async (keyId: string, value: string) => {
-    try {
-      await navigator.clipboard.writeText(value);
-      setCopiedKeyId(keyId);
-      if (copyTimerRef.current !== null) {
-        window.clearTimeout(copyTimerRef.current);
-      }
-      copyTimerRef.current = window.setTimeout(() => {
-        copyTimerRef.current = null;
-        setCopiedKeyId(null);
-      }, 2000);
-    } catch {
-      // ignore
+    const ok = await copyTextToClipboard(value);
+    if (!ok) {
+      setRowError(
+        isId
+          ? "Gagal menyalin ke clipboard. Salin teks secara manual."
+          : "Failed to copy to clipboard. Please copy the text manually.",
+      );
+      return;
     }
+    setCopiedKeyId(keyId);
+    if (copyTimerRef.current !== null) {
+      window.clearTimeout(copyTimerRef.current);
+    }
+    copyTimerRef.current = window.setTimeout(() => {
+      copyTimerRef.current = null;
+      setCopiedKeyId(null);
+    }, 2000);
   };
 
   const toggleRevealSecret = (keyId: string) => {
@@ -357,22 +356,17 @@ export function KeysConsole() {
     });
   };
 
-  const handleStartTunnel = (provider: "cloudflare" | "tailscale") => {
-    setRowError(null);
-    startTunnelMutation.mutate(
-      { provider },
-      {
-        onError: (err) => setRowError(err.message),
-      },
-    );
-  };
+  const closeFormModal = useCallback(() => {
+    setFormModal({ open: false, mode: "create", initialKey: null });
+  }, []);
 
-  const handleStopTunnel = () => {
-    setRowError(null);
-    stopTunnelMutation.mutate(undefined, {
-      onError: (err) => setRowError(err.message),
-    });
-  };
+  const closeReadyModal = useCallback(() => {
+    setReadySecret(null);
+  }, []);
+
+  const closeSnippetModal = useCallback(() => {
+    setSnippetKey(null);
+  }, []);
 
   const filterTabs: ReadonlyArray<{ id: KeyStatusFilter; label: string }> = [
     { id: "all", label: isId ? "Semua" : "All" },
@@ -455,10 +449,8 @@ export function KeysConsole() {
         isDomainHost={resolvedOrigins.isDomainHost}
         activeRoute={activeRoute}
         onSelectRoute={setActiveRoute}
-        tunnel={tunnel}
-        tunnelPending={startTunnelMutation.isPending || stopTunnelMutation.isPending}
-        onStartTunnel={handleStartTunnel}
-        onStopTunnel={handleStopTunnel}
+        onResolvedRouteChange={handleResolvedRouteChange}
+        onTunnelError={handleTunnelError}
         defaultModel={defaultModel}
         sampleApiKey={sampleApiKey}
       />
@@ -654,8 +646,8 @@ export function KeysConsole() {
         ) : (
           <div className="space-y-2.5">
             {filteredKeys.map((key) => {
-              const expired = isKeyExpiredAt(key.expires_at);
-              const expiry = getKeyExpiryState(key.expires_at, Date.now(), isId);
+              const expired = isKeyExpiredAt(key.expires_at, nowMs);
+              const expiry = getKeyExpiryState(key.expires_at, nowMs, isId);
               const isDisabled = key.disabled;
               const isRowBusy = busyKeyId === key.id;
               const anyRowBusy = busyKeyId !== null;
@@ -989,37 +981,43 @@ export function KeysConsole() {
         )}
       </section>
 
-      {/* Unified Create / Edit Key Modal */}
-      <KeyFormModal
-        isOpen={formModal.open}
-        isId={isId}
-        mode={formModal.mode}
-        initialKey={formModal.initialKey}
-        isPending={createMutation.isPending || updateMutation.isPending}
-        errorMessage={formError}
-        onClose={() => setFormModal({ open: false, mode: "create", initialKey: null })}
-        onSubmit={handleFormSubmit}
-      />
+      {/* Lazy-loaded modals: mounted conditionally to keep initial bundle lean */}
+      <Suspense fallback={null}>
+        {formModal.open ? (
+          <KeyFormModal
+            isOpen={formModal.open}
+            isId={isId}
+            mode={formModal.mode}
+            initialKey={formModal.initialKey}
+            isPending={createMutation.isPending || updateMutation.isPending}
+            errorMessage={formError}
+            onClose={closeFormModal}
+            onSubmit={handleFormSubmit}
+          />
+        ) : null}
 
-      {/* One-Time Key Ready Modal (Copy Key + Copy Ready cURL) */}
-      <KeyReadyModal
-        isId={isId}
-        secretState={readySecret}
-        activeOrigin={activeEffectiveOrigin}
-        defaultModel={defaultModel}
-        onClose={() => setReadySecret(null)}
-      />
+        {readySecret ? (
+          <KeyReadyModal
+            isId={isId}
+            secretState={readySecret}
+            activeOrigin={resolvedRoute.origin}
+            defaultModel={defaultModel}
+            onClose={closeReadyModal}
+          />
+        ) : null}
 
-      {/* Code Snippet Modal (OpenAI & Anthropic x cURL/Python/Node/Go) */}
-      <KeySnippetModal
-        isId={isId}
-        apiKey={snippetKey}
-        revealedSecret={snippetKey ? sessionSecrets[snippetKey.id] : undefined}
-        activeOrigin={activeEffectiveOrigin}
-        activeRouteLabel={activeRouteLabel}
-        defaultModel={defaultModel}
-        onClose={() => setSnippetKey(null)}
-      />
+        {snippetKey ? (
+          <KeySnippetModal
+            isId={isId}
+            apiKey={snippetKey}
+            revealedSecret={sessionSecrets[snippetKey.id]}
+            activeOrigin={resolvedRoute.origin}
+            activeRouteLabel={resolvedRoute.label}
+            defaultModel={defaultModel}
+            onClose={closeSnippetModal}
+          />
+        ) : null}
+      </Suspense>
     </div>
   );
 }

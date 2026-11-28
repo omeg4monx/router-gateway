@@ -10,7 +10,7 @@ import {
   Waypoints,
   X,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { type RefObject, useEffect, useMemo, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { cn } from "@/shared/lib/utils";
 import { Alert, AlertDescription, AlertTitle } from "@/shared/ui/alert";
@@ -18,6 +18,7 @@ import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
 import {
+  copyTextToClipboard,
   generateKeySnippet,
   type KeySnippetFormat,
   type KeySnippetLang,
@@ -25,11 +26,104 @@ import {
 } from "./endpointUtils";
 import {
   type ApiKeySummary,
+  buildCreateKeySchema,
   type CreateKeyFormInput,
   type CreateKeyFormOutput,
-  createKeySchema,
   DEFAULT_CREATE_KEY_VALUES,
 } from "./schemas";
+
+const FOCUSABLE_SELECTOR =
+  'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+function useDialogA11y(options: {
+  isOpen: boolean;
+  dialogRef: RefObject<HTMLDivElement | null>;
+  initialFocusRef?: RefObject<HTMLElement | null>;
+  canClose?: boolean;
+  onClose: () => void;
+}) {
+  const { isOpen, dialogRef, initialFocusRef, canClose = true, onClose } = options;
+  const onCloseRef = useRef(onClose);
+  const canCloseRef = useRef(canClose);
+
+  useEffect(() => {
+    onCloseRef.current = onClose;
+    canCloseRef.current = canClose;
+  }, [onClose, canClose]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    const previouslyFocused =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null;
+
+    const focusTimer = window.setTimeout(() => {
+      if (initialFocusRef?.current) {
+        initialFocusRef.current.focus();
+        return;
+      }
+      const container = dialogRef.current;
+      if (!container) {
+        return;
+      }
+      const firstFocusable = container.querySelector<HTMLElement>(FOCUSABLE_SELECTOR);
+      if (firstFocusable) {
+        firstFocusable.focus();
+      } else {
+        container.focus();
+      }
+    }, 0);
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        if (canCloseRef.current) {
+          event.preventDefault();
+          onCloseRef.current();
+        }
+        return;
+      }
+
+      if (event.key !== "Tab") {
+        return;
+      }
+
+      const container = dialogRef.current;
+      if (!container) {
+        return;
+      }
+      const focusables = Array.from(container.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR));
+      if (focusables.length === 0) {
+        event.preventDefault();
+        container.focus();
+        return;
+      }
+
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      const active = document.activeElement;
+      if (event.shiftKey) {
+        if (active === first || !container.contains(active)) {
+          event.preventDefault();
+          last?.focus();
+        }
+      } else if (active === last || !container.contains(active)) {
+        event.preventDefault();
+        first?.focus();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.clearTimeout(focusTimer);
+      window.removeEventListener("keydown", handleKeyDown);
+      if (previouslyFocused && document.contains(previouslyFocused)) {
+        previouslyFocused.focus();
+      }
+    };
+  }, [isOpen, dialogRef, initialFocusRef]);
+}
 
 interface KeyFormModalProps {
   isOpen: boolean;
@@ -53,7 +147,9 @@ export function KeyFormModal({
   onSubmit,
 }: KeyFormModalProps) {
   const [showAdvancedLimits, setShowAdvancedLimits] = useState(false);
+  const dialogRef = useRef<HTMLDivElement | null>(null);
   const nameInputRef = useRef<HTMLInputElement | null>(null);
+  const schema = useMemo(() => buildCreateKeySchema(isId), [isId]);
 
   const {
     register,
@@ -61,12 +157,13 @@ export function KeyFormModal({
     reset,
     formState: { errors },
   } = useForm<CreateKeyFormInput, unknown, CreateKeyFormOutput>({
-    resolver: zodResolver(createKeySchema),
+    resolver: zodResolver(schema),
     defaultValues: DEFAULT_CREATE_KEY_VALUES,
     mode: "onSubmit",
     reValidateMode: "onChange",
   });
 
+  // Reset form state ONLY when opening or switching target key/mode — never on isPending/onClose churn.
   useEffect(() => {
     if (!isOpen) {
       return;
@@ -90,19 +187,22 @@ export function KeyFormModal({
       reset(DEFAULT_CREATE_KEY_VALUES);
       setShowAdvancedLimits(false);
     }
+  }, [isOpen, mode, initialKey, reset]);
 
-    const focusTimer = window.setTimeout(() => nameInputRef.current?.focus(), 0);
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && !isPending) {
-        onClose();
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => {
-      window.clearTimeout(focusTimer);
-      window.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [isOpen, mode, initialKey, reset, isPending, onClose]);
+  // Auto-expand advanced section if validation fails on any hidden advanced field.
+  useEffect(() => {
+    if (errors.allowed_models || errors.rate_limit_rpm || errors.quota_usd || errors.expires_at) {
+      setShowAdvancedLimits(true);
+    }
+  }, [errors.allowed_models, errors.rate_limit_rpm, errors.quota_usd, errors.expires_at]);
+
+  useDialogA11y({
+    isOpen,
+    dialogRef,
+    initialFocusRef: nameInputRef,
+    canClose: !isPending,
+    onClose,
+  });
 
   if (!isOpen) {
     return null;
@@ -122,10 +222,12 @@ export function KeyFormModal({
         className="fixed inset-0 bg-black/55"
       />
       <div
+        ref={dialogRef}
+        tabIndex={-1}
         role="dialog"
         aria-modal="true"
         aria-labelledby="key-form-dialog-title"
-        className="relative z-10 w-full max-w-md rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-2xl"
+        className="relative z-10 w-full max-w-md rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-2xl focus:outline-none"
       >
         <div className="flex items-center justify-between border-b border-[var(--color-border-subtle)] px-5 py-4">
           <div className="flex items-center gap-2">
@@ -358,6 +460,7 @@ export function KeyReadyModal({
   onClose,
 }: KeyReadyModalProps) {
   const [copiedTarget, setCopiedTarget] = useState<"key" | "curl" | null>(null);
+  const dialogRef = useRef<HTMLDivElement | null>(null);
   const timerRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -368,37 +471,29 @@ export function KeyReadyModal({
     };
   }, []);
 
-  useEffect(() => {
-    if (!secretState) {
-      return;
-    }
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        onClose();
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [secretState, onClose]);
+  useDialogA11y({
+    isOpen: Boolean(secretState),
+    dialogRef,
+    onClose,
+  });
 
   if (!secretState) {
     return null;
   }
 
   const copyText = async (text: string, kind: "key" | "curl") => {
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopiedTarget(kind);
-      if (timerRef.current !== null) {
-        window.clearTimeout(timerRef.current);
-      }
-      timerRef.current = window.setTimeout(() => {
-        timerRef.current = null;
-        setCopiedTarget(null);
-      }, 2200);
-    } catch {
-      // Fallback: user can select text directly
+    const ok = await copyTextToClipboard(text);
+    if (!ok) {
+      return;
     }
+    setCopiedTarget(kind);
+    if (timerRef.current !== null) {
+      window.clearTimeout(timerRef.current);
+    }
+    timerRef.current = window.setTimeout(() => {
+      timerRef.current = null;
+      setCopiedTarget(null);
+    }, 2200);
   };
 
   const curlCmd = generateKeySnippet({
@@ -419,10 +514,12 @@ export function KeyReadyModal({
         className="fixed inset-0 bg-black/55"
       />
       <div
+        ref={dialogRef}
+        tabIndex={-1}
         role="dialog"
         aria-modal="true"
         aria-labelledby="key-ready-dialog-title"
-        className="relative z-10 w-full max-w-lg rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-2xl"
+        className="relative z-10 w-full max-w-lg rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-2xl focus:outline-none"
       >
         <div className="flex items-center justify-between border-b border-[var(--color-border-subtle)] px-5 py-4">
           <h3
@@ -551,6 +648,7 @@ export function KeySnippetModal({
   const [format, setFormat] = useState<KeySnippetFormat>("openai");
   const [lang, setLang] = useState<KeySnippetLang>("curl");
   const [copied, setCopied] = useState(false);
+  const dialogRef = useRef<HTMLDivElement | null>(null);
   const timerRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -561,18 +659,11 @@ export function KeySnippetModal({
     };
   }, []);
 
-  useEffect(() => {
-    if (!apiKey) {
-      return;
-    }
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        onClose();
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [apiKey, onClose]);
+  useDialogA11y({
+    isOpen: Boolean(apiKey),
+    dialogRef,
+    onClose,
+  });
 
   const code = useMemo(() => {
     if (!apiKey) return "";
@@ -591,19 +682,18 @@ export function KeySnippetModal({
   }
 
   const handleCopy = async () => {
-    try {
-      await navigator.clipboard.writeText(code);
-      setCopied(true);
-      if (timerRef.current !== null) {
-        window.clearTimeout(timerRef.current);
-      }
-      timerRef.current = window.setTimeout(() => {
-        timerRef.current = null;
-        setCopied(false);
-      }, 2200);
-    } catch {
-      // ignore
+    const ok = await copyTextToClipboard(code);
+    if (!ok) {
+      return;
     }
+    setCopied(true);
+    if (timerRef.current !== null) {
+      window.clearTimeout(timerRef.current);
+    }
+    timerRef.current = window.setTimeout(() => {
+      timerRef.current = null;
+      setCopied(false);
+    }, 2200);
   };
 
   return (
@@ -616,10 +706,12 @@ export function KeySnippetModal({
         className="fixed inset-0 bg-black/55"
       />
       <div
+        ref={dialogRef}
+        tabIndex={-1}
         role="dialog"
         aria-modal="true"
         aria-labelledby="key-snippet-dialog-title"
-        className="relative z-10 w-full max-w-xl rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-2xl"
+        className="relative z-10 w-full max-w-xl rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-2xl focus:outline-none"
       >
         <div className="flex items-center justify-between border-b border-[var(--color-border-subtle)] px-5 py-4">
           <div className="flex min-w-0 items-center gap-2">
