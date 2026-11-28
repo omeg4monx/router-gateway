@@ -77,13 +77,31 @@ func globToRegexp(pattern string) (*regexp.Regexp, error) {
 	return regexp.Compile(b.String())
 }
 
-func matchPattern(pattern, value string) bool {
+func compileGlobPattern(pattern string) *regexp.Regexp {
+	pattern = strings.TrimSpace(pattern)
+	if pattern == "" || pattern == "*" || !strings.ContainsAny(pattern, "*?[") {
+		return nil
+	}
+	re, err := globToRegexp(pattern)
+	if err != nil {
+		return nil
+	}
+	return re
+}
+
+func matchCompiledPattern(pattern string, compiled *regexp.Regexp, value string) bool {
 	pattern = strings.TrimSpace(pattern)
 	if pattern == "" || pattern == "*" {
 		return true
 	}
 	if pattern == value {
 		return true
+	}
+	if compiled != nil {
+		return compiled.MatchString(value)
+	}
+	if !strings.ContainsAny(pattern, "*?[") {
+		return false
 	}
 	re, err := globToRegexp(pattern)
 	if err != nil {
@@ -96,7 +114,7 @@ func bypassRuleMatches(rule BypassRule, model, keyID, protocol string, headers h
 	if !rule.Enabled {
 		return false
 	}
-	if !matchPattern(rule.ModelPattern, model) {
+	if !matchCompiledPattern(rule.ModelPattern, rule.compiledPattern, model) {
 		return false
 	}
 	if rule.KeyID != "" && rule.KeyID != keyID {
@@ -175,7 +193,7 @@ func applyPipeline(
 
 	if !skipOverrides {
 		for _, ov := range overrides {
-			if !ov.Enabled || !matchPattern(ov.ModelPattern, outModel) {
+			if !ov.Enabled || !matchCompiledPattern(ov.ModelPattern, ov.compiledPattern, outModel) {
 				continue
 			}
 			appliedOverrides = append(appliedOverrides, ov.ID)
@@ -276,14 +294,14 @@ func applyOverrideToJSON(protocol string, root map[string]any, ov ModelOverride)
 		if existingMap, ok := root[k].(map[string]any); ok {
 			if patchMap, ok2 := v.(map[string]any); ok2 {
 				for pk, pv := range patchMap {
-					existingMap[pk] = pv
+					existingMap[pk] = cloneJSONValue(pv)
 				}
 				root[k] = existingMap
 				mutated = true
 				continue
 			}
 		}
-		root[k] = v
+		root[k] = cloneJSONValue(v)
 		mutated = true
 	}
 
@@ -306,6 +324,25 @@ func applyOverrideToJSON(protocol string, root map[string]any, ov ModelOverride)
 }
 
 const internalPromptModeKey = "_prompt_mode"
+
+func cloneJSONValue(v any) any {
+	switch typed := v.(type) {
+	case map[string]any:
+		out := make(map[string]any, len(typed))
+		for k, val := range typed {
+			out[k] = cloneJSONValue(val)
+		}
+		return out
+	case []any:
+		out := make([]any, len(typed))
+		for i, val := range typed {
+			out[i] = cloneJSONValue(val)
+		}
+		return out
+	default:
+		return v
+	}
+}
 
 func hasPromptSegment(haystack, needle string) bool {
 	if haystack == "" || needle == "" {

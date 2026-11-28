@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 
@@ -97,11 +98,25 @@ func (m *Module) reloadCache(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	for i := range overrides {
+		overrides[i].compiledPattern = compileGlobPattern(overrides[i].ModelPattern)
+	}
+	for i := range bypassRules {
+		bypassRules[i].compiledPattern = compileGlobPattern(bypassRules[i].ModelPattern)
+	}
 	m.mu.Lock()
 	m.overrides = overrides
 	m.bypassRules = bypassRules
 	m.mu.Unlock()
 	return nil
+}
+
+func (m *Module) reloadCacheAfterWrite(ctx context.Context) {
+	reloadCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+	defer cancel()
+	if err := m.reloadCache(reloadCtx); err != nil {
+		m.logger.Warn("modeleditor: reload cache failed after write", "err", err)
+	}
 }
 
 func (m *Module) snapshot() ([]BypassRule, []ModelOverride) {
@@ -126,7 +141,7 @@ func (m *Module) ListVirtualModels() []contracts.ModelDescriptor {
 		}
 		alias := strings.TrimSpace(ov.ModelPattern)
 		target := strings.TrimSpace(ov.TargetModel)
-		if alias == "" || target == "" || strings.Contains(alias, "*") {
+		if alias == "" || target == "" || strings.ContainsAny(alias, "*?[") {
 			continue
 		}
 		if _, dup := seen[alias]; dup {
@@ -264,7 +279,7 @@ func (m *Module) handleCreateOverride(w http.ResponseWriter, r *http.Request) {
 		httpserver.WriteError(w, r, http.StatusInternalServerError, "db_error", "failed to create model override")
 		return
 	}
-	_ = m.reloadCache(r.Context())
+	m.reloadCacheAfterWrite(r.Context())
 	m.publishChanged()
 	httpserver.WriteJSON(w, http.StatusCreated, created)
 }
@@ -353,7 +368,7 @@ func (m *Module) handlePatchOverride(w http.ResponseWriter, r *http.Request) {
 		httpserver.WriteError(w, r, http.StatusInternalServerError, "db_error", "failed to update model override")
 		return
 	}
-	_ = m.reloadCache(r.Context())
+	m.reloadCacheAfterWrite(r.Context())
 	m.publishChanged()
 	httpserver.WriteJSON(w, http.StatusOK, updated)
 }
@@ -369,7 +384,7 @@ func (m *Module) handleDeleteOverride(w http.ResponseWriter, r *http.Request) {
 		httpserver.WriteError(w, r, http.StatusInternalServerError, "db_error", "failed to delete model override")
 		return
 	}
-	_ = m.reloadCache(r.Context())
+	m.reloadCacheAfterWrite(r.Context())
 	m.publishChanged()
 	w.WriteHeader(http.StatusNoContent)
 }
@@ -429,7 +444,7 @@ func (m *Module) handleCreateBypass(w http.ResponseWriter, r *http.Request) {
 		httpserver.WriteError(w, r, http.StatusInternalServerError, "db_error", "failed to create bypass rule")
 		return
 	}
-	_ = m.reloadCache(r.Context())
+	m.reloadCacheAfterWrite(r.Context())
 	m.publishChanged()
 	httpserver.WriteJSON(w, http.StatusCreated, created)
 }
@@ -499,7 +514,7 @@ func (m *Module) handlePatchBypass(w http.ResponseWriter, r *http.Request) {
 		httpserver.WriteError(w, r, http.StatusInternalServerError, "db_error", "failed to update bypass rule")
 		return
 	}
-	_ = m.reloadCache(r.Context())
+	m.reloadCacheAfterWrite(r.Context())
 	m.publishChanged()
 	httpserver.WriteJSON(w, http.StatusOK, updated)
 }
@@ -515,7 +530,7 @@ func (m *Module) handleDeleteBypass(w http.ResponseWriter, r *http.Request) {
 		httpserver.WriteError(w, r, http.StatusInternalServerError, "db_error", "failed to delete bypass rule")
 		return
 	}
-	_ = m.reloadCache(r.Context())
+	m.reloadCacheAfterWrite(r.Context())
 	m.publishChanged()
 	w.WriteHeader(http.StatusNoContent)
 }

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"regexp"
 	"time"
 
 	"github.com/omeg4monx/router-gateway/internal/platform/db"
@@ -32,23 +33,25 @@ type ModelOverride struct {
 	Enabled            bool           `json:"enabled"`
 	CreatedAt          string         `json:"created_at"`
 	UpdatedAt          string         `json:"updated_at"`
+	compiledPattern    *regexp.Regexp `json:"-"`
 }
 
 // BypassRule conditionally rewrites models or bypasses downstream interceptors.
 type BypassRule struct {
-	ID           string `json:"id"`
-	Name         string `json:"name"`
-	ModelPattern string `json:"model_pattern"`
-	KeyID        string `json:"key_id"`
-	Protocol     string `json:"protocol"`
-	HeaderName   string `json:"header_name"`
-	HeaderValue  string `json:"header_value"`
-	Action       string `json:"action"`
-	TargetModel  string `json:"target_model"`
-	Priority     int    `json:"priority"`
-	Enabled      bool   `json:"enabled"`
-	CreatedAt    string `json:"created_at"`
-	UpdatedAt    string `json:"updated_at"`
+	ID              string         `json:"id"`
+	Name            string         `json:"name"`
+	ModelPattern    string         `json:"model_pattern"`
+	KeyID           string         `json:"key_id"`
+	Protocol        string         `json:"protocol"`
+	HeaderName      string         `json:"header_name"`
+	HeaderValue     string         `json:"header_value"`
+	Action          string         `json:"action"`
+	TargetModel     string         `json:"target_model"`
+	Priority        int            `json:"priority"`
+	Enabled         bool           `json:"enabled"`
+	CreatedAt       string         `json:"created_at"`
+	UpdatedAt       string         `json:"updated_at"`
+	compiledPattern *regexp.Regexp `json:"-"`
 }
 
 type repository struct {

@@ -9,7 +9,13 @@ import {
   PARAMETER_GUIDE_ENTRIES,
   QUICK_TEST_PRESETS,
 } from "./parameterGuide";
-import { createModelOverrideSchema, parseExtraParamsJson, parseStripParamsList } from "./schemas";
+import {
+  buildOverridePatchPayload,
+  createModelOverrideSchema,
+  overrideToFormValues,
+  parseExtraParamsJson,
+  parseStripParamsList,
+} from "./schemas";
 import { buildTargetModelOptions, filterTargetModelOptions } from "./TargetModelCombobox";
 
 describe("modeleditor schemas", () => {
@@ -171,5 +177,55 @@ describe("modeleditor schemas", () => {
     expect(filterPromptTemplates(BUILTIN_PROMPT_TEMPLATES, "neon").map((t) => t.name)).toEqual([
       "Gemini 4 Neon",
     ]);
+  });
+
+  test("maps ModelOverride to edit form values and builds PATCH payload with clear flags", () => {
+    const existing = {
+      id: "mov_123",
+      name: "claude-dual",
+      model_pattern: "claude-dual",
+      target_model: "claude-sonnet-4",
+      system_prompt_prefix: "",
+      system_prompt_suffix: "Anchor instruction",
+      temperature: 0.4,
+      max_tokens: 4096,
+      extra_params: { _prompt_mode: "dual", seed: 7 },
+      strip_params: ["presence_penalty", "top_k"],
+      priority: 100,
+      enabled: true,
+      created_at: "2026-01-01T00:00:00Z",
+      updated_at: "2026-01-01T00:00:00Z",
+    };
+
+    const formValues = overrideToFormValues(existing);
+    expect(formValues.name).toBe("claude-dual");
+    expect(formValues.target_model).toBe("claude-sonnet-4");
+    expect(formValues.system_prompt).toBe("Anchor instruction");
+    expect(formValues.system_prompt_position).toBe("dual");
+    expect(formValues.temperature).toBe("0.4");
+    expect(formValues.max_tokens).toBe("4096");
+    expect(formValues.strip_params_csv).toBe("presence_penalty, top_k");
+    expect(JSON.parse(formValues.extra_params_json ?? "{}")).toEqual({ seed: 7 });
+
+    // Edit: switch to prefix, clear temperature and max_tokens.
+    const patch = buildOverridePatchPayload(
+      {
+        ...formValues,
+        system_prompt_position: "prefix",
+        temperature: "",
+        max_tokens: "",
+        extra_params_json: '{"seed": 99}',
+      },
+      existing,
+    );
+    expect(patch.ok).toBe(true);
+    if (!patch.ok) return;
+    expect(patch.value.system_prompt_prefix).toBe("Anchor instruction");
+    expect(patch.value.system_prompt_suffix).toBe("");
+    expect(patch.value.clear_temperature).toBe(true);
+    expect(patch.value.clear_max_tokens).toBe(true);
+    expect(patch.value.temperature).toBeUndefined();
+    expect(patch.value.max_tokens).toBeUndefined();
+    expect(patch.value.extra_params).toEqual({ seed: 99 });
   });
 });

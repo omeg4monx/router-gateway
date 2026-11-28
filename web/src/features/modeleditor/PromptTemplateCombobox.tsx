@@ -25,7 +25,7 @@ function templatePreviewSnippet(content: string): string {
 
 interface PromptTemplateComboboxProps {
   selectedId: string;
-  templates: readonly BuiltinPromptTemplate[];
+  templates?: readonly BuiltinPromptTemplate[];
   locale: UILocale;
   onSelectCustom: () => void;
   onSelectTemplate: (template: BuiltinPromptTemplate) => void;
@@ -41,15 +41,50 @@ export function PromptTemplateCombobox({
   const copy = MODEL_EDITOR_COPY[locale];
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [loadedTemplates, setLoadedTemplates] = useState<readonly BuiltinPromptTemplate[] | null>(
+    null,
+  );
+  const [isLoadingTemplates, setIsLoadingTemplates] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
+  const activeTemplates = templates ?? loadedTemplates ?? [];
+
+  useEffect(() => {
+    if (templates || loadedTemplates || (!open && selectedId === "custom")) {
+      return;
+    }
+    let cancelled = false;
+    setIsLoadingTemplates(true);
+    void import("./builtinPromptTemplates")
+      .then((mod) => {
+        if (!cancelled) {
+          setLoadedTemplates(mod.BUILTIN_PROMPT_TEMPLATES);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setIsLoadingTemplates(false);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, selectedId, templates, loadedTemplates]);
+
   const selectedTemplate = useMemo(
-    () => templates.find((tpl) => tpl.id === selectedId) ?? null,
-    [templates, selectedId],
+    () => activeTemplates.find((tpl) => tpl.id === selectedId) ?? null,
+    [activeTemplates, selectedId],
   );
 
-  const filtered = useMemo(() => filterPromptTemplates(templates, search), [templates, search]);
+  const filtered = useMemo(
+    () => filterPromptTemplates(activeTemplates, search),
+    [activeTemplates, search],
+  );
+
+  // Index 0 is "Free Text" ("custom"), indices 1..filtered.length are templates.
+  const totalOptions = 1 + filtered.length;
 
   useEffect(() => {
     if (!open) return;
@@ -75,6 +110,34 @@ export function PromptTemplateCombobox({
     };
   }, [open]);
 
+  const handleSearchKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      setActiveIndex((prev) => (prev + 1) % totalOptions);
+    } else if (event.key === "ArrowUp") {
+      event.preventDefault();
+      setActiveIndex((prev) => (prev - 1 + totalOptions) % totalOptions);
+    } else if (event.key === "Enter") {
+      event.preventDefault();
+      if (activeIndex === 0) {
+        onSelectCustom();
+      } else {
+        const chosen = filtered[activeIndex - 1];
+        if (chosen) onSelectTemplate(chosen);
+      }
+      setSearch("");
+      setOpen(false);
+    }
+  };
+
+  const activeTemplate = activeIndex > 0 ? filtered[activeIndex - 1] : undefined;
+  const activeOptionId =
+    open && activeIndex === 0
+      ? "prompt-tpl-opt-custom"
+      : open && activeTemplate
+        ? `prompt-tpl-opt-${activeTemplate.id}`
+        : undefined;
+
   return (
     <div ref={containerRef} className="relative">
       <button
@@ -82,8 +145,12 @@ export function PromptTemplateCombobox({
         role="combobox"
         aria-expanded={open}
         aria-haspopup="listbox"
+        aria-controls="prompt-template-listbox"
         aria-label={copy.promptTemplatePickerLabel}
-        onClick={() => setOpen((prev) => !prev)}
+        onClick={() => {
+          setActiveIndex(0);
+          setOpen((prev) => !prev);
+        }}
         className="flex h-8 w-full cursor-pointer items-center justify-between gap-2 rounded-md border border-[var(--border-subtle)] bg-[var(--bg-surface-raised)] px-2.5 text-left text-xs transition-colors hover:border-[var(--border-strong)] focus:border-[var(--accent-primary)] focus:outline-none"
       >
         <div className="flex min-w-0 flex-1 items-center gap-1.5">
@@ -102,7 +169,9 @@ export function PromptTemplateCombobox({
             {selectedTemplate ? selectedTemplate.name : copy.promptFreeTextLabel}
           </span>
           <span className="shrink-0 rounded border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-1.5 py-0.2 font-mono text-[10px] text-[var(--text-muted)]">
-            {templates.length} {copy.promptTemplatesUnit}
+            {activeTemplates.length > 0
+              ? `${activeTemplates.length} ${copy.promptTemplatesUnit}`
+              : copy.promptTemplatesUnit}
           </span>
         </div>
         <ChevronsUpDown
@@ -119,19 +188,30 @@ export function PromptTemplateCombobox({
               ref={searchInputRef}
               type="text"
               value={search}
-              onChange={(event) => setSearch(event.target.value)}
+              onChange={(event) => {
+                setSearch(event.target.value);
+                setActiveIndex(0);
+              }}
+              onKeyDown={handleSearchKeyDown}
               placeholder={copy.promptTemplateSearchPlaceholder}
               aria-label={copy.promptTemplateSearchPlaceholder}
+              aria-activedescendant={activeOptionId}
               className="w-full bg-transparent text-xs text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none"
             />
           </div>
 
-          <div role="listbox" className="min-h-0 flex-1 overflow-y-auto p-1">
+          <div
+            id="prompt-template-listbox"
+            role="listbox"
+            className="min-h-0 flex-1 overflow-y-auto p-1"
+          >
             {/* Free Text option */}
             <button
+              id="prompt-tpl-opt-custom"
               type="button"
               role="option"
               aria-selected={selectedId === "custom"}
+              onMouseEnter={() => setActiveIndex(0)}
               onClick={() => {
                 onSelectCustom();
                 setSearch("");
@@ -141,7 +221,9 @@ export function PromptTemplateCombobox({
                 "mb-1 flex w-full cursor-pointer items-center justify-between gap-2 rounded border-b border-[var(--border-subtle)] px-2 py-1.5 text-left text-xs transition-colors",
                 selectedId === "custom"
                   ? "bg-[var(--accent-primary)]/15 text-[var(--accent-text)]"
-                  : "text-[var(--text-primary)] hover:bg-[var(--bg-surface-raised)]",
+                  : activeIndex === 0
+                    ? "bg-[var(--bg-surface-raised)] text-[var(--text-primary)]"
+                    : "text-[var(--text-primary)] hover:bg-[var(--bg-surface-raised)]",
               )}
             >
               <div className="min-w-0 flex-1">
@@ -158,20 +240,28 @@ export function PromptTemplateCombobox({
               ) : null}
             </button>
 
-            {filtered.length === 0 ? (
+            {isLoadingTemplates ? (
+              <p className="px-2.5 py-3 text-center text-xs text-[var(--text-muted)]">
+                {copy.promptTemplateLoading}
+              </p>
+            ) : filtered.length === 0 ? (
               <p className="px-2.5 py-3 text-center text-xs text-[var(--text-muted)]">
                 {copy.promptTemplateEmpty}
               </p>
             ) : (
-              filtered.map((tpl) => {
+              filtered.map((tpl, idx) => {
+                const optionIdx = idx + 1;
                 const isSelected = tpl.id === selectedId;
+                const isActive = activeIndex === optionIdx;
                 const tokens = estimatePromptTokens(tpl.content);
                 return (
                   <button
                     key={tpl.id}
+                    id={`prompt-tpl-opt-${tpl.id}`}
                     type="button"
                     role="option"
                     aria-selected={isSelected}
+                    onMouseEnter={() => setActiveIndex(optionIdx)}
                     onClick={() => {
                       onSelectTemplate(tpl);
                       setSearch("");
@@ -181,7 +271,9 @@ export function PromptTemplateCombobox({
                       "flex w-full cursor-pointer items-center justify-between gap-2 rounded px-2 py-1.5 text-left text-xs transition-colors",
                       isSelected
                         ? "bg-[var(--accent-primary)]/15 text-[var(--accent-text)]"
-                        : "text-[var(--text-primary)] hover:bg-[var(--bg-surface-raised)]",
+                        : isActive
+                          ? "bg-[var(--bg-surface-raised)] text-[var(--text-primary)]"
+                          : "text-[var(--text-primary)] hover:bg-[var(--bg-surface-raised)]",
                     )}
                   >
                     <div className="min-w-0 flex-1">
