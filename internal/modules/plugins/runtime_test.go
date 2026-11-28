@@ -329,3 +329,113 @@ func TestPluginsOpenAIToolBridgeExtractsProseCallsAndDropsHallucinations(t *test
 		t.Fatalf("expected undeclared arg filtered out, got %s", fn["arguments"])
 	}
 }
+
+func TestPluginsAntiSlopFormatAwareCachePreservingAndIdempotent(t *testing.T) {
+	mod, handler := setupPluginsTest(t)
+	putPluginConfig(t, handler, "antiSlop", `{"enabled":true,"models":[],"config":{"level":"lite"}}`)
+
+	// 1. OpenAI Chat: appends to existing system message (preserving cache prefix) and is idempotent.
+	oaiReq := &contracts.CanonicalRequest{
+		RequestID: "req_as_oai",
+		Protocol:  "openai-chat",
+		Model:     "gpt-4o",
+		Body:      []byte(`{"model":"gpt-4o","messages":[{"role":"system","content":"Base prompt."},{"role":"user","content":"Hi"}]}`),
+		Metadata:  map[string]any{},
+	}
+	if err := mod.OnRequest(context.Background(), oaiReq); err != nil {
+		t.Fatalf("OnRequest oai first: %v", err)
+	}
+	firstBody := append([]byte(nil), oaiReq.Body...)
+	var oaiOut map[string]any
+	if err := json.Unmarshal(oaiReq.Body, &oaiOut); err != nil {
+		t.Fatalf("unmarshal oaiOut: %v", err)
+	}
+	msgs := oaiOut["messages"].([]any)
+	if len(msgs) != 2 {
+		t.Fatalf("expected existing system message appended in-place (len=2), got %d", len(msgs))
+	}
+	sysContent := msgs[0].(map[string]any)["content"].(string)
+	if !strings.HasPrefix(sysContent, "Base prompt.\n\n") || !strings.Contains(sysContent, "antislop") {
+		t.Fatalf("expected base prompt prefix preserved with appended antislop, got %q", sysContent)
+	}
+	// Second pass must be idempotent (no duplicate injection).
+	if err := mod.OnRequest(context.Background(), oaiReq); err != nil {
+		t.Fatalf("OnRequest oai second: %v", err)
+	}
+	if string(oaiReq.Body) != string(firstBody) {
+		t.Fatalf("expected idempotent injection on retry")
+	}
+
+	// 2. Claude with system array + cache_control: inserts before last cache_control and never touches messages[].
+	claudeReq := &contracts.CanonicalRequest{
+		RequestID: "req_as_claude",
+		Protocol:  "anthropic-messages",
+		Model:     "claude-sonnet-4",
+		Body: []byte(`{
+			"model":"claude-sonnet-4",
+			"system":[{"type":"text","text":"Core rules.","cache_control":{"type":"ephemeral"}}],
+			"messages":[{"role":"user","content":"Build UI"}]
+		}`),
+		Metadata: map[string]any{},
+	}
+	if err := mod.OnRequest(context.Background(), claudeReq); err != nil {
+		t.Fatalf("OnRequest claude: %v", err)
+	}
+	var claudeOut map[string]any
+	if err := json.Unmarshal(claudeReq.Body, &claudeOut); err != nil {
+		t.Fatalf("unmarshal claudeOut: %v", err)
+	}
+	if len(claudeOut["messages"].([]any)) != 1 {
+		t.Fatalf("expected claude messages[] untouched, got %v", claudeOut["messages"])
+	}
+	sysBlocks := claudeOut["system"].([]any)
+	if len(sysBlocks) != 2 {
+		t.Fatalf("expected 2 system blocks, got %d", len(sysBlocks))
+	}
+	if sysBlocks[1].(map[string]any)["cache_control"] == nil {
+		t.Fatalf("expected cache_control block kept at tail for prompt caching, got %v", sysBlocks)
+	}
+
+	// 3. Claude without system field: creates top-level system string instead of invalid system role in messages[].
+	claudeNoSys := &contracts.CanonicalRequest{
+		RequestID: "req_as_claude_nosys",
+		Protocol:  "anthropic-messages",
+		Model:     "claude-sonnet-4",
+		Body:      []byte(`{"model":"claude-sonnet-4","messages":[{"role":"user","content":"Hi"}]}`),
+		Metadata:  map[string]any{},
+	}
+	if err := mod.OnRequest(context.Background(), claudeNoSys); err != nil {
+		t.Fatalf("OnRequest claudeNoSys: %v", err)
+	}
+	var claudeNoSysOut map[string]any
+	if err := json.Unmarshal(claudeNoSys.Body, &claudeNoSysOut); err != nil {
+		t.Fatalf("unmarshal claudeNoSysOut: %v", err)
+	}
+	if sysStr, _ := claudeNoSysOut["system"].(string); !strings.Contains(sysStr, "antislop") {
+		t.Fatalf("expected top-level system string for claude, got %v", claudeNoSysOut["system"])
+	}
+	if len(claudeNoSysOut["messages"].([]any)) != 1 {
+		t.Fatalf("expected claude messages[] untouched, got %v", claudeNoSysOut["messages"])
+	}
+
+	// 4. Gemini native payload: injects into systemInstruction.parts.
+	geminiReq := &contracts.CanonicalRequest{
+		RequestID: "req_as_gemini",
+		Protocol:  "gemini",
+		Model:     "gemini-2.5-pro",
+		Body:      []byte(`{"contents":[{"role":"user","parts":[{"text":"Hello"}]}]}`),
+		Metadata:  map[string]any{},
+	}
+	if err := mod.OnRequest(context.Background(), geminiReq); err != nil {
+		t.Fatalf("OnRequest gemini: %v", err)
+	}
+	var geminiOut map[string]any
+	if err := json.Unmarshal(geminiReq.Body, &geminiOut); err != nil {
+		t.Fatalf("unmarshal geminiOut: %v", err)
+	}
+	sysInst, _ := geminiOut["systemInstruction"].(map[string]any)
+	parts, _ := sysInst["parts"].([]any)
+	if len(parts) != 1 || !strings.Contains(parts[0].(map[string]any)["text"].(string), "antislop") {
+		t.Fatalf("expected gemini systemInstruction.parts populated, got %v", geminiOut["systemInstruction"])
+	}
+}

@@ -1704,9 +1704,9 @@
     "semantic_hash": ""
   },
   "internal/modules/plugins/interceptor.go": {
-    "mtime": 1795818241.2950017,
-    "seen": 1795818359.073772,
-    "ast_hash": "cfcab45644595b4f4dd34c8e07a0d219",
+    "mtime": 1795838389.553309,
+    "seen": 1795838437.2130108,
+    "ast_hash": "022956ae8e37b6542e54a5abf1b517f7",
     "semantic_hash": ""
   },
   "internal/modules/plugins/module.go": {
@@ -3888,9 +3888,9 @@
     "semantic_hash": ""
   },
   "internal/modules/plugins/antislop.go": {
-    "mtime": 1795818232.2128563,
-    "seen": 1795818359.0737681,
-    "ast_hash": "a7db535397e3234c769307632841c2b6",
+    "mtime": 1795838387.215306,
+    "seen": 1795838437.2129812,
+    "ast_hash": "8a98d8161693f459cd87a07420aa4ad4",
     "semantic_hash": ""
   },
   "internal/modules/plugins/context_squeezer.go": {
@@ -3906,15 +3906,21 @@
     "semantic_hash": ""
   },
   "internal/modules/plugins/runtime_test.go": {
-    "mtime": 1795818082.1814535,
-    "seen": 1795818359.0738065,
-    "ast_hash": "bd1fa17cbcaf58033109546e2cbb29a0",
+    "mtime": 1795838391.0373108,
+    "seen": 1795838437.213117,
+    "ast_hash": "b023640b16aa2eb5d9025586cf2c29f5",
     "semantic_hash": ""
   },
   "internal/modules/plugins/tool_bridge.go": {
     "mtime": 1795818237.8539467,
     "seen": 1795818359.0738082,
     "ast_hash": "560567aac50d010cfc19db55b4b2e3c7",
+    "semantic_hash": ""
+  },
+  "internal/modules/plugins/system_inject.go": {
+    "mtime": 1795838417.2684965,
+    "seen": 1795838437.2131193,
+    "ast_hash": "2af8502fbe479d128f900d8c0537cceb",
     "semantic_hash": ""
   }
 }

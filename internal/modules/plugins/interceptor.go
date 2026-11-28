@@ -353,8 +353,9 @@ func applyPluginsToBody(model, protocol string, rawBody []byte, states []PluginS
 	}
 
 	if len(directives) > 0 {
-		injectSystemDirectives(payload, strings.Join(directives, "\n\n"))
-		mutatedBody = true
+		if injectSystemDirectives(payload, protocol, effectiveModel, strings.Join(directives, "\n\n")) {
+			mutatedBody = true
+		}
 	}
 
 	if !mutatedBody {
@@ -401,35 +402,6 @@ func modelMatches(model string, allowlist []string) bool {
 		}
 	}
 	return false
-}
-
-func injectSystemDirectives(payload map[string]any, directive string) {
-	if sysStr, ok := payload["system"].(string); ok {
-		if strings.TrimSpace(sysStr) == "" {
-			payload["system"] = directive
-		} else {
-			payload["system"] = directive + "\n\n" + sysStr
-		}
-		return
-	}
-	if msgs, ok := payload["messages"].([]any); ok {
-		sysMsg := map[string]any{
-			"role":    "system",
-			"content": directive,
-		}
-		updated := make([]any, 0, len(msgs)+1)
-		updated = append(updated, sysMsg)
-		updated = append(updated, msgs...)
-		payload["messages"] = updated
-		return
-	}
-	if _, hasInput := payload["input"]; hasInput {
-		if instr, ok := payload["instructions"].(string); ok && strings.TrimSpace(instr) != "" {
-			payload["instructions"] = directive + "\n\n" + instr
-		} else {
-			payload["instructions"] = directive
-		}
-	}
 }
 
 func intFromAny(v any) int {

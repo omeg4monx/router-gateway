@@ -35,6 +35,8 @@ const (
 - Interactive elements (R-26): every element has real behavior or is removed.
 - UI states (R-27): empty, loading and error states are designed, not left blank.
 - Keyboard accessibility (R-32): reachable and operable by keyboard, with visible focus.
+- No script patching (R-33): edit source files directly, never shell-patch code or CSS.
+- Every shipped theme works (R-34): if multiple themes exist, verify each one.
 - Verify before you deliver (R-35): actually run or check the thing you claim works.`
 
 	antiSlopDeliveryGate = `Delivery Gate - before you report done, run this and report it honestly in four short blocks:
