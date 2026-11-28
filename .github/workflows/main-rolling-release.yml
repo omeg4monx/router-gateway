@@ -71,7 +71,12 @@ jobs:
         run: |
           BUILD_TIME="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
           COMMIT="${GITHUB_SHA::7}"
-          RELEASE_VERSION="main-${COMMIT}"
+          BASE_VERSION="$(jq -r '."."' .release-please-manifest.json 2>/dev/null || true)"
+          if [ -n "${BASE_VERSION}" ] && [ "${BASE_VERSION}" != "null" ]; then
+            RELEASE_VERSION="v${BASE_VERSION}+${COMMIT}"
+          else
+            RELEASE_VERSION="main-${COMMIT}"
+          fi
           LDFLAGS="-s -w -X main.version=${RELEASE_VERSION} -X main.commit=${COMMIT} -X main.buildTime=${BUILD_TIME}"
           mkdir -p dist
           CGO_ENABLED=0 GOOS=linux   GOARCH=amd64 go build -tags embedui -trimpath -ldflags="${LDFLAGS}" -o dist/omeg4mon-router-linux-amd64 ./cmd/omeg4mon-router
