@@ -23,6 +23,22 @@ export function formatRelativeTimeShort(iso: string, nowMs: number, isId: boolea
   return isId ? `${days}h lalu` : `${days}d ago`;
 }
 
+export function computeRelativeClockIntervalMs(
+  items: readonly Pick<UsageLog, "created_at">[],
+  nowMs: number,
+): number | null {
+  if (items.length === 0) {
+    return null;
+  }
+  for (const item of items) {
+    const ts = Date.parse(item.created_at);
+    if (!Number.isNaN(ts) && nowMs - ts < 60_000) {
+      return 1_000;
+    }
+  }
+  return 30_000;
+}
+
 export function isUsageLogSuccess(log: Pick<UsageLog, "status_code" | "error_summary">): boolean {
   return log.status_code >= 200 && log.status_code < 400 && !log.error_summary.trim();
 }

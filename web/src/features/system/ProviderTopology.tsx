@@ -26,6 +26,13 @@ import {
   type TopologyProviderInput,
 } from "./topologyLayout";
 
+function prefersReducedMotion(): boolean {
+  if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
+    return false;
+  }
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
 const FLOW_PULSES = [
   { id: "pulse-0", r: 3.2, dur: "1.45s", begin: "0s", fill: "var(--color-highlight)" },
   { id: "pulse-1", r: 2.4, dur: "1.45s", begin: "0.48s", fill: "var(--status-ok)" },
@@ -194,7 +201,7 @@ function ProviderLeafNode({ data }: NodeProps<TopologyNode & { data: ProviderNod
           </span>
           {isActive ? (
             <span className="relative flex h-2 w-2 shrink-0" aria-hidden="true">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[var(--color-highlight)] opacity-70" />
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[var(--color-highlight)] opacity-70 motion-reduce:animate-none" />
               <span className="relative inline-flex h-2 w-2 rounded-full bg-[var(--color-highlight)]" />
             </span>
           ) : isError ? (
@@ -210,7 +217,7 @@ function ProviderLeafNode({ data }: NodeProps<TopologyNode & { data: ProviderNod
           ) : null}
         </div>
         <div className="mt-0.5 flex items-center gap-1.5 font-mono text-[10px] tabular-nums text-[var(--color-text-muted)]">
-          <span className="font-medium text-[var(--color-text-secondary)]">
+          <span className="font-medium text-[var(--color-text-muted)]">
             {data.requests.toLocaleString()} req
           </span>
           {data.connectionCount > 0 ? (
@@ -343,33 +350,34 @@ function EnergyTopologyEdge({
       />
 
       {/* Smooth comet light pulses fading in & out cleanly along path */}
-      {FLOW_PULSES.map((pulse) => (
-        <circle
-          key={`${id}-${pulse.id}`}
-          r={pulse.r}
-          fill={pulse.fill}
-          filter={`url(#${filterId})`}
-          opacity={0}
-        >
-          <animate
-            attributeName="opacity"
-            values="0;0.95;0.95;0"
-            keyTimes="0;0.14;0.84;1"
-            dur={pulse.dur}
-            begin={pulse.begin}
-            repeatCount="indefinite"
-          />
-          <animateMotion
-            dur={pulse.dur}
-            begin={pulse.begin}
-            repeatCount="indefinite"
-            calcMode="spline"
-            keyTimes="0;1"
-            keySplines="0.4 0 0.2 1"
-            path={edgePath}
-          />
-        </circle>
-      ))}
+      {!prefersReducedMotion() &&
+        FLOW_PULSES.map((pulse) => (
+          <circle
+            key={`${id}-${pulse.id}`}
+            r={pulse.r}
+            fill={pulse.fill}
+            filter={`url(#${filterId})`}
+            opacity={0}
+          >
+            <animate
+              attributeName="opacity"
+              values="0;0.95;0.95;0"
+              keyTimes="0;0.14;0.84;1"
+              dur={pulse.dur}
+              begin={pulse.begin}
+              repeatCount="indefinite"
+            />
+            <animateMotion
+              dur={pulse.dur}
+              begin={pulse.begin}
+              repeatCount="indefinite"
+              calcMode="spline"
+              keyTimes="0;1"
+              keySplines="0.4 0 0.2 1"
+              path={edgePath}
+            />
+          </circle>
+        ))}
     </g>
   );
 }
@@ -452,13 +460,13 @@ export default function ProviderTopology({
       return;
     }
     const ro = new ResizeObserver(() => {
-      void rfInstanceRef.current?.fitView(FIT_OPTIONS);
+      scheduleFitView();
     });
     ro.observe(el);
     return () => {
       ro.disconnect();
     };
-  }, []);
+  }, [scheduleFitView]);
 
   useEffect(() => {
     if (nodes.length > 0) {

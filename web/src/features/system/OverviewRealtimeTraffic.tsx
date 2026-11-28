@@ -1,12 +1,13 @@
 import { ArrowRight, Clock, Network } from "lucide-react";
-import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { lazy, memo, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router";
-import type { UsageStreamStatus } from "@/features/usage/hooks";
+import { useUsageStream } from "@/features/usage/hooks";
 import { formatCompactTokens, formatDurationMs, type UsageLog } from "@/features/usage/schemas";
 import { cn } from "@/shared/lib/utils";
 import { Badge } from "@/shared/ui/badge";
 import { formatActivityOriginLabel } from "./overview";
 import {
+  computeRelativeClockIntervalMs,
   filterRecentRequests,
   formatRelativeTimeShort,
   isUsageLogSuccess,
@@ -23,13 +24,10 @@ interface OverviewRealtimeTrafficProps {
   logs: readonly UsageLog[];
   keyNameMap: ReadonlyMap<string, string>;
   isLoadingLogs: boolean;
-  streamStatus: UsageStreamStatus;
-  streamEventCount: number;
-  lastStreamEvent: UsageLog | null;
   isId: boolean;
 }
 
-// Single shared 1-second relative clock scoped strictly to Recent Requests rows (replaces N per-row timers).
+// Single shared adaptive relative clock scoped strictly to Recent Requests rows (1s when any row < 60s old, 30s otherwise).
 function RecentRequestsRows({
   items,
   freshIds,
@@ -42,16 +40,17 @@ function RecentRequestsRows({
   isId: boolean;
 }) {
   const [nowMs, setNowMs] = useState(() => Date.now());
+  const intervalMs = computeRelativeClockIntervalMs(items, nowMs);
 
   useEffect(() => {
-    if (items.length === 0) return;
+    if (intervalMs === null) return;
     const timer = window.setInterval(() => {
       setNowMs(Date.now());
-    }, 1000);
+    }, intervalMs);
     return () => {
       window.clearInterval(timer);
     };
-  }, [items.length]);
+  }, [intervalMs]);
 
   return (
     <tbody className="divide-y divide-[var(--color-border-subtle)]/70">
@@ -155,16 +154,18 @@ function RecentRequestsRows({
   );
 }
 
-export function OverviewRealtimeTraffic({
+export const OverviewRealtimeTraffic = memo(function OverviewRealtimeTraffic({
   topologyProviders,
   logs,
   keyNameMap,
   isLoadingLogs,
-  streamStatus,
-  streamEventCount,
-  lastStreamEvent,
   isId,
 }: OverviewRealtimeTrafficProps) {
+  const {
+    status: streamStatus,
+    eventCount: streamEventCount,
+    lastEvent: lastStreamEvent,
+  } = useUsageStream(true);
   const [statusFilter, setStatusFilter] = useState<RecentRequestStatusFilter>("all");
   const [freshIds, setFreshIds] = useState<Set<number>>(() => new Set());
   const [pulsingProviders, setPulsingProviders] = useState<Set<string>>(() => new Set());
@@ -293,7 +294,7 @@ export function OverviewRealtimeTraffic({
             >
               <span className="relative flex h-1.5 w-1.5" aria-hidden="true">
                 {isStreamLive ? (
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[var(--status-ok)] opacity-75" />
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[var(--status-ok)] opacity-75 motion-reduce:animate-none" />
                 ) : null}
                 <span
                   className={cn(
@@ -401,6 +402,7 @@ export function OverviewRealtimeTraffic({
                 <button
                   key={pill.key}
                   type="button"
+                  aria-pressed={active}
                   onClick={() => setStatusFilter(pill.key)}
                   className={cn(
                     "cursor-pointer rounded-md px-2 py-0.5 font-mono text-[10.5px] font-medium transition-colors",
@@ -506,4 +508,4 @@ export function OverviewRealtimeTraffic({
       </div>
     </section>
   );
-}
+});

@@ -80,6 +80,7 @@ function syncConnectionModelsInBackground(queryClient: QueryClient, connectionId
 export function useProvidersCatalog() {
   return useQuery<ProvidersCatalogResponse, Error>({
     queryKey: providersQueryKeys.catalog,
+    staleTime: 5 * 60_000,
     queryFn: async () => {
       const { data, error } = await apiClient.GET("/api/providers/catalog");
       if (data) {

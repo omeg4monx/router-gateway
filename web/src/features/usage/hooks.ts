@@ -55,6 +55,7 @@ function buildLogsQueryParams(filters: UsageLogsFilter) {
 export function useUsageSummary(range: UsageRange) {
   return useQuery<UsageSummaryResponse, Error>({
     queryKey: usageQueryKeys.summary(range),
+    placeholderData: keepPreviousData,
     queryFn: async () => {
       const { data, error } = await apiClient.GET("/api/usage/summary", {
         params: { query: { range } },
