@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"sync"
 	"time"
@@ -14,6 +15,7 @@ import (
 const (
 	defaultResponseCacheMaxEntries = 512
 	defaultResponseCacheTTL        = 60 * time.Second
+	defaultCoalesceExecutionLimit  = 2 * time.Minute
 	maxCachedResponseBytes         = 256 << 10 // 256 KiB per cached entry
 
 	cacheStatusHit       = "HIT"
@@ -199,22 +201,41 @@ func (c *responseCoalescer) do(
 	c.inflight[key] = call
 	c.mu.Unlock()
 
-	resp, err := fn(ctx)
-	call.resp = resp
-	call.err = err
+	go func() {
+		callCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), defaultCoalesceExecutionLimit)
+		defer cancel()
 
-	if err == nil {
-		c.set(key, resp)
+		var (
+			resp cachedGatewayResponse
+			err  error
+		)
+		defer func() {
+			if rec := recover(); rec != nil {
+				err = fmt.Errorf("gateway: coalesced execution panicked: %v", rec)
+			}
+			call.resp = resp
+			call.err = err
+			if err == nil {
+				c.set(key, resp)
+			}
+			c.mu.Lock()
+			delete(c.inflight, key)
+			close(call.done)
+			c.mu.Unlock()
+		}()
+
+		resp, err = fn(callCtx)
+	}()
+
+	select {
+	case <-call.done:
+		if call.err != nil {
+			return cachedGatewayResponse{}, cacheStatusMiss, call.err
+		}
+		res := call.resp
+		res.body = bytes.Clone(res.body)
+		return res, cacheStatusMiss, nil
+	case <-ctx.Done():
+		return cachedGatewayResponse{}, cacheStatusMiss, ctx.Err()
 	}
-
-	c.mu.Lock()
-	delete(c.inflight, key)
-	close(call.done)
-	c.mu.Unlock()
-
-	if err != nil {
-		return cachedGatewayResponse{}, cacheStatusMiss, err
-	}
-	resp.body = bytes.Clone(resp.body)
-	return resp, cacheStatusMiss, nil
 }

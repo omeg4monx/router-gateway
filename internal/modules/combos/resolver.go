@@ -174,9 +174,15 @@ func (m *Module) ListModels(ctx context.Context, allowed []string) ([]contracts.
 	return out, nil
 }
 
-func (m *Module) loadSnapshot(ctx context.Context) (*resolveSnapshot, error) {
-	if m.providers == nil {
-		return nil, errors.New("combos: provider store is not initialized")
+func (m *Module) loadRoutingState(ctx context.Context) (*cachedRoutingState, error) {
+	if m.routingCache != nil {
+		if cached, ok := m.routingCache.Get(); ok {
+			return cached, nil
+		}
+	}
+	var ver uint64
+	if m.routingCache != nil {
+		ver = m.routingCache.Version()
 	}
 
 	comboList, err := m.repo.ListCombos(ctx)
@@ -194,10 +200,6 @@ func (m *Module) loadSnapshot(ctx context.Context) (*resolveSnapshot, error) {
 	providerStratList, err := m.repo.ListProviderStrategies(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("combos: load provider strategies: %w", err)
-	}
-	conns, err := m.providers.ListEnabledConnections(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("combos: list enabled provider connections: %w", err)
 	}
 
 	activeCombos := make(map[string]Combo, len(comboList))
@@ -222,6 +224,32 @@ func (m *Module) loadSnapshot(ctx context.Context) (*resolveSnapshot, error) {
 		providerStrategies[ps.ProviderID] = ps.Strategy
 	}
 
+	state := &cachedRoutingState{
+		activeCombos:       activeCombos,
+		aliases:            aliases,
+		disabled:           disabled,
+		providerStrategies: providerStrategies,
+	}
+	if m.routingCache != nil {
+		m.routingCache.SetIfVersion(state, ver)
+	}
+	return state, nil
+}
+
+func (m *Module) loadSnapshot(ctx context.Context) (*resolveSnapshot, error) {
+	if m.providers == nil {
+		return nil, errors.New("combos: provider store is not initialized")
+	}
+
+	state, err := m.loadRoutingState(ctx)
+	if err != nil {
+		return nil, err
+	}
+	conns, err := m.providers.ListEnabledConnections(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("combos: list enabled provider connections: %w", err)
+	}
+
 	enabledConns := make([]contracts.ProviderConnection, 0, len(conns))
 	for _, c := range conns {
 		if c.Enabled {
@@ -236,10 +264,10 @@ func (m *Module) loadSnapshot(ctx context.Context) (*resolveSnapshot, error) {
 	})
 
 	return &resolveSnapshot{
-		activeCombos:       activeCombos,
-		aliases:            aliases,
-		disabled:           disabled,
-		providerStrategies: providerStrategies,
+		activeCombos:       state.activeCombos,
+		aliases:            state.aliases,
+		disabled:           state.disabled,
+		providerStrategies: state.providerStrategies,
 		connections:        enabledConns,
 	}, nil
 }

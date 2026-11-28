@@ -298,32 +298,48 @@ func (m *AttestationManager) GetToken(ctx context.Context, client *http.Client, 
 		m.inFlight[mintURL] = call
 		m.mu.Unlock()
 
-		tokens, expiresAt, err := m.mintBatch(ctx, httpClient, mintURL)
+		go func() {
+			mintCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 30*time.Second)
+			defer cancel()
 
-		m.mu.Lock()
-		call.err = err
-		delete(m.inFlight, mintURL)
-		var firstToken string
-		if err == nil && len(tokens) > 0 {
-			firstToken = tokens[0]
-			if len(tokens) > 1 {
-				if len(m.buckets) >= maxAttestationBuckets {
-					m.evictOldestLocked()
+			var (
+				tokens    []string
+				expiresAt time.Time
+				err       error
+			)
+			defer func() {
+				if rec := recover(); rec != nil {
+					err = fmt.Errorf("venice: attestation mint panicked: %v", rec)
 				}
-				m.buckets[mintURL] = &tokenBucket{
-					queue:     tokens[1:],
-					expiresAt: expiresAt,
-					lastUsed:  m.nowFn(),
+				m.mu.Lock()
+				call.err = err
+				delete(m.inFlight, mintURL)
+				if err == nil && len(tokens) > 0 {
+					if len(m.buckets) >= maxAttestationBuckets {
+						m.evictOldestLocked()
+					}
+					m.buckets[mintURL] = &tokenBucket{
+						queue:     tokens,
+						expiresAt: expiresAt,
+						lastUsed:  m.nowFn(),
+					}
 				}
+				close(call.done)
+				m.mu.Unlock()
+			}()
+
+			tokens, expiresAt, err = m.mintBatch(mintCtx, httpClient, mintURL)
+		}()
+
+		select {
+		case <-call.done:
+			if call.err != nil {
+				return "", call.err
 			}
+			continue
+		case <-ctx.Done():
+			return "", ctx.Err()
 		}
-		close(call.done)
-		m.mu.Unlock()
-
-		if err != nil {
-			return "", err
-		}
-		return firstToken, nil
 	}
 }
 

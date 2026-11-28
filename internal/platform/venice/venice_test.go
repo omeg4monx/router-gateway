@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/url"
@@ -394,5 +395,141 @@ func TestVeniceLiveEndToEnd(t *testing.T) {
 	t.Logf("stream ok: status=%d sse_chunks=%d has_done=%v", resp2.StatusCode, chunks, hasDone)
 	if resp2.StatusCode != http.StatusOK || chunks == 0 || !hasDone {
 		t.Fatalf("unexpected stream result: status=%d chunks=%d hasDone=%v", resp2.StatusCode, chunks, hasDone)
+	}
+}
+
+func TestAttestationManagerLeaderCancelDoesNotAbortWaiters(t *testing.T) {
+	t.Parallel()
+
+	mgr := NewAttestationManager(nil)
+	leaderStarted := make(chan struct{})
+	releaseMint := make(chan struct{})
+	var calls atomic.Int32
+
+	client := &http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			calls.Add(1)
+			close(leaderStarted)
+			select {
+			case <-releaseMint:
+				body := `{"tokens":[{"token":"tok-a"},{"token":"tok-b"},{"token":"tok-c"}],"expiresAt":4102444800}`
+				return &http.Response{
+					StatusCode: http.StatusOK,
+					Header:     http.Header{"Content-Type": []string{"application/json"}},
+					Body:       io.NopCloser(strings.NewReader(body)),
+				}, nil
+			case <-req.Context().Done():
+				return nil, req.Context().Err()
+			}
+		}),
+	}
+
+	leaderCtx, cancelLeader := context.WithCancel(context.Background())
+	defer cancelLeader()
+
+	var (
+		wg        sync.WaitGroup
+		leaderErr error
+		waiterTok string
+		waiterErr error
+	)
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		_, leaderErr = mgr.GetToken(leaderCtx, client, "https://venice.example/api/inference/chat")
+	}()
+
+	<-leaderStarted
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		waiterTok, waiterErr = mgr.GetToken(context.Background(), client, "https://venice.example/api/inference/chat")
+	}()
+
+	time.Sleep(25 * time.Millisecond)
+	cancelLeader()
+	time.Sleep(25 * time.Millisecond)
+	close(releaseMint)
+	wg.Wait()
+
+	if !errors.Is(leaderErr, context.Canceled) {
+		t.Fatalf("leaderErr = %v, want context.Canceled", leaderErr)
+	}
+	if waiterErr != nil {
+		t.Fatalf("waiterErr = %v, want nil (leader cancel must not abort waiter)", waiterErr)
+	}
+	if waiterTok == "" {
+		t.Fatal("waiterTok is empty, want minted token")
+	}
+	if calls.Load() != 1 {
+		t.Fatalf("mint calls = %d, want 1", calls.Load())
+	}
+}
+
+func TestAttestationManagerPanicDoesNotDeadlockWaiters(t *testing.T) {
+	t.Parallel()
+
+	mgr := NewAttestationManager(nil)
+	leaderStarted := make(chan struct{})
+	releasePanic := make(chan struct{})
+	var calls atomic.Int32
+
+	client := &http.Client{
+		Transport: roundTripFunc(func(_ *http.Request) (*http.Response, error) {
+			if calls.Add(1) == 1 {
+				close(leaderStarted)
+				<-releasePanic
+				panic("mint transport boom")
+			}
+			body := `{"tokens":[{"token":"tok-recovered"}],"expiresAt":4102444800}`
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+				Body:       io.NopCloser(strings.NewReader(body)),
+			}, nil
+		}),
+	}
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		defer func() { _ = recover() }()
+		_, _ = mgr.GetToken(context.Background(), client, "https://venice-panic.example/api/inference/chat")
+	}()
+
+	<-leaderStarted
+
+	waiterDone := make(chan error, 1)
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
+		defer cancel()
+		_, err := mgr.GetToken(ctx, client, "https://venice-panic.example/api/inference/chat")
+		waiterDone <- err
+	}()
+
+	time.Sleep(25 * time.Millisecond)
+	close(releasePanic)
+
+	select {
+	case err := <-waiterDone:
+		if errors.Is(err, context.DeadlineExceeded) {
+			t.Fatal("waiter deadlocked after leader panic")
+		}
+		if err == nil {
+			t.Fatal("expected error from panicked mint")
+		}
+	case <-time.After(1 * time.Second):
+		t.Fatal("timed out waiting for waiter after leader panic")
+	}
+	wg.Wait()
+
+	tok, err := mgr.GetToken(context.Background(), client, "https://venice-panic.example/api/inference/chat")
+	if err != nil || tok != "tok-recovered" {
+		t.Fatalf("subsequent GetToken = (%q, %v), want (tok-recovered, nil)", tok, err)
 	}
 }

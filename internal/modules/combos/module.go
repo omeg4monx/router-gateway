@@ -75,15 +75,16 @@ type Options struct {
 // Module implements lifecycle.Module, contracts.ProviderResolver,
 // contracts.AccountHealthTracker, and contracts.ModelLister.
 type Module struct {
-	db         *db.DB
-	providers  contracts.ProviderStore
-	httpClient *http.Client
-	bus        *eventbus.Bus
-	usage      contracts.UsageRecorder
-	now        func() time.Time
-	repo       *repository
-	cooldown   *cooldownTracker
-	stratState *strategyState
+	db           *db.DB
+	providers    contracts.ProviderStore
+	httpClient   *http.Client
+	bus          *eventbus.Bus
+	usage        contracts.UsageRecorder
+	now          func() time.Time
+	repo         *repository
+	routingCache *routingStateCache
+	cooldown     *cooldownTracker
+	stratState   *strategyState
 }
 
 var (
@@ -100,16 +101,18 @@ func New(opts Options) *Module {
 	if clock == nil {
 		clock = func() time.Time { return time.Now().UTC() }
 	}
+	routingCache := newRoutingStateCache()
 	return &Module{
-		db:         opts.DB,
-		providers:  opts.Providers,
-		httpClient: opts.HTTPClient,
-		bus:        opts.Bus,
-		usage:      opts.Usage,
-		now:        clock,
-		repo:       newRepository(opts.DB, clock),
-		cooldown:   newCooldownTracker(clock),
-		stratState: newStrategyState(),
+		db:           opts.DB,
+		providers:    opts.Providers,
+		httpClient:   opts.HTTPClient,
+		bus:          opts.Bus,
+		usage:        opts.Usage,
+		now:          clock,
+		repo:         newRepository(opts.DB, clock, routingCache.Invalidate),
+		routingCache: routingCache,
+		cooldown:     newCooldownTracker(clock),
+		stratState:   newStrategyState(),
 	}
 }
 
@@ -203,6 +206,9 @@ func (m *Module) Start(context.Context) error {
 
 // Stop performs graceful module teardown.
 func (m *Module) Stop(context.Context) error {
+	if m.routingCache != nil {
+		m.routingCache.Invalidate()
+	}
 	return nil
 }
 

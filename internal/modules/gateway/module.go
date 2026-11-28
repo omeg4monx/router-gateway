@@ -572,7 +572,7 @@ func (m *Module) handleInferenceWithKey(w http.ResponseWriter, r *http.Request, 
 	if m.coalescer != nil && m.coalescer.isCacheableRequest(inProto, icReq.Stream, isCompact, icReq.Body) {
 		cKey := m.coalescer.cacheKey(keyInfo.ID, inProto, icReq.Model, icReq.Body)
 		cachedResp, cacheStatus, cErr := m.coalescer.do(r.Context(), cKey, func(callCtx context.Context) (cachedGatewayResponse, error) {
-			return m.executeCoalescedInference(callCtx, w, r, reqID, keyInfo, icReq, inProto, isCompact, startTime)
+			return m.executeCoalescedInference(callCtx, r, reqID, keyInfo, icReq, inProto, isCompact, startTime)
 		})
 		if cErr != nil {
 			if r.Context().Err() != nil {
@@ -580,7 +580,14 @@ func (m *Module) handleInferenceWithKey(w http.ResponseWriter, r *http.Request, 
 			}
 			var alreadyHandled *handledGatewayError
 			if errors.As(cErr, &alreadyHandled) {
-				if cacheStatus == cacheStatusCoalesced {
+				switch {
+				case alreadyHandled.resolveErr != nil:
+					writeResolutionError(w, r, inProto, alreadyHandled.resolveErr)
+				case len(alreadyHandled.rawBody) > 0:
+					w.Header().Set("Content-Type", "application/json; charset=utf-8")
+					w.WriteHeader(alreadyHandled.statusCode)
+					_, _ = w.Write(alreadyHandled.rawBody)
+				default:
 					writeGatewayError(w, r, inProto, alreadyHandled.statusCode, alreadyHandled.errType, alreadyHandled.errCode, alreadyHandled.errMsg)
 				}
 				return
@@ -626,13 +633,14 @@ type handledGatewayError struct {
 	errType    string
 	errCode    string
 	errMsg     string
+	rawBody    []byte
+	resolveErr error
 }
 
 func (e *handledGatewayError) Error() string { return e.errMsg }
 
 func (m *Module) executeCoalescedInference(
 	ctx context.Context,
-	w http.ResponseWriter,
 	r *http.Request,
 	reqID string,
 	keyInfo contracts.KeyInfo,
@@ -642,7 +650,7 @@ func (m *Module) executeCoalescedInference(
 	startTime time.Time,
 ) (cachedGatewayResponse, error) {
 	var captured cachedGatewayResponse
-	err := m.executeInferenceCandidates(ctx, w, r, reqID, keyInfo, icReq, inProto, isCompact, startTime, &captured)
+	err := m.executeInferenceCandidates(ctx, nil, r, reqID, keyInfo, icReq, inProto, isCompact, startTime, &captured)
 	if err != nil {
 		return cachedGatewayResponse{}, err
 	}
@@ -663,12 +671,15 @@ func (m *Module) executeInferenceCandidates(
 ) error {
 	candidates, err := m.resolver.Resolve(ctx, icReq.Model, keyInfo.AllowedModels)
 	if err != nil {
-		writeResolutionError(w, r, inProto, err)
+		if capture == nil {
+			writeResolutionError(w, r, inProto, err)
+		}
 		return &handledGatewayError{
 			statusCode: http.StatusNotFound,
 			errType:    "invalid_request_error",
 			errCode:    "model_not_found",
 			errMsg:     err.Error(),
+			resolveErr: err,
 		}
 	}
 	candidates = prioritizeHeadroomAffinity(candidates, icReq.Metadata)
@@ -723,7 +734,9 @@ func (m *Module) executeInferenceCandidates(
 
 		upBody, chainInputMsgs, prepErr := m.prepareUpstreamBody(ctx, inProto, outProto, keyInfo.ID, upstreamModel, icReq.Stream, isCompact, icReq.Body)
 		if prepErr != nil {
-			writeGatewayError(w, r, inProto, http.StatusBadRequest, "invalid_request_error", "invalid_payload", prepErr.Error())
+			if capture == nil {
+				writeGatewayError(w, r, inProto, http.StatusBadRequest, "invalid_request_error", "invalid_payload", prepErr.Error())
+			}
 			return &handledGatewayError{
 				statusCode: http.StatusBadRequest,
 				errType:    "invalid_request_error",
@@ -821,11 +834,20 @@ func (m *Module) executeInferenceCandidates(
 
 			if outcome.handled {
 				if capture != nil && outcome.statusCode >= 400 {
+					errType := outcome.errType
+					if errType == "" {
+						errType = "invalid_request_error"
+					}
+					errCode := outcome.errCode
+					if errCode == "" {
+						errCode = "upstream_client_error"
+					}
 					return &handledGatewayError{
 						statusCode: outcome.statusCode,
-						errType:    "invalid_request_error",
-						errCode:    "upstream_client_error",
+						errType:    errType,
+						errCode:    errCode,
 						errMsg:     outcome.errMsg,
+						rawBody:    outcome.rawBody,
 					}
 				}
 				return nil
@@ -936,7 +958,9 @@ func (m *Module) executeInferenceCandidates(
 		Stream:       icReq.Stream,
 		Timestamp:    time.Now().UTC(),
 	})
-	writeGatewayError(w, r, inProto, lastStatus, "server_error", "upstream_failed", lastMsg)
+	if capture == nil {
+		writeGatewayError(w, r, inProto, lastStatus, "server_error", "upstream_failed", lastMsg)
+	}
 	return &handledGatewayError{
 		statusCode: lastStatus,
 		errType:    "server_error",
@@ -952,7 +976,10 @@ type attemptOutcome struct {
 	deferredHealthFail bool
 	statusCode         int
 	retryAfter         time.Duration
+	errType            string
+	errCode            string
 	errMsg             string
+	rawBody            []byte
 }
 
 func (m *Module) prepareUpstreamBody(
@@ -1182,8 +1209,16 @@ func (m *Module) executeCandidateAttempt(
 					Stream:       stream,
 					Timestamp:    time.Now().UTC(),
 				})
-				writeGatewayError(w, r, inProto, http.StatusBadRequest, "invalid_request_error", "antigravity_prompt_rejected", antigravityPromptRejectedMessage)
-				return attemptOutcome{handled: true}
+				if capture == nil {
+					writeGatewayError(w, r, inProto, http.StatusBadRequest, "invalid_request_error", "antigravity_prompt_rejected", antigravityPromptRejectedMessage)
+				}
+				return attemptOutcome{
+					handled:    true,
+					statusCode: http.StatusBadRequest,
+					errType:    "invalid_request_error",
+					errCode:    "antigravity_prompt_rejected",
+					errMsg:     antigravityPromptRejectedMessage,
+				}
 			}
 		}
 		break
@@ -1208,11 +1243,21 @@ func (m *Module) executeCandidateAttempt(
 		}
 		for _, ic := range m.interceptors {
 			if icErr := ic.OnResponseHeaders(ctx, meta); icErr != nil {
-				writeGatewayError(w, r, inProto, http.StatusBadGateway, "server_error", "interceptor_error", icErr.Error())
-				return attemptOutcome{handled: true}
+				if capture == nil {
+					writeGatewayError(w, r, inProto, http.StatusBadGateway, "server_error", "interceptor_error", icErr.Error())
+				}
+				return attemptOutcome{
+					handled:    true,
+					statusCode: http.StatusBadGateway,
+					errType:    "server_error",
+					errCode:    "interceptor_error",
+					errMsg:     icErr.Error(),
+				}
 			}
 		}
-		copyResponseHeaders(w.Header(), meta.Headers)
+		if capture == nil {
+			copyResponseHeaders(w.Header(), meta.Headers)
+		}
 
 		if stream {
 			streamSrc := resp.Body
@@ -1253,15 +1298,19 @@ func (m *Module) executeCandidateAttempt(
 
 		rawResp, readErr := io.ReadAll(io.LimitReader(resp.Body, maxResponseBodyBytes))
 		if readErr != nil {
-			writeGatewayError(w, r, inProto, http.StatusBadGateway, "server_error", "upstream_read_error", readErr.Error())
-			return attemptOutcome{handled: true}
+			if capture == nil {
+				writeGatewayError(w, r, inProto, http.StatusBadGateway, "server_error", "upstream_read_error", readErr.Error())
+			}
+			return attemptOutcome{handled: true, statusCode: http.StatusBadGateway, errType: "server_error", errCode: "upstream_read_error", errMsg: readErr.Error()}
 		}
 		if isVeniceKeyless {
 			converted, _, convErr := venice.ParseNDJSONToOpenAI(rawResp, requestedModel)
 			if convErr != nil {
 				m.veniceMgr.Evict(upURL)
-				writeGatewayError(w, r, inProto, http.StatusBadGateway, "server_error", "invalid_upstream_response", convErr.Error())
-				return attemptOutcome{handled: true}
+				if capture == nil {
+					writeGatewayError(w, r, inProto, http.StatusBadGateway, "server_error", "invalid_upstream_response", convErr.Error())
+				}
+				return attemptOutcome{handled: true, statusCode: http.StatusBadGateway, errType: "server_error", errCode: "invalid_upstream_response", errMsg: convErr.Error()}
 			}
 			rawResp = converted
 		}
@@ -1278,8 +1327,10 @@ func (m *Module) executeCandidateAttempt(
 		default:
 			canon, decErr := DecodeResponse(outProto, rawResp)
 			if decErr != nil {
-				writeGatewayError(w, r, inProto, http.StatusBadGateway, "server_error", "invalid_upstream_response", decErr.Error())
-				return attemptOutcome{handled: true}
+				if capture == nil {
+					writeGatewayError(w, r, inProto, http.StatusBadGateway, "server_error", "invalid_upstream_response", decErr.Error())
+				}
+				return attemptOutcome{handled: true, statusCode: http.StatusBadGateway, errType: "server_error", errCode: "invalid_upstream_response", errMsg: decErr.Error()}
 			}
 			canon.Model = requestedModel
 			if inProto == ProtocolOpenAIResponses && canon.ID == "" {
@@ -1291,15 +1342,19 @@ func (m *Module) executeCandidateAttempt(
 				compactOut := buildCompactedResponse(canon)
 				encoded, encErr := json.Marshal(compactOut)
 				if encErr != nil {
-					writeGatewayError(w, r, inProto, http.StatusBadGateway, "server_error", "encode_error", encErr.Error())
-					return attemptOutcome{handled: true}
+					if capture == nil {
+						writeGatewayError(w, r, inProto, http.StatusBadGateway, "server_error", "encode_error", encErr.Error())
+					}
+					return attemptOutcome{handled: true, statusCode: http.StatusBadGateway, errType: "server_error", errCode: "encode_error", errMsg: encErr.Error()}
 				}
 				outBytes = encoded
 			} else {
 				encoded, encErr := EncodeResponse(inProto, canon)
 				if encErr != nil {
-					writeGatewayError(w, r, inProto, http.StatusBadGateway, "server_error", "encode_error", encErr.Error())
-					return attemptOutcome{handled: true}
+					if capture == nil {
+						writeGatewayError(w, r, inProto, http.StatusBadGateway, "server_error", "encode_error", encErr.Error())
+					}
+					return attemptOutcome{handled: true, statusCode: http.StatusBadGateway, errType: "server_error", errCode: "encode_error", errMsg: encErr.Error()}
 				}
 				outBytes = encoded
 			}
@@ -1392,13 +1447,17 @@ func (m *Module) executeCandidateAttempt(
 			Timestamp:    time.Now().UTC(),
 		})
 		if CanFastPath(inProto, outProto) && json.Valid(errBody) {
-			w.Header().Set("Content-Type", "application/json; charset=utf-8")
-			w.WriteHeader(resp.StatusCode)
-			_, _ = w.Write(errBody)
-			return attemptOutcome{handled: true, statusCode: resp.StatusCode, errMsg: errMsg}
+			if capture == nil {
+				w.Header().Set("Content-Type", "application/json; charset=utf-8")
+				w.WriteHeader(resp.StatusCode)
+				_, _ = w.Write(errBody)
+			}
+			return attemptOutcome{handled: true, statusCode: resp.StatusCode, errMsg: errMsg, rawBody: bytes.Clone(errBody)}
 		}
-		writeGatewayError(w, r, inProto, resp.StatusCode, "invalid_request_error", "upstream_client_error", errMsg)
-		return attemptOutcome{handled: true, statusCode: resp.StatusCode, errMsg: errMsg}
+		if capture == nil {
+			writeGatewayError(w, r, inProto, resp.StatusCode, "invalid_request_error", "upstream_client_error", errMsg)
+		}
+		return attemptOutcome{handled: true, statusCode: resp.StatusCode, errType: "invalid_request_error", errCode: "upstream_client_error", errMsg: errMsg}
 	}
 
 	retryAfter := parseRetryAfter(resp.Header.Get("Retry-After"), time.Now().UTC())

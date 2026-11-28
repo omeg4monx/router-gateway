@@ -303,7 +303,7 @@ func cloneConfig(in map[string]any) map[string]any {
 // strategyState tracks lightweight, bounded in-memory routing counters for
 // round-robin, least-used, p2c, and last-known-good-provider (lkgp) strategies.
 type strategyState struct {
-	mu          sync.Mutex
+	mu          sync.RWMutex
 	rrCounters  map[string]uint64
 	usageCounts map[string]uint64
 	lastGoodSeq map[string]uint64
@@ -365,8 +365,8 @@ func (s *strategyState) recordFailure(connectionID string) {
 
 func (s *strategyState) snapshotUsage(targets []contracts.ResolvedTarget) []uint64 {
 	counts := make([]uint64, len(targets))
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 	for i := range targets {
 		counts[i] = s.usageCounts[targets[i].ConnectionID]
 	}
@@ -374,14 +374,14 @@ func (s *strategyState) snapshotUsage(targets []contracts.ResolvedTarget) []uint
 }
 
 func (s *strategyState) usagePair(connA, connB string) (usageA, usageB uint64) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 	return s.usageCounts[connA], s.usageCounts[connB]
 }
 
 func (s *strategyState) bestLKGPIndex(targets []contracts.ResolvedTarget) int {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 	bestIdx := -1
 	var bestSeq uint64
 	for i := range targets {
