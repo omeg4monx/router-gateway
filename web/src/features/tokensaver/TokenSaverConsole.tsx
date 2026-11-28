@@ -1,10 +1,14 @@
-import { CheckCircle2, Zap } from "lucide-react";
-import { useEffect, useState } from "react";
+import { AlertCircle, CheckCircle2, RotateCcw, Trash2, Zap } from "lucide-react";
+import { memo, useEffect, useState } from "react";
 import { type UILocale, useUIStore } from "@/shared/store/uiStore";
 import { Alert, AlertDescription, AlertTitle } from "@/shared/ui/alert";
 import { Badge } from "@/shared/ui/badge";
+import { Button } from "@/shared/ui/button";
 import { Card } from "@/shared/ui/card";
+import { Skeleton } from "@/shared/ui/skeleton";
 import {
+  useClearHeadroomCacheMutation,
+  useResetTokenSaverStatsMutation,
   useTokenSaverConfig,
   useTokenSaverStats,
   useUpdateTokenSaverConfigMutation,
@@ -36,7 +40,7 @@ function ToggleSwitch({ id, checked, disabled, label, onChange }: ToggleSwitchPr
       aria-label={label}
       disabled={disabled}
       onClick={() => onChange(!checked)}
-      className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+      className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-primary)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-surface)] disabled:cursor-not-allowed disabled:opacity-50 ${
         checked
           ? "border-[var(--accent-primary)] bg-[var(--accent-primary)]"
           : "border-[var(--border-strong)] bg-[var(--bg-surface-raised)]"
@@ -55,8 +59,8 @@ function ToggleSwitch({ id, checked, disabled, label, onChange }: ToggleSwitchPr
 
 const DEFAULT_CONFIG: TokenSaverConfigFormValues = {
   enabled: false,
-  strategy: "aggressive",
-  max_history_messages: 20,
+  strategy: "whitespace",
+  max_history_messages: 40,
   max_tool_output_chars: 8000,
   headroom_enabled: true,
   prefix_depth: 2,
@@ -69,6 +73,8 @@ const DEFAULT_CONFIG: TokenSaverConfigFormValues = {
   ponytail_level: "full",
   trim_history_enabled: false,
 };
+
+const SKELETON_ROWS = ["rtk", "headroom", "caveman", "ponytail", "trim"] as const;
 
 const CAVEMAN_COPY: Record<UILocale, Record<TokenSaverLevel, { label: string; desc: string }>> = {
   en: {
@@ -118,6 +124,9 @@ const COPY = {
     saved: "Saved",
     saving: "Saving...",
     errorTitle: "Token Saver Error",
+    retry: "Retry",
+    dismiss: "Dismiss",
+    tokensSavedSuffix: "tok saved",
     statusActive: "Active",
     statusOff: "Off",
     rtkTitle: "Compress tool output",
@@ -129,18 +138,30 @@ const COPY = {
     cavemanTitle: "Compress LLM output",
     cavemanTag: "(Caveman)",
     cavemanDesc: "Terse-style system prompt → ~65% fewer output tokens",
+    cavemanGroupLabel: "Caveman compression level",
     ponytailTitle: "Lazy senior dev",
     ponytailTag: "(Ponytail)",
     ponytailDesc: "Bias the model toward minimal code: YAGNI, reuse stdlib, deletion over addition",
+    ponytailGroupLabel: "Ponytail minimalism level",
     trimTitle: "Trim chat history",
     trimDesc:
       "Keep the system prompt + last N messages; 30-50% fewer input tokens in long sessions",
+    trimGroupLabel: "Chat history limit preset",
+    trimCustomDesc: (count: number) => `Keep system prompt + last ${count} messages`,
+    statsCompressed: "compressed",
+    statsWarmCache: "warm prefixes",
+    resetStats: "Reset stats",
+    clearCache: "Clear cache",
+    loadingLabel: "Loading Token Saver configuration",
   },
   id: {
     title: "Penghemat Token",
     saved: "Tersimpan",
     saving: "Menyimpan...",
     errorTitle: "Galat Penghemat Token",
+    retry: "Coba lagi",
+    dismiss: "Tutup",
+    tokensSavedSuffix: "tok hemat",
     statusActive: "Aktif",
     statusOff: "Nonaktif",
     rtkTitle: "Kompresi output tool",
@@ -152,13 +173,140 @@ const COPY = {
     cavemanTitle: "Kompresi output LLM",
     cavemanTag: "(Caveman)",
     cavemanDesc: "Prompt sistem bergaya ringkas → ~65% lebih sedikit token output",
+    cavemanGroupLabel: "Level kompresi Caveman",
     ponytailTitle: "Lazy senior dev",
     ponytailTag: "(Ponytail)",
     ponytailDesc: "Arahkan model ke kode minimal: YAGNI, utamakan stdlib, hapus sebelum menambah",
+    ponytailGroupLabel: "Level minimalisme Ponytail",
     trimTitle: "Pangkas riwayat chat",
     trimDesc: "Simpan prompt sistem + N pesan terakhir; hemat 30-50% token input pada sesi panjang",
+    trimGroupLabel: "Preset batas riwayat chat",
+    trimCustomDesc: (count: number) => `Simpan prompt sistem + ${count} pesan terakhir`,
+    statsCompressed: "terkompresi",
+    statsWarmCache: "prefix aktif",
+    resetStats: "Reset statistik",
+    clearCache: "Bersihkan cache",
+    loadingLabel: "Memuat konfigurasi Penghemat Token",
   },
 } as const;
+
+const LEVEL_BTN_BASE =
+  "rounded border px-3 py-1 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-primary)] focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--bg-surface)] disabled:opacity-50";
+
+/** Isolated polling leaf so 5s stats ticks never re-render the toggle controls. */
+const SavedTokensBadge = memo(function SavedTokensBadge({ locale }: { locale: UILocale }) {
+  const statsQuery = useTokenSaverStats();
+  const saved = statsQuery.data?.compression.estimated_tokens_saved ?? 0;
+  if (saved <= 0) return null;
+  const formatted = saved.toLocaleString(locale === "id" ? "id-ID" : "en-US");
+  return (
+    <Badge variant="secondary" className="tabular-nums">
+      {formatted} {COPY[locale].tokensSavedSuffix}
+    </Badge>
+  );
+});
+
+const HeadroomStatusBadge = memo(function HeadroomStatusBadge({
+  enabled,
+  locale,
+}: {
+  enabled: boolean;
+  locale: UILocale;
+}) {
+  const statsQuery = useTokenSaverStats();
+  const copy = COPY[locale];
+  const headroom = statsQuery.data?.headroom;
+  const hasTraffic = headroom ? headroom.cache_hits + headroom.cache_misses > 0 : false;
+  const hitRatePct = headroom ? `${(headroom.hit_rate * 100).toFixed(0)}%` : "0%";
+
+  return (
+    <Badge variant={enabled ? "success" : "secondary"} className="tabular-nums">
+      {enabled
+        ? hasTraffic
+          ? `${copy.statusActive} · ${hitRatePct}`
+          : copy.statusActive
+        : copy.statusOff}
+    </Badge>
+  );
+});
+
+const TokenSaverTelemetryBar = memo(function TokenSaverTelemetryBar({
+  locale,
+}: {
+  locale: UILocale;
+}) {
+  const copy = COPY[locale];
+  const statsQuery = useTokenSaverStats();
+  const resetStats = useResetTokenSaverStatsMutation();
+  const clearCache = useClearHeadroomCacheMutation();
+
+  const stats = statsQuery.data;
+  const actionError = resetStats.error?.message ?? clearCache.error?.message ?? null;
+  const hasCounters =
+    (stats?.compression.requests_processed ?? 0) > 0 ||
+    (stats?.headroom.cache_hits ?? 0) + (stats?.headroom.cache_misses ?? 0) > 0;
+  const activeEntries = stats?.headroom.active_entries ?? 0;
+
+  if (!hasCounters && activeEntries === 0 && !actionError) {
+    return null;
+  }
+
+  const numLocale = locale === "id" ? "id-ID" : "en-US";
+  const compressed = (stats?.compression.requests_compressed ?? 0).toLocaleString(numLocale);
+  const processed = (stats?.compression.requests_processed ?? 0).toLocaleString(numLocale);
+
+  return (
+    <div className="mt-4 space-y-2 border-t border-[var(--border-subtle)] pt-3">
+      {actionError ? (
+        <p role="alert" className="text-xs text-[var(--status-err)]">
+          {actionError}
+        </p>
+      ) : null}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-3 text-xs text-[var(--text-muted)] tabular-nums">
+          {hasCounters ? (
+            <span>
+              {compressed}/{processed} {copy.statsCompressed}
+            </span>
+          ) : null}
+          {activeEntries > 0 ? (
+            <span>
+              {activeEntries.toLocaleString(numLocale)} {copy.statsWarmCache}
+            </span>
+          ) : null}
+        </div>
+        <div className="flex flex-wrap items-center gap-1.5">
+          {hasCounters ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              disabled={resetStats.isPending}
+              onClick={() => resetStats.mutate()}
+              className="h-7 gap-1 px-2 text-xs text-[var(--text-secondary)]"
+            >
+              <RotateCcw className="h-3.5 w-3.5" />
+              {copy.resetStats}
+            </Button>
+          ) : null}
+          {activeEntries > 0 ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              disabled={clearCache.isPending}
+              onClick={() => clearCache.mutate()}
+              className="h-7 gap-1 px-2 text-xs text-[var(--text-secondary)]"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              {copy.clearCache}
+            </Button>
+          ) : null}
+        </div>
+      </div>
+    </div>
+  );
+});
 
 export function TokenSaverConsole() {
   const locale = useUIStore((state) => state.locale);
@@ -168,38 +316,28 @@ export function TokenSaverConsole() {
   const historyCopy = HISTORY_COPY[locale];
 
   const configQuery = useTokenSaverConfig();
-  const statsQuery = useTokenSaverStats();
   const updateConfig = useUpdateTokenSaverConfigMutation();
 
-  const [cfg, setCfg] = useState<TokenSaverConfigFormValues>(DEFAULT_CONFIG);
+  const [optimisticPatch, setOptimisticPatch] = useState<TokenSaverConfigPatch | null>(null);
   const [savedNotice, setSavedNotice] = useState(false);
 
   useEffect(() => {
-    if (configQuery.data) {
-      setCfg({
-        enabled: configQuery.data.enabled,
-        strategy: configQuery.data.strategy,
-        max_history_messages: configQuery.data.max_history_messages,
-        max_tool_output_chars: configQuery.data.max_tool_output_chars,
-        headroom_enabled: configQuery.data.headroom_enabled,
-        prefix_depth: configQuery.data.prefix_depth,
-        max_cache_entries: configQuery.data.max_cache_entries,
-        cache_ttl_seconds: configQuery.data.cache_ttl_seconds,
-        inject_cache_control: configQuery.data.inject_cache_control,
-        caveman_enabled: configQuery.data.caveman_enabled,
-        caveman_level: configQuery.data.caveman_level,
-        ponytail_enabled: configQuery.data.ponytail_enabled,
-        ponytail_level: configQuery.data.ponytail_level,
-        trim_history_enabled: configQuery.data.trim_history_enabled,
-      });
-    }
-  }, [configQuery.data]);
+    if (!savedNotice) return;
+    const timer = window.setTimeout(() => setSavedNotice(false), 2500);
+    return () => window.clearTimeout(timer);
+  }, [savedNotice]);
+
+  const baseConfig: TokenSaverConfigFormValues = configQuery.data ?? DEFAULT_CONFIG;
+  const cfg: TokenSaverConfigFormValues = optimisticPatch
+    ? { ...baseConfig, ...optimisticPatch }
+    : baseConfig;
 
   const applyPatch = (patch: TokenSaverConfigPatch) => {
     setSavedNotice(false);
-    setCfg((prev) => ({ ...prev, ...patch }));
+    setOptimisticPatch((prev) => ({ ...prev, ...patch }));
     updateConfig.mutate(patch, {
       onSuccess: () => setSavedNotice(true),
+      onSettled: () => setOptimisticPatch(null),
     });
   };
 
@@ -217,21 +355,44 @@ export function TokenSaverConsole() {
     });
   };
 
-  const isBusy = updateConfig.isPending || configQuery.isLoading;
-  const activeError =
-    configQuery.error?.message ?? statsQuery.error?.message ?? updateConfig.error?.message ?? null;
-
-  const stats = statsQuery.data;
-  const hitRatePct = stats ? `${(stats.headroom.hit_rate * 100).toFixed(0)}%` : "0%";
+  const isInitialLoading = configQuery.isLoading && !configQuery.data;
+  const isBusy = updateConfig.isPending || isInitialLoading;
+  const activeError = configQuery.error?.message ?? updateConfig.error?.message ?? null;
   const activeHistoryPreset = matchHistoryPreset(cfg.max_history_messages);
 
   return (
     <div className="mx-auto max-w-4xl space-y-4">
       {activeError ? (
         <Alert variant="destructive">
-          <Zap className="h-4 w-4" />
+          <AlertCircle className="h-4 w-4" />
           <AlertTitle>{copy.errorTitle}</AlertTitle>
-          <AlertDescription>{activeError}</AlertDescription>
+          <AlertDescription className="flex flex-wrap items-center justify-between gap-2">
+            <span>{activeError}</span>
+            <div className="flex items-center gap-1.5">
+              {configQuery.error ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => void configQuery.refetch()}
+                  className="h-7 px-2.5 text-xs"
+                >
+                  {copy.retry}
+                </Button>
+              ) : null}
+              {updateConfig.error ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => updateConfig.reset()}
+                  className="h-7 px-2.5 text-xs"
+                >
+                  {copy.dismiss}
+                </Button>
+              ) : null}
+            </div>
+          </AlertDescription>
         </Alert>
       ) : null}
 
@@ -242,11 +403,7 @@ export function TokenSaverConsole() {
             {copy.title}
           </h1>
           <div className="flex items-center gap-2">
-            {stats && stats.compression.estimated_tokens_saved > 0 ? (
-              <Badge variant="secondary" className="tabular-nums">
-                {stats.compression.estimated_tokens_saved} tok saved
-              </Badge>
-            ) : null}
+            <SavedTokensBadge locale={locale} />
             {updateConfig.isPending ? (
               <span className="font-mono text-xs text-[var(--text-muted)]">{copy.saving}</span>
             ) : savedNotice ? (
@@ -258,189 +415,232 @@ export function TokenSaverConsole() {
           </div>
         </div>
 
-        <div className="divide-y divide-[var(--border-subtle)]">
-          {/* 1. Compress tool output (RTK) */}
-          <div className="flex items-center justify-between gap-4 py-4">
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium text-[var(--text-primary)]">
-                {copy.rtkTitle}{" "}
-                <span className="text-xs font-normal text-[var(--accent-text)]">{copy.rtkTag}</span>
-              </p>
-              <p className="mt-0.5 text-sm text-[var(--text-secondary)]">{copy.rtkDesc}</p>
-            </div>
-            <ToggleSwitch
-              id="ts-rtk"
-              checked={cfg.enabled}
-              disabled={isBusy}
-              label={`${copy.rtkTitle} ${copy.rtkTag}`}
-              onChange={handleRtkToggle}
-            />
-          </div>
-
-          {/* 2. Compress context (Headroom) */}
-          <div className="flex items-center justify-between gap-4 py-4">
-            <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-2">
-                <p className="text-sm font-medium text-[var(--text-primary)]">
-                  {copy.headroomTitle}{" "}
-                  <span className="text-xs font-normal text-[var(--accent-text)]">
-                    {copy.headroomTag}
-                  </span>
-                </p>
-                <Badge variant={cfg.headroom_enabled ? "success" : "secondary"}>
-                  {cfg.headroom_enabled
-                    ? stats && stats.headroom.cache_hits + stats.headroom.cache_misses > 0
-                      ? `${copy.statusActive} · ${hitRatePct}`
-                      : copy.statusActive
-                    : copy.statusOff}
-                </Badge>
+        {isInitialLoading ? (
+          <div
+            role="status"
+            aria-busy="true"
+            aria-label={copy.loadingLabel}
+            className="divide-y divide-[var(--border-subtle)]"
+          >
+            <span className="sr-only">{copy.loadingLabel}</span>
+            {SKELETON_ROWS.map((rowKey) => (
+              <div key={rowKey} className="flex items-center justify-between gap-4 py-4">
+                <div className="min-w-0 flex-1 space-y-2">
+                  <Skeleton className="h-4 w-44" />
+                  <Skeleton className="h-3.5 w-80 max-w-full" />
+                </div>
+                <Skeleton className="h-6 w-11 shrink-0 rounded-full" />
               </div>
-              <p className="mt-0.5 text-sm text-[var(--text-secondary)]">{copy.headroomDesc}</p>
-            </div>
-            <ToggleSwitch
-              id="ts-headroom"
-              checked={cfg.headroom_enabled}
-              disabled={isBusy}
-              label={`${copy.headroomTitle} ${copy.headroomTag}`}
-              onChange={handleHeadroomToggle}
-            />
+            ))}
           </div>
-
-          {/* 3. Compress LLM output (Caveman) */}
-          <div className="flex items-start justify-between gap-4 py-4">
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium text-[var(--text-primary)]">
-                {copy.cavemanTitle}{" "}
-                <span className="text-xs font-normal text-[var(--accent-text)]">
-                  {copy.cavemanTag}
-                </span>
-              </p>
-              <p className="mt-0.5 text-sm text-[var(--text-secondary)]">{copy.cavemanDesc}</p>
-              {cfg.caveman_enabled ? (
-                <div className="mt-2.5 space-y-1.5">
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    {TOKEN_SAVER_LEVELS.map((lvl) => (
-                      <button
-                        key={lvl}
-                        type="button"
-                        disabled={isBusy}
-                        onClick={() => applyPatch({ caveman_level: lvl })}
-                        className={`rounded border px-3 py-1 text-xs font-medium transition-colors disabled:opacity-50 ${
-                          cfg.caveman_level === lvl
-                            ? "border-[var(--accent-primary)] bg-[var(--accent-primary)] text-[var(--accent-primary-ink)]"
-                            : "border-[var(--border-strong)] bg-transparent text-[var(--text-secondary)] hover:bg-[var(--bg-surface-raised)] hover:text-[var(--text-primary)]"
-                        }`}
-                      >
-                        {cavemanCopy[lvl].label}
-                      </button>
-                    ))}
-                  </div>
-                  <p className="text-xs text-[var(--accent-text)]">
-                    {cavemanCopy[cfg.caveman_level].desc}
+        ) : (
+          <>
+            <div className="divide-y divide-[var(--border-subtle)]">
+              {/* 1. Compress tool output (RTK) */}
+              <div className="flex items-center justify-between gap-4 py-4">
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium text-[var(--text-primary)]">
+                    {copy.rtkTitle}{" "}
+                    <span className="text-xs font-normal text-[var(--accent-text)]">
+                      {copy.rtkTag}
+                    </span>
                   </p>
+                  <p className="mt-0.5 text-sm text-[var(--text-secondary)]">{copy.rtkDesc}</p>
                 </div>
-              ) : null}
-            </div>
-            <div className="pt-0.5">
-              <ToggleSwitch
-                id="ts-caveman"
-                checked={cfg.caveman_enabled}
-                disabled={isBusy}
-                label={`${copy.cavemanTitle} ${copy.cavemanTag}`}
-                onChange={(next) => applyPatch({ caveman_enabled: next })}
-              />
-            </div>
-          </div>
+                <ToggleSwitch
+                  id="ts-rtk"
+                  checked={cfg.enabled}
+                  disabled={isBusy}
+                  label={`${copy.rtkTitle} ${copy.rtkTag}`}
+                  onChange={handleRtkToggle}
+                />
+              </div>
 
-          {/* 4. Lazy senior dev (Ponytail) */}
-          <div className="flex items-start justify-between gap-4 py-4">
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium text-[var(--text-primary)]">
-                {copy.ponytailTitle}{" "}
-                <span className="text-xs font-normal text-[var(--accent-text)]">
-                  {copy.ponytailTag}
-                </span>
-              </p>
-              <p className="mt-0.5 text-sm text-[var(--text-secondary)]">{copy.ponytailDesc}</p>
-              {cfg.ponytail_enabled ? (
-                <div className="mt-2.5 space-y-1.5">
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    {TOKEN_SAVER_LEVELS.map((lvl) => (
-                      <button
-                        key={lvl}
-                        type="button"
-                        disabled={isBusy}
-                        onClick={() => applyPatch({ ponytail_level: lvl })}
-                        className={`rounded border px-3 py-1 text-xs font-medium transition-colors disabled:opacity-50 ${
-                          cfg.ponytail_level === lvl
-                            ? "border-[var(--accent-primary)] bg-[var(--accent-primary)] text-[var(--accent-primary-ink)]"
-                            : "border-[var(--border-strong)] bg-transparent text-[var(--text-secondary)] hover:bg-[var(--bg-surface-raised)] hover:text-[var(--text-primary)]"
-                        }`}
-                      >
-                        {ponytailCopy[lvl].label}
-                      </button>
-                    ))}
+              {/* 2. Compress context (Headroom) */}
+              <div className="flex items-center justify-between gap-4 py-4">
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="text-sm font-medium text-[var(--text-primary)]">
+                      {copy.headroomTitle}{" "}
+                      <span className="text-xs font-normal text-[var(--accent-text)]">
+                        {copy.headroomTag}
+                      </span>
+                    </p>
+                    <HeadroomStatusBadge enabled={cfg.headroom_enabled} locale={locale} />
                   </div>
-                  <p className="text-xs text-[var(--accent-text)]">
-                    {ponytailCopy[cfg.ponytail_level].desc}
-                  </p>
+                  <p className="mt-0.5 text-sm text-[var(--text-secondary)]">{copy.headroomDesc}</p>
                 </div>
-              ) : null}
-            </div>
-            <div className="pt-0.5">
-              <ToggleSwitch
-                id="ts-ponytail"
-                checked={cfg.ponytail_enabled}
-                disabled={isBusy}
-                label={`${copy.ponytailTitle} ${copy.ponytailTag}`}
-                onChange={(next) => applyPatch({ ponytail_enabled: next })}
-              />
-            </div>
-          </div>
+                <ToggleSwitch
+                  id="ts-headroom"
+                  checked={cfg.headroom_enabled}
+                  disabled={isBusy}
+                  label={`${copy.headroomTitle} ${copy.headroomTag}`}
+                  onChange={handleHeadroomToggle}
+                />
+              </div>
 
-          {/* 5. Trim chat history */}
-          <div className="flex items-start justify-between gap-4 pt-4">
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium text-[var(--text-primary)]">{copy.trimTitle}</p>
-              <p className="mt-0.5 text-sm text-[var(--text-secondary)]">{copy.trimDesc}</p>
-              {cfg.trim_history_enabled ? (
-                <div className="mt-2.5 space-y-1.5">
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    {HISTORY_LIMIT_PRESETS.map((preset) => (
-                      <button
-                        key={preset.id}
-                        type="button"
-                        disabled={isBusy}
-                        onClick={() => applyPatch({ max_history_messages: preset.maxMessages })}
-                        className={`rounded border px-3 py-1 text-xs font-medium transition-colors disabled:opacity-50 ${
-                          activeHistoryPreset === preset.id
-                            ? "border-[var(--accent-primary)] bg-[var(--accent-primary)] text-[var(--accent-primary-ink)]"
-                            : "border-[var(--border-strong)] bg-transparent text-[var(--text-secondary)] hover:bg-[var(--bg-surface-raised)] hover:text-[var(--text-primary)]"
-                        }`}
-                      >
-                        {historyCopy[preset.id].label} ({preset.maxMessages})
-                      </button>
-                    ))}
-                  </div>
-                  <p className="text-xs text-[var(--accent-text)]">
-                    {activeHistoryPreset !== "custom"
-                      ? historyCopy[activeHistoryPreset].desc
-                      : `Keep system prompt + last ${cfg.max_history_messages} messages`}
+              {/* 3. Compress LLM output (Caveman) */}
+              <div className="flex items-start justify-between gap-4 py-4">
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium text-[var(--text-primary)]">
+                    {copy.cavemanTitle}{" "}
+                    <span className="text-xs font-normal text-[var(--accent-text)]">
+                      {copy.cavemanTag}
+                    </span>
                   </p>
+                  <p className="mt-0.5 text-sm text-[var(--text-secondary)]">{copy.cavemanDesc}</p>
+                  {cfg.caveman_enabled ? (
+                    <div className="mt-2.5 space-y-1.5">
+                      <fieldset
+                        aria-label={copy.cavemanGroupLabel}
+                        className="flex flex-wrap items-center gap-1.5 border-0 p-0"
+                      >
+                        {TOKEN_SAVER_LEVELS.map((lvl) => {
+                          const isSelected = cfg.caveman_level === lvl;
+                          return (
+                            <button
+                              key={lvl}
+                              type="button"
+                              aria-pressed={isSelected}
+                              disabled={isBusy}
+                              onClick={() => applyPatch({ caveman_level: lvl })}
+                              className={`${LEVEL_BTN_BASE} ${
+                                isSelected
+                                  ? "border-[var(--accent-primary)] bg-[var(--accent-primary)] text-[var(--accent-primary-ink)]"
+                                  : "border-[var(--border-strong)] bg-transparent text-[var(--text-secondary)] hover:bg-[var(--bg-surface-raised)] hover:text-[var(--text-primary)]"
+                              }`}
+                            >
+                              {cavemanCopy[lvl].label}
+                            </button>
+                          );
+                        })}
+                      </fieldset>
+                      <p className="text-xs text-[var(--accent-text)]">
+                        {cavemanCopy[cfg.caveman_level].desc}
+                      </p>
+                    </div>
+                  ) : null}
                 </div>
-              ) : null}
+                <div className="pt-0.5">
+                  <ToggleSwitch
+                    id="ts-caveman"
+                    checked={cfg.caveman_enabled}
+                    disabled={isBusy}
+                    label={`${copy.cavemanTitle} ${copy.cavemanTag}`}
+                    onChange={(next) => applyPatch({ caveman_enabled: next })}
+                  />
+                </div>
+              </div>
+
+              {/* 4. Lazy senior dev (Ponytail) */}
+              <div className="flex items-start justify-between gap-4 py-4">
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium text-[var(--text-primary)]">
+                    {copy.ponytailTitle}{" "}
+                    <span className="text-xs font-normal text-[var(--accent-text)]">
+                      {copy.ponytailTag}
+                    </span>
+                  </p>
+                  <p className="mt-0.5 text-sm text-[var(--text-secondary)]">{copy.ponytailDesc}</p>
+                  {cfg.ponytail_enabled ? (
+                    <div className="mt-2.5 space-y-1.5">
+                      <fieldset
+                        aria-label={copy.ponytailGroupLabel}
+                        className="flex flex-wrap items-center gap-1.5 border-0 p-0"
+                      >
+                        {TOKEN_SAVER_LEVELS.map((lvl) => {
+                          const isSelected = cfg.ponytail_level === lvl;
+                          return (
+                            <button
+                              key={lvl}
+                              type="button"
+                              aria-pressed={isSelected}
+                              disabled={isBusy}
+                              onClick={() => applyPatch({ ponytail_level: lvl })}
+                              className={`${LEVEL_BTN_BASE} ${
+                                isSelected
+                                  ? "border-[var(--accent-primary)] bg-[var(--accent-primary)] text-[var(--accent-primary-ink)]"
+                                  : "border-[var(--border-strong)] bg-transparent text-[var(--text-secondary)] hover:bg-[var(--bg-surface-raised)] hover:text-[var(--text-primary)]"
+                              }`}
+                            >
+                              {ponytailCopy[lvl].label}
+                            </button>
+                          );
+                        })}
+                      </fieldset>
+                      <p className="text-xs text-[var(--accent-text)]">
+                        {ponytailCopy[cfg.ponytail_level].desc}
+                      </p>
+                    </div>
+                  ) : null}
+                </div>
+                <div className="pt-0.5">
+                  <ToggleSwitch
+                    id="ts-ponytail"
+                    checked={cfg.ponytail_enabled}
+                    disabled={isBusy}
+                    label={`${copy.ponytailTitle} ${copy.ponytailTag}`}
+                    onChange={(next) => applyPatch({ ponytail_enabled: next })}
+                  />
+                </div>
+              </div>
+
+              {/* 5. Trim chat history */}
+              <div className="flex items-start justify-between gap-4 pt-4">
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium text-[var(--text-primary)]">{copy.trimTitle}</p>
+                  <p className="mt-0.5 text-sm text-[var(--text-secondary)]">{copy.trimDesc}</p>
+                  {cfg.trim_history_enabled ? (
+                    <div className="mt-2.5 space-y-1.5">
+                      <fieldset
+                        aria-label={copy.trimGroupLabel}
+                        className="flex flex-wrap items-center gap-1.5 border-0 p-0"
+                      >
+                        {HISTORY_LIMIT_PRESETS.map((preset) => {
+                          const isSelected = activeHistoryPreset === preset.id;
+                          return (
+                            <button
+                              key={preset.id}
+                              type="button"
+                              aria-pressed={isSelected}
+                              disabled={isBusy}
+                              onClick={() =>
+                                applyPatch({ max_history_messages: preset.maxMessages })
+                              }
+                              className={`${LEVEL_BTN_BASE} ${
+                                isSelected
+                                  ? "border-[var(--accent-primary)] bg-[var(--accent-primary)] text-[var(--accent-primary-ink)]"
+                                  : "border-[var(--border-strong)] bg-transparent text-[var(--text-secondary)] hover:bg-[var(--bg-surface-raised)] hover:text-[var(--text-primary)]"
+                              }`}
+                            >
+                              {historyCopy[preset.id].label} ({preset.maxMessages})
+                            </button>
+                          );
+                        })}
+                      </fieldset>
+                      <p className="text-xs text-[var(--accent-text)]">
+                        {activeHistoryPreset !== "custom"
+                          ? historyCopy[activeHistoryPreset].desc
+                          : copy.trimCustomDesc(cfg.max_history_messages)}
+                      </p>
+                    </div>
+                  ) : null}
+                </div>
+                <div className="pt-0.5">
+                  <ToggleSwitch
+                    id="ts-trim-history"
+                    checked={cfg.trim_history_enabled}
+                    disabled={isBusy}
+                    label={copy.trimTitle}
+                    onChange={(next) => applyPatch({ trim_history_enabled: next })}
+                  />
+                </div>
+              </div>
             </div>
-            <div className="pt-0.5">
-              <ToggleSwitch
-                id="ts-trim-history"
-                checked={cfg.trim_history_enabled}
-                disabled={isBusy}
-                label={copy.trimTitle}
-                onChange={(next) => applyPatch({ trim_history_enabled: next })}
-              />
-            </div>
-          </div>
-        </div>
+
+            <TokenSaverTelemetryBar locale={locale} />
+          </>
+        )}
       </Card>
     </div>
   );

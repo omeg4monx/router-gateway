@@ -185,12 +185,19 @@ func (c *headroomCache) evictLocked(now time.Time) {
 // computePrefixFingerprint derives a stable short SHA-256 fingerprint of the
 // normalized system prompt and initial conversation prefix.
 func computePrefixFingerprint(protocol, model string, body []byte, prefixDepth int) string {
-	if prefixDepth <= 0 {
-		prefixDepth = 2
-	}
 	var root map[string]any
 	if err := json.Unmarshal(body, &root); err != nil || root == nil {
 		return ""
+	}
+	return computePrefixFingerprintFromRoot(protocol, model, root, prefixDepth)
+}
+
+func computePrefixFingerprintFromRoot(protocol, model string, root map[string]any, prefixDepth int) string {
+	if root == nil {
+		return ""
+	}
+	if prefixDepth <= 0 {
+		prefixDepth = 2
 	}
 
 	var b strings.Builder

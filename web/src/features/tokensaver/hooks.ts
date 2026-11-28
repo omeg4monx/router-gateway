@@ -27,8 +27,9 @@ export function useUpdateTokenSaverConfigMutation() {
       if (data) return data;
       throw new Error(extractErrorMessage(error));
     },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: tokenSaverQueryKeys.all });
+    onSuccess: (data) => {
+      queryClient.setQueryData(tokenSaverQueryKeys.config, data);
+      void queryClient.invalidateQueries({ queryKey: tokenSaverQueryKeys.stats });
     },
   });
 }
@@ -40,6 +41,34 @@ export function useTokenSaverStats() {
       const { data, error } = await apiClient.GET("/api/token-saver/stats");
       if (data) return data;
       throw new Error(extractErrorMessage(error));
+    },
+    refetchInterval: 5000,
+    refetchIntervalInBackground: false,
+  });
+}
+
+export function useResetTokenSaverStatsMutation() {
+  const queryClient = useQueryClient();
+  return useMutation<void, Error, void>({
+    mutationFn: async () => {
+      const { error } = await apiClient.DELETE("/api/token-saver/stats");
+      if (error) throw new Error(extractErrorMessage(error));
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: tokenSaverQueryKeys.stats });
+    },
+  });
+}
+
+export function useClearHeadroomCacheMutation() {
+  const queryClient = useQueryClient();
+  return useMutation<void, Error, void>({
+    mutationFn: async () => {
+      const { error } = await apiClient.DELETE("/api/token-saver/cache");
+      if (error) throw new Error(extractErrorMessage(error));
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: tokenSaverQueryKeys.stats });
     },
   });
 }

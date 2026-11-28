@@ -81,9 +81,10 @@ type Module struct {
 	bus    *eventbus.Bus
 	logger *slog.Logger
 
-	mu       sync.RWMutex
-	cfg      Config
-	headroom *headroomCache
+	mu         sync.RWMutex
+	cfgPatchMu sync.Mutex
+	cfg        Config
+	headroom   *headroomCache
 
 	reqProcessed  atomic.Int64
 	reqCompressed atomic.Int64
@@ -151,7 +152,8 @@ func (m *Module) snapshotConfig() Config {
 	return m.cfg
 }
 
-// OnRequest applies token compression and Headroom prefix cache lookup.
+// OnRequest applies token compression and Headroom prefix cache lookup
+// using a single JSON unmarshal pass over req.Body.
 func (m *Module) OnRequest(_ context.Context, req *contracts.CanonicalRequest) error {
 	if req == nil || len(req.Body) == 0 {
 		return nil
@@ -165,20 +167,37 @@ func (m *Module) OnRequest(_ context.Context, req *contracts.CanonicalRequest) e
 	}
 
 	bypassSaver, _ := req.Metadata["bypass_tokensaver"].(bool)
+	bypassHeadroom, _ := req.Metadata["bypass_headroom"].(bool)
+	runSaver := !bypassSaver && (cfg.Enabled || cfg.TrimHistoryEnabled || cfg.CavemanEnabled || cfg.PonytailEnabled)
+	runHeadroom := cfg.HeadroomEnabled && !bypassHeadroom
+	if !runSaver && !runHeadroom {
+		return nil
+	}
+
+	var root map[string]any
+	if err := json.Unmarshal(req.Body, &root); err != nil || root == nil {
+		return nil
+	}
+
+	rootDirty := false
+
 	if !bypassSaver {
 		if cfg.Enabled {
 			m.reqProcessed.Add(1)
-			out, savedBytes, savedTokens, mutated := compressPayload(req.Body, cfg)
+			out, savedBytes, savedTokens, mutated := compressRoot(root, req.Body, cfg)
 			if mutated {
 				req.Body = out
 				m.reqCompressed.Add(1)
 				m.bytesSaved.Add(savedBytes)
 				m.tokensSaved.Add(savedTokens)
 				req.Metadata["tokens_saved"] = savedTokens
+			} else if err := json.Unmarshal(req.Body, &root); err != nil || root == nil {
+				// Restore unmutated root if compression did not shrink payload.
+				return nil
 			}
 		} else if cfg.TrimHistoryEnabled {
 			m.reqProcessed.Add(1)
-			out, savedBytes, savedTokens, mutated := trimPayloadHistory(req.Body, cfg.MaxHistoryMessages)
+			out, savedBytes, savedTokens, mutated := trimRootHistory(root, req.Body, cfg.MaxHistoryMessages)
 			if mutated {
 				req.Body = out
 				m.reqCompressed.Add(1)
@@ -188,20 +207,19 @@ func (m *Module) OnRequest(_ context.Context, req *contracts.CanonicalRequest) e
 			}
 		}
 		if cfg.CavemanEnabled || cfg.PonytailEnabled {
-			if updated, changed := injectOutputDirectives(req.Protocol, req.Body, cfg); changed {
-				req.Body = updated
+			if injectOutputDirectivesRoot(req.Protocol, root, cfg) {
+				rootDirty = true
 			}
 		}
 	}
 
-	bypassHeadroom, _ := req.Metadata["bypass_headroom"].(bool)
-	if cfg.HeadroomEnabled && !bypassHeadroom {
+	if runHeadroom {
 		if cfg.InjectCacheControl && req.Protocol == "anthropic" {
-			if updated, changed := injectAnthropicCacheControl(req.Body); changed {
-				req.Body = updated
+			if injectAnthropicCacheControlRoot(root) {
+				rootDirty = true
 			}
 		}
-		key := computePrefixFingerprint(req.Protocol, req.Model, req.Body, cfg.PrefixDepth)
+		key := computePrefixFingerprintFromRoot(req.Protocol, req.Model, root, cfg.PrefixDepth)
 		if key != "" {
 			hit, provID, connID := m.headroom.lookup(key, time.Now().UTC())
 			req.Metadata["headroom_cache_key"] = key
@@ -219,6 +237,12 @@ func (m *Module) OnRequest(_ context.Context, req *contracts.CanonicalRequest) e
 			} else {
 				m.cacheMisses.Add(1)
 			}
+		}
+	}
+
+	if rootDirty {
+		if encoded, err := json.Marshal(root); err == nil {
+			req.Body = encoded
 		}
 	}
 
@@ -297,6 +321,9 @@ func (m *Module) handlePatchConfig(w http.ResponseWriter, r *http.Request) {
 	if !decodeJSONBody(w, r, &patch) {
 		return
 	}
+
+	m.cfgPatchMu.Lock()
+	defer m.cfgPatchMu.Unlock()
 
 	cfg, err := m.repo.getConfig(r.Context())
 	if err != nil {
@@ -386,7 +413,10 @@ func (m *Module) handlePatchConfig(w http.ResponseWriter, r *http.Request) {
 		httpserver.WriteError(w, r, http.StatusInternalServerError, "db_error", "failed to save tokensaver config")
 		return
 	}
-	_ = m.reloadConfig(r.Context())
+	m.mu.Lock()
+	m.cfg = saved
+	m.mu.Unlock()
+	m.headroom.configure(saved.MaxCacheEntries, time.Duration(saved.CacheTTLSeconds)*time.Second)
 	if m.bus != nil {
 		m.bus.Publish(eventConfigChanged, nil)
 	}

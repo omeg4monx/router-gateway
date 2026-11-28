@@ -1062,27 +1062,27 @@
     "semantic_hash": ""
   },
   "internal/modules/tokensaver/compressor.go": {
-    "mtime": 1795710119.1393895,
-    "seen": 1795770205.4553127,
-    "ast_hash": "fb8e4603f1526ebfb0cca8f3445ba6d6",
+    "mtime": 1795853101.5683181,
+    "seen": 1795853311.5657506,
+    "ast_hash": "73b180a31ac1ffd7220cc400803a4172",
     "semantic_hash": ""
   },
   "internal/modules/tokensaver/headroom.go": {
-    "mtime": 1795710119.1398826,
-    "seen": 1795770205.4553154,
-    "ast_hash": "f8ecd6eab3fce01350e7cfba6b8a5122",
+    "mtime": 1795853054.0846324,
+    "seen": 1795853311.5657535,
+    "ast_hash": "569e25fff4277a2f05775ee1fbc96fc0",
     "semantic_hash": ""
   },
   "internal/modules/tokensaver/module.go": {
-    "mtime": 1795710119.139973,
-    "seen": 1795770205.455318,
-    "ast_hash": "041c51ec6d464f336ea1a84e1bd6a244",
+    "mtime": 1795853112.76948,
+    "seen": 1795853311.5657547,
+    "ast_hash": "9ae0ca356a186e78be69dfb86df136d8",
     "semantic_hash": ""
   },
   "internal/modules/tokensaver/module_test.go": {
-    "mtime": 1795710119.139973,
-    "seen": 1795770205.4553204,
-    "ast_hash": "543081e4a12f02f3e14e81854de4894d",
+    "mtime": 1795852995.0957804,
+    "seen": 1795853311.5657556,
+    "ast_hash": "44750b0cc9700440b636b471e73a2fad",
     "semantic_hash": ""
   },
   "internal/modules/tokensaver/repo.go": {
@@ -1146,15 +1146,15 @@
     "semantic_hash": ""
   },
   "web/src/features/tokensaver/TokenSaverConsole.tsx": {
-    "mtime": 1795710119.1822143,
-    "seen": 1795770205.4557009,
-    "ast_hash": "3bba0c2812f81f75d1d5579dcec180e0",
+    "mtime": 1795853248.8374453,
+    "seen": 1795853311.5697618,
+    "ast_hash": "649d36a0990c7c5a7886ff78b4a61659",
     "semantic_hash": ""
   },
   "web/src/features/tokensaver/hooks.ts": {
-    "mtime": 1795710119.182773,
-    "seen": 1795770205.4557028,
-    "ast_hash": "61bc794c63644f711d9e1234be2c3ff8",
+    "mtime": 1795853189.200584,
+    "seen": 1795853311.5697632,
+    "ast_hash": "ab3a59620096ba9c1662c779864468a1",
     "semantic_hash": ""
   },
   "web/src/features/tokensaver/schemas.ts": {
