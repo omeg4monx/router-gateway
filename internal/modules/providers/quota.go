@@ -22,6 +22,7 @@ import (
 
 const (
 	quotaCacheTTL           = 15 * time.Second
+	quotaErrorCacheTTL      = 5 * time.Second
 	maxQuotaCacheEntries    = 512
 	maxQuotaConcurrency     = 6
 	quotaFetchTimeout       = 10 * time.Second
@@ -30,6 +31,8 @@ const (
 	harborDefaultBaseOrigin = "https://tokenharbor.ai"
 	harborQuotaEndpointPath = "/api/cli/free-tier"
 )
+
+var errQuotaUnauthorized = errors.New("upstream rejected credentials")
 
 // ProviderQuotaBucket represents a single normalized quota window (for example
 // a paid subscription pass or a free-tier rolling allowance) for an upstream
@@ -101,10 +104,16 @@ type quotaCacheEntry struct {
 	expiresAt time.Time
 }
 
+type quotaFlightCall struct {
+	done   chan struct{}
+	result ProviderConnectionQuota
+}
+
 type quotaCache struct {
-	mu      sync.Mutex
-	ttl     time.Duration
-	entries map[string]quotaCacheEntry
+	mu       sync.Mutex
+	ttl      time.Duration
+	entries  map[string]quotaCacheEntry
+	inflight map[string]*quotaFlightCall
 }
 
 func newQuotaCache(ttl time.Duration) *quotaCache {
@@ -112,8 +121,9 @@ func newQuotaCache(ttl time.Duration) *quotaCache {
 		ttl = quotaCacheTTL
 	}
 	return &quotaCache{
-		ttl:     ttl,
-		entries: make(map[string]quotaCacheEntry),
+		ttl:      ttl,
+		entries:  make(map[string]quotaCacheEntry),
+		inflight: make(map[string]*quotaFlightCall),
 	}
 }
 
@@ -136,8 +146,15 @@ func (c *quotaCache) Get(connectionID string, now time.Time) (ProviderConnection
 }
 
 func (c *quotaCache) Set(connectionID string, quota ProviderConnectionQuota, now time.Time) {
+	c.SetWithTTL(connectionID, quota, now, c.ttl)
+}
+
+func (c *quotaCache) SetWithTTL(connectionID string, quota ProviderConnectionQuota, now time.Time, ttl time.Duration) {
 	if c == nil || connectionID == "" {
 		return
+	}
+	if ttl <= 0 {
+		ttl = c.ttl
 	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -165,7 +182,7 @@ func (c *quotaCache) Set(connectionID string, quota ProviderConnectionQuota, now
 
 	c.entries[connectionID] = quotaCacheEntry{
 		quota:     cloneConnectionQuota(quota),
-		expiresAt: now.Add(c.ttl),
+		expiresAt: now.Add(ttl),
 	}
 }
 
@@ -176,6 +193,36 @@ func (c *quotaCache) Invalidate(connectionID string) {
 	c.mu.Lock()
 	delete(c.entries, connectionID)
 	c.mu.Unlock()
+}
+
+// AcquireFlight joins an existing in-flight fetch for connectionID or registers
+// a new one. When owner is true, the caller must call FinishFlight(connectionID, call, result).
+func (c *quotaCache) AcquireFlight(connectionID string) (call *quotaFlightCall, owner bool) {
+	if c == nil || connectionID == "" {
+		return nil, true
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if existing, ok := c.inflight[connectionID]; ok {
+		return existing, false
+	}
+	call = &quotaFlightCall{done: make(chan struct{})}
+	c.inflight[connectionID] = call
+	return call, true
+}
+
+func (c *quotaCache) FinishFlight(connectionID string, call *quotaFlightCall, result ProviderConnectionQuota) {
+	if c == nil || call == nil {
+		return
+	}
+	call.result = cloneConnectionQuota(result)
+	c.mu.Lock()
+	if current, ok := c.inflight[connectionID]; ok && current == call {
+		delete(c.inflight, connectionID)
+	}
+	c.mu.Unlock()
+	close(call.done)
 }
 
 func cloneConnectionQuota(src ProviderConnectionQuota) ProviderConnectionQuota {
@@ -306,7 +353,7 @@ func (tokenHarborQuotaFetcher) Fetch(
 	}
 
 	if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden {
-		return quotaFetchResult{}, fmt.Errorf("upstream rejected credentials (HTTP %d)", resp.StatusCode)
+		return quotaFetchResult{}, fmt.Errorf("%w (HTTP %d)", errQuotaUnauthorized, resp.StatusCode)
 	}
 	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
 		snippet := strings.TrimSpace(string(body))
@@ -336,8 +383,11 @@ func mapTokenHarborQuota(payload tokenHarborFreeTierPayload) quotaFetchResult {
 	buckets := make([]ProviderQuotaBucket, 0, 2)
 	if payload.OnPlan {
 		usedPct := clampPercent(derefFloat(payload.PlanUsedPct))
-		remainingPct := clampPercent(100 - usedPct)
 		exhausted := payload.PlanExhausted || usedPct >= 100
+		if exhausted {
+			usedPct = 100
+		}
+		remainingPct := clampPercent(100 - usedPct)
 		label := "Plan Pass"
 		if planName != nil {
 			label = *planName
@@ -355,8 +405,11 @@ func mapTokenHarborQuota(payload tokenHarborFreeTierPayload) quotaFetchResult {
 	}
 
 	freeUsedPct := clampPercent(derefFloat(payload.UsedPct))
-	freeRemainingPct := clampPercent(100 - freeUsedPct)
 	freeExhausted := payload.Exhausted || freeUsedPct >= 100
+	if freeExhausted {
+		freeUsedPct = 100
+	}
+	freeRemainingPct := clampPercent(100 - freeUsedPct)
 	buckets = append(buckets, ProviderQuotaBucket{
 		ID:              "free_tier",
 		Label:           "Free Tier",
@@ -502,6 +555,46 @@ func (m *Module) fetchConnectionQuota(
 		}
 	}
 
+	flight, owner := m.quotaCache.AcquireFlight(conn.ID)
+	if !owner {
+		select {
+		case <-flight.done:
+			joined := cloneConnectionQuota(flight.result)
+			joined.ConnectionName = conn.Name
+			joined.Enabled = conn.Enabled
+			joined.ProviderName = providerName
+			return joined
+		case <-ctx.Done():
+			return ProviderConnectionQuota{
+				ConnectionID:   conn.ID,
+				ProviderID:     conn.ProviderID,
+				ProviderName:   providerName,
+				FetcherID:      fetcher.ID(),
+				ConnectionName: conn.Name,
+				AuthType:       conn.AuthType,
+				Enabled:        conn.Enabled,
+				Status:         "error",
+				Buckets:        []ProviderQuotaBucket{},
+				Models:         []string{},
+				FetchedAt:      time.Now().UTC().Format(rfc3339NanoFixed),
+				Error:          "request canceled",
+			}
+		}
+	}
+
+	// Re-check cache after acquiring flight ownership in case a preceding
+	// leader just populated it (when forceRefresh is false).
+	if !forceRefresh {
+		if cached, ok := m.quotaCache.Get(conn.ID, time.Now().UTC()); ok {
+			cached.Cached = true
+			cached.ConnectionName = conn.Name
+			cached.Enabled = conn.Enabled
+			cached.ProviderName = providerName
+			m.quotaCache.FinishFlight(conn.ID, flight, cached)
+			return cached
+		}
+	}
+
 	result := ProviderConnectionQuota{
 		ConnectionID:   conn.ID,
 		ProviderID:     conn.ProviderID,
@@ -516,16 +609,34 @@ func (m *Module) fetchConnectionQuota(
 		FetchedAt:      now.Format(rfc3339NanoFixed),
 		Cached:         false,
 	}
+	defer func() {
+		m.quotaCache.FinishFlight(conn.ID, flight, result)
+	}()
 
-	creds, err := m.ResolveCredentials(ctx, conn.ID)
+	// Detach caller cancellation with a bounded timeout so a single canceled
+	// client does not abort a coalesced upstream fetch shared with other callers.
+	fetchCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), quotaFetchTimeout)
+	defer cancel()
+
+	creds, err := m.ResolveCredentials(fetchCtx, conn.ID)
 	if err != nil {
 		result.Error = truncateError("failed to resolve credentials")
+		m.quotaCache.SetWithTTL(conn.ID, result, time.Now().UTC(), quotaErrorCacheTTL)
 		return result
 	}
 
-	fetched, err := fetcher.Fetch(ctx, m.httpClient, conn, creds)
+	fetched, err := fetcher.Fetch(fetchCtx, m.httpClient, conn, creds)
+	if err != nil && conn.AuthType == authTypeOAuth && errors.Is(err, errQuotaUnauthorized) {
+		if refreshedCreds, refreshErr := m.RefreshOAuthToken(fetchCtx, conn.ID); refreshErr == nil {
+			creds = refreshedCreds
+			fetched, err = fetcher.Fetch(fetchCtx, m.httpClient, conn, creds)
+		}
+	}
 	if err != nil {
 		result.Error = truncateError(sanitizeUpstreamError(err.Error(), creds))
+		if !errors.Is(err, context.Canceled) {
+			m.quotaCache.SetWithTTL(conn.ID, result, time.Now().UTC(), quotaErrorCacheTTL)
+		}
 		return result
 	}
 

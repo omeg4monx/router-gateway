@@ -11,6 +11,7 @@ import (
 	"net/http/httptest"
 	"path/filepath"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -488,5 +489,232 @@ func TestQuotaMatchesCustomTokenHarborHost(t *testing.T) {
 	}
 	if resp.Quotas[0].ProviderID != "my-harbor" || resp.Quotas[0].FetcherID != "tokenharbor" || resp.Quotas[0].ProviderName != "My Token Harbor" {
 		t.Errorf("unexpected custom node quota metadata: %+v", resp.Quotas[0])
+	}
+}
+
+func TestQuotaCoalescesConcurrentFetches(t *testing.T) {
+	var hits atomic.Int32
+	started := make(chan struct{})
+	release := make(chan struct{})
+
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if hits.Add(1) == 1 {
+			close(started)
+		}
+		<-release
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"plan_name":null,"on_plan":false,"used_pct":25,"exhausted":false,"activated":true,"models":[]}`))
+	}))
+	t.Cleanup(upstream.Close)
+
+	h := newTestHarness(t, &stubAdminAuth{subject: "admin"}, nil)
+	recCreate := h.doRequest(t, http.MethodPost, "/api/providers/connections", fmt.Sprintf(
+		`{"provider_id":"tokenharbor","name":"Coalesce Account","base_url":%q,"api_key":"thk_live_coalesce"}`,
+		upstream.URL+"/v1",
+	), true)
+	if recCreate.Code != http.StatusCreated {
+		t.Fatalf("create connection status = %d: %s", recCreate.Code, recCreate.Body.String())
+	}
+
+	const workers = 4
+	results := make([]quotasResponseDTO, workers)
+	codes := make([]int, workers)
+	var wg sync.WaitGroup
+
+	// Launch first worker and wait until upstream request is in-flight.
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		rec := h.doRequest(t, http.MethodGet, "/api/providers/quotas", "", true)
+		codes[0] = rec.Code
+		_ = json.Unmarshal(rec.Body.Bytes(), &results[0])
+	}()
+
+	<-started
+
+	// Launch remaining concurrent callers while the first upstream fetch is still blocked.
+	for i := 1; i < workers; i++ {
+		wg.Add(1)
+		go func(idx int) {
+			defer wg.Done()
+			rec := h.doRequest(t, http.MethodGet, "/api/providers/quotas", "", true)
+			codes[idx] = rec.Code
+			_ = json.Unmarshal(rec.Body.Bytes(), &results[idx])
+		}(i)
+	}
+
+	time.Sleep(30 * time.Millisecond)
+	close(release)
+	wg.Wait()
+
+	if got := hits.Load(); got != 1 {
+		t.Fatalf("expected 1 coalesced upstream hit, got %d", got)
+	}
+	for i := range workers {
+		if codes[i] != http.StatusOK {
+			t.Fatalf("worker %d status = %d, want 200", i, codes[i])
+		}
+		if len(results[i].Quotas) != 1 || results[i].Quotas[0].Buckets[0].RemainingPct != 75 {
+			t.Fatalf("worker %d unexpected response: %+v", i, results[i])
+		}
+	}
+}
+
+func TestQuotaNegativeCachingAndForceBypass(t *testing.T) {
+	var hits atomic.Int32
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hits.Add(1)
+		w.WriteHeader(http.StatusServiceUnavailable)
+		_, _ = w.Write([]byte(`{"error":"temporarily unavailable"}`))
+	}))
+	t.Cleanup(upstream.Close)
+
+	h := newTestHarness(t, &stubAdminAuth{subject: "admin"}, nil)
+	recCreate := h.doRequest(t, http.MethodPost, "/api/providers/connections", fmt.Sprintf(
+		`{"provider_id":"tokenharbor","name":"Flaky Account","base_url":%q,"api_key":"thk_live_flaky"}`,
+		upstream.URL+"/v1",
+	), true)
+	if recCreate.Code != http.StatusCreated {
+		t.Fatalf("create connection status = %d: %s", recCreate.Code, recCreate.Body.String())
+	}
+
+	// 1st call -> live upstream error
+	rec1 := h.doRequest(t, http.MethodGet, "/api/providers/quotas", "", true)
+	var resp1 quotasResponseDTO
+	_ = json.Unmarshal(rec1.Body.Bytes(), &resp1)
+	if hits.Load() != 1 || len(resp1.Quotas) != 1 || resp1.Quotas[0].Status != "error" || resp1.Quotas[0].Cached {
+		t.Fatalf("1st error fetch unexpected: hits=%d resp=%+v", hits.Load(), resp1)
+	}
+
+	// 2nd immediate call -> served from short negative cache without hitting upstream again
+	rec2 := h.doRequest(t, http.MethodGet, "/api/providers/quotas", "", true)
+	var resp2 quotasResponseDTO
+	_ = json.Unmarshal(rec2.Body.Bytes(), &resp2)
+	if hits.Load() != 1 || !resp2.Quotas[0].Cached || resp2.Quotas[0].Status != "error" {
+		t.Fatalf("2nd call should hit negative cache: hits=%d resp=%+v", hits.Load(), resp2)
+	}
+
+	// Explicit refresh=true -> bypasses negative cache
+	rec3 := h.doRequest(t, http.MethodGet, "/api/providers/quotas?refresh=true", "", true)
+	var resp3 quotasResponseDTO
+	_ = json.Unmarshal(rec3.Body.Bytes(), &resp3)
+	if hits.Load() != 2 || resp3.Quotas[0].Cached || resp3.Quotas[0].Status != "error" {
+		t.Fatalf("refresh=true should bypass negative cache: hits=%d resp=%+v", hits.Load(), resp3)
+	}
+}
+
+func TestQuotaExhaustedFlagForcesZeroRemainingAndAutoRefreshOAuth(t *testing.T) {
+	// 1. Token Harbor exhausted=true with nil/partial used_pct must normalize to 100% used / 0% remaining.
+	harborSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{
+			"plan_name": "Pro",
+			"on_plan": true,
+			"plan_used_pct": 80,
+			"plan_exhausted": true,
+			"used_pct": null,
+			"exhausted": true,
+			"activated": true,
+			"models": []
+		}`))
+	}))
+	t.Cleanup(harborSrv.Close)
+
+	h := newTestHarness(t, &stubAdminAuth{subject: "admin"}, nil)
+	recConn := h.doRequest(t, http.MethodPost, "/api/providers/connections", fmt.Sprintf(
+		`{"provider_id":"tokenharbor","name":"Exhausted Partial","base_url":%q,"api_key":"thk_live_exh"}`,
+		harborSrv.URL+"/v1",
+	), true)
+	if recConn.Code != http.StatusCreated {
+		t.Fatalf("create connection status = %d: %s", recConn.Code, recConn.Body.String())
+	}
+
+	rec := h.doRequest(t, http.MethodGet, "/api/providers/quotas", "", true)
+	var resp quotasResponseDTO
+	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("decode quotas: %v", err)
+	}
+	if len(resp.Quotas) != 1 || resp.Quotas[0].Status != "exhausted" {
+		t.Fatalf("unexpected exhausted response: %+v", resp)
+	}
+	for _, b := range resp.Quotas[0].Buckets {
+		if b.UsedPct != 100 || b.RemainingPct != 0 || !b.Exhausted {
+			t.Errorf("exhausted bucket %q not normalized to 100%%/0%%: %+v", b.ID, b)
+		}
+	}
+
+	// 2. OAuth CodeBuddy connection receiving 401 should auto-refresh token and succeed on retry.
+	var quotaAttempts atomic.Int32
+	var refreshCalls atomic.Int32
+	now := time.Now().UTC().Truncate(time.Second)
+
+	cbSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/v2/plugin/auth/token/refresh":
+			refreshCalls.Add(1)
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"code": 0,
+				"data": map[string]any{
+					"accessToken":  "cb-fresh-tok",
+					"refreshToken": "cb-fresh-rt",
+					"expiresIn":    3600,
+				},
+			})
+		case "/v2/billing/meter/get-user-resource":
+			quotaAttempts.Add(1)
+			if r.Header.Get("Authorization") != "Bearer cb-fresh-tok" {
+				w.WriteHeader(http.StatusUnauthorized)
+				_, _ = w.Write([]byte(`{"code":401,"msg":"token expired"}`))
+				return
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"code": 0,
+				"data": map[string]any{
+					"Response": map[string]any{
+						"Data": map[string]any{
+							"Accounts": []map[string]any{
+								{
+									"PackageName":              "CodeBuddy Pro",
+									"CycleStartTime":           now.Add(-24 * time.Hour).UnixMilli(),
+									"CycleEndTime":             now.Add(29 * 24 * time.Hour).UnixMilli(),
+									"DeductionEndTime":         now.Add(365 * 24 * time.Hour).UnixMilli(),
+									"CycleCapacityUsedPrecise": "10",
+									"CycleCapacitySizePrecise": "100",
+								},
+							},
+						},
+					},
+				},
+			})
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	t.Cleanup(cbSrv.Close)
+
+	hCB := newTestHarness(t, &stubAdminAuth{subject: "admin"}, map[string]providers.OAuthConfig{
+		"codebuddy-cn": {
+			TokenURL: cbSrv.URL + "/v2/plugin/auth/token/refresh",
+		},
+	})
+	recCB := hCB.doRequest(t, http.MethodPost, "/api/providers/connections", fmt.Sprintf(
+		`{"provider_id":"codebuddy-cn","name":"CB Expired","auth_type":"oauth","base_url":%q,"access_token":"cb-expired-tok","refresh_token":"cb-old-rt"}`,
+		cbSrv.URL+"/v2",
+	), true)
+	if recCB.Code != http.StatusCreated {
+		t.Fatalf("create codebuddy connection status = %d: %s", recCB.Code, recCB.Body.String())
+	}
+
+	recCBQuota := hCB.doRequest(t, http.MethodGet, "/api/providers/quotas", "", true)
+	var cbResp quotasResponseDTO
+	if err := json.Unmarshal(recCBQuota.Body.Bytes(), &cbResp); err != nil {
+		t.Fatalf("decode codebuddy quotas: %v", err)
+	}
+	if refreshCalls.Load() != 1 || quotaAttempts.Load() != 2 {
+		t.Fatalf("expected 1 OAuth refresh and 2 quota attempts, got refresh=%d attempts=%d", refreshCalls.Load(), quotaAttempts.Load())
+	}
+	if len(cbResp.Quotas) != 1 || cbResp.Quotas[0].Status != "ok" || cbResp.Quotas[0].Buckets[0].RemainingPct != 90 {
+		t.Fatalf("expected recovered ok quota 90%% remaining, got %+v", cbResp.Quotas)
 	}
 }

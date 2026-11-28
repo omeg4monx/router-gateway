@@ -10,7 +10,7 @@ import {
   Server,
   X,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router";
 import { ProviderLogo } from "@/features/providers/ProviderLogo";
 import { extractErrorMessage } from "@/shared/api/client";
@@ -34,8 +34,10 @@ import {
   type BucketProgressTone,
   computeQuotaOverviewStats,
   filterProviderQuotas,
+  formatRelativeSyncTime,
   formatResetCountdown,
   getBucketProgressTone,
+  getPrimaryResetInfo,
   getQuotaStatusVariant,
   groupProviderQuotas,
   type ProviderConnectionQuota,
@@ -46,6 +48,7 @@ import {
 } from "./schemas";
 
 const CLOCK_TICK_INTERVAL_MS = 60_000;
+const EMPTY_SYNCING_IDS: ReadonlySet<string> = new Set();
 
 interface QuotaCopy {
   title: string;
@@ -76,6 +79,8 @@ interface QuotaCopy {
   disabledTag: string;
   notActivatedHint: string;
   statusLabels: Record<ProviderQuotaStatus, string>;
+  updatedPrefix: string;
+  dismissError: string;
   errorTitle: string;
   retryLabel: string;
   emptyTitle: string;
@@ -121,6 +126,8 @@ const QUOTA_COPY: Record<UILocale, QuotaCopy> = {
       not_activated: "Inactive",
       error: "Error",
     },
+    updatedPrefix: "Synced",
+    dismissError: "Dismiss error",
     errorTitle: "Failed to load quotas",
     retryLabel: "Retry",
     emptyTitle: "No quota-supported accounts yet",
@@ -165,6 +172,8 @@ const QUOTA_COPY: Record<UILocale, QuotaCopy> = {
       not_activated: "Belum Aktif",
       error: "Error",
     },
+    updatedPrefix: "Sinkron",
+    dismissError: "Tutup pesan error",
     errorTitle: "Gagal memuat kuota",
     retryLabel: "Coba lagi",
     emptyTitle: "Belum ada akun provider dengan dukungan kuota",
@@ -231,8 +240,9 @@ function liveIndicatorMeta(liveEnabled: boolean, status: QuotaLiveStatus, copy: 
     return {
       label: copy.livePaused,
       dotClass: "bg-[var(--text-muted)]",
+      buttonClass:
+        "border-[var(--border-subtle)] bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-[var(--text-primary)]",
       pulse: false,
-      active: false,
     };
   }
   switch (status) {
@@ -240,27 +250,30 @@ function liveIndicatorMeta(liveEnabled: boolean, status: QuotaLiveStatus, copy: 
       return {
         label: copy.liveOn,
         dotClass: "bg-[var(--status-ok)]",
+        buttonClass:
+          "border-[var(--status-ok-border)] bg-[var(--status-ok-bg)] text-[var(--status-ok)]",
         pulse: true,
-        active: true,
       };
     case "reconnecting":
       return {
         label: copy.liveReconnecting,
         dotClass: "bg-[var(--status-warn)]",
+        buttonClass:
+          "border-[var(--status-warn-border)] bg-[var(--status-warn-bg)] text-[var(--status-warn)]",
         pulse: true,
-        active: true,
       };
     default:
       return {
         label: copy.liveConnecting,
         dotClass: "bg-[var(--accent-primary)]",
+        buttonClass:
+          "border-[var(--accent-primary)] bg-[var(--bg-surface-raised)] text-[var(--accent-text)]",
         pulse: true,
-        active: true,
       };
   }
 }
 
-function CompactBucketBar({
+const CompactBucketBar = memo(function CompactBucketBar({
   bucket,
   showLabel,
 }: {
@@ -303,9 +316,9 @@ function CompactBucketBar({
       </span>
     </div>
   );
-}
+});
 
-function QuotaRow({
+const QuotaRow = memo(function QuotaRow({
   item,
   locale,
   nowMs,
@@ -320,9 +333,18 @@ function QuotaRow({
   isRefreshing: boolean;
   onRefresh: (connectionId: string) => void;
 }) {
-  const primaryResetIso = item.buckets[0]?.reset_at ?? item.buckets[0]?.period_ends_at ?? null;
-  const resetCountdown = formatResetCountdown(primaryResetIso, locale, nowMs);
-  const resetFull = formatDateTime(primaryResetIso, locale);
+  const resetInfo = getPrimaryResetInfo(item.buckets);
+  const resetCountdown = formatResetCountdown(resetInfo.earliestIso, locale, nowMs);
+  const resetTooltip =
+    resetInfo.distinctCount > 1
+      ? resetInfo.schedules
+          .map((schedule) => {
+            const formatted = formatDateTime(schedule.iso, locale);
+            return formatted ? `${schedule.label}: ${formatted}` : null;
+          })
+          .filter(Boolean)
+          .join(" • ")
+      : formatDateTime(resetInfo.earliestIso, locale);
   const showBucketLabels = item.buckets.length > 1;
 
   return (
@@ -394,13 +416,20 @@ function QuotaRow({
       {/* Reset countdown */}
       <div
         className="flex items-center justify-between gap-2 text-[11px] text-[var(--text-muted)] md:block md:text-xs"
-        title={resetFull}
+        title={resetTooltip}
       >
         <span className="inline-flex items-center gap-1 md:hidden">
           <Clock className="h-3 w-3 shrink-0" aria-hidden="true" />
           <span>{copy.colReset}</span>
         </span>
-        <span className="font-mono tabular-nums">{resetCountdown ?? "—"}</span>
+        <span className="inline-flex items-center gap-1 font-mono tabular-nums">
+          <span>{resetCountdown ?? "—"}</span>
+          {resetInfo.distinctCount > 1 && (
+            <span className="rounded bg-[var(--bg-surface-raised)] px-1 text-[10px] text-[var(--text-muted)]">
+              +{resetInfo.distinctCount - 1}
+            </span>
+          )}
+        </span>
       </div>
 
       {/* Desktop status */}
@@ -433,9 +462,9 @@ function QuotaRow({
       </div>
     </div>
   );
-}
+});
 
-function QuotaProviderAccordion({
+const QuotaProviderAccordion = memo(function QuotaProviderAccordion({
   group,
   expanded,
   onToggle,
@@ -448,7 +477,7 @@ function QuotaProviderAccordion({
 }: {
   group: ProviderQuotaGroup;
   expanded: boolean;
-  onToggle: () => void;
+  onToggle: (providerId: string) => void;
   locale: UILocale;
   nowMs: number;
   copy: QuotaCopy;
@@ -466,7 +495,7 @@ function QuotaProviderAccordion({
     <Card className="overflow-hidden">
       <button
         type="button"
-        onClick={onToggle}
+        onClick={() => onToggle(group.providerId)}
         aria-expanded={expanded}
         aria-controls={panelId}
         className="flex w-full items-center justify-between gap-2.5 px-3.5 py-3 text-left transition-colors hover:bg-[var(--bg-canvas)]/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--accent-primary)] sm:gap-3 sm:px-4"
@@ -548,6 +577,8 @@ function QuotaProviderAccordion({
 
       <div
         id={panelId}
+        aria-hidden={!expanded}
+        inert={!expanded}
         className={cn(
           "grid transition-[grid-template-rows,opacity] duration-200 ease-out motion-reduce:transition-none",
           expanded ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0",
@@ -583,7 +614,7 @@ function QuotaProviderAccordion({
       </div>
     </Card>
   );
-}
+});
 
 export function QuotaConsole() {
   const locale = useUIStore((state) => state.locale);
@@ -598,6 +629,8 @@ export function QuotaConsole() {
   const [refreshingConnectionId, setRefreshingConnectionId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
+  const trackedIdsRef = useRef<ReadonlySet<string>>(EMPTY_SYNCING_IDS);
+
   useEffect(() => {
     const timer = window.setInterval(() => {
       setNowMs(Date.now());
@@ -605,13 +638,15 @@ export function QuotaConsole() {
     return () => window.clearInterval(timer);
   }, []);
 
-  const quotasQuery = useProviderQuotas({ liveEnabled });
+  const { liveStatus, syncingIds } = useQuotaLiveSync(liveEnabled, trackedIdsRef);
+  const quotasQuery = useProviderQuotas({ liveEnabled, liveStatus });
   const refreshAllMutation = useRefreshAllQuotasMutation();
   const refreshOneMutation = useRefreshConnectionQuotaMutation();
 
   const quotas = useMemo(() => quotasQuery.data?.quotas ?? [], [quotasQuery.data]);
-  const trackedConnectionIds = useMemo(() => quotas.map((item) => item.connection_id), [quotas]);
-  const { liveStatus, syncingIds } = useQuotaLiveSync(liveEnabled, trackedConnectionIds);
+  useEffect(() => {
+    trackedIdsRef.current = new Set(quotas.map((item) => item.connection_id));
+  }, [quotas]);
 
   const stats = useMemo(() => computeQuotaOverviewStats(quotas), [quotas]);
 
@@ -625,14 +660,21 @@ export function QuotaConsole() {
     return Array.from(map.entries());
   }, [quotas]);
 
+  const effectiveProviderFilter = useMemo(() => {
+    if (providerFilter === "all") {
+      return "all";
+    }
+    return distinctProviders.some(([id]) => id === providerFilter) ? providerFilter : "all";
+  }, [providerFilter, distinctProviders]);
+
   const filteredQuotas = useMemo(
     () =>
       filterProviderQuotas(quotas, {
         query: searchQuery,
         status: statusFilter,
-        providerId: providerFilter,
+        providerId: effectiveProviderFilter,
       }),
-    [quotas, searchQuery, statusFilter, providerFilter],
+    [quotas, searchQuery, statusFilter, effectiveProviderFilter],
   );
 
   const groupedQuotas = useMemo(() => groupProviderQuotas(filteredQuotas), [filteredQuotas]);
@@ -642,12 +684,12 @@ export function QuotaConsole() {
   const allGroupsExpanded =
     groupedQuotas.length > 0 && groupedQuotas.every((group) => isGroupExpanded(group.providerId));
 
-  const toggleGroup = (providerId: string) => {
+  const toggleGroup = useCallback((providerId: string) => {
     setCollapsedGroups((prev) => ({
       ...prev,
       [providerId]: !prev[providerId],
     }));
-  };
+  }, []);
 
   const handleToggleAllGroups = () => {
     if (allGroupsExpanded) {
@@ -670,17 +712,24 @@ export function QuotaConsole() {
     }
   };
 
-  const handleRefreshOne = async (connectionId: string) => {
-    setActionError(null);
-    setRefreshingConnectionId(connectionId);
-    try {
-      await refreshOneMutation.mutateAsync(connectionId);
-    } catch (err) {
-      setActionError(extractErrorMessage(err));
-    } finally {
-      setRefreshingConnectionId((current) => (current === connectionId ? null : current));
-    }
-  };
+  const { mutateAsync: refreshConnectionQuotaAsync } = refreshOneMutation;
+  const handleRefreshOne = useCallback(
+    async (connectionId: string) => {
+      setActionError(null);
+      setRefreshingConnectionId(connectionId);
+      try {
+        await refreshConnectionQuotaAsync(connectionId);
+      } catch (err) {
+        setActionError(extractErrorMessage(err));
+      } finally {
+        setRefreshingConnectionId((current) => (current === connectionId ? null : current));
+      }
+    },
+    [refreshConnectionQuotaAsync],
+  );
+
+  const lastSyncedRelative = formatRelativeSyncTime(quotasQuery.data?.fetched_at, locale, nowMs);
+  const lastSyncedFull = formatDateTime(quotasQuery.data?.fetched_at, locale);
 
   const resetFilters = () => {
     setSearchQuery("");
@@ -737,6 +786,14 @@ export function QuotaConsole() {
                   </span>
                 </>
               )}
+              {lastSyncedRelative && (
+                <>
+                  <span aria-hidden="true">·</span>
+                  <span title={lastSyncedFull}>
+                    {copy.updatedPrefix} {lastSyncedRelative}
+                  </span>
+                </>
+              )}
             </p>
           )}
         </div>
@@ -748,10 +805,8 @@ export function QuotaConsole() {
             aria-pressed={liveEnabled}
             aria-label={copy.toggleLiveAria}
             className={cn(
-              "inline-flex h-9 items-center gap-1.5 rounded-md border px-2.5 text-xs font-medium transition-colors sm:h-8",
-              liveMeta.active
-                ? "border-[var(--status-ok-border)] bg-[var(--status-ok-bg)] text-[var(--status-ok)]"
-                : "border-[var(--border-subtle)] bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-[var(--text-primary)]",
+              "inline-flex h-9 items-center gap-1.5 rounded-md border px-2.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-primary)] sm:h-8",
+              liveMeta.buttonClass,
             )}
           >
             <span className="relative flex h-2 w-2 shrink-0" aria-hidden="true">
@@ -828,7 +883,13 @@ export function QuotaConsole() {
           <AlertTitle>{copy.errorTitle}</AlertTitle>
           <AlertDescription className="flex flex-wrap items-center justify-between gap-2">
             <span>{actionError}</span>
-            <Button type="button" variant="ghost" size="sm" onClick={() => setActionError(null)}>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setActionError(null)}
+              aria-label={copy.dismissError}
+            >
               <X className="h-3.5 w-3.5" aria-hidden="true" />
             </Button>
           </AlertDescription>
@@ -865,7 +926,7 @@ export function QuotaConsole() {
           <div className="flex min-w-0 items-center gap-1.5 overflow-x-auto pb-0.5 sm:flex-wrap sm:overflow-visible sm:pb-0">
             {distinctProviders.length > 1 && (
               <select
-                value={providerFilter}
+                value={effectiveProviderFilter}
                 onChange={(event) => setProviderFilter(event.target.value)}
                 aria-label={copy.allProviders}
                 className="h-9 shrink-0 rounded-md border border-[var(--border-subtle)] bg-[var(--bg-surface)] px-2.5 text-xs text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--accent-primary)] sm:h-8"
@@ -886,8 +947,9 @@ export function QuotaConsole() {
                   key={tab.id}
                   type="button"
                   onClick={() => setStatusFilter(tab.id)}
+                  aria-pressed={active}
                   className={cn(
-                    "inline-flex h-9 shrink-0 items-center gap-1.5 rounded-md border px-2.5 text-xs font-medium transition-colors sm:h-8",
+                    "inline-flex h-9 shrink-0 items-center gap-1.5 rounded-md border px-2.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-primary)] sm:h-8",
                     active
                       ? "border-[var(--accent-primary)] bg-[var(--bg-surface-raised)] text-[var(--accent-text)]"
                       : "border-[var(--border-subtle)] bg-[var(--bg-surface)] text-[var(--text-muted)] hover:text-[var(--text-primary)]",
@@ -947,20 +1009,29 @@ export function QuotaConsole() {
         </Card>
       ) : (
         <div className="space-y-3">
-          {groupedQuotas.map((group) => (
-            <QuotaProviderAccordion
-              key={group.providerId}
-              group={group}
-              expanded={isGroupExpanded(group.providerId)}
-              onToggle={() => toggleGroup(group.providerId)}
-              locale={locale}
-              nowMs={nowMs}
-              copy={copy}
-              refreshingConnectionId={refreshingConnectionId}
-              syncingIds={syncingIds}
-              onRefreshOne={handleRefreshOne}
-            />
-          ))}
+          {groupedQuotas.map((group) => {
+            const hasGroupSyncing =
+              syncingIds.size > 0 && group.items.some((item) => syncingIds.has(item.connection_id));
+            const groupRefreshingId =
+              refreshingConnectionId &&
+              group.items.some((item) => item.connection_id === refreshingConnectionId)
+                ? refreshingConnectionId
+                : null;
+            return (
+              <QuotaProviderAccordion
+                key={group.providerId}
+                group={group}
+                expanded={isGroupExpanded(group.providerId)}
+                onToggle={toggleGroup}
+                locale={locale}
+                nowMs={nowMs}
+                copy={copy}
+                refreshingConnectionId={groupRefreshingId}
+                syncingIds={hasGroupSyncing ? syncingIds : EMPTY_SYNCING_IDS}
+                onRefreshOne={handleRefreshOne}
+              />
+            );
+          })}
         </div>
       )}
     </div>

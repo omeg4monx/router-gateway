@@ -66,11 +66,17 @@ export function groupProviderQuotas(
     let remainingCount = 0;
 
     for (const item of entry.items) {
-      if (item.buckets.length === 0) {
+      if (item.buckets.length === 0 || item.status === "not_activated" || item.status === "error") {
+        continue;
+      }
+      const activeBuckets = item.buckets.filter(
+        (bucket) => !(bucket.id === "free_tier" && !item.activated),
+      );
+      if (activeBuckets.length === 0) {
         continue;
       }
       let minRemaining = 100;
-      for (const bucket of item.buckets) {
+      for (const bucket of activeBuckets) {
         const clamped = Math.max(0, Math.min(100, bucket.remaining_pct));
         if (clamped < minRemaining) {
           minRemaining = clamped;
@@ -137,11 +143,28 @@ export function patchConnectionQuotaInResponse(
   current: ProviderQuotasResponse,
   updated: ProviderConnectionQuota,
 ): ProviderQuotasResponse {
-  const exists = current.quotas.some((item) => item.connection_id === updated.connection_id);
+  const existing = current.quotas.find((item) => item.connection_id === updated.connection_id);
+  if (existing) {
+    const existingMs = Date.parse(existing.fetched_at);
+    const updatedMs = Date.parse(updated.fetched_at);
+    if (!Number.isNaN(existingMs) && !Number.isNaN(updatedMs) && updatedMs < existingMs) {
+      return current;
+    }
+  }
+
+  const currentFetchedMs = Date.parse(current.fetched_at);
+  const updatedFetchedMs = Date.parse(updated.fetched_at);
+  const nextFetchedAt =
+    !Number.isNaN(currentFetchedMs) &&
+    !Number.isNaN(updatedFetchedMs) &&
+    currentFetchedMs > updatedFetchedMs
+      ? current.fetched_at
+      : updated.fetched_at;
+
   return {
     ...current,
-    fetched_at: updated.fetched_at,
-    quotas: exists
+    fetched_at: nextFetchedAt,
+    quotas: existing
       ? current.quotas.map((item) =>
           item.connection_id === updated.connection_id ? updated : item,
         )
@@ -244,4 +267,73 @@ export function formatResetCountdown(
     return locale === "id" ? `${hours}j ${minutes}m lagi` : `in ${hours}h ${minutes}m`;
   }
   return locale === "id" ? `${minutes}m lagi` : `in ${minutes}m`;
+}
+
+export interface BucketResetSchedule {
+  label: string;
+  iso: string;
+}
+
+export interface PrimaryResetInfo {
+  earliestIso: string | null;
+  distinctCount: number;
+  schedules: BucketResetSchedule[];
+}
+
+export function getPrimaryResetInfo(buckets: readonly ProviderQuotaBucket[]): PrimaryResetInfo {
+  let earliestIso: string | null = null;
+  let earliestMs = Number.POSITIVE_INFINITY;
+  const distinctTimestamps = new Set<number>();
+  const schedules: BucketResetSchedule[] = [];
+
+  for (const bucket of buckets) {
+    const iso = bucket.reset_at ?? bucket.period_ends_at ?? null;
+    if (!iso) {
+      continue;
+    }
+    const parsedMs = Date.parse(iso);
+    if (Number.isNaN(parsedMs)) {
+      continue;
+    }
+    distinctTimestamps.add(parsedMs);
+    schedules.push({ label: bucket.label, iso });
+    if (parsedMs < earliestMs) {
+      earliestMs = parsedMs;
+      earliestIso = iso;
+    }
+  }
+
+  return {
+    earliestIso,
+    distinctCount: distinctTimestamps.size,
+    schedules,
+  };
+}
+
+export function formatRelativeSyncTime(
+  iso: string | null | undefined,
+  locale: UILocale,
+  nowMs: number = Date.now(),
+): string | null {
+  if (!iso) {
+    return null;
+  }
+  const parsedMs = Date.parse(iso);
+  if (Number.isNaN(parsedMs)) {
+    return null;
+  }
+  const diffSec = Math.max(0, Math.floor((nowMs - parsedMs) / 1000));
+  if (diffSec < 60) {
+    return locale === "id" ? "Baru saja" : "Just now";
+  }
+  const diffMin = Math.floor(diffSec / 60);
+  if (diffMin < 60) {
+    return locale === "id" ? `${diffMin}m lalu` : `${diffMin}m ago`;
+  }
+  const diffHours = Math.floor(diffMin / 60);
+  if (diffHours < 24) {
+    return locale === "id" ? `${diffHours}j lalu` : `${diffHours}h ago`;
+  }
+  const diffDays = Math.floor(diffHours / 24);
+  return locale === "id" ? `${diffDays}h lalu` : `${diffDays}d ago`;
 }

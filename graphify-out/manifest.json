@@ -306,8 +306,8 @@
     "semantic_hash": ""
   },
   "web/src/shared/api/schema.d.ts": {
-    "mtime": 1795849069.403637,
-    "seen": 1795849371.0682914,
+    "mtime": 1795850324.3823807,
+    "seen": 1795850516.1132705,
     "ast_hash": "34a96e50b46386de1d9a6a325e7c671c",
     "semantic_hash": ""
   },
@@ -3756,39 +3756,39 @@
     "semantic_hash": ""
   },
   "internal/modules/providers/quota.go": {
-    "mtime": 1795807545.9088008,
-    "seen": 1795807926.390419,
-    "ast_hash": "1fadcd6ddfc3a20ab01819b86e273b0d",
+    "mtime": 1795850398.1724918,
+    "seen": 1795850516.096735,
+    "ast_hash": "fe5731d26947f0afc040af693639126e",
     "semantic_hash": ""
   },
   "internal/modules/providers/quota_test.go": {
-    "mtime": 1795780128.4978595,
-    "seen": 1795780344.5190911,
-    "ast_hash": "68a49bc3cf37704e6c746ef8bb1241db",
+    "mtime": 1795850426.9739256,
+    "seen": 1795850516.0967426,
+    "ast_hash": "c09ceac124172b7cc041425721343017",
     "semantic_hash": ""
   },
   "web/src/features/quota/QuotaConsole.tsx": {
-    "mtime": 1795845968.1455872,
-    "seen": 1795846026.7839847,
-    "ast_hash": "9efb1165aaaeb11e0940a3d6139376b5",
+    "mtime": 1795850199.5935018,
+    "seen": 1795850280.0762205,
+    "ast_hash": "e689ba15da6f9732d7babb1bb6bdef28",
     "semantic_hash": ""
   },
   "web/src/features/quota/hooks.ts": {
-    "mtime": 1795780128.498972,
-    "seen": 1795780344.524196,
-    "ast_hash": "e2fdbff77c8c4e9890ce3f3791377a0a",
+    "mtime": 1795850199.5855017,
+    "seen": 1795850280.0762224,
+    "ast_hash": "19193169df84eb238c65296b4026e3a7",
     "semantic_hash": ""
   },
   "web/src/features/quota/schemas.test.ts": {
-    "mtime": 1795780128.498972,
-    "seen": 1795780344.5241973,
-    "ast_hash": "da294edbbc7b39c455d3523187ce8541",
+    "mtime": 1795850429.7039666,
+    "seen": 1795850516.1098437,
+    "ast_hash": "4c2ccfd44267e1c88fa6c4467b6663e7",
     "semantic_hash": ""
   },
   "web/src/features/quota/schemas.ts": {
-    "mtime": 1795780128.498972,
-    "seen": 1795780344.5241992,
-    "ast_hash": "cefe1d11cd554d6b9cbe3d5411a351ca",
+    "mtime": 1795850435.0290468,
+    "seen": 1795850516.109848,
+    "ast_hash": "34662c306222bb169853f452fe6982de",
     "semantic_hash": ""
   },
   "docs/superpowers/plans/2026-11-27-provider-quota.md": {
@@ -3846,15 +3846,15 @@
     "semantic_hash": ""
   },
   "internal/modules/providers/codebuddy_unit_test.go": {
-    "mtime": 1795807545.9081361,
-    "seen": 1795807926.3900456,
-    "ast_hash": "946372e56477842ba8b91ebd96c2d394",
+    "mtime": 1795850427.9429402,
+    "seen": 1795850516.095741,
+    "ast_hash": "bc7ab3158a4d601ac7ff8c6871bc1f1f",
     "semantic_hash": ""
   },
   "internal/modules/providers/quota_codebuddy.go": {
-    "mtime": 1795807545.9088008,
-    "seen": 1795807926.3904204,
-    "ast_hash": "3b11a9b5f64fcc9021f051395d9d5e1c",
+    "mtime": 1795850401.422541,
+    "seen": 1795850516.096739,
+    "ast_hash": "53f22c5acaac292668758c3c49bfe697",
     "semantic_hash": ""
   },
   "web/src/features/modeleditor/ModelEditorHelpModal.tsx": {
