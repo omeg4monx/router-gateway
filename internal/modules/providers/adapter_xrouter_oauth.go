@@ -225,5 +225,21 @@ func xrouterBuiltInOAuthAdapters() []ProviderAdapter {
 				DefaultRedirectURI: defaultOAuthRedirectURI,
 			},
 		},
+		&builtinAdapter{
+			id:             providerIDJetBrains,
+			displayName:    "JetBrains AI (Grazie)",
+			category:       authTypeOAuth,
+			protocol:       protocolOpenAIChat,
+			authType:       authTypeOAuth,
+			defaultBaseURL: jetbrainsDefaultBaseURL,
+			defaultModels:  []string{jetbrainsDefaultModel},
+			oauthConfig: &OAuthConfig{
+				AuthorizeURL:       jetbrainsOAuthAuthorizeURL,
+				TokenURL:           jetbrainsOAuthTokenURL,
+				Scopes:             []string{"offline_access", "openid", "jb-authn-service"},
+				ClientID:           jetbrainsOAuthClientID,
+				DefaultRedirectURI: jetbrainsOAuthRedirectURI,
+			},
+		},
 	}
 }

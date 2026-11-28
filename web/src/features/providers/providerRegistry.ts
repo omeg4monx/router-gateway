@@ -2958,6 +2958,9 @@ export const PROVIDER_REGISTRY: readonly ProviderRegistrySpec[] = [
       "gemma-4-uncensored",
       "glm-4.7-flash-heretic",
       "uncensored-1.2",
+      "deepseek-v4.1-flash-abliterated",
+      "inkling-2-mini",
+      "ultra-ultra-fast-credits",
     ],
     website: "https://freepi.ai",
     signupUrl: "https://freepi.ai",
@@ -3071,6 +3074,18 @@ export const PROVIDER_REGISTRY: readonly ProviderRegistrySpec[] = [
       {
         id: "uncensored-1.2",
         name: "Uncensored 1.2",
+      },
+      {
+        id: "deepseek-v4.1-flash-abliterated",
+        name: "DeepSeek V4.1 Flash Abliterated",
+      },
+      {
+        id: "inkling-2-mini",
+        name: "Inkling 2 Mini",
+      },
+      {
+        id: "ultra-ultra-fast-credits",
+        name: "Ultra Ultra Fast (credits)",
       },
     ],
   },
@@ -3928,6 +3943,29 @@ export const PROVIDER_REGISTRY: readonly ProviderRegistrySpec[] = [
     website: "https://jina.ai/reader",
     apiKeyUrl: "https://jina.ai/?sui=apikey",
     serviceKinds: ["webFetch"],
+  },
+  {
+    id: "jetbrains",
+    name: "JetBrains AI (Grazie)",
+    alias: "jb",
+    aliases: ["jetbrains", "grazie", "junie"],
+    category: "oauth",
+    sourceCategory: "oauth",
+    protocol: "openai-chat",
+    authType: "oauth",
+    baseUrl: "https://api.jetbrains.ai/user/v5/llm/openai/v1",
+    defaultModels: ["gpt-6-luna"],
+    website: "https://www.jetbrains.com/ai/",
+    signupUrl: "https://account.jetbrains.com",
+    hasOAuth: true,
+    priority: 95,
+    models: [
+      {
+        id: "gpt-6-luna",
+        name: "GPT-6 Luna (1.05M Context)",
+        isFree: true,
+      },
+    ],
   },
   {
     id: "kilocode",

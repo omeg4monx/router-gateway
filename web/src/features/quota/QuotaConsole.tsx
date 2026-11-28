@@ -132,7 +132,7 @@ const QUOTA_COPY: Record<UILocale, QuotaCopy> = {
     retryLabel: "Retry",
     emptyTitle: "No quota-supported accounts yet",
     emptyDescription:
-      "Add a supported provider connection (Token Harbor or CodeBuddy) in Providers to view remaining allowances here.",
+      "Add a supported provider connection (Token Harbor, CodeBuddy, or JetBrains AI) in Providers to view remaining allowances here.",
     emptyAction: "Open Providers",
     filteredEmptyTitle: "No matching accounts",
     resetFilters: "Reset filters",
@@ -178,7 +178,7 @@ const QUOTA_COPY: Record<UILocale, QuotaCopy> = {
     retryLabel: "Coba lagi",
     emptyTitle: "Belum ada akun provider dengan dukungan kuota",
     emptyDescription:
-      "Tambahkan koneksi provider yang didukung (Token Harbor atau CodeBuddy) di menu Provider untuk melihat sisa limit di sini.",
+      "Tambahkan koneksi provider yang didukung (Token Harbor, CodeBuddy, atau JetBrains AI) di menu Provider untuk melihat sisa limit di sini.",
     emptyAction: "Buka Provider",
     filteredEmptyTitle: "Tidak ada akun yang cocok",
     resetFilters: "Reset filter",

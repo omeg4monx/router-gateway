@@ -235,6 +235,28 @@ func (m *Module) buildModelsDiscoveryRequests(ctx context.Context, creds contrac
 		return []*http.Request{req}, nil
 	}
 
+	// JetBrains AI (Grazie) authenticates /models via Grazie-Authenticate-JWT + Grazie-Agent.
+	if creds.ProviderID == providerIDJetBrains {
+		targetURL := resolveJetBrainsModelsURL(creds.BaseURL)
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, targetURL, http.NoBody)
+		if err != nil {
+			return nil, err
+		}
+		req.Header.Set("Accept", "application/json")
+		req.Header.Set("Grazie-Agent", jetbrainsGrazieAgentHeader)
+		jwt := strings.TrimSpace(creds.ExtraHeaders["Grazie-Authenticate-JWT"])
+		if jwt == "" {
+			jwt = strings.TrimSpace(creds.AccessToken)
+		}
+		if jwt == "" {
+			jwt = strings.TrimSpace(creds.APIKey)
+		}
+		if jwt != "" {
+			req.Header.Set("Grazie-Authenticate-JWT", jwt)
+		}
+		return []*http.Request{req}, nil
+	}
+
 	baseURL, err := validateHTTPURL(creds.BaseURL)
 	if err != nil {
 		return nil, fmt.Errorf("providers: invalid base_url: %w", err)

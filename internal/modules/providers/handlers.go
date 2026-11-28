@@ -698,7 +698,9 @@ func (m *Module) executeConnectivityTest(ctx context.Context, creds contracts.Up
 		defer resp.Body.Close()
 		bodySnippet, _ := io.ReadAll(io.LimitReader(resp.Body, maxTestErrorBodyBytes))
 		result.StatusCode = resp.StatusCode
-		if resp.StatusCode >= http.StatusOK && resp.StatusCode < http.StatusMultipleChoices {
+		isJetBrainsAuthOK := creds.ProviderID == providerIDJetBrains &&
+			(resp.StatusCode == http.StatusBadRequest || resp.StatusCode == http.StatusTooManyRequests)
+		if (resp.StatusCode >= http.StatusOK && resp.StatusCode < http.StatusMultipleChoices) || isJetBrainsAuthOK {
 			result.OK = true
 			statusText = "ok"
 		} else {

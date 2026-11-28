@@ -57,6 +57,7 @@ export const OAUTH_PROVIDER_IDS = [
   "gitlab",
   "codebuddy-cn",
   "codebuddy-intl",
+  "jetbrains",
 ] as const;
 
 export const MAX_NAME_RUNES = 128;

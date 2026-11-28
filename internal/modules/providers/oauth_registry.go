@@ -136,6 +136,7 @@ func defaultOAuthStrategies() map[string]*oauthProviderStrategy {
 		},
 		providerIDCodeBuddyCN:   newCodeBuddyOAuthStrategy(providerIDCodeBuddyCN),
 		providerIDCodeBuddyIntl: newCodeBuddyOAuthStrategy(providerIDCodeBuddyIntl),
+		providerIDJetBrains:     newJetBrainsOAuthStrategy(),
 		"kimi": newRFC8628Strategy(rfc8628DeviceSpec{ //nolint:gosec // G101: public OAuth device client ID and token endpoint URL
 			ProviderID:              "kimi",
 			DefaultDeviceCodeURL:    "https://auth.kimi.com/api/oauth/device_authorization",

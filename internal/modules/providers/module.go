@@ -282,6 +282,9 @@ func (m *Module) ResolveCredentials(ctx context.Context, connectionID string) (c
 		return contracts.UpstreamCredentials{}, err
 	}
 
+	extraHeaders := cloneStringMap(rec.Summary.Headers)
+	applyStoredProviderHeaders(rec.Summary.ProviderID, stored, extraHeaders)
+
 	resolved := contracts.UpstreamCredentials{
 		ConnectionID: rec.Summary.ID,
 		ProviderID:   rec.Summary.ProviderID,
@@ -290,7 +293,7 @@ func (m *Module) ResolveCredentials(ctx context.Context, connectionID string) (c
 		AuthType:     rec.Summary.AuthType,
 		APIKey:       stored.APIKey,
 		AccessToken:  stored.AccessToken,
-		ExtraHeaders: cloneStringMap(rec.Summary.Headers),
+		ExtraHeaders: extraHeaders,
 	}
 	if m.runtimeCache != nil {
 		m.runtimeCache.SetCredentialsIfVersion(connectionID, resolved, ver)

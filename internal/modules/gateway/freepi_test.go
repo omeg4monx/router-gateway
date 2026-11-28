@@ -88,3 +88,68 @@ func TestFreePIGatewayInjectsHeadersClampsTokensAndRetries426(t *testing.T) {
 		t.Fatalf("seenMaxTokens = %v, want clamped to 256", seenMaxTokens)
 	}
 }
+
+func TestFreePIGatewayRotatesOnHTTP200PinMismatch(t *testing.T) {
+	var calls atomic.Int32
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		n := calls.Add(1)
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.WriteHeader(http.StatusOK)
+		if n == 1 {
+			_, _ = w.Write([]byte("data: {\"choices\":[{\"delta\":{\"content\":\"This conversation belongs to another free-pi account. Sharing or rotating accounts isn't allowed.\"}}]}\n\n"))
+			_, _ = w.Write([]byte("data: [DONE]\n\n"))
+			return
+		}
+		_, _ = w.Write([]byte("data: {\"choices\":[{\"delta\":{\"content\":\"Owned account real reply.\"}}]}\n\n"))
+		_, _ = w.Write([]byte("data: [DONE]\n\n"))
+	}))
+	defer upstream.Close()
+
+	env := setupGatewayTest(t, nil, 0, false)
+	env.providers.creds["conn-fp-wrong"] = contracts.UpstreamCredentials{
+		ConnectionID: "conn-fp-wrong",
+		ProviderID:   "freepi",
+		Protocol:     gateway.ProtocolOpenAIChat,
+		AuthType:     "oauth",
+		BaseURL:      upstream.URL,
+		AccessToken:  "fp-tok-wrong",
+	}
+	env.providers.creds["conn-fp-owner"] = contracts.UpstreamCredentials{
+		ConnectionID: "conn-fp-owner",
+		ProviderID:   "freepi",
+		Protocol:     gateway.ProtocolOpenAIChat,
+		AuthType:     "oauth",
+		BaseURL:      upstream.URL,
+		AccessToken:  "fp-tok-owner",
+	}
+	env.resolver.fn = func(context.Context, string, []string) ([]contracts.ResolvedTarget, error) {
+		return []contracts.ResolvedTarget{
+			{ConnectionID: "conn-fp-wrong", ProviderID: "freepi", UpstreamModel: "particle"},
+			{ConnectionID: "conn-fp-owner", ProviderID: "freepi", UpstreamModel: "particle"},
+		}, nil
+	}
+
+	reqBody := `{"model":"freepi/particle","stream":true,"messages":[{"role":"user","content":"continue"}]}`
+	req, _ := http.NewRequest(http.MethodPost, env.baseURL+"/v1/chat/completions", bytes.NewBufferString(reqBody))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer sk-valid")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("do request: %v", err)
+	}
+	defer resp.Body.Close()
+
+	raw, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d, want 200; body=%s", resp.StatusCode, string(raw))
+	}
+	if calls.Load() != 2 {
+		t.Fatalf("calls = %d, want 2 (rotate from wrong account to owning account)", calls.Load())
+	}
+	if !bytes.Contains(raw, []byte("Owned account real reply.")) {
+		t.Fatalf("body = %s, want real reply from second account", string(raw))
+	}
+	if bytes.Contains(raw, []byte("belongs to another free-pi account")) {
+		t.Fatalf("body leaked pin-mismatch policy text: %s", string(raw))
+	}
+}

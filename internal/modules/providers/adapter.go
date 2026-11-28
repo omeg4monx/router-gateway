@@ -438,7 +438,8 @@ func defaultBuiltInAdapters() []ProviderAdapter {
 				"mimo-v2.6-flash", "qwen3.5-35b-darkbloom", "qwen3.6-plus-uncensored",
 				"qwen3.7-flash", "solar-mini-4", "solar-pro-4", "abliterated-large-flash",
 				"abliterated-large-v2", "gemma-4-uncensored", "glm-4.7-flash-heretic",
-				"uncensored-1.2",
+				"uncensored-1.2", "deepseek-v4.1-flash-abliterated", "inkling-2-mini",
+				"ultra-ultra-fast-credits",
 			},
 			//nolint:gosec // G101: public OAuth2 authorization/token endpoint URLs, not credentials
 			oauthConfig: &OAuthConfig{
@@ -504,6 +505,35 @@ func buildProtocolTestRequest(ctx context.Context, creds contracts.UpstreamCrede
 		}
 		if token != "" {
 			req.Header.Set("Authorization", "Bearer "+token)
+		}
+		return req, nil
+	}
+
+	if creds.ProviderID == providerIDJetBrains {
+		targetURL := trimmedBase + "/chat/completions"
+		if strings.HasSuffix(trimmedBase, "/chat/completions") {
+			targetURL = trimmedBase
+		}
+		probeBody := `{"model":"gpt-6-luna","messages":[{"role":"user","content":"ping"}],"max_completion_tokens":1,"stream":false}`
+		req, reqErr := http.NewRequestWithContext(ctx, http.MethodPost, targetURL, strings.NewReader(probeBody))
+		if reqErr != nil {
+			return nil, fmt.Errorf("providers: build jetbrains test request: %w", reqErr)
+		}
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Accept", "application/json")
+		req.Header.Set("Grazie-Agent", jetbrainsGrazieAgentHeader)
+		req.Header.Set("X-Forced-License-Free", "2")
+		req.Header.Set("X-Accept-EAP-License", "false")
+		req.Header.Set("X-Accept-Release-License", "false")
+		jwt := strings.TrimSpace(creds.ExtraHeaders["Grazie-Authenticate-JWT"])
+		if jwt == "" {
+			jwt = strings.TrimSpace(creds.AccessToken)
+		}
+		if jwt == "" {
+			jwt = strings.TrimSpace(creds.APIKey)
+		}
+		if jwt != "" {
+			req.Header.Set("Grazie-Authenticate-JWT", jwt)
 		}
 		return req, nil
 	}

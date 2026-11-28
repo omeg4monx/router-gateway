@@ -42,14 +42,15 @@ type refreshCall struct {
 }
 
 type oauthTokenResponse struct {
-	AccessToken      string `json:"access_token"`
-	RefreshToken     string `json:"refresh_token"`
-	IDToken          string `json:"id_token"`
-	TokenType        string `json:"token_type"`
-	ExpiresIn        int64  `json:"expires_in"`
-	Scope            string `json:"scope"`
-	Error            string `json:"error"`
-	ErrorDescription string `json:"error_description"`
+	AccessToken      string         `json:"access_token"`
+	RefreshToken     string         `json:"refresh_token"`
+	IDToken          string         `json:"id_token"`
+	TokenType        string         `json:"token_type"`
+	ExpiresIn        int64          `json:"expires_in"`
+	Scope            string         `json:"scope"`
+	Error            string         `json:"error"`
+	ErrorDescription string         `json:"error_description"`
+	Metadata         map[string]any `json:"-"`
 }
 
 func generatePKCE() (verifier, challenge string, err error) {
@@ -459,6 +460,12 @@ func (m *Module) doRefreshOAuthToken(ctx context.Context, connectionID string) (
 	stored.ClientID = clientID
 	stored.ClientSecret = clientSecret
 	stored.TokenURL = tokenURL
+	if len(tok.Metadata) > 0 {
+		if stored.Metadata == nil {
+			stored.Metadata = make(map[string]any, len(tok.Metadata))
+		}
+		maps.Copy(stored.Metadata, tok.Metadata)
+	}
 
 	sealed, err := m.sealCredentials(stored)
 	if err != nil {
@@ -478,6 +485,9 @@ func (m *Module) doRefreshOAuthToken(ctx context.Context, connectionID string) (
 
 	m.publishChanged("token_refreshed", "connection", connectionID, rec.Summary.ProviderID, "system", updatedAt)
 
+	extraHeaders := cloneStringMap(rec.Summary.Headers)
+	applyStoredProviderHeaders(rec.Summary.ProviderID, stored, extraHeaders)
+
 	return contracts.UpstreamCredentials{
 		ConnectionID: rec.Summary.ID,
 		ProviderID:   rec.Summary.ProviderID,
@@ -486,6 +496,14 @@ func (m *Module) doRefreshOAuthToken(ctx context.Context, connectionID string) (
 		AuthType:     rec.Summary.AuthType,
 		APIKey:       stored.APIKey,
 		AccessToken:  stored.AccessToken,
-		ExtraHeaders: cloneStringMap(rec.Summary.Headers),
+		ExtraHeaders: extraHeaders,
 	}, nil
+}
+
+func applyStoredProviderHeaders(providerID string, stored storedCredentials, headers map[string]string) {
+	if providerID == providerIDJetBrains && stored.Metadata != nil {
+		if jwt, ok := stored.Metadata["grazie_jwt"].(string); ok && strings.TrimSpace(jwt) != "" {
+			headers["Grazie-Authenticate-JWT"] = strings.TrimSpace(jwt)
+		}
+	}
 }

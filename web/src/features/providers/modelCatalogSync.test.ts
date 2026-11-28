@@ -31,6 +31,7 @@ describe("OmniRoute provider model catalog accuracy & sync", () => {
       makeAdapter("openai", "api_key", ["gpt-4o", "gpt-4o-mini"]),
       makeAdapter("openai-responses", "api_key", ["gpt-4.1", "gpt-4o"]),
       makeAdapter("freepi", "oauth", ["particle"]),
+      makeAdapter("jetbrains", "oauth", ["gpt-6-luna"]),
     ];
 
     const entries = buildProviderEntries(adapters, [], []);
@@ -61,8 +62,15 @@ describe("OmniRoute provider model catalog accuracy & sync", () => {
     expect(byId.get("openai")?.defaultModels.length).toBeGreaterThanOrEqual(21);
     expect(byId.get("openai-responses")?.defaultModels.length).toBeGreaterThanOrEqual(21);
 
-    // FreePI has all 26 OmniRoute models
-    expect(byId.get("freepi")?.defaultModels.length).toBeGreaterThanOrEqual(26);
+    // FreePI has all 29 models including upstream 2026-11-28 catalogue additions
+    expect(byId.get("freepi")?.defaultModels).toContain("deepseek-v4.1-flash-abliterated");
+    expect(byId.get("freepi")?.defaultModels).toContain("inkling-2-mini");
+    expect(byId.get("freepi")?.defaultModels).toContain("ultra-ultra-fast-credits");
+    expect(byId.get("freepi")?.defaultModels.length).toBeGreaterThanOrEqual(29);
+
+    // JetBrains AI (Grazie) registers gpt-6-luna with alias jb
+    expect(byId.get("jetbrains")?.alias).toBe("jb");
+    expect(byId.get("jetbrains")?.defaultModels).toContain("gpt-6-luna");
   });
 
   test("non-LLM embedding models are excluded from LLM provider catalog (e.g. openrouter)", () => {
@@ -79,5 +87,9 @@ describe("OmniRoute provider model catalog accuracy & sync", () => {
     const freepi = PROVIDER_REGISTRY_MAP.get("freepi");
     const freeModels = freepi?.models?.filter((m) => m.isFree) ?? [];
     expect(freeModels.length).toBeGreaterThan(0);
+
+    const jetbrains = PROVIDER_REGISTRY_MAP.get("jetbrains");
+    const luna = jetbrains?.models?.find((m) => m.id === "gpt-6-luna");
+    expect(luna?.isFree).toBe(true);
   });
 });
