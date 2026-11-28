@@ -110,6 +110,38 @@ func (m *Module) snapshot() ([]BypassRule, []ModelOverride) {
 	return m.bypassRules, m.overrides
 }
 
+// ListVirtualModels returns enabled concrete model overrides that define a new
+// virtual model name (non-wildcard model_pattern with a target_model) so they
+// appear in /api/arena/models and /v1/models alongside original models.
+func (m *Module) ListVirtualModels() []contracts.ModelDescriptor {
+	_, overrides := m.snapshot()
+	if len(overrides) == 0 {
+		return nil
+	}
+	seen := make(map[string]struct{}, len(overrides))
+	out := make([]contracts.ModelDescriptor, 0, len(overrides))
+	for _, ov := range overrides {
+		if !ov.Enabled {
+			continue
+		}
+		alias := strings.TrimSpace(ov.ModelPattern)
+		target := strings.TrimSpace(ov.TargetModel)
+		if alias == "" || target == "" || strings.Contains(alias, "*") {
+			continue
+		}
+		if _, dup := seen[alias]; dup {
+			continue
+		}
+		seen[alias] = struct{}{}
+		out = append(out, contracts.ModelDescriptor{
+			ID:      alias,
+			OwnedBy: "model-editor",
+			Kind:    "override",
+		})
+	}
+	return out
+}
+
 // OnRequest evaluates model bypass rules and applies matching model parameter overrides.
 func (m *Module) OnRequest(_ context.Context, req *contracts.CanonicalRequest) error {
 	if req == nil {

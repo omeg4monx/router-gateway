@@ -1,4 +1,4 @@
-import type { UsageLog, UsageLogsResponse } from "./schemas";
+import { isUsageLogError, type UsageLog, type UsageLogsResponse } from "./schemas";
 
 export interface StreamLogsFilter {
   model?: string;
@@ -30,12 +30,14 @@ function matchesLogFilter(log: UsageLog, filter?: StreamLogsFilter): boolean {
   }
   const status = filter.status?.trim().toLowerCase();
   if (status === "ok" || status === "success") {
-    const isOk = log.status_code >= 200 && log.status_code < 400 && !log.error_summary.trim();
-    if (!isOk) return false;
+    if (isUsageLogError(log)) return false;
   } else if (status === "error") {
-    const isErr =
-      log.status_code < 200 || log.status_code >= 400 || Boolean(log.error_summary.trim());
-    if (!isErr) return false;
+    if (!isUsageLogError(log)) return false;
+  } else if (status && /^\d{3}$/.test(status)) {
+    const code = Number(status);
+    if (code >= 100 && code <= 599 && log.status_code !== code) {
+      return false;
+    }
   }
   return true;
 }

@@ -9,6 +9,7 @@ import {
   generateKeySnippet,
   getKeyExpiryState,
   normalizeOrigin,
+  resolveGatewayOrigins,
 } from "./endpointUtils";
 import {
   type ApiKeySummary,
@@ -205,6 +206,50 @@ describe("endpointUtils (main Endpoint & Keys parity)", () => {
       origin: "https://gw.example.com",
       openaiBaseUrl: "https://gw.example.com/v1",
       claudeBaseUrl: "https://gw.example.com",
+    });
+  });
+
+  test("resolves server domain host separately while keeping localhost as localhost", () => {
+    expect(resolveGatewayOrigins("https://router.example.com/")).toEqual({
+      domainOrigin: "https://router.example.com",
+      localOrigin: "http://localhost:20128",
+      defaultRoute: "domain",
+      isDomainHost: true,
+    });
+
+    expect(resolveGatewayOrigins("http://api.company.id:8080")).toEqual({
+      domainOrigin: "http://api.company.id:8080",
+      localOrigin: "http://localhost:20128",
+      defaultRoute: "domain",
+      isDomainHost: true,
+    });
+
+    expect(resolveGatewayOrigins("http://localhost:20128")).toEqual({
+      domainOrigin: null,
+      localOrigin: "http://localhost:20128",
+      defaultRoute: "local",
+      isDomainHost: false,
+    });
+
+    expect(resolveGatewayOrigins("http://127.0.0.1:20128")).toEqual({
+      domainOrigin: null,
+      localOrigin: "http://127.0.0.1:20128",
+      defaultRoute: "local",
+      isDomainHost: false,
+    });
+
+    expect(resolveGatewayOrigins("http://[::1]:20128")).toEqual({
+      domainOrigin: null,
+      localOrigin: "http://[::1]:20128",
+      defaultRoute: "local",
+      isDomainHost: false,
+    });
+
+    expect(resolveGatewayOrigins("")).toEqual({
+      domainOrigin: null,
+      localOrigin: "http://127.0.0.1:20128",
+      defaultRoute: "local",
+      isDomainHost: false,
     });
   });
 

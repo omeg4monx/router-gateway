@@ -5,6 +5,7 @@ import {
   Code2,
   Copy,
   ExternalLink,
+  Globe,
   Info,
   Laptop,
   Network,
@@ -27,6 +28,8 @@ import {
 interface GatewayEndpointBarProps {
   isId: boolean;
   localOrigin: string;
+  domainOrigin?: string | null;
+  isDomainHost?: boolean;
   activeRoute: GatewayRouteId;
   onSelectRoute: (route: GatewayRouteId) => void;
   tunnel: TunnelStatus | undefined;
@@ -47,6 +50,8 @@ const SNIPPET_LANGS: ReadonlyArray<{ id: KeySnippetLang; label: string }> = [
 export function GatewayEndpointBar({
   isId,
   localOrigin,
+  domainOrigin,
+  isDomainHost = false,
   activeRoute,
   onSelectRoute,
   tunnel,
@@ -99,25 +104,33 @@ export function GatewayEndpointBar({
 
   const cfOrigin = cfLive ? normalizeOrigin(tunnel?.public_url) : "";
   const tsOrigin = tsLive ? normalizeOrigin(tunnel?.public_url) : "";
+  const cleanDomain = normalizeOrigin(domainOrigin);
   const cleanLocal = normalizeOrigin(localOrigin);
+  const fallbackRoute: "domain" | "local" = cleanDomain ? "domain" : "local";
 
   const effectiveOrigin = useMemo(() => {
+    if (activeRoute === "domain" && cleanDomain) return cleanDomain;
     if (activeRoute === "cloudflare" && cfLive) return cfOrigin;
     if (activeRoute === "tailscale" && tsLive) return tsOrigin;
-    return cleanLocal;
-  }, [activeRoute, cfLive, cfOrigin, tsLive, tsOrigin, cleanLocal]);
+    if (activeRoute === "local") return cleanLocal;
+    return cleanDomain || cleanLocal;
+  }, [activeRoute, cleanDomain, cfLive, cfOrigin, tsLive, tsOrigin, cleanLocal]);
 
-  const usingLocalFallback =
+  const usingPrimaryFallback =
     (activeRoute === "cloudflare" && !cfLive) || (activeRoute === "tailscale" && !tsLive);
 
   const activeRouteLabel =
-    activeRoute === "cloudflare"
-      ? "Cloudflare Tunnel"
-      : activeRoute === "tailscale"
-        ? "Tailscale Mesh"
-        : isId
-          ? "Host Lokal"
-          : "Local Host";
+    activeRoute === "domain" && cleanDomain
+      ? isId
+        ? "Host Server"
+        : "Server Host"
+      : activeRoute === "cloudflare"
+        ? "Cloudflare Tunnel"
+        : activeRoute === "tailscale"
+          ? "Tailscale Mesh"
+          : isId
+            ? "Host Lokal"
+            : "Local Host";
 
   const { openaiBaseUrl, claudeBaseUrl } = useMemo(
     () => buildGatewayUrls(effectiveOrigin),
@@ -144,6 +157,18 @@ export function GatewayEndpointBar({
     tone: "success" | "warning" | "muted";
     sub: string;
   }> = [
+    ...(cleanDomain
+      ? [
+          {
+            id: "domain" as const,
+            label: isId ? "Host Server" : "Server Host",
+            icon: Globe,
+            badge: isDomainHost ? "DOMAIN" : "HOST",
+            tone: "success" as const,
+            sub: cleanDomain,
+          },
+        ]
+      : []),
     {
       id: "local",
       label: isId ? "Host Lokal" : "Local Host",
@@ -205,7 +230,12 @@ export function GatewayEndpointBar({
             </span>
           </div>
 
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+          <div
+            className={cn(
+              "grid grid-cols-1 gap-2",
+              cleanDomain ? "sm:grid-cols-2 lg:grid-cols-4" : "sm:grid-cols-3",
+            )}
+          >
             {routeOptions.map((opt) => {
               const Icon = opt.icon;
               const selected = activeRoute === opt.id;
@@ -260,7 +290,7 @@ export function GatewayEndpointBar({
         </div>
 
         {/* Compact inline tunnel control strip when Cloudflare/Tailscale selected */}
-        {activeRoute !== "local" ? (
+        {activeRoute === "cloudflare" || activeRoute === "tailscale" ? (
           <div className="flex flex-col justify-between gap-2.5 rounded-xl border border-[var(--color-border-subtle)] bg-[var(--color-surface-2)]/60 px-3.5 py-2.5 sm:flex-row sm:items-center">
             <p className="min-w-0 text-xs text-[var(--color-text-main)]">
               {activeRoute === "cloudflare"
@@ -325,22 +355,28 @@ export function GatewayEndpointBar({
 
         {/* Synchronized OpenAI & Claude Base URLs */}
         <div className="space-y-2">
-          {usingLocalFallback ? (
+          {usingPrimaryFallback ? (
             <div className="flex flex-wrap items-center justify-between gap-2 px-1 text-xs text-[var(--color-text-muted)]">
               <span className="inline-flex items-center gap-1.5">
                 <Info className="h-3.5 w-3.5 text-[var(--color-warning)]" aria-hidden="true" />
                 <span>
                   {isId
-                    ? `Menampilkan URL Lokal hingga ${activeRouteLabel} aktif.`
-                    : `Showing Local URL until ${activeRouteLabel} is active.`}
+                    ? `Menampilkan URL ${cleanDomain ? "Host Server" : "Lokal"} hingga ${activeRouteLabel} aktif.`
+                    : `Showing ${cleanDomain ? "Server Host" : "Local"} URL until ${activeRouteLabel} is active.`}
                 </span>
               </span>
               <button
                 type="button"
-                onClick={() => onSelectRoute("local")}
+                onClick={() => onSelectRoute(fallbackRoute)}
                 className="shrink-0 cursor-pointer font-medium text-[var(--color-primary)] hover:underline"
               >
-                {isId ? "Pindah ke Lokal" : "Switch to Local"}
+                {cleanDomain
+                  ? isId
+                    ? "Pindah ke Host Server"
+                    : "Switch to Server Host"
+                  : isId
+                    ? "Pindah ke Lokal"
+                    : "Switch to Local"}
               </button>
             </div>
           ) : null}

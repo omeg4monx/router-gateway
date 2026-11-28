@@ -1,22 +1,15 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient, extractErrorMessage } from "@/shared/api/client";
 import type {
-  CreateModelBypassRuleRequest,
   CreateModelOverrideRequest,
-  ModelBypassRule,
-  ModelBypassRuleList,
-  ModelEditorPreviewRequest,
-  ModelEditorPreviewResult,
   ModelOverride,
   ModelOverrideList,
-  UpdateModelBypassRuleRequest,
   UpdateModelOverrideRequest,
 } from "./schemas";
 
 export const modelEditorQueryKeys = {
-  all: ["modeleditor"] as const,
   overrides: ["modeleditor", "overrides"] as const,
-  bypass: ["modeleditor", "bypass"] as const,
+  arenaModels: ["arena", "models"] as const,
 };
 
 export function useModelOverrides() {
@@ -40,6 +33,7 @@ export function useCreateModelOverrideMutation() {
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: modelEditorQueryKeys.overrides });
+      void queryClient.invalidateQueries({ queryKey: modelEditorQueryKeys.arenaModels });
     },
   });
 }
@@ -57,6 +51,7 @@ export function useUpdateModelOverrideMutation() {
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: modelEditorQueryKeys.overrides });
+      void queryClient.invalidateQueries({ queryKey: modelEditorQueryKeys.arenaModels });
     },
   });
 }
@@ -72,73 +67,68 @@ export function useDeleteModelOverrideMutation() {
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: modelEditorQueryKeys.overrides });
+      void queryClient.invalidateQueries({ queryKey: modelEditorQueryKeys.arenaModels });
     },
   });
 }
 
-export function useModelBypassRules() {
-  return useQuery<ModelBypassRuleList, Error>({
-    queryKey: modelEditorQueryKeys.bypass,
-    queryFn: async () => {
-      const { data, error } = await apiClient.GET("/api/model-editor/bypass");
-      if (data) return data;
-      throw new Error(extractErrorMessage(error));
-    },
-  });
+export interface QuickPromptTestInput {
+  model: string;
+  prompt: string;
+  system_prompt?: string;
+  temperature?: number;
+  max_tokens?: number;
 }
 
-export function useCreateBypassRuleMutation() {
-  const queryClient = useQueryClient();
-  return useMutation<ModelBypassRule, Error, CreateModelBypassRuleRequest>({
-    mutationFn: async (body) => {
-      const { data, error } = await apiClient.POST("/api/model-editor/bypass", { body });
-      if (data) return data;
-      throw new Error(extractErrorMessage(error));
-    },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: modelEditorQueryKeys.bypass });
-    },
-  });
+export interface QuickPromptTestResult {
+  model: string;
+  content: string;
+  latencyMs: number;
+  promptTokens?: number;
+  completionTokens?: number;
 }
 
-export function useUpdateBypassRuleMutation() {
-  const queryClient = useQueryClient();
-  return useMutation<ModelBypassRule, Error, { id: string; body: UpdateModelBypassRuleRequest }>({
-    mutationFn: async ({ id, body }) => {
-      const { data, error } = await apiClient.PATCH("/api/model-editor/bypass/{id}", {
-        params: { path: { id } },
-        body,
+export function useRunQuickPromptTestMutation() {
+  return useMutation<QuickPromptTestResult, Error, QuickPromptTestInput>({
+    mutationFn: async ({ model, prompt, system_prompt, temperature, max_tokens }) => {
+      const { data: session, error: sessionErr } = await apiClient.POST("/api/chat/sessions", {
+        body: {
+          title: "Model Editor Test",
+          model,
+          system_prompt: system_prompt || undefined,
+          temperature,
+          max_tokens,
+        },
       });
-      if (data) return data;
-      throw new Error(extractErrorMessage(error));
-    },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: modelEditorQueryKeys.bypass });
-    },
-  });
-}
+      if (!session) {
+        throw new Error(extractErrorMessage(sessionErr));
+      }
 
-export function useDeleteBypassRuleMutation() {
-  const queryClient = useQueryClient();
-  return useMutation<void, Error, string>({
-    mutationFn: async (id) => {
-      const { error } = await apiClient.DELETE("/api/model-editor/bypass/{id}", {
-        params: { path: { id } },
-      });
-      if (error) throw new Error(extractErrorMessage(error));
-    },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: modelEditorQueryKeys.bypass });
-    },
-  });
-}
-
-export function usePreviewModelEditorMutation() {
-  return useMutation<ModelEditorPreviewResult, Error, ModelEditorPreviewRequest>({
-    mutationFn: async (body) => {
-      const { data, error } = await apiClient.POST("/api/model-editor/preview", { body });
-      if (data) return data;
-      throw new Error(extractErrorMessage(error));
+      try {
+        const { data: reply, error: msgErr } = await apiClient.POST(
+          "/api/chat/sessions/{id}/messages",
+          {
+            params: { path: { id: session.id } },
+            body: { content: prompt, model },
+          },
+        );
+        if (!reply) {
+          throw new Error(extractErrorMessage(msgErr));
+        }
+        return {
+          model: reply.session?.model || model,
+          content: reply.assistant_message?.content || "",
+          latencyMs: reply.assistant_message?.latency_ms ?? 0,
+          promptTokens: reply.assistant_message?.prompt_tokens,
+          completionTokens: reply.assistant_message?.completion_tokens,
+        };
+      } finally {
+        await apiClient
+          .DELETE("/api/chat/sessions/{id}", {
+            params: { path: { id: session.id } },
+          })
+          .catch(() => {});
+      }
     },
   });
 }

@@ -1208,6 +1208,21 @@ func (m *Module) executeCandidateAttempt(
 			}
 		}
 
+		for _, ic := range m.interceptors {
+			rbi, ok := ic.(contracts.ResponseBodyInterceptor)
+			if !ok {
+				continue
+			}
+			nextBody, icErr := rbi.OnResponseBody(ctx, meta, outBytes)
+			if icErr != nil {
+				m.logger.Warn("response body interceptor failed", "interceptor", ic.Name(), "request_id", reqID, "err", icErr)
+				continue
+			}
+			if len(nextBody) > 0 {
+				outBytes = nextBody
+			}
+		}
+
 		if capture != nil {
 			*capture = cachedGatewayResponse{
 				statusCode:   resp.StatusCode,

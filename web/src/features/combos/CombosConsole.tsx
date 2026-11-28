@@ -9,6 +9,7 @@ import {
   KeyRound,
   Layers,
   Pencil,
+  Plus,
   Power,
   RefreshCw,
   Search,
@@ -55,13 +56,13 @@ export function CombosConsole() {
   const [query, setQuery] = useState("");
   const [strategyFilter, setStrategyFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "paused">("all");
+  const [mobilePane, setMobilePane] = useState<"list" | "form">("list");
 
   // Inline registration form state
   const [formMode, setFormMode] = useState<"create" | "edit">("create");
   const [editingCombo, setEditingCombo] = useState<Combo | null>(null);
   const [formSubmitError, setFormSubmitError] = useState<string | null>(null);
   const [strategyOverride, setStrategyOverride] = useState<ComboStrategy | null>(null);
-  const formContainerRef = useRef<HTMLDivElement | null>(null);
 
   // Strategy guide helper modal
   const [guideOpen, setGuideOpen] = useState(false);
@@ -151,28 +152,25 @@ export function CombosConsole() {
 
   const activeCount = useMemo(() => combos.filter((c) => c.enabled).length, [combos]);
 
-  const scrollToForm = () => {
-    formContainerRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-  };
-
   const handleEditCombo = (combo: Combo) => {
     setFormMode("edit");
     setEditingCombo(combo);
     setFormSubmitError(null);
-    scrollToForm();
+    setMobilePane("form");
   };
 
   const handleDuplicateCombo = (combo: Combo) => {
     setFormMode("create");
     setEditingCombo(combo);
     setFormSubmitError(null);
-    scrollToForm();
+    setMobilePane("form");
   };
 
   const handleCancelEdit = () => {
     setFormMode("create");
     setEditingCombo(null);
     setFormSubmitError(null);
+    setMobilePane("list");
   };
 
   const handleFormSubmit = (
@@ -188,6 +186,7 @@ export function CombosConsole() {
           onSuccess: () => {
             setFormMode("create");
             setEditingCombo(null);
+            setMobilePane("list");
             onDone?.();
           },
           onError: (err) => setFormSubmitError(err.message),
@@ -198,6 +197,7 @@ export function CombosConsole() {
     createMutation.mutate(payload, {
       onSuccess: () => {
         setEditingCombo(null);
+        setMobilePane("list");
         onDone?.();
       },
       onError: (err) => setFormSubmitError(err.message),
@@ -276,59 +276,104 @@ export function CombosConsole() {
     combosQuery.isFetching || connectionsQuery.isFetching || modelCatalogQuery.isFetching;
 
   return (
-    <div className="space-y-5">
-      {/* Header */}
-      <section className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <p className="font-mono text-xs uppercase tracking-widest text-[var(--accent-text)]">
-            {isId ? "Routing Combo" : "Combo Routing"}
-          </p>
-          <h2 className="mt-1 text-2xl font-semibold tracking-tight text-[var(--text-primary)]">
-            {isId ? "Combo" : "Combos"}
-          </h2>
-          <p className="mt-1 text-sm text-[var(--text-secondary)]">
-            {isId
-              ? "Gabungkan model lintas provider dalam satu endpoint, pilih akun tertentu atau Dynamic, dan atur strategi routingnya."
-              : "Combine models across providers into one endpoint, pin specific accounts or stay Dynamic, and pick your routing strategy."}
-          </p>
+    <div className="flex h-[calc(100vh-7.25rem)] min-h-[440px] flex-col gap-3 overflow-hidden supports-[height:100dvh]:h-[calc(100dvh-7.25rem)]">
+      {/* Compact Single-Row Top Bar */}
+      <section className="flex shrink-0 items-center justify-between gap-2">
+        {/* Mobile-first segmented switcher (hidden on lg+ where both panes sit side-by-side) */}
+        <div
+          className="inline-flex rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-0.5 lg:hidden"
+          role="tablist"
+          aria-label={isId ? "Tampilan Combo" : "Combo workspace view"}
+        >
+          <button
+            type="button"
+            role="tab"
+            aria-selected={mobilePane === "list"}
+            onClick={() => setMobilePane("list")}
+            className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
+              mobilePane === "list"
+                ? "bg-[var(--accent-primary)] text-[var(--accent-fg)]"
+                : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+            }`}
+          >
+            <Layers className="h-3.5 w-3.5" aria-hidden="true" />
+            <span>
+              {isId ? "Daftar" : "Combos"} ({combos.length})
+            </span>
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={mobilePane === "form"}
+            onClick={() => setMobilePane("form")}
+            className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
+              mobilePane === "form"
+                ? "bg-[var(--accent-primary)] text-[var(--accent-fg)]"
+                : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+            }`}
+          >
+            <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+            <span>{formMode === "edit" ? (isId ? "Edit" : "Edit") : isId ? "Baru" : "New"}</span>
+          </button>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
+        {/* Desktop compact summary */}
+        <div className="hidden min-w-0 items-center gap-2 lg:flex">
           <Badge variant="outline" className="tabular-nums">
             {activeCount}/{combos.length} {isId ? "Aktif" : "Active"}
+          </Badge>
+          <span className="truncate text-xs text-[var(--text-muted)]">
+            {isId
+              ? "Gabungkan model lintas provider dalam satu endpoint."
+              : "Combine multi-provider models behind one endpoint."}
+          </span>
+        </div>
+
+        <div className="flex shrink-0 items-center gap-1.5">
+          <Badge variant="outline" className="tabular-nums lg:hidden">
+            {activeCount}/{combos.length}
           </Badge>
           <Button
             type="button"
             variant="outline"
             size="sm"
+            className="h-8 px-2.5"
             onClick={() => openStrategyGuide(guideStrategy)}
+            title={isId ? "Panduan Strategy" : "Strategy Guide"}
           >
             <BookOpen className="h-3.5 w-3.5 text-[var(--accent-primary)]" aria-hidden="true" />
-            <span>{isId ? "Panduan Strategy" : "Strategy Guide"}</span>
+            <span className="hidden sm:inline">{isId ? "Panduan" : "Guide"}</span>
           </Button>
           <Button
             type="button"
             variant="outline"
             size="sm"
+            className="h-8 px-2.5"
             onClick={() => {
               void combosQuery.refetch();
               void connectionsQuery.refetch();
               void modelCatalogQuery.refetch();
             }}
             disabled={isRefreshing}
+            aria-label={isId ? "Segarkan" : "Refresh"}
+            title={isId ? "Segarkan" : "Refresh"}
           >
             <RefreshCw
               className={`h-3.5 w-3.5 text-[var(--accent-primary)] ${isRefreshing ? "animate-spin" : ""}`}
               aria-hidden="true"
             />
-            <span>{isId ? "Segarkan" : "Refresh"}</span>
+            <span className="hidden sm:inline">{isId ? "Segarkan" : "Refresh"}</span>
           </Button>
         </div>
       </section>
 
-      {/* Main 2-Column Workspace: Registration Form (Left) + Registered Combos (Right) */}
-      <div className="grid grid-cols-1 items-start gap-5 xl:grid-cols-12">
-        <div ref={formContainerRef} className="xl:sticky xl:top-4 xl:col-span-5">
+      {/* Main 1-Screen Fixed Workspace: Form (Left) + Scrollable Combos List (Right) */}
+      <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 overflow-hidden lg:grid-cols-12">
+        <div
+          className={`min-h-0 overflow-hidden lg:col-span-5 lg:block ${
+            mobilePane === "form" ? "block h-full" : "hidden"
+          }`}
+        >
           <ComboRegistrationForm
             mode={formMode}
             initialCombo={editingCombo}
@@ -348,11 +393,15 @@ export function CombosConsole() {
           />
         </div>
 
-        <div className="space-y-4 xl:col-span-7">
-          {/* Filter Bar */}
-          <Card className="p-3.5">
-            <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-4">
-              <div className="relative sm:col-span-2">
+        <div
+          className={`min-h-0 flex-col gap-2.5 overflow-hidden lg:col-span-7 lg:flex ${
+            mobilePane === "list" ? "flex h-full" : "hidden"
+          }`}
+        >
+          {/* Compact Filter Bar */}
+          <Card className="shrink-0 p-2.5">
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              <div className="relative col-span-2">
                 <Search
                   className="pointer-events-none absolute top-1/2 left-2.5 h-3.5 w-3.5 -translate-y-1/2 text-[var(--text-muted)]"
                   aria-hidden="true"
@@ -362,11 +411,9 @@ export function CombosConsole() {
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   placeholder={
-                    isId
-                      ? "Cari nama combo, strategi, atau model..."
-                      : "Search combo name, strategy, or model..."
+                    isId ? "Cari combo, strategi, model..." : "Search combo, strategy, model..."
                   }
-                  className="h-9 pl-8 text-xs"
+                  className="h-8 pl-8 text-xs"
                 />
               </div>
 
@@ -374,7 +421,7 @@ export function CombosConsole() {
                 aria-label={isId ? "Filter strategi" : "Filter strategy"}
                 value={strategyFilter}
                 onChange={(e) => setStrategyFilter(e.target.value)}
-                className="h-9 rounded-md border border-[var(--border-strong)] bg-[var(--bg-canvas)] px-2.5 font-mono text-xs text-[var(--text-primary)]"
+                className="h-8 rounded-md border border-[var(--border-strong)] bg-[var(--bg-canvas)] px-2 font-mono text-xs text-[var(--text-primary)]"
               >
                 <option value="all">{isId ? "Semua Strategi" : "All Strategies"}</option>
                 {COMBO_STRATEGY_OPTIONS.map((s) => (
@@ -388,9 +435,9 @@ export function CombosConsole() {
                 aria-label={isId ? "Filter status" : "Filter status"}
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value as "all" | "active" | "paused")}
-                className="h-9 rounded-md border border-[var(--border-strong)] bg-[var(--bg-canvas)] px-2.5 text-xs text-[var(--text-primary)]"
+                className="h-8 rounded-md border border-[var(--border-strong)] bg-[var(--bg-canvas)] px-2 text-xs text-[var(--text-primary)]"
               >
-                <option value="all">{isId ? "Semua Status" : "All Statuses"}</option>
+                <option value="all">{isId ? "Semua Status" : "All Status"}</option>
                 <option value="active">{isId ? "Aktif" : "Active"}</option>
                 <option value="paused">{isId ? "Dijeda" : "Paused"}</option>
               </select>
@@ -398,7 +445,7 @@ export function CombosConsole() {
           </Card>
 
           {rowError ? (
-            <Alert variant="destructive">
+            <Alert variant="destructive" className="shrink-0">
               <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-[var(--status-error)]" />
               <div className="flex-1">
                 <AlertTitle>{isId ? "Operasi combo gagal" : "Combo operation failed"}</AlertTitle>
@@ -415,312 +462,327 @@ export function CombosConsole() {
             </Alert>
           ) : null}
 
-          {/* Registered Combos List */}
-          {combosQuery.isError ? (
-            <Alert variant="destructive">
-              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-[var(--status-error)]" />
-              <AlertDescription className="font-mono">{combosQuery.error.message}</AlertDescription>
-            </Alert>
-          ) : combosQuery.isPending ? (
-            <Card className="p-10 text-center text-sm text-[var(--text-muted)]">
-              {isId ? "Memuat daftar combo..." : "Loading combos..."}
-            </Card>
-          ) : filteredCombos.length === 0 ? (
-            <Card className="p-10 text-center">
-              <Layers className="mx-auto h-8 w-8 text-[var(--text-muted)]" aria-hidden="true" />
-              <p className="mt-3 text-sm font-medium text-[var(--text-primary)]">
-                {combos.length === 0
-                  ? isId
-                    ? "Belum ada combo terdaftar"
-                    : "No combos registered yet"
-                  : isId
-                    ? "Tidak ada combo yang cocok dengan filter"
-                    : "No combos match the current filters"}
-              </p>
-              <p className="mt-1 text-xs text-[var(--text-muted)]">
-                {isId
-                  ? "Isi form registrasi di sebelah kiri untuk membuat combo pertamamu."
-                  : "Use the registration form on the left to create your first combo."}
-              </p>
-            </Card>
-          ) : (
-            <div className="space-y-3">
-              {filteredCombos.map((combo) => {
-                const stratMeta = getStrategyMeta(combo.strategy);
-                const steps: ComboStep[] =
-                  combo.steps && combo.steps.length > 0
-                    ? combo.steps
-                    : combo.targets.map((t): ComboStep => ({ kind: "model", model: t }));
-                const testRes = testResults[combo.name];
-                const isTesting = testingNames.has(combo.name);
-                const isBusy = busyComboId === combo.id;
-                const confirmingDelete = confirmDeleteId === combo.id;
-                const isCurrentlyEditing = formMode === "edit" && editingCombo?.id === combo.id;
-
-                return (
-                  <Card
-                    key={combo.id}
-                    className={`overflow-hidden transition-colors ${
-                      isCurrentlyEditing ? "border-[var(--accent-primary)]" : ""
-                    }`}
+          {/* Scrollable Registered Combos List */}
+          <div className="custom-scrollbar min-h-0 flex-1 overflow-y-auto pr-0.5">
+            {combosQuery.isError ? (
+              <Alert variant="destructive">
+                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-[var(--status-error)]" />
+                <AlertDescription className="font-mono">
+                  {combosQuery.error.message}
+                </AlertDescription>
+              </Alert>
+            ) : combosQuery.isPending ? (
+              <Card className="p-8 text-center text-sm text-[var(--text-muted)]">
+                {isId ? "Memuat daftar combo..." : "Loading combos..."}
+              </Card>
+            ) : filteredCombos.length === 0 ? (
+              <Card className="p-8 text-center">
+                <Layers className="mx-auto h-7 w-7 text-[var(--text-muted)]" aria-hidden="true" />
+                <p className="mt-2.5 text-sm font-medium text-[var(--text-primary)]">
+                  {combos.length === 0
+                    ? isId
+                      ? "Belum ada combo terdaftar"
+                      : "No combos registered yet"
+                    : isId
+                      ? "Tidak ada combo yang cocok dengan filter"
+                      : "No combos match the current filters"}
+                </p>
+                <p className="mt-1 text-xs text-[var(--text-muted)]">
+                  {isId
+                    ? "Buat combo baru untuk menggabungkan beberapa model."
+                    : "Create a new combo to route across multiple models."}
+                </p>
+                {combos.length === 0 ? (
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="mt-3 lg:hidden"
+                    onClick={() => setMobilePane("form")}
                   >
-                    <div className="h-[2px] w-full bg-[var(--border-subtle)]">
-                      <div
-                        className={`h-full transition-all ${
-                          combo.enabled
-                            ? "w-full bg-[var(--accent-primary)]"
-                            : "w-1/3 bg-[var(--status-warn)]"
-                        }`}
-                      />
-                    </div>
+                    <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+                    <span>{isId ? "Buat Combo" : "New Combo"}</span>
+                  </Button>
+                ) : null}
+              </Card>
+            ) : (
+              <div className="space-y-2.5 pb-1">
+                {filteredCombos.map((combo) => {
+                  const stratMeta = getStrategyMeta(combo.strategy);
+                  const steps: ComboStep[] =
+                    combo.steps && combo.steps.length > 0
+                      ? combo.steps
+                      : combo.targets.map((t): ComboStep => ({ kind: "model", model: t }));
+                  const testRes = testResults[combo.name];
+                  const isTesting = testingNames.has(combo.name);
+                  const isBusy = busyComboId === combo.id;
+                  const confirmingDelete = confirmDeleteId === combo.id;
+                  const isCurrentlyEditing = formMode === "edit" && editingCombo?.id === combo.id;
 
-                    <div className="space-y-3 p-4">
-                      {/* Top Row: Name + Badges + Actions */}
-                      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                        <div className="min-w-0 flex-1 space-y-1">
-                          <div className="flex flex-wrap items-center gap-1.5">
-                            <span className="font-mono text-sm font-semibold text-[var(--text-primary)]">
-                              {combo.name}
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => void handleCopyName(combo.name)}
-                              className="rounded p-1 text-[var(--text-muted)] hover:bg-[var(--bg-canvas)] hover:text-[var(--text-primary)]"
-                              title={isId ? "Salin nama combo" : "Copy combo name"}
-                            >
-                              {copiedName === combo.name ? (
-                                <Check className="h-3.5 w-3.5 text-[var(--status-ok)]" />
-                              ) : (
-                                <Copy className="h-3.5 w-3.5" />
-                              )}
-                            </button>
-                            <Badge variant={combo.enabled ? "success" : "warning"}>
-                              {combo.enabled
-                                ? isId
-                                  ? "Aktif"
-                                  : "Active"
-                                : isId
-                                  ? "Dijeda"
-                                  : "Paused"}
-                            </Badge>
-                            <button
-                              type="button"
-                              onClick={() => openStrategyGuide(combo.strategy)}
-                              title={
-                                isId
-                                  ? "Klik untuk lihat penjelasan strategi ini"
-                                  : "Click to view guide for this strategy"
-                              }
-                              className="inline-flex items-center gap-1 rounded-full border border-[var(--border-strong)] bg-[var(--bg-canvas)] px-2 py-0.5 font-mono text-[11px] text-[var(--text-primary)] transition-colors hover:border-[var(--accent-primary)] hover:text-[var(--accent-text)]"
-                            >
-                              <span>{combo.strategy}</span>
-                              <span className="font-sans text-[10px] text-[var(--text-muted)]">
-                                · {isId ? stratMeta.labelId : stratMeta.labelEn}
+                  return (
+                    <Card
+                      key={combo.id}
+                      className={`overflow-hidden transition-colors ${
+                        isCurrentlyEditing ? "border-[var(--accent-primary)]" : ""
+                      }`}
+                    >
+                      <div className="space-y-2 p-3">
+                        {/* Top Row: Name + Badges + Compact Actions */}
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                          <div className="min-w-0 flex-1">
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              <span
+                                className={`h-2 w-2 shrink-0 rounded-full ${
+                                  combo.enabled
+                                    ? "bg-[var(--status-ok)]"
+                                    : "bg-[var(--status-warn)]"
+                                }`}
+                                aria-hidden="true"
+                              />
+                              <span className="truncate font-mono text-sm font-semibold text-[var(--text-primary)]">
+                                {combo.name}
                               </span>
-                            </button>
+                              <button
+                                type="button"
+                                onClick={() => void handleCopyName(combo.name)}
+                                className="rounded p-0.5 text-[var(--text-muted)] hover:bg-[var(--bg-canvas)] hover:text-[var(--text-primary)]"
+                                aria-label={isId ? "Salin nama combo" : "Copy combo name"}
+                                title={isId ? "Salin nama combo" : "Copy combo name"}
+                              >
+                                {copiedName === combo.name ? (
+                                  <Check className="h-3.5 w-3.5 text-[var(--status-ok)]" />
+                                ) : (
+                                  <Copy className="h-3.5 w-3.5" />
+                                )}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => openStrategyGuide(combo.strategy)}
+                                title={
+                                  isId
+                                    ? `${stratMeta.labelId} — klik untuk panduan`
+                                    : `${stratMeta.labelEn} — click for guide`
+                                }
+                                className="inline-flex items-center gap-1 rounded-full border border-[var(--border-strong)] bg-[var(--bg-canvas)] px-2 py-0.5 font-mono text-[10px] text-[var(--text-primary)] transition-colors hover:border-[var(--accent-primary)] hover:text-[var(--accent-text)]"
+                              >
+                                <span>{combo.strategy}</span>
+                              </button>
+                            </div>
+
+                            {combo.description ? (
+                              <p className="mt-0.5 truncate text-xs text-[var(--text-secondary)]">
+                                {combo.description}
+                              </p>
+                            ) : null}
                           </div>
 
-                          {combo.description ? (
-                            <p className="text-xs text-[var(--text-secondary)]">
-                              {combo.description}
-                            </p>
-                          ) : null}
-                        </div>
-
-                        {/* Actions */}
-                        <div className="flex shrink-0 flex-wrap items-center gap-1">
-                          {confirmingDelete ? (
-                            <>
-                              <Button
-                                type="button"
-                                variant="destructive"
-                                size="xs"
-                                disabled={isBusy}
-                                onClick={() => handleDelete(combo)}
-                              >
-                                {isBusy
-                                  ? isId
-                                    ? "Menghapus..."
-                                    : "Deleting..."
-                                  : isId
-                                    ? "Konfirmasi Hapus"
-                                    : "Confirm Delete"}
-                              </Button>
-                              <Button
-                                type="button"
-                                variant="secondary"
-                                size="xs"
-                                disabled={isBusy}
-                                onClick={() => setConfirmDeleteId(null)}
-                              >
-                                {isId ? "Batal" : "Cancel"}
-                              </Button>
-                            </>
-                          ) : (
-                            <>
-                              <Button
-                                type="button"
-                                variant="outline"
-                                size="xs"
-                                disabled={isTesting}
-                                onClick={() => void handleTestCombo(combo)}
-                              >
-                                <FlaskConical className="h-3 w-3" />
-                                <span>
-                                  {isTesting
-                                    ? isId
-                                      ? "Menguji..."
-                                      : "Testing..."
-                                    : isId
-                                      ? "Uji"
-                                      : "Test"}
-                                </span>
-                              </Button>
-                              <Button
-                                type="button"
-                                variant={isCurrentlyEditing ? "default" : "outline"}
-                                size="xs"
-                                disabled={isBusy}
-                                onClick={() => handleEditCombo(combo)}
-                              >
-                                <Pencil className="h-3 w-3" />
-                                <span>Edit</span>
-                              </Button>
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="xs"
-                                disabled={isBusy}
-                                onClick={() => handleDuplicateCombo(combo)}
-                                title={isId ? "Duplikat ke form" : "Duplicate into form"}
-                              >
-                                <CopyPlus className="h-3.5 w-3.5" />
-                              </Button>
-                              <Button
-                                type="button"
-                                variant="secondary"
-                                size="xs"
-                                disabled={isBusy}
-                                onClick={() => handleToggleEnabled(combo)}
-                                title={
-                                  combo.enabled
-                                    ? isId
-                                      ? "Jeda combo"
-                                      : "Pause combo"
-                                    : isId
-                                      ? "Aktifkan combo"
-                                      : "Enable combo"
-                                }
-                              >
-                                <Power className="h-3 w-3" />
-                              </Button>
-                              <Button
-                                type="button"
-                                variant="destructive"
-                                size="xs"
-                                disabled={isBusy}
-                                onClick={() => setConfirmDeleteId(combo.id)}
-                                title={isId ? "Hapus combo" : "Delete combo"}
-                              >
-                                <Trash2 className="h-3 w-3" />
-                              </Button>
-                            </>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Steps Chain */}
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        {steps.map((step, idx) => {
-                          const isRef = step.kind === "combo-ref";
-                          const ident = isRef ? (step.comboName ?? "") : (step.model ?? "");
-                          const isPinned = Boolean(step.connectionId?.trim());
-                          const accountLabel = isRef
-                            ? null
-                            : formatStepAccountLabel(step.connectionId, connectionsById, isId);
-
-                          return (
-                            <div
-                              key={`${step.kind}-${ident}-${step.connectionId ?? "dynamic"}`}
-                              className="inline-flex flex-wrap items-center gap-1.5 rounded-md border border-[var(--border-subtle)] bg-[var(--bg-canvas)] px-2.5 py-1 text-xs"
-                            >
-                              <span className="font-mono text-[10px] text-[var(--text-muted)]">
-                                #{idx + 1}
-                              </span>
-                              {isRef ? (
-                                <Badge variant="default" className="px-1 py-0 text-[9px]">
-                                  ref
-                                </Badge>
-                              ) : null}
-                              <span className="font-mono font-medium text-[var(--text-primary)]">
-                                {ident}
-                              </span>
-                              {accountLabel ? (
-                                <span
-                                  className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] ${
-                                    isPinned
-                                      ? "bg-[var(--bg-surface-raised)] text-[var(--accent-text)]"
-                                      : "bg-[var(--bg-surface)] text-[var(--text-muted)]"
-                                  }`}
+                          {/* Compact Actions */}
+                          <div className="flex shrink-0 flex-wrap items-center gap-1">
+                            {confirmingDelete ? (
+                              <>
+                                <Button
+                                  type="button"
+                                  variant="destructive"
+                                  size="xs"
+                                  disabled={isBusy}
+                                  onClick={() => handleDelete(combo)}
                                 >
-                                  {isPinned ? (
-                                    <KeyRound className="h-2.5 w-2.5" aria-hidden="true" />
-                                  ) : (
-                                    <Sparkles className="h-2.5 w-2.5" aria-hidden="true" />
-                                  )}
-                                  <span>{isPinned ? accountLabel : "Dynamic"}</span>
-                                </span>
-                              ) : null}
-                              {step.weight && step.weight > 0 ? (
-                                <span className="font-mono text-[10px] font-semibold text-[var(--accent-text)]">
-                                  {step.weight}%
-                                </span>
-                              ) : null}
-                            </div>
-                          );
-                        })}
-                      </div>
-
-                      {/* Inline Live Test Result */}
-                      {testRes ? (
-                        <div className="flex flex-wrap items-center gap-2 border-t border-[var(--border-subtle)] pt-2 text-xs">
-                          {testRes.status === "ok" || testRes.status === "slow" ? (
-                            <Badge
-                              variant={testRes.status === "ok" ? "success" : "warning"}
-                              className="gap-1"
-                            >
-                              <CheckCircle2 className="h-3 w-3" />
-                              <span>
-                                {testRes.status.toUpperCase()}
-                                {typeof testRes.latencyMs === "number"
-                                  ? ` · ${testRes.latencyMs}ms`
-                                  : ""}
-                              </span>
-                            </Badge>
-                          ) : (
-                            <Badge variant="destructive" className="gap-1">
-                              <XCircle className="h-3 w-3" />
-                              <span>ERROR</span>
-                            </Badge>
-                          )}
-                          {testRes.resolvedBy ? (
-                            <span className="font-mono text-[11px] text-[var(--text-secondary)]">
-                              resolvedBy: {testRes.resolvedBy}
-                            </span>
-                          ) : null}
-                          {testRes.error ? (
-                            <span className="font-mono text-[11px] text-[var(--status-error)]">
-                              {testRes.error}
-                            </span>
-                          ) : null}
+                                  {isBusy
+                                    ? isId
+                                      ? "Menghapus..."
+                                      : "Deleting..."
+                                    : isId
+                                      ? "Hapus"
+                                      : "Confirm"}
+                                </Button>
+                                <Button
+                                  type="button"
+                                  variant="secondary"
+                                  size="xs"
+                                  disabled={isBusy}
+                                  onClick={() => setConfirmDeleteId(null)}
+                                >
+                                  {isId ? "Batal" : "Cancel"}
+                                </Button>
+                              </>
+                            ) : (
+                              <>
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="xs"
+                                  disabled={isTesting}
+                                  onClick={() => void handleTestCombo(combo)}
+                                  title={isId ? "Uji combo" : "Test combo"}
+                                >
+                                  <FlaskConical className="h-3 w-3" />
+                                  <span>
+                                    {isTesting
+                                      ? isId
+                                        ? "Menguji..."
+                                        : "Testing..."
+                                      : isId
+                                        ? "Uji"
+                                        : "Test"}
+                                  </span>
+                                </Button>
+                                <Button
+                                  type="button"
+                                  variant={isCurrentlyEditing ? "default" : "outline"}
+                                  size="xs"
+                                  disabled={isBusy}
+                                  onClick={() => handleEditCombo(combo)}
+                                  title="Edit"
+                                >
+                                  <Pencil className="h-3 w-3" />
+                                  <span className="hidden sm:inline">Edit</span>
+                                </Button>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="xs"
+                                  disabled={isBusy}
+                                  onClick={() => handleDuplicateCombo(combo)}
+                                  aria-label={isId ? "Duplikat ke form" : "Duplicate into form"}
+                                  title={isId ? "Duplikat ke form" : "Duplicate into form"}
+                                >
+                                  <CopyPlus className="h-3.5 w-3.5" />
+                                </Button>
+                                <Button
+                                  type="button"
+                                  variant="secondary"
+                                  size="xs"
+                                  disabled={isBusy}
+                                  onClick={() => handleToggleEnabled(combo)}
+                                  aria-label={
+                                    combo.enabled
+                                      ? isId
+                                        ? "Jeda combo"
+                                        : "Pause combo"
+                                      : isId
+                                        ? "Aktifkan combo"
+                                        : "Enable combo"
+                                  }
+                                  title={
+                                    combo.enabled
+                                      ? isId
+                                        ? "Jeda combo"
+                                        : "Pause combo"
+                                      : isId
+                                        ? "Aktifkan combo"
+                                        : "Enable combo"
+                                  }
+                                >
+                                  <Power className="h-3 w-3" />
+                                </Button>
+                                <Button
+                                  type="button"
+                                  variant="destructive"
+                                  size="xs"
+                                  disabled={isBusy}
+                                  onClick={() => setConfirmDeleteId(combo.id)}
+                                  aria-label={isId ? "Hapus combo" : "Delete combo"}
+                                  title={isId ? "Hapus combo" : "Delete combo"}
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                </Button>
+                              </>
+                            )}
+                          </div>
                         </div>
-                      ) : null}
-                    </div>
-                  </Card>
-                );
-              })}
-            </div>
-          )}
+
+                        {/* Compact Steps Chain */}
+                        <div className="flex flex-wrap items-center gap-1">
+                          {steps.map((step, idx) => {
+                            const isRef = step.kind === "combo-ref";
+                            const ident = isRef ? (step.comboName ?? "") : (step.model ?? "");
+                            const isPinned = Boolean(step.connectionId?.trim());
+                            const accountLabel = isRef
+                              ? null
+                              : formatStepAccountLabel(step.connectionId, connectionsById, isId);
+
+                            return (
+                              <div
+                                key={`${step.kind}-${ident}-${step.connectionId ?? "dynamic"}`}
+                                className="inline-flex max-w-full items-center gap-1 rounded border border-[var(--border-subtle)] bg-[var(--bg-canvas)] px-2 py-0.5 text-[11px]"
+                              >
+                                <span className="font-mono text-[10px] text-[var(--text-muted)]">
+                                  #{idx + 1}
+                                </span>
+                                {isRef ? (
+                                  <Badge variant="default" className="px-1 py-0 text-[9px]">
+                                    ref
+                                  </Badge>
+                                ) : null}
+                                <span className="truncate font-mono font-medium text-[var(--text-primary)]">
+                                  {ident}
+                                </span>
+                                {accountLabel ? (
+                                  <span
+                                    className={`inline-flex shrink-0 items-center gap-0.5 rounded px-1 py-0.25 text-[10px] ${
+                                      isPinned
+                                        ? "bg-[var(--bg-surface-raised)] text-[var(--accent-text)]"
+                                        : "bg-[var(--bg-surface)] text-[var(--text-muted)]"
+                                    }`}
+                                  >
+                                    {isPinned ? (
+                                      <KeyRound className="h-2.5 w-2.5" aria-hidden="true" />
+                                    ) : (
+                                      <Sparkles className="h-2.5 w-2.5" aria-hidden="true" />
+                                    )}
+                                    <span>{isPinned ? accountLabel : "Dynamic"}</span>
+                                  </span>
+                                ) : null}
+                                {step.weight && step.weight > 0 ? (
+                                  <span className="font-mono text-[10px] font-semibold text-[var(--accent-text)]">
+                                    {step.weight}%
+                                  </span>
+                                ) : null}
+                              </div>
+                            );
+                          })}
+                        </div>
+
+                        {/* Inline Live Test Result */}
+                        {testRes ? (
+                          <div className="flex flex-wrap items-center gap-2 border-t border-[var(--border-subtle)] pt-1.5 text-xs">
+                            {testRes.status === "ok" || testRes.status === "slow" ? (
+                              <Badge
+                                variant={testRes.status === "ok" ? "success" : "warning"}
+                                className="gap-1"
+                              >
+                                <CheckCircle2 className="h-3 w-3" />
+                                <span>
+                                  {testRes.status.toUpperCase()}
+                                  {typeof testRes.latencyMs === "number"
+                                    ? ` · ${testRes.latencyMs}ms`
+                                    : ""}
+                                </span>
+                              </Badge>
+                            ) : (
+                              <Badge variant="destructive" className="gap-1">
+                                <XCircle className="h-3 w-3" />
+                                <span>ERROR</span>
+                              </Badge>
+                            )}
+                            {testRes.resolvedBy ? (
+                              <span className="font-mono text-[11px] text-[var(--text-secondary)]">
+                                {testRes.resolvedBy}
+                              </span>
+                            ) : null}
+                            {testRes.error ? (
+                              <span className="font-mono text-[11px] text-[var(--status-error)]">
+                                {testRes.error}
+                              </span>
+                            ) : null}
+                          </div>
+                        ) : null}
+                      </div>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

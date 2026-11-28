@@ -1,114 +1,60 @@
 import { describe, expect, test } from "bun:test";
-import { zodResolver } from "@hookform/resolvers/zod";
 import {
-  DEFAULT_UPSERT_PRICING_VALUES,
+  computeBarPercent,
+  computeSharePercent,
+  computeTotalTokens,
   formatCompactTokens,
   formatDurationMs,
   formatErrorRate,
   formatUSD,
-  toUpsertModelPricingRequest,
-  upsertPricingSchema,
+  getUsageLogStatusVariant,
+  isUsageLogError,
 } from "./schemas";
 
-describe("upsertPricingSchema", () => {
-  test("validates model and converts non-negative finite USD rates", async () => {
-    const input = {
-      model: "  openai/gpt-4o  ",
-      input_per_million: "2.5",
-      output_per_million: "10",
-      cached_per_million: "1.25",
-    };
-
-    const parsed = upsertPricingSchema.safeParse(input);
-    expect(parsed.success).toBe(true);
-    if (parsed.success) {
-      expect(parsed.data).toEqual({
-        model: "openai/gpt-4o",
-        input_per_million: 2.5,
-        output_per_million: 10,
-        cached_per_million: 1.25,
-      });
-
-      expect(toUpsertModelPricingRequest(parsed.data)).toEqual({
-        input_per_million: 2.5,
-        output_per_million: 10,
-        cached_per_million: 1.25,
-      });
-    }
-
-    const resolver = zodResolver(upsertPricingSchema);
-    const resolved = await resolver(input, undefined, {
-      fields: {},
-      shouldUseNativeValidation: false,
-    });
-    expect(resolved.errors).toEqual({});
-    expect(resolved.values).toEqual({
-      model: "openai/gpt-4o",
-      input_per_million: 2.5,
-      output_per_million: 10,
-      cached_per_million: 1.25,
-    });
+describe("usage data-validity helpers", () => {
+  test("isUsageLogError mirrors backend error predicate (status >= 400, status 0/<200, or error_summary)", () => {
+    expect(isUsageLogError({ status_code: 200, error_summary: "" })).toBe(false);
+    expect(isUsageLogError({ status_code: 304, error_summary: "   " })).toBe(false);
+    expect(isUsageLogError({ status_code: 200, error_summary: "stream aborted" })).toBe(true);
+    expect(isUsageLogError({ status_code: 0, error_summary: "" })).toBe(true);
+    expect(isUsageLogError({ status_code: 429, error_summary: "" })).toBe(true);
+    expect(isUsageLogError({ status_code: 502, error_summary: "bad gateway" })).toBe(true);
   });
 
-  test("defaults blank cached_per_million to zero and accepts zero rates", () => {
-    const parsed = upsertPricingSchema.safeParse({
-      model: "local/llama-3",
-      input_per_million: "0",
-      output_per_million: "0",
-      cached_per_million: "",
-    });
-    expect(parsed.success).toBe(true);
-    if (parsed.success) {
-      expect(parsed.data).toEqual({
-        model: "local/llama-3",
-        input_per_million: 0,
-        output_per_million: 0,
-        cached_per_million: 0,
-      });
-    }
+  test("getUsageLogStatusVariant maps status and error_summary to semantic badge variants", () => {
+    expect(getUsageLogStatusVariant({ status_code: 200, error_summary: "" })).toBe("success");
+    expect(getUsageLogStatusVariant({ status_code: 200, error_summary: "upstream timeout" })).toBe(
+      "destructive",
+    );
+    expect(getUsageLogStatusVariant({ status_code: 429, error_summary: "" })).toBe("warning");
+    expect(getUsageLogStatusVariant({ status_code: 400, error_summary: "bad request" })).toBe(
+      "warning",
+    );
+    expect(getUsageLogStatusVariant({ status_code: 500, error_summary: "" })).toBe("destructive");
+    expect(getUsageLogStatusVariant({ status_code: 0, error_summary: "" })).toBe("destructive");
   });
 
-  test("rejects blank, wildcard, control-char, or oversized model identifiers", () => {
-    for (const badModel of ["", "   ", "*", "gpt\n4o", "gpt\t4o", "m".repeat(129)]) {
-      const res = upsertPricingSchema.safeParse({
-        ...DEFAULT_UPSERT_PRICING_VALUES,
-        model: badModel,
-        input_per_million: "1",
-        output_per_million: "2",
-      });
-      expect(res.success).toBe(false);
-    }
+  test("computeSharePercent and computeBarPercent guard zero and non-finite totals", () => {
+    expect(computeSharePercent(0, 0)).toBe(0);
+    expect(computeSharePercent(5, 0)).toBe(0);
+    expect(computeSharePercent(Number.NaN, 10)).toBe(0);
+    expect(computeSharePercent(1, 4)).toBe(25);
+    expect(computeSharePercent(15, 10)).toBe(100);
+
+    expect(computeBarPercent(0, 100)).toBe(0);
+    expect(computeBarPercent(1, 0)).toBe(0);
+    expect(computeBarPercent(1, 1000)).toBe(4);
+    expect(computeBarPercent(50, 100)).toBe(50);
+    expect(computeBarPercent(200, 100)).toBe(100);
   });
 
-  test("rejects missing, negative, non-numeric, or non-finite USD rates", () => {
-    const badRates = ["", "  ", "-0.01", "-5", "NaN", "Infinity", "abc", "1e999"];
-    for (const rate of badRates) {
-      const badInput = upsertPricingSchema.safeParse({
-        model: "gpt-4o",
-        input_per_million: rate,
-        output_per_million: "5",
-        cached_per_million: "0",
-      });
-      expect(badInput.success).toBe(false);
-
-      const badOutput = upsertPricingSchema.safeParse({
-        model: "gpt-4o",
-        input_per_million: "5",
-        output_per_million: rate,
-        cached_per_million: "0",
-      });
-      expect(badOutput.success).toBe(false);
-    }
-
-    for (const rate of ["-1", "NaN", "Infinity", "xyz", "1e999"]) {
-      const badCached = upsertPricingSchema.safeParse({
-        model: "gpt-4o",
-        input_per_million: "2.5",
-        output_per_million: "10",
-        cached_per_million: rate,
-      });
-      expect(badCached.success).toBe(false);
-    }
+  test("computeTotalTokens sums input, output, and cached tokens safely", () => {
+    expect(computeTotalTokens({ input_tokens: 120, output_tokens: 80, cached_tokens: 50 })).toBe(
+      250,
+    );
+    expect(
+      computeTotalTokens({ input_tokens: -10, output_tokens: Number.NaN, cached_tokens: 40 }),
+    ).toBe(40);
   });
 });
 

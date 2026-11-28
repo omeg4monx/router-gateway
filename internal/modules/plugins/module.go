@@ -199,14 +199,15 @@ func (m *Module) handlePreviewPlugins(w http.ResponseWriter, r *http.Request) {
 		httpserver.WriteError(w, r, http.StatusInternalServerError, "plugins_load_failed", "Failed to load plugins")
 		return
 	}
-	mutatedBytes, applied, changed := applyPluginsToBody(req.Model, req.Payload, states)
+	outcome := applyPluginsToBody(req.Model, "", req.Payload, states)
+	applied := outcome.applied
 	if applied == nil {
 		applied = []string{}
 	}
 	var outPayload any
-	_ = json.Unmarshal(mutatedBytes, &outPayload)
+	_ = json.Unmarshal(outcome.mutated, &outPayload)
 	httpserver.WriteJSON(w, http.StatusOK, map[string]any{
-		"changed":         changed,
+		"changed":         outcome.changed,
 		"applied_plugins": applied,
 		"payload":         outPayload,
 	})
