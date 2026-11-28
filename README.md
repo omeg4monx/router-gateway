@@ -8,7 +8,7 @@
 
 _One zero-CGO Go binary. Embedded React 19 + Vite 8 PWA studio. Multi-protocol routing, concurrency shaping, observability, and security — running at ~22 MB idle RSS._
 
-[![Release](https://img.shields.io/badge/release-v0.3.0--beta.1-E11D48?style=for-the-badge)](https://github.com/omeg4monx/router-gateway/releases)
+[![Release](https://img.shields.io/badge/release-v0.3.0--beta.2-E11D48?style=for-the-badge)](https://github.com/omeg4monx/router-gateway/releases)
 [![Go](https://img.shields.io/badge/Go-1.26+-00ADD8?style=for-the-badge&logo=go&logoColor=white)](go.mod)
 [![React](https://img.shields.io/badge/React_19_+_Vite_8-61DAFB?style=for-the-badge&logo=react&logoColor=111827)](web/package.json)
 [![SQLite](https://img.shields.io/badge/SQLite_WAL-Zero--CGO-0F172A?style=for-the-badge&logo=sqlite&logoColor=white)](internal/platform/db)
@@ -178,7 +178,7 @@ docker run -d --name omeg4mon-router \
   -v omeg4mon-data:/data \
   -e OMEG4MON_HOST="0.0.0.0" \
   -e OMEG4MON_ADMIN_PASSWORD="change-me" \
-  ghcr.io/omeg4monx/router-gateway:0.3.0-beta.1
+  ghcr.io/omeg4monx/router-gateway:0.3.0-beta.2
 ```
 
 <details>

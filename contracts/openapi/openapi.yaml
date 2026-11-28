@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: omeg4mon-router Control Plane API
-  version: 0.3.0-beta.1
+  version: 0.3.0-beta.2
   description: Modular OpenAPI 3.1 contract for the omeg4mon-router control plane.
 servers:
   - url: /
