@@ -15,6 +15,9 @@ updates:
     target-branch: "dev"
     schedule:
       interval: "weekly"
+    ignore:
+      - dependency-name: "typescript"
+        versions: [">= 7.0.0"]
     groups:
       web-dependencies:
         patterns:
