@@ -157,3 +157,74 @@ func TestVeniceKeylessNonStreamingAndStreamingEndToEnd(t *testing.T) {
 		t.Fatalf("chatCalls = %d, want 3", got)
 	}
 }
+
+func TestVeniceKeylessRetriesStaleAttestationAndBridgesTools(t *testing.T) {
+	t.Parallel()
+
+	var mintCalls, chatCalls atomic.Int32
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case venice.MintPath:
+			n := mintCalls.Add(1)
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"expiresAt": time.Now().Add(5 * time.Minute).Unix(),
+				"tokens":    []string{"att-tok-" + string('0'+n)},
+			})
+		case "/api/inference/chat":
+			call := chatCalls.Add(1)
+			if call == 1 {
+				w.WriteHeader(http.StatusUnauthorized)
+				_, _ = w.Write([]byte(`{"error":"expired attestation"}`))
+				return
+			}
+			if r.Header.Get("x-venice-client-attestation") != "att-tok-2" {
+				w.WriteHeader(http.StatusForbidden)
+				_, _ = w.Write([]byte(`{"error":"expected refreshed token"}`))
+				return
+			}
+			w.Header().Set("Content-Type", "text/html")
+			_, _ = w.Write([]byte(
+				`{"kind":"meta","completion_id":"chatcmpl-venice-tool"}` + "\n" +
+					`{"kind":"content","content":"<tool_call>{\"name\":\"lookup_city\",\"arguments\":{\"city\":\"Jakarta\"}}</tool_call>"}` + "\n",
+			))
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer upstream.Close()
+
+	env := setupGatewayTest(t, nil, 0, true)
+	env.resolver.fn = func(context.Context, string, []string) ([]contracts.ResolvedTarget, error) {
+		return []contracts.ResolvedTarget{{
+			ConnectionID:  venice.VirtualConnectionID,
+			ProviderID:    "venice",
+			ProviderType:  gateway.ProtocolOpenAIChat,
+			UpstreamModel: "deepseek-v4-1-flash-uncensored",
+			Endpoint:      upstream.URL + "/api/inference/chat",
+		}}, nil
+	}
+
+	req, _ := http.NewRequest(http.MethodPost, env.baseURL+"/v1/chat/completions", bytes.NewBufferString(`{
+		"model":"venice/deepseek-v4-1-flash-uncensored",
+		"messages":[{"role":"user","content":"weather in Jakarta?"}],
+		"tools":[{"type":"function","function":{"name":"lookup_city","parameters":{"type":"object","properties":{"city":{"type":"string"}}}}}]
+	}`))
+	req.Header.Set("Authorization", "Bearer sk-valid")
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("request failed: %v", err)
+	}
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d, want 200 after stale-token retry: %s", resp.StatusCode, string(body))
+	}
+	if !strings.Contains(string(body), `"finish_reason":"tool_calls"`) || !strings.Contains(string(body), `"lookup_city"`) {
+		t.Fatalf("response missing bridged tool_calls: %s", string(body))
+	}
+	if mintCalls.Load() != 2 || chatCalls.Load() != 2 {
+		t.Fatalf("mintCalls=%d chatCalls=%d, want 2/2", mintCalls.Load(), chatCalls.Load())
+	}
+}

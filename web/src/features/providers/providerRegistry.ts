@@ -7008,7 +7008,7 @@ export const PROVIDER_REGISTRY: readonly ProviderRegistrySpec[] = [
     id: "venice",
     name: "Venice AI (Keyless Webchat)",
     alias: "venice",
-    aliases: ["venice-ai", "veniceai"],
+    aliases: ["venice-ai", "veniceai", "venice-free"],
     category: "free",
     sourceCategory: "free",
     protocol: "openai-chat",
@@ -7052,54 +7052,6 @@ export const PROVIDER_REGISTRY: readonly ProviderRegistrySpec[] = [
         name: "NVIDIA Nemotron 3 Ultra (256K)",
       },
     ],
-  },
-  {
-    id: "venice-free",
-    name: "Venice AI (Keyless Webchat)",
-    alias: "venice-free",
-    category: "free",
-    sourceCategory: "free",
-    protocol: "openai-chat",
-    authType: "none",
-    baseUrl: "https://outerface.venice.ai/api/inference/chat",
-    noAuth: true,
-    defaultModels: [
-      "deepseek-v4-1-flash-uncensored",
-      "olafangensan-glm-4.7-flash-heretic",
-      "venice-uncensored-1-2",
-      "qwen3-coder-480b-a35b-instruct-turbo",
-      "nvidia-nemotron-3-nano-30b-a3b",
-      "nvidia-nemotron-3-ultra-550b-a55b",
-    ],
-    models: [
-      {
-        id: "deepseek-v4-1-flash-uncensored",
-        name: "DeepSeek V4.1 Flash Uncensored (512K)",
-      },
-      {
-        id: "olafangensan-glm-4.7-flash-heretic",
-        name: "GLM 4.7 Flash Heretic (200K)",
-      },
-      {
-        id: "venice-uncensored-1-2",
-        name: "Venice Uncensored 1.2 (128K)",
-      },
-      {
-        id: "qwen3-coder-480b-a35b-instruct-turbo",
-        name: "Qwen 3 Coder 480B Turbo (256K)",
-      },
-      {
-        id: "nvidia-nemotron-3-nano-30b-a3b",
-        name: "NVIDIA Nemotron 3 Nano 30B (128K)",
-      },
-      {
-        id: "nvidia-nemotron-3-ultra-550b-a55b",
-        name: "NVIDIA Nemotron 3 Ultra (256K)",
-      },
-    ],
-    website: "https://venice.ai",
-    apiKeyUrl: "https://venice.ai",
-    priority: 158,
   },
   {
     id: "vercel-ai-gateway",

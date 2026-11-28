@@ -62,6 +62,8 @@ paths:
     $ref: './modules/system.yaml#/paths/~1api~1system~1telemetry'
   /api/system/shutdown:
     $ref: './modules/system.yaml#/paths/~1api~1system~1shutdown'
+  /api/system/update:
+    $ref: './modules/system.yaml#/paths/~1api~1system~1update'
   /api/auth/login:
     $ref: './modules/auth.yaml#/paths/~1api~1auth~1login'
   /api/auth/logout:

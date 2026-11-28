@@ -237,3 +237,42 @@ func TestLoadTLSConfigAndValidation(t *testing.T) {
 		}
 	})
 }
+
+func TestLoadUpdateConfig(t *testing.T) {
+	t.Run("defaults to omeg4monx/router-gateway main", func(t *testing.T) {
+		cfg, err := Load(nil, func(string) string { return "" })
+		if err != nil {
+			t.Fatalf("Load() unexpected error: %v", err)
+		}
+		if cfg.UpdateRepo != "omeg4monx/router-gateway" {
+			t.Fatalf("UpdateRepo = %q, want %q", cfg.UpdateRepo, "omeg4monx/router-gateway")
+		}
+		if cfg.UpdateBranch != "main" {
+			t.Fatalf("UpdateBranch = %q, want %q", cfg.UpdateBranch, "main")
+		}
+		if cfg.UpdateToken != "" {
+			t.Fatalf("UpdateToken = %q, want empty", cfg.UpdateToken)
+		}
+	})
+
+	t.Run("loads overrides from env", func(t *testing.T) {
+		env := map[string]string{
+			"OMEG4MON_UPDATE_REPO":   "custom/router",
+			"OMEG4MON_UPDATE_BRANCH": "release",
+			"OMEG4MON_UPDATE_TOKEN":  "ghp_secret",
+		}
+		cfg, err := Load(nil, func(k string) string { return env[k] })
+		if err != nil {
+			t.Fatalf("Load() unexpected error: %v", err)
+		}
+		if cfg.UpdateRepo != "custom/router" {
+			t.Fatalf("UpdateRepo = %q, want %q", cfg.UpdateRepo, "custom/router")
+		}
+		if cfg.UpdateBranch != "release" {
+			t.Fatalf("UpdateBranch = %q, want %q", cfg.UpdateBranch, "release")
+		}
+		if cfg.UpdateToken != "ghp_secret" {
+			t.Fatalf("UpdateToken = %q, want %q", cfg.UpdateToken, "ghp_secret")
+		}
+	})
+}

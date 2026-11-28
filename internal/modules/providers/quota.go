@@ -97,6 +97,8 @@ func defaultQuotaFetchers() []quotaFetcher {
 		codebuddyQuotaFetcher{providerID: providerIDCodeBuddyCN},
 		codebuddyQuotaFetcher{providerID: providerIDCodeBuddyIntl},
 		jetbrainsQuotaFetcher{},
+		opencodeQuotaFetcher{providerID: "opencode-zen", planName: "OpenCode Zen", usageURL: "https://opencode.ai/zen/v1/usage"},
+		opencodeQuotaFetcher{providerID: "opencode-go", planName: "OpenCode Go", usageURL: "https://opencode.ai/zen/go/v1/usage"},
 	}
 }
 

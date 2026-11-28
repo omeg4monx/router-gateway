@@ -436,7 +436,7 @@ func (m *Module) handleTestCombo(w http.ResponseWriter, r *http.Request) {
 
 func resolveKeylessProbeCredentials(providerID string) (contracts.UpstreamCredentials, bool) {
 	switch strings.ToLower(strings.TrimSpace(providerID)) {
-	case "venice", "venice-ai", "veniceai":
+	case "venice", "venice-ai", "veniceai", "venice-free":
 		return contracts.UpstreamCredentials{
 			ProviderID: "venice",
 			Protocol:   "openai-chat",
@@ -517,13 +517,16 @@ func (m *Module) probeWithCredentials(ctx context.Context, connectionID string, 
 
 	executeProbe := func(activeCreds contracts.UpstreamCredentials) (int, []byte, int64, error) {
 		var (
-			req    *http.Request
-			reqErr error
+			req            *http.Request
+			reqErr         error
+			veniceProxyKey string
 		)
+		reqClient := client
 		isVenice := venice.IsVeniceKeyless(activeCreds)
 		if isVenice {
 			targetURL := venice.ResolveInferenceURL(activeCreds.BaseURL)
-			attToken, attErr := venice.DefaultAttestationManager().GetToken(probeCtx, client, targetURL)
+			reqClient, veniceProxyKey = venice.ResolveSession(probeCtx, m.httpClient, targetURL)
+			attToken, attErr := venice.DefaultAttestationManager().GetTokenForProxy(probeCtx, reqClient, targetURL, veniceProxyKey)
 			if attErr != nil {
 				return 0, nil, 0, attErr
 			}
@@ -542,11 +545,11 @@ func (m *Module) probeWithCredentials(ctx context.Context, connectionID string, 
 			return 0, nil, 0, reqErr
 		}
 		start := time.Now()
-		resp, doErr := client.Do(req)
+		resp, doErr := reqClient.Do(req)
 		latency := time.Since(start).Milliseconds()
 		if doErr != nil {
 			if isVenice {
-				venice.DefaultAttestationManager().Evict(activeCreds.BaseURL)
+				venice.DefaultAttestationManager().EvictForProxy(activeCreds.BaseURL, veniceProxyKey)
 			}
 			return 0, nil, latency, doErr
 		}
@@ -554,7 +557,7 @@ func (m *Module) probeWithCredentials(ctx context.Context, connectionID string, 
 		body, _ := io.ReadAll(io.LimitReader(resp.Body, maxProbeResponseBytes))
 		if isVenice {
 			if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
-				venice.DefaultAttestationManager().Evict(activeCreds.BaseURL)
+				venice.DefaultAttestationManager().EvictForProxy(activeCreds.BaseURL, veniceProxyKey)
 			} else if converted, _, convErr := venice.ParseNDJSONToOpenAI(body, modelID); convErr == nil {
 				body = converted
 			}

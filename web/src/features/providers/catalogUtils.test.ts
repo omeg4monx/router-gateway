@@ -139,7 +139,8 @@ describe("providers catalogUtils", () => {
     expect(deepseekEntry?.defaultModels.length).toBeGreaterThan(0);
 
     const telemetry = computeFleetTelemetry(entries, CONNECTIONS);
-    expect(telemetry.activeProviders).toBe(1);
+    // openai (1 connected) + ready keyless free providers (venice, opencode, ovh)
+    expect(telemetry.activeProviders).toBe(4);
     expect(telemetry.attentionProviders).toBe(1);
     expect(telemetry.disabledProviders).toBe(1);
     expect(telemetry.totalCatalog).toBe(entries.length);
@@ -150,10 +151,10 @@ describe("providers catalogUtils", () => {
 
     const statusBuckets = countStatusBuckets(entries);
     expect(statusBuckets.all).toBe(entries.length);
-    expect(statusBuckets.active).toBe(1);
+    expect(statusBuckets.active).toBe(4);
     expect(statusBuckets.error).toBe(1);
     expect(statusBuckets.inactive).toBe(1);
-    expect(statusBuckets.unconfigured).toBe(entries.length - 3);
+    expect(statusBuckets.unconfigured).toBe(entries.length - 6);
 
     const catBuckets = countCategoryBuckets(entries);
     expect(catBuckets.all).toBe(entries.length);
@@ -166,7 +167,11 @@ describe("providers catalogUtils", () => {
   test("filters by status, searches across names/models/connections, and sorts errors first", () => {
     const entries = buildProviderEntries(ADAPTERS, CUSTOM_NODES, CONNECTIONS);
     const sorted = sortProviderEntries(entries);
-    expect(sorted.slice(0, 3).map((e) => e.id)).toEqual(["claude", "openai", "vllm-local"]);
+    expect(sorted.slice(0, 2).map((e) => e.id)).toEqual(["claude", "openai"]);
+    expect(sorted.slice(2, 5).map((e) => e.id)).toEqual(
+      expect.arrayContaining(["venice", "opencode", "ovh"]),
+    );
+    expect(sorted[5]?.id).toBe("vllm-local");
 
     expect(entries.filter((e) => matchesStatusFilter(e, "error")).map((e) => e.id)).toEqual([
       "claude",
@@ -286,7 +291,7 @@ describe("providers catalogUtils", () => {
     }
   });
 
-  test("hides Add connection action for noAuth providers and lists only keyless Venice models", () => {
+  test("hides Add connection action for noAuth providers and lists only keyless Venice models without duplicate venice-free entry", () => {
     const entries = buildProviderEntries(ADAPTERS, CUSTOM_NODES, CONNECTIONS);
     const byId = new Map(entries.map((entry) => [entry.id, entry]));
 
@@ -297,13 +302,14 @@ describe("providers catalogUtils", () => {
     const anthropic = byId.get("anthropic");
 
     expect(venice).toBeDefined();
-    expect(veniceFree).toBeDefined();
+    expect(veniceFree).toBeUndefined();
     expect(opencode).toBeDefined();
     expect(openai).toBeDefined();
     expect(anthropic).toBeDefined();
 
     if (venice) {
       expect(canAddProviderConnection(venice)).toBe(false);
+      expect(venice.aliases).toContain("venice-free");
       expect(venice.defaultModels).toContain("venice-uncensored-1-2");
       expect(venice.defaultModels).toContain("deepseek-v4-1-flash-uncensored");
       expect(venice.defaultModels).not.toContain("deepseek-v4-pro");
@@ -311,24 +317,27 @@ describe("providers catalogUtils", () => {
       expect(venice.defaultModels).not.toContain("qwen3-vl-235b-a22b");
       expect(venice.defaultModels).not.toContain("llama-3.3-70b");
     }
-    if (veniceFree) {
-      expect(veniceFree.noAuth).toBe(true);
-      expect(canAddProviderConnection(veniceFree)).toBe(false);
-    }
     if (opencode) expect(canAddProviderConnection(opencode)).toBe(false);
     if (openai) expect(canAddProviderConnection(openai)).toBe(true);
     if (anthropic) expect(canAddProviderConnection(anthropic)).toBe(true);
   });
 
-  test("groups active connected providers into the top section without duplicating them in category sections", () => {
+  test("groups active connected and ready keyless providers into the top section without duplicating them in category sections", () => {
     const entries = sortProviderEntries(buildProviderEntries(ADAPTERS, CUSTOM_NODES, CONNECTIONS));
     const buckets = buildProviderSectionBuckets(entries);
 
     expect(buckets[0]?.key).toBe("active");
-    expect(buckets[0]?.entries.map((entry) => entry.id)).toEqual(["openai"]);
+    const activeIds = buckets[0]?.entries.map((entry) => entry.id) ?? [];
+    expect(activeIds[0]).toBe("openai");
+    expect(activeIds).toEqual(expect.arrayContaining(["openai", "venice", "opencode", "ovh"]));
+    expect(activeIds).not.toContain("edge-tts");
+    expect(activeIds).not.toContain("coqui");
 
     const remainingIds = buckets.slice(1).flatMap((bucket) => bucket.entries.map((e) => e.id));
     expect(remainingIds).not.toContain("openai");
+    expect(remainingIds).not.toContain("venice");
+    expect(remainingIds).not.toContain("opencode");
+    expect(remainingIds).not.toContain("ovh");
     expect(remainingIds).toContain("claude");
     expect(remainingIds).toContain("vllm-local");
 

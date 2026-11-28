@@ -316,6 +316,195 @@ func TestSelectHTTPClientPreservesProxyTransportAndAddsCookieJar(t *testing.T) {
 	}
 }
 
+func TestResolveSessionUsesChromeUTLSAndIsolatesPerProxy(t *testing.T) {
+	proxyA, _ := url.Parse("http://127.0.0.1:8801")
+	proxyB, _ := url.Parse("http://127.0.0.1:8802")
+
+	var seq atomic.Int32
+	configured := &http.Client{
+		Transport: &http.Transport{
+			Proxy: func(*http.Request) (*url.URL, error) {
+				if seq.Add(1)%2 == 1 {
+					return proxyA, nil
+				}
+				return proxyB, nil
+			},
+		},
+		Timeout: 15 * time.Second,
+	}
+
+	clientA, keyA := ResolveSession(context.Background(), configured, DefaultInferenceURL)
+	clientB, keyB := ResolveSession(context.Background(), configured, DefaultInferenceURL)
+	t.Cleanup(func() {
+		EvictSession(keyA)
+		EvictSession(keyB)
+	})
+
+	if keyA != proxyA.String() || keyB != proxyB.String() {
+		t.Fatalf("proxy keys = (%q, %q), want (%q, %q)", keyA, keyB, proxyA.String(), proxyB.String())
+	}
+	if clientA.Jar == nil || clientB.Jar == nil || clientA.Jar == clientB.Jar {
+		t.Fatal("expected distinct CookieJar per proxy session")
+	}
+	trA, ok := clientA.Transport.(*http.Transport)
+	if !ok || trA.DialTLSContext == nil {
+		t.Fatal("expected ResolveSession to return Chrome uTLS transport with DialTLSContext")
+	}
+	httpReq, _ := http.NewRequest(http.MethodPost, "http://outerface.venice.ai/api/inference/chat", http.NoBody)
+	gotProxyA, err := trA.Proxy(httpReq)
+	if err != nil || gotProxyA == nil || gotProxyA.String() != proxyA.String() {
+		t.Fatalf("session A http proxy = %v (err=%v), want %s", gotProxyA, err, proxyA)
+	}
+	httpsReq, _ := http.NewRequest(http.MethodPost, DefaultInferenceURL, http.NoBody)
+	if gotHTTPSProxy, httpsErr := trA.Proxy(httpsReq); httpsErr != nil || gotHTTPSProxy != nil {
+		t.Fatalf("session A https proxy = %v (err=%v), want nil so DialTLSContext handles CONNECT with uTLS", gotHTTPSProxy, httpsErr)
+	}
+
+	// Attestation buckets must also isolate per proxyKey.
+	var mints atomic.Int32
+	stubClient := &http.Client{
+		Transport: roundTripFunc(func(*http.Request) (*http.Response, error) {
+			n := mints.Add(1)
+			raw, _ := json.Marshal(map[string]any{
+				"expiresAt": time.Now().Add(5 * time.Minute).Unix(),
+				"tokens":    []string{"tok-proxy-" + string('0'+n)},
+			})
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+				Body:       io.NopCloser(bytes.NewReader(raw)),
+			}, nil
+		}),
+	}
+	mgr := NewAttestationManager(nil)
+	tokA, err := mgr.GetTokenForProxy(context.Background(), stubClient, DefaultInferenceURL, keyA)
+	if err != nil || tokA != "tok-proxy-1" {
+		t.Fatalf("tokA = %q, err = %v", tokA, err)
+	}
+	tokB, err := mgr.GetTokenForProxy(context.Background(), stubClient, DefaultInferenceURL, keyB)
+	if err != nil || tokB != "tok-proxy-2" {
+		t.Fatalf("tokB = %q, err = %v", tokB, err)
+	}
+	if mints.Load() != 2 {
+		t.Fatalf("mints = %d, want 2 isolated mints across 2 proxies", mints.Load())
+	}
+}
+
+func TestAttestationManagerRetriesTransientNetworkError(t *testing.T) {
+	var attempts atomic.Int32
+	client := &http.Client{
+		Transport: roundTripFunc(func(*http.Request) (*http.Response, error) {
+			if attempts.Add(1) == 1 {
+				return nil, errors.New("connection reset by peer")
+			}
+			raw := []byte(`{"expiresAt":1999999999,"tokens":["recovered-tok"]}`)
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Header:     http.Header{"Content-Type": []string{"application/json"}},
+				Body:       io.NopCloser(bytes.NewReader(raw)),
+			}, nil
+		}),
+	}
+	mgr := NewAttestationManager(nil)
+	tok, err := mgr.GetToken(context.Background(), client, DefaultInferenceURL)
+	if err != nil {
+		t.Fatalf("GetToken err = %v, want recovery on retry", err)
+	}
+	if tok != "recovered-tok" || attempts.Load() != 2 {
+		t.Fatalf("tok=%q attempts=%d, want recovered-tok / 2", tok, attempts.Load())
+	}
+}
+
+func TestParseNDJSONToOpenAIWithToolsAndStreamingToolBridge(t *testing.T) {
+	tools := ExtractRequestTools([]byte(`{
+		"tools": [
+			{
+				"type": "function",
+				"function": {
+					"name": "get_weather",
+					"parameters": {
+						"type": "object",
+						"properties": {"city": {"type": "string"}}
+					}
+				}
+			}
+		]
+	}`))
+	if len(tools) != 1 {
+		t.Fatalf("ExtractRequestTools len = %d, want 1", len(tools))
+	}
+
+	ndjson := strings.Join([]string{
+		`{"kind":"meta","completion_id":"chatcmpl-tool-1"}`,
+		`{"kind":"content","content":"Checking weather now.\n"}`,
+		`{"kind":"content","content":"<tool_call>{\"name\":\"get-weather\",\"arguments\":{\"city\":\"Tokyo\",\"invented\":123}}</tool_call>"}`,
+		`{"kind":"content","content":"<tool_call>{\"name\":\"hallucinated_tool\",\"arguments\":{}}</tool_call>"}`,
+	}, "\n") + "\n"
+
+	out, _, err := ParseNDJSONToOpenAIWithTools([]byte(ndjson), "venice/deepseek-v4-1-flash-uncensored", tools)
+	if err != nil {
+		t.Fatalf("ParseNDJSONToOpenAIWithTools err = %v", err)
+	}
+	var parsed struct {
+		Choices []struct {
+			FinishReason string `json:"finish_reason"`
+			Message      struct {
+				Content   string     `json:"content"`
+				ToolCalls []ToolCall `json:"tool_calls"`
+			} `json:"message"`
+		} `json:"choices"`
+	}
+	if err := json.Unmarshal(out, &parsed); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if len(parsed.Choices) != 1 || parsed.Choices[0].FinishReason != "tool_calls" {
+		t.Fatalf("finish_reason = %q, want tool_calls", parsed.Choices[0].FinishReason)
+	}
+	if len(parsed.Choices[0].Message.ToolCalls) != 1 {
+		t.Fatalf("tool_calls = %+v, want 1 declared call", parsed.Choices[0].Message.ToolCalls)
+	}
+	tc := parsed.Choices[0].Message.ToolCalls[0]
+	if tc.Function.Name != "get_weather" || tc.Function.Arguments != `{"city":"Tokyo"}` {
+		t.Fatalf("unexpected bridged tool call: %+v", tc)
+	}
+	if parsed.Choices[0].Message.Content != "Checking weather now." {
+		t.Fatalf("cleaned content = %q", parsed.Choices[0].Message.Content)
+	}
+
+	// Streaming tool bridge across chunk boundaries.
+	streamRC := NewNDJSONToOpenAISSEReaderWithTools(context.Background(), io.NopCloser(strings.NewReader(ndjson)), "venice/deepseek-v4-1-flash-uncensored", tools)
+	defer streamRC.Close()
+	sseRaw, err := io.ReadAll(streamRC)
+	if err != nil {
+		t.Fatalf("ReadAll stream: %v", err)
+	}
+	sse := string(sseRaw)
+	if !strings.Contains(sse, `"tool_calls"`) || !strings.Contains(sse, `"get_weather"`) || !strings.Contains(sse, `"finish_reason":"tool_calls"`) {
+		t.Fatalf("stream SSE missing bridged tool_calls:\n%s", sse)
+	}
+
+	// Ordinary prose containing '<' or '```python' must flush in real time before EOF.
+	pr, pw := io.Pipe()
+	proseRC := NewNDJSONToOpenAISSEReaderWithTools(context.Background(), pr, "venice/deepseek-v4-1-flash-uncensored", tools)
+	defer proseRC.Close()
+
+	go func() {
+		_, _ = io.WriteString(pw, `{"kind":"content","content":"if a < b then "}`+"\n")
+		_, _ = io.WriteString(pw, "```python\nprint(1)\n```"+"\n")
+	}()
+
+	buf := make([]byte, 4096)
+	n, readErr := proseRC.Read(buf)
+	if readErr != nil || !strings.Contains(string(buf[:n]), `"content":"if a "`) {
+		t.Fatalf("expected prose before '<' to stream immediately before EOF: n=%d err=%v chunk=%q", n, readErr, string(buf[:n]))
+	}
+	n2, readErr2 := proseRC.Read(buf)
+	if readErr2 != nil || !strings.Contains(string(buf[:n2]), `"content":"\u003c b then "`) {
+		t.Fatalf("expected non-tool '< b then ' to flush immediately before EOF: n=%d err=%v chunk=%q", n2, readErr2, string(buf[:n2]))
+	}
+	_ = pw.Close()
+}
+
 func TestVeniceLiveEndToEnd(t *testing.T) {
 	if os.Getenv("VENICE_LIVE_TEST") != "1" {
 		t.Skip("set VENICE_LIVE_TEST=1 to run live Venice AI verification")

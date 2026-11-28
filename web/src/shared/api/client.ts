@@ -10,6 +10,8 @@ export type InitRequest = components["schemas"]["InitRequest"];
 export type InitCompleteResponse = components["schemas"]["InitCompleteResponse"];
 export type ShutdownResponse = components["schemas"]["ShutdownResponse"];
 export type SystemTelemetryResponse = components["schemas"]["SystemTelemetryResponse"];
+export type SystemUpdateRequest = components["schemas"]["SystemUpdateRequest"];
+export type SystemUpdateStatusResponse = components["schemas"]["SystemUpdateStatusResponse"];
 
 const DEFAULT_ERROR_MESSAGE = "An unexpected error occurred";
 

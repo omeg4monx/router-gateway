@@ -1,0 +1,114 @@
+name: Main Rolling Release
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: main-rolling-release
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build-web:
+    name: Export Static Web UI
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install web dependencies
+        working-directory: web
+        run: bun install --frozen-lockfile
+
+      - name: Build static web UI
+        working-directory: web
+        run: bun run build
+
+      - name: Upload static UI bundle
+        uses: actions/upload-artifact@v7
+        with:
+          name: main-rolling-web-out
+          path: web/out
+          retention-days: 1
+          if-no-files-found: error
+
+  publish-main-latest:
+    name: Build & Publish main-latest Rolling Binaries
+    needs: [build-web]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Setup Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          check-latest: true
+          cache: true
+
+      - name: Download static UI bundle
+        uses: actions/download-artifact@v8
+        with:
+          name: main-rolling-web-out
+          path: cmd/omeg4mon-router/ui_dist
+
+      - name: Build 6 zero-CGO single binaries and SHA256SUMS
+        run: |
+          BUILD_TIME="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          COMMIT="${GITHUB_SHA::7}"
+          RELEASE_VERSION="main-${COMMIT}"
+          LDFLAGS="-s -w -X main.version=${RELEASE_VERSION} -X main.commit=${COMMIT} -X main.buildTime=${BUILD_TIME}"
+          mkdir -p dist
+          CGO_ENABLED=0 GOOS=linux   GOARCH=amd64 go build -tags embedui -trimpath -ldflags="${LDFLAGS}" -o dist/omeg4mon-router-linux-amd64 ./cmd/omeg4mon-router
+          CGO_ENABLED=0 GOOS=linux   GOARCH=arm64 go build -tags embedui -trimpath -ldflags="${LDFLAGS}" -o dist/omeg4mon-router-linux-arm64 ./cmd/omeg4mon-router
+          CGO_ENABLED=0 GOOS=darwin  GOARCH=amd64 go build -tags embedui -trimpath -ldflags="${LDFLAGS}" -o dist/omeg4mon-router-darwin-amd64 ./cmd/omeg4mon-router
+          CGO_ENABLED=0 GOOS=darwin  GOARCH=arm64 go build -tags embedui -trimpath -ldflags="${LDFLAGS}" -o dist/omeg4mon-router-darwin-arm64 ./cmd/omeg4mon-router
+          CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -tags embedui -trimpath -ldflags="${LDFLAGS}" -o dist/omeg4mon-router-windows-amd64.exe ./cmd/omeg4mon-router
+          CGO_ENABLED=0 GOOS=windows GOARCH=arm64 go build -tags embedui -trimpath -ldflags="${LDFLAGS}" -o dist/omeg4mon-router-windows-arm64.exe ./cmd/omeg4mon-router
+          printf '%s\n' "${GITHUB_SHA}" > dist/COMMIT.txt
+          cd dist && sha256sum omeg4mon-router-* > SHA256SUMS.txt
+          ls -lh .
+
+      - name: Smoke test linux/amd64 rolling binary
+        run: ./scripts/smoke-test.sh ./dist/omeg4mon-router-linux-amd64 20198
+
+      - name: Force-move main-latest tag to current main commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -f main-latest "${GITHUB_SHA}"
+          git push -f origin refs/tags/main-latest
+
+      - name: Publish main-latest rolling pre-release
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: main-latest
+          target_commitish: ${{ github.sha }}
+          name: "Main Rolling Build (${{ github.sha }})"
+          body: "Automated rolling build from `main` commit `${{ github.sha }}` for in-dashboard auto-update."
+          prerelease: true
+          make_latest: false
+          files: |
+            dist/omeg4mon-router-linux-amd64
+            dist/omeg4mon-router-linux-arm64
+            dist/omeg4mon-router-darwin-amd64
+            dist/omeg4mon-router-darwin-arm64
+            dist/omeg4mon-router-windows-amd64.exe
+            dist/omeg4mon-router-windows-arm64.exe
+            dist/SHA256SUMS.txt
+            dist/COMMIT.txt

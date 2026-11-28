@@ -144,6 +144,7 @@ type App struct {
 
 	runMu             sync.Mutex
 	runCancel         context.CancelFunc
+	restartExePath    string
 	shutdownRequested atomic.Bool
 
 	closeOnce sync.Once
@@ -241,6 +242,8 @@ func buildApp(ctx context.Context, cfg config.Config, build system.BuildInfo) (*
 		Build:         build,
 		ActiveModules: registry.ActiveNames,
 		Shutdown:      app.requestShutdown,
+		Restart:       app.requestRestart,
+		HTTPClient:    httpClient,
 	})
 	authMod := auth.New(auth.Options{
 		Store:    sysMod,
@@ -642,6 +645,19 @@ func (a *App) requestShutdown() {
 	}
 }
 
+func (a *App) requestRestart(exePath string) {
+	a.runMu.Lock()
+	a.restartExePath = exePath
+	a.runMu.Unlock()
+	a.requestShutdown()
+}
+
+func (a *App) restartTarget() string {
+	a.runMu.Lock()
+	defer a.runMu.Unlock()
+	return a.restartExePath
+}
+
 func main() {
 	os.Exit(runMain(os.Args[1:], os.Getenv))
 }
@@ -682,6 +698,15 @@ func runMain(args []string, getenv func(string) string) int {
 	if err := app.Run(sigCtx); err != nil {
 		app.logger.Error("omeg4mon-router exited with error", "error", err)
 		return 1
+	}
+
+	if target := app.restartTarget(); target != "" {
+		app.logger.Info("omeg4mon-router restarting into updated binary", "path", target)
+		if err := execReplacement(target, os.Args, os.Environ()); err != nil {
+			app.logger.Error("omeg4mon-router restart failed", "path", target, "error", err)
+			return 1
+		}
+		return 0
 	}
 
 	app.logger.Info("omeg4mon-router stopped")
