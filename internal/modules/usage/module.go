@@ -36,6 +36,11 @@ const (
 	// TopicUsageRecorded is published on the event bus for each persisted
 	// usage telemetry entry.
 	TopicUsageRecorded = "usage.recorded"
+	// TopicTrafficStarted is published immediately when a gateway request begins.
+	TopicTrafficStarted = "traffic.started"
+	// TopicTrafficFinished is published immediately when a gateway request finishes
+	// (before async SQLite batch persistence) for 0ms live monitoring updates.
+	TopicTrafficFinished = "traffic.finished"
 
 	defaultBatchSize     = 50
 	defaultFlushInterval = 250 * time.Millisecond
@@ -200,9 +205,43 @@ func (m *Module) Stop(ctx context.Context) error {
 	return err
 }
 
-// Record enqueues a request telemetry record without blocking the caller.
+// Record enqueues a request telemetry record without blocking the caller and
+// immediately publishes a live traffic.finished event on the event bus.
 // Records emitted after Stop or when the buffer is full are safely dropped.
 func (m *Module) Record(_ context.Context, rec contracts.UsageRecord) {
+	if m.bus != nil {
+		ts := rec.Timestamp
+		if ts.IsZero() {
+			ts = m.now()
+		}
+		inTok := max(rec.InputTokens, 0)
+		outTok := max(rec.OutputTokens, 0)
+		cachedTok := max(rec.CachedTokens, 0)
+		cost := rec.CostUSD
+		if cost < 0 {
+			cost = 0
+		} else if cost == 0 {
+			cost = m.pricing.CalculateCost(rec.Model, inTok, outTok, cachedTok)
+		}
+		m.bus.Publish(TopicTrafficFinished, UsageLog{
+			RequestID:    rec.RequestID,
+			KeyID:        rec.KeyID,
+			Model:        rec.Model,
+			ProviderID:   rec.ProviderID,
+			ConnectionID: rec.ConnectionID,
+			Protocol:     rec.Protocol,
+			InputTokens:  inTok,
+			OutputTokens: outTok,
+			CachedTokens: cachedTok,
+			CostUSD:      cost,
+			LatencyMS:    max(rec.Latency.Milliseconds(), 0),
+			TTFTMS:       max(rec.TTFT.Milliseconds(), 0),
+			StatusCode:   rec.StatusCode,
+			ErrorSummary: rec.ErrorSummary,
+			Stream:       rec.Stream,
+			CreatedAt:    ts.UTC().Format(rfc3339NanoFixed),
+		})
+	}
 	m.batcher.Enqueue(rec)
 }
 
@@ -322,22 +361,36 @@ func (m *Module) handleStreamUsage(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("X-Accel-Buffering", "no")
 	w.WriteHeader(http.StatusOK)
 
+	includeLiveTraffic := r.URL.Query().Get("live") == "1" || strings.EqualFold(r.URL.Query().Get("live"), "true")
+
 	var (
-		events     <-chan eventbus.Event
-		provEvents <-chan eventbus.Event
-		keyEvents  <-chan eventbus.Event
-		cmbEvents  <-chan eventbus.Event
-		poolEvents <-chan eventbus.Event
+		events         <-chan eventbus.Event
+		startedEvents  <-chan eventbus.Event
+		finishedEvents <-chan eventbus.Event
+		provEvents     <-chan eventbus.Event
+		keyEvents      <-chan eventbus.Event
+		cmbEvents      <-chan eventbus.Event
+		poolEvents     <-chan eventbus.Event
 	)
 	if m.bus != nil {
-		var unsubUsage, unsubProv, unsubKey, unsubCmb, unsubPool func()
+		var unsubUsage, unsubStarted, unsubFinished, unsubProv, unsubKey, unsubCmb, unsubPool func()
 		events, unsubUsage = m.bus.Subscribe(TopicUsageRecorded, sseSubscriberBufSize)
+		if includeLiveTraffic {
+			startedEvents, unsubStarted = m.bus.Subscribe(TopicTrafficStarted, sseSubscriberBufSize)
+			finishedEvents, unsubFinished = m.bus.Subscribe(TopicTrafficFinished, sseSubscriberBufSize)
+		}
 		provEvents, unsubProv = m.bus.Subscribe("providers.changed", 16)
 		keyEvents, unsubKey = m.bus.Subscribe("keys.changed", 16)
 		cmbEvents, unsubCmb = m.bus.Subscribe("combos.changed", 16)
 		poolEvents, unsubPool = m.bus.Subscribe("proxypools.changed", 16)
 		defer func() {
 			unsubUsage()
+			if unsubStarted != nil {
+				unsubStarted()
+			}
+			if unsubFinished != nil {
+				unsubFinished()
+			}
 			unsubProv()
 			unsubKey()
 			unsubCmb()
@@ -358,6 +411,17 @@ func (m *Module) handleStreamUsage(w http.ResponseWriter, r *http.Request) {
 
 	stopNotify := m.currentStopNotify()
 
+	writeEvent := func(eventName string, payload any) bool {
+		data, err := json.Marshal(payload)
+		if err != nil {
+			return true
+		}
+		if _, err := fmt.Fprintf(w, "event: %s\ndata: %s\n\n", eventName, data); err != nil {
+			return false
+		}
+		return rc.Flush() == nil
+	}
+
 	writeInvalidation := func(topic string) bool {
 		if _, err := fmt.Fprintf(w, "event: invalidation\ndata: {\"topic\":%q}\n\n", topic); err != nil {
 			return false
@@ -375,14 +439,23 @@ func (m *Module) handleStreamUsage(w http.ResponseWriter, r *http.Request) {
 			if !ok {
 				return
 			}
-			data, err := json.Marshal(evt.Payload)
-			if err != nil {
-				continue
-			}
-			if _, err := fmt.Fprintf(w, "event: usage\ndata: %s\n\n", data); err != nil {
+			if !writeEvent("usage", evt.Payload) {
 				return
 			}
-			if err := rc.Flush(); err != nil {
+		case evt, ok := <-startedEvents:
+			if !ok {
+				startedEvents = nil
+				continue
+			}
+			if !writeEvent("traffic_started", evt.Payload) {
+				return
+			}
+		case evt, ok := <-finishedEvents:
+			if !ok {
+				finishedEvents = nil
+				continue
+			}
+			if !writeEvent("traffic_finished", evt.Payload) {
 				return
 			}
 		case _, ok := <-provEvents:

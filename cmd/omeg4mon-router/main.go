@@ -349,6 +349,7 @@ func buildApp(ctx context.Context, cfg config.Config, build system.BuildInfo) (*
 		Health:       combosMod,
 		Interceptors: interceptors,
 		Usage:        usageMod,
+		Bus:          bus,
 		Logger:       logger,
 	})
 	proxypoolsMod := proxypools.New(proxypools.Options{

@@ -109,9 +109,13 @@ export function TranslatorConsole() {
       }
     };
 
+    const onClear = () => setLogs([]);
+
     source.addEventListener("log", onLog as EventListener);
+    source.addEventListener("clear", onClear);
     return () => {
       source.removeEventListener("log", onLog as EventListener);
+      source.removeEventListener("clear", onClear);
       source.close();
       setStreamConnected(false);
     };

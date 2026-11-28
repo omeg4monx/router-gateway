@@ -1098,7 +1098,8 @@ export interface paths {
         get: operations["listConsoleLogs"];
         put?: never;
         post?: never;
-        delete?: never;
+        /** Clear all structured server log entries from the in-memory ring buffer and notify live SSE listeners */
+        delete: operations["clearConsoleLogs"];
         options?: never;
         head?: never;
         patch?: never;
@@ -8000,6 +8001,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ConsoleLogsResponse"];
+                };
+            };
+            /** @description Administrative authentication is required. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    clearConsoleLogs: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Ring buffer cleared. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        cleared: boolean;
+                    };
                 };
             };
             /** @description Administrative authentication is required. */

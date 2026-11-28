@@ -295,3 +295,39 @@ func TestRingBufferSubscribeNonBlockingAndUnsubscribe(t *testing.T) {
 	// Logging after unsubscribe must not panic.
 	logger.Warn("after-unsub")
 }
+
+func TestRingBufferClearEmptiesEntriesAndNotifiesSubscribers(t *testing.T) {
+	logger, ring := logging.New("debug", nil, 16)
+	logger.Info("first")
+	logger.Warn("second")
+
+	if got := len(ring.Recent(10)); got != 2 {
+		t.Fatalf("Recent before Clear = %d, want 2", got)
+	}
+
+	clearCh, unsub := ring.SubscribeClear()
+	defer unsub()
+
+	ring.Clear()
+
+	if got := len(ring.Recent(10)); got != 0 {
+		t.Fatalf("Recent after Clear = %d, want 0", got)
+	}
+
+	select {
+	case <-clearCh:
+	case <-time.After(time.Second):
+		t.Fatal("expected clear notification on SubscribeClear channel")
+	}
+
+	// Subsequent writes still work cleanly after Clear.
+	logger.Info("after-clear")
+	recent := ring.Recent(10)
+	if len(recent) != 1 || recent[0].Message != "after-clear" {
+		t.Fatalf("unexpected entries after clear: %+v", recent)
+	}
+
+	// Idempotent unsubscribe.
+	unsub()
+	unsub()
+}

@@ -1,7 +1,6 @@
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient, extractErrorMessage } from "@/shared/api/client";
 import type {
-  ConsoleLogsResponse,
   TranslatePayloadRequest,
   TranslatePayloadResponse,
   TranslatorProtocolsResponse,
@@ -9,7 +8,7 @@ import type {
 
 export const translatorQueryKeys = {
   protocols: ["translator", "protocols"] as const,
-  logs: (level: string) => ["translator", "logs", level] as const,
+  logsRoot: ["translator", "logs"] as const,
 };
 
 export function useTranslatorProtocols() {
@@ -37,22 +36,18 @@ export function useTranslatePayloadMutation() {
   });
 }
 
-export function useConsoleLogsSnapshot(level: "ALL" | "DEBUG" | "INFO" | "WARN" | "ERROR") {
-  return useQuery<ConsoleLogsResponse, Error>({
-    queryKey: translatorQueryKeys.logs(level),
-    queryFn: async () => {
-      const { data, error } = await apiClient.GET("/api/translator/logs", {
-        params: {
-          query: {
-            limit: 100,
-            level: level === "ALL" ? undefined : level,
-          },
-        },
-      });
+export function useClearConsoleLogsMutation() {
+  const queryClient = useQueryClient();
+  return useMutation<{ cleared: boolean }, Error, void>({
+    mutationFn: async () => {
+      const { data, error } = await apiClient.DELETE("/api/translator/logs");
       if (data) {
         return data;
       }
       throw new Error(extractErrorMessage(error));
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: translatorQueryKeys.logsRoot });
     },
   });
 }

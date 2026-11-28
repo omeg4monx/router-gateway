@@ -35,6 +35,7 @@ type RingBuffer struct {
 
 	nextSubID uint64
 	subs      map[uint64]chan LogEntry
+	clearSubs map[uint64]chan struct{}
 }
 
 // Subscribe registers a live log listener returning a read-only channel of
@@ -68,6 +69,59 @@ func (r *RingBuffer) Subscribe() (entries <-chan LogEntry, unsubscribe func()) {
 		})
 	}
 	return ch, unsub
+}
+
+// SubscribeClear registers a listener notified whenever Clear empties the ring
+// buffer. Notifications are non-blocking and coalesce if a subscriber is slow.
+func (r *RingBuffer) SubscribeClear() (cleared <-chan struct{}, unsubscribe func()) {
+	ch := make(chan struct{}, 1)
+	if r == nil {
+		close(ch)
+		return ch, func() {}
+	}
+
+	r.mu.Lock()
+	if r.clearSubs == nil {
+		r.clearSubs = make(map[uint64]chan struct{})
+	}
+	r.nextSubID++
+	id := r.nextSubID
+	r.clearSubs[id] = ch
+	r.mu.Unlock()
+
+	var once sync.Once
+	unsub := func() {
+		once.Do(func() {
+			r.mu.Lock()
+			if existing, ok := r.clearSubs[id]; ok {
+				delete(r.clearSubs, id)
+				close(existing)
+			}
+			r.mu.Unlock()
+		})
+	}
+	return ch, unsub
+}
+
+// Clear empties all buffered log entries and notifies active clear subscribers.
+func (r *RingBuffer) Clear() {
+	if r == nil {
+		return
+	}
+
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	clear(r.entries)
+	r.next = 0
+	r.count = 0
+
+	for _, ch := range r.clearSubs {
+		select {
+		case ch <- struct{}{}:
+		default:
+		}
+	}
 }
 
 // Recent returns up to limit most recent log entries in chronological order.

@@ -24,6 +24,7 @@ import (
 
 	"github.com/omeg4monx/router-gateway/internal/contracts"
 	"github.com/omeg4monx/router-gateway/internal/platform/db"
+	"github.com/omeg4monx/router-gateway/internal/platform/eventbus"
 	"github.com/omeg4monx/router-gateway/internal/platform/httpclient"
 	"github.com/omeg4monx/router-gateway/internal/platform/httpserver"
 	"github.com/omeg4monx/router-gateway/internal/platform/lifecycle"
@@ -52,6 +53,7 @@ type Options struct {
 	Health                  contracts.AccountHealthTracker
 	Interceptors            []contracts.GatewayInterceptor
 	Usage                   contracts.UsageRecorder
+	Bus                     *eventbus.Bus
 	Logger                  *slog.Logger
 	ChainTTL                time.Duration
 	MaxGlobalInFlight       int
@@ -74,6 +76,7 @@ type Module struct {
 	health       contracts.AccountHealthTracker
 	interceptors []contracts.GatewayInterceptor
 	usage        contracts.UsageRecorder
+	bus          *eventbus.Bus
 	logger       *slog.Logger
 	chains       *chainStore
 	agQuota      *antigravityQuotaMonitor
@@ -183,6 +186,7 @@ func New(opts Options) *Module {
 		health:       opts.Health,
 		interceptors: sorted,
 		usage:        opts.Usage,
+		bus:          opts.Bus,
 		logger:       logger,
 		chains:       newChainStore(opts.DB, opts.ChainTTL),
 		agQuota:      newAntigravityQuotaMonitor(),
@@ -757,6 +761,27 @@ func (m *Module) executeInferenceCandidates(
 				attemptCtx, attemptCancel = context.WithTimeout(ctx, time.Duration(timeoutMs)*time.Millisecond)
 			}
 
+			if m.bus != nil {
+				m.bus.Publish("traffic.started", map[string]any{
+					"request_id":    reqID,
+					"provider_id":   cand.ProviderID,
+					"connection_id": cand.ConnectionID,
+					"model":         upstreamModel,
+					"protocol":      inProto,
+					"stream":        icReq.Stream,
+					"started_at":    startTime.UTC().Format(time.RFC3339Nano),
+				})
+			}
+			if m.logger != nil {
+				m.logger.Info("▶ gateway request",
+					"request_id", reqID,
+					"provider", cand.ProviderID,
+					"model", upstreamModel,
+					"protocol", inProto,
+					"stream", icReq.Stream,
+				)
+			}
+
 			outcome := m.executeCandidateAttempt(
 				attemptCtx,
 				w,
@@ -824,6 +849,30 @@ func (m *Module) executeInferenceCandidates(
 				continue
 			}
 			if outcome.clientCanceled {
+				if m.bus != nil {
+					m.bus.Publish("traffic.finished", map[string]any{
+						"request_id":    reqID,
+						"key_id":        keyInfo.ID,
+						"provider_id":   cand.ProviderID,
+						"connection_id": cand.ConnectionID,
+						"model":         upstreamModel,
+						"protocol":      inProto,
+						"status_code":   499,
+						"latency_ms":    max(time.Since(startTime).Milliseconds(), 0),
+						"error_summary": "client canceled request",
+						"stream":        icReq.Stream,
+						"created_at":    time.Now().UTC().Format(time.RFC3339Nano),
+					})
+				}
+				if m.logger != nil {
+					m.logger.Warn("✗ client canceled",
+						"request_id", reqID,
+						"provider", cand.ProviderID,
+						"model", upstreamModel,
+						"status", 499,
+						"latency_ms", max(time.Since(startTime).Milliseconds(), 0),
+					)
+				}
 				return context.Canceled
 			}
 			if canRetryTransient && isTransientSingleCandidateStatus(outcome.statusCode) {
@@ -834,6 +883,15 @@ func (m *Module) executeInferenceCandidates(
 					delay = computeJitteredRetryDelay(transientRetries, outcome.retryAfter)
 				}
 				transientRetries++
+				if m.logger != nil {
+					m.logger.Warn("↻ retrying upstream",
+						"request_id", reqID,
+						"provider", cand.ProviderID,
+						"model", upstreamModel,
+						"status", outcome.statusCode,
+						"attempt", transientRetries,
+					)
+				}
 				if delay > 0 {
 					if err := sleepContext(ctx, delay); err != nil {
 						return err
@@ -846,6 +904,15 @@ func (m *Module) executeInferenceCandidates(
 			}
 			lastStatus = outcome.statusCode
 			lastMsg = outcome.errMsg
+			if m.logger != nil {
+				m.logger.Warn("✗ upstream failed",
+					"request_id", reqID,
+					"provider", cand.ProviderID,
+					"model", upstreamModel,
+					"status", outcome.statusCode,
+					"error", outcome.errMsg,
+				)
+			}
 			if cand.Metadata["combo_fallback_only_on_quota"] == "true" && outcome.statusCode != http.StatusTooManyRequests {
 				stopCascade = true
 			}
@@ -1348,6 +1415,28 @@ func (m *Module) executeCandidateAttempt(
 }
 
 func (m *Module) emitUsage(ctx context.Context, rec contracts.UsageRecord) {
+	if m.logger != nil {
+		if rec.StatusCode >= http.StatusBadRequest || rec.ErrorSummary != "" {
+			m.logger.Error("✗ gateway response",
+				"request_id", rec.RequestID,
+				"provider", rec.ProviderID,
+				"model", rec.Model,
+				"status", rec.StatusCode,
+				"latency_ms", rec.Latency.Milliseconds(),
+				"error", rec.ErrorSummary,
+			)
+		} else {
+			m.logger.Info("✓ gateway response",
+				"request_id", rec.RequestID,
+				"provider", rec.ProviderID,
+				"model", rec.Model,
+				"status", rec.StatusCode,
+				"latency_ms", rec.Latency.Milliseconds(),
+				"in_tok", rec.InputTokens,
+				"out_tok", rec.OutputTokens,
+			)
+		}
+	}
 	if m.usage == nil {
 		return
 	}

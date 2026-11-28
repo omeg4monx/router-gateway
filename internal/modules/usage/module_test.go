@@ -818,3 +818,67 @@ func TestUsageStreamForwardsInventoryInvalidations(t *testing.T) {
 		t.Fatalf("expected SSE invalidation event for providers.changed, gotEvent=%v gotTopic=%v", gotEvent, gotTopic)
 	}
 }
+
+func TestUsageStreamEmitsTrafficStartedAndFinishedImmediately(t *testing.T) {
+	t.Parallel()
+
+	h := newTestHarness(t, usage.Options{FlushInterval: 10 * time.Second}, true)
+	ts := httptest.NewServer(h.server.Handler())
+	t.Cleanup(ts.Close)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, ts.URL+"/api/usage/stream?live=1", nil)
+	if err != nil {
+		t.Fatalf("NewRequest: %v", err)
+	}
+	req.Header.Set("Authorization", "Bearer test-admin-token")
+
+	resp, err := ts.Client().Do(req)
+	if err != nil {
+		t.Fatalf("stream GET: %v", err)
+	}
+	t.Cleanup(func() { _ = resp.Body.Close() })
+
+	go func() {
+		time.Sleep(40 * time.Millisecond)
+		h.bus.Publish(usage.TopicTrafficStarted, map[string]any{
+			"request_id":  "req-live-1",
+			"provider_id": "openai",
+			"model":       "gpt-4o",
+			"stream":      true,
+		})
+		h.mod.Record(context.Background(), contracts.UsageRecord{
+			RequestID:    "req-live-1",
+			ProviderID:   "openai",
+			Model:        "gpt-4o",
+			StatusCode:   200,
+			InputTokens:  50,
+			OutputTokens: 20,
+			Latency:      120 * time.Millisecond,
+			Stream:       true,
+			Timestamp:    time.Now().UTC(),
+		})
+	}()
+
+	scanner := bufio.NewScanner(resp.Body)
+	sawStarted := false
+	sawFinished := false
+	for scanner.Scan() {
+		line := scanner.Text()
+		if line == "event: traffic_started" {
+			sawStarted = true
+		}
+		if line == "event: traffic_finished" {
+			sawFinished = true
+		}
+		if sawStarted && sawFinished {
+			cancel()
+			break
+		}
+	}
+	if !sawStarted || !sawFinished {
+		t.Fatalf("expected immediate traffic_started (%v) and traffic_finished (%v) before 10s batcher flush", sawStarted, sawFinished)
+	}
+}

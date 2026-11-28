@@ -298,3 +298,65 @@ func TestTranslatorLogsStreamSurvivesPastAPITimeout(t *testing.T) {
 		t.Fatal("SSE log stream closed prematurely before receiving event emitted after APITimeout")
 	}
 }
+
+func TestTranslatorDeleteLogsClearsRingAndBroadcastsSSEClear(t *testing.T) {
+	t.Parallel()
+
+	h := newHarness(t)
+	h.logger.Info("before-clear-entry")
+
+	ts := httptest.NewServer(h.server.Handler())
+	t.Cleanup(ts.Close)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, ts.URL+"/api/translator/logs/stream?tail=10", http.NoBody)
+	if err != nil {
+		t.Fatalf("new sse req: %v", err)
+	}
+	resp, err := ts.Client().Do(req)
+	if err != nil {
+		t.Fatalf("connect sse: %v", err)
+	}
+	defer resp.Body.Close()
+
+	scanner := bufio.NewScanner(resp.Body)
+	sentDelete := false
+	sawClearEvent := false
+
+	for scanner.Scan() {
+		line := scanner.Text()
+		if !sentDelete && strings.Contains(line, "before-clear-entry") {
+			sentDelete = true
+			delRec := h.doReq(http.MethodDelete, "/api/translator/logs", "")
+			if delRec.Code != http.StatusOK {
+				t.Fatalf("DELETE /api/translator/logs = %d: %s", delRec.Code, delRec.Body.String())
+			}
+		}
+		if line == "event: clear" {
+			sawClearEvent = true
+			cancel()
+			break
+		}
+	}
+
+	if !sawClearEvent {
+		t.Fatal("expected SSE stream to receive 'event: clear' after DELETE /api/translator/logs")
+	}
+
+	snapRec := h.doReq(http.MethodGet, "/api/translator/logs?limit=50", "")
+	if snapRec.Code != http.StatusOK {
+		t.Fatalf("GET /api/translator/logs = %d: %s", snapRec.Code, snapRec.Body.String())
+	}
+	var snap struct {
+		Entries []logging.LogEntry `json:"entries"`
+		Total   int                `json:"total"`
+	}
+	if err := json.Unmarshal(snapRec.Body.Bytes(), &snap); err != nil {
+		t.Fatalf("unmarshal logs: %v", err)
+	}
+	if snap.Total != 0 || len(snap.Entries) != 0 {
+		t.Fatalf("expected empty ring after DELETE, got %+v", snap)
+	}
+}

@@ -90,6 +90,30 @@ paths:
             application/json:
               schema:
                 $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+    delete:
+      operationId: clearConsoleLogs
+      summary: Clear all structured server log entries from the in-memory ring buffer and notify live SSE listeners
+      tags:
+        - translator
+      responses:
+        '200':
+          description: Ring buffer cleared.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                  - cleared
+                properties:
+                  cleared:
+                    type: boolean
+        '401':
+          description: Administrative authentication is required.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
   /api/translator/logs/stream:
     get:
       operationId: streamConsoleLogs
