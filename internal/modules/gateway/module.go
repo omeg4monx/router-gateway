@@ -15,6 +15,7 @@ import (
 	"net/http"
 	"net/url"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -729,6 +730,11 @@ func (m *Module) executeInferenceCandidates(
 
 		refreshed := false
 		transientRetries := 0
+		maxRetries, hasMaxRetries := parseComboMetadataInt(cand.Metadata, "combo_max_retries")
+		retryDelayMs, hasRetryDelay := parseComboMetadataInt(cand.Metadata, "combo_retry_delay_ms")
+		timeoutMs, hasTimeout := parseComboMetadataInt(cand.Metadata, "combo_timeout_ms")
+		stopCascade := false
+
 		for {
 			releaseConn, connErr := m.shaper.acquireConnection(ctx, cand.ConnectionID)
 			if connErr != nil {
@@ -741,8 +747,18 @@ func (m *Module) executeInferenceCandidates(
 			}
 
 			canRetryTransient := singleCandidate && transientRetries < singleCandidateRetryMax
+			if hasMaxRetries {
+				canRetryTransient = transientRetries < maxRetries
+			}
+
+			attemptCtx := ctx
+			var attemptCancel context.CancelFunc
+			if hasTimeout && timeoutMs >= 1000 {
+				attemptCtx, attemptCancel = context.WithTimeout(ctx, time.Duration(timeoutMs)*time.Millisecond)
+			}
+
 			outcome := m.executeCandidateAttempt(
-				ctx,
+				attemptCtx,
 				w,
 				r,
 				reqID,
@@ -764,7 +780,19 @@ func (m *Module) executeInferenceCandidates(
 				canRetryTransient,
 				capture,
 			)
+			attemptTimedOut := attemptCtx.Err() == context.DeadlineExceeded && ctx.Err() == nil
+			if attemptCancel != nil {
+				attemptCancel()
+			}
 			releaseConn()
+
+			if outcome.clientCanceled && attemptTimedOut {
+				outcome = attemptOutcome{
+					statusCode:         http.StatusGatewayTimeout,
+					errMsg:             "combo upstream attempt timed out",
+					deferredHealthFail: true,
+				}
+			}
 
 			if outcome.handled {
 				if capture != nil && outcome.statusCode >= 400 {
@@ -799,19 +827,31 @@ func (m *Module) executeInferenceCandidates(
 				return context.Canceled
 			}
 			if canRetryTransient && isTransientSingleCandidateStatus(outcome.statusCode) {
-				if delay := computeJitteredRetryDelay(transientRetries, outcome.retryAfter); delay > 0 {
-					transientRetries++
+				var delay time.Duration
+				if hasRetryDelay {
+					delay = max(time.Duration(retryDelayMs)*time.Millisecond, outcome.retryAfter)
+				} else {
+					delay = computeJitteredRetryDelay(transientRetries, outcome.retryAfter)
+				}
+				transientRetries++
+				if delay > 0 {
 					if err := sleepContext(ctx, delay); err != nil {
 						return err
 					}
-					continue
 				}
+				continue
 			}
 			if outcome.deferredHealthFail {
 				m.health.RecordFailure(cand.ConnectionID, outcome.statusCode, outcome.retryAfter)
 			}
 			lastStatus = outcome.statusCode
 			lastMsg = outcome.errMsg
+			if cand.Metadata["combo_fallback_only_on_quota"] == "true" && outcome.statusCode != http.StatusTooManyRequests {
+				stopCascade = true
+			}
+			break
+		}
+		if stopCascade {
 			break
 		}
 	}
@@ -1410,6 +1450,9 @@ func prioritizeHeadroomAffinity(candidates []contracts.ResolvedTarget, metadata 
 	if len(candidates) <= 1 || len(metadata) == 0 {
 		return candidates
 	}
+	if candidates[0].Metadata["combo_disable_stickiness"] == "true" {
+		return candidates
+	}
 	connID, _ := metadata["headroom_affinity_connection"].(string)
 	if connID == "" {
 		return candidates
@@ -1436,4 +1479,19 @@ func prioritizeHeadroomAffinity(candidates []contracts.ResolvedTarget, metadata 
 	ordered = append(ordered, candidates[:matchIdx]...)
 	ordered = append(ordered, candidates[matchIdx+1:]...)
 	return ordered
+}
+
+func parseComboMetadataInt(meta map[string]string, key string) (int, bool) {
+	if len(meta) == 0 {
+		return 0, false
+	}
+	raw := strings.TrimSpace(meta[key])
+	if raw == "" {
+		return 0, false
+	}
+	val, err := strconv.Atoi(raw)
+	if err != nil || val < 0 {
+		return 0, false
+	}
+	return val, true
 }

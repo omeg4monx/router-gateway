@@ -859,3 +859,108 @@ func TestKeylessFreeProviderModelProbeAndIdentify(t *testing.T) {
 		t.Fatalf("expected no enabled connection error for openai without connections, got %+v", nonKeylessRes)
 	}
 }
+
+func TestComboTestHonorsPinnedConnectionAndComboRef(t *testing.T) {
+	var seenAuthHeaders []string
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		seenAuthHeaders = append(seenAuthHeaders, r.Header.Get("Authorization"))
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"id":"ok","choices":[]}`))
+	}))
+	defer upstream.Close()
+
+	store := &catalogFakeProviderStore{
+		connections: []contracts.ProviderConnection{
+			{
+				ID:         "conn_primary",
+				ProviderID: "openai",
+				Name:       "Primary Account",
+				Protocol:   "openai",
+				BaseURL:    upstream.URL + "/v1",
+				Priority:   1,
+				Enabled:    true,
+				Models:     []string{"gpt-4o"},
+			},
+			{
+				ID:         "conn_pinned",
+				ProviderID: "openai",
+				Name:       "Pinned Account",
+				Protocol:   "openai",
+				BaseURL:    upstream.URL + "/v1",
+				Priority:   5,
+				Enabled:    true,
+				Models:     []string{"gpt-4o"},
+			},
+		},
+		creds: map[string]contracts.UpstreamCredentials{
+			"conn_primary": {
+				ConnectionID: "conn_primary",
+				ProviderID:   "openai",
+				Protocol:     "openai",
+				BaseURL:      upstream.URL + "/v1",
+				AuthType:     "api_key",
+				APIKey:       "sk-primary-key",
+			},
+			"conn_pinned": {
+				ConnectionID: "conn_pinned",
+				ProviderID:   "openai",
+				Protocol:     "openai",
+				BaseURL:      upstream.URL + "/v1",
+				AuthType:     "api_key",
+				APIKey:       "sk-pinned-key",
+			},
+		},
+	}
+
+	_, router := setupCatalogTestModule(t, store, upstream.Client())
+
+	// Create a combo pinned explicitly to lower-priority conn_pinned.
+	createPinned := httptest.NewRequest(http.MethodPost, "/api/combos", bytes.NewBufferString(`{
+		"name":"pinned-combo",
+		"strategy":"priority",
+		"steps":[{"kind":"model","model":"openai/gpt-4o","connectionId":"conn_pinned"}]
+	}`))
+	pinnedRec := httptest.NewRecorder()
+	router.ServeHTTP(pinnedRec, createPinned)
+	if pinnedRec.Code != http.StatusCreated {
+		t.Fatalf("expected 201 creating pinned combo, got %d: %s", pinnedRec.Code, pinnedRec.Body.String())
+	}
+
+	testPinnedRec := httptest.NewRecorder()
+	router.ServeHTTP(testPinnedRec, httptest.NewRequest(http.MethodPost, "/api/combos/test", bytes.NewBufferString(`{"comboName":"pinned-combo"}`)))
+	if testPinnedRec.Code != http.StatusOK {
+		t.Fatalf("expected 200 testing pinned combo, got %d: %s", testPinnedRec.Code, testPinnedRec.Body.String())
+	}
+	if len(seenAuthHeaders) != 1 || seenAuthHeaders[0] != "Bearer sk-pinned-key" {
+		t.Fatalf("expected pinned connection sk-pinned-key to be probed, got headers %v", seenAuthHeaders)
+	}
+
+	// Create a parent combo referencing pinned-combo via combo-ref.
+	createParent := httptest.NewRequest(http.MethodPost, "/api/combos", bytes.NewBufferString(`{
+		"name":"parent-combo",
+		"strategy":"priority",
+		"steps":[{"kind":"combo-ref","comboName":"pinned-combo"}]
+	}`))
+	parentRec := httptest.NewRecorder()
+	router.ServeHTTP(parentRec, createParent)
+	if parentRec.Code != http.StatusCreated {
+		t.Fatalf("expected 201 creating parent combo, got %d: %s", parentRec.Code, parentRec.Body.String())
+	}
+
+	seenAuthHeaders = nil
+	testParentRec := httptest.NewRecorder()
+	router.ServeHTTP(testParentRec, httptest.NewRequest(http.MethodPost, "/api/combos/test", bytes.NewBufferString(`{"comboName":"parent-combo"}`)))
+	if testParentRec.Code != http.StatusOK {
+		t.Fatalf("expected 200 testing parent combo, got %d: %s", testParentRec.Code, testParentRec.Body.String())
+	}
+	var parentResp struct {
+		ResolvedBy string `json:"resolvedBy"`
+	}
+	_ = json.Unmarshal(testParentRec.Body.Bytes(), &parentResp)
+	if parentResp.ResolvedBy != "pinned-combo" {
+		t.Fatalf("expected resolvedBy=pinned-combo, got %q (%s)", parentResp.ResolvedBy, testParentRec.Body.String())
+	}
+	if len(seenAuthHeaders) != 1 || seenAuthHeaders[0] != "Bearer sk-pinned-key" {
+		t.Fatalf("expected combo-ref to resolve and probe sk-pinned-key, got headers %v", seenAuthHeaders)
+	}
+}

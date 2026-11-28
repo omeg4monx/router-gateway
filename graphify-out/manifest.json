@@ -306,8 +306,8 @@
     "semantic_hash": ""
   },
   "web/src/shared/api/schema.d.ts": {
-    "mtime": 1795844256.2555678,
-    "seen": 1795844376.6202178,
+    "mtime": 1795846830.910108,
+    "seen": 1795847254.6024065,
     "ast_hash": "10aba2b257ec70fcdbb205b32dfe8bf0",
     "semantic_hash": ""
   },
@@ -690,9 +690,9 @@
     "semantic_hash": ""
   },
   "internal/modules/combos/resolver.go": {
-    "mtime": 1795710119.1272058,
-    "seen": 1795770205.4550035,
-    "ast_hash": "1f7be5a33c3060b6b4f2d5fbcb66ac92",
+    "mtime": 1795847035.0212734,
+    "seen": 1795847254.5928447,
+    "ast_hash": "799b46030001344e30119b7cd419edac",
     "semantic_hash": ""
   },
   "internal/modules/gateway/ir.go": {
@@ -756,9 +756,9 @@
     "semantic_hash": ""
   },
   "internal/modules/gateway/module.go": {
-    "mtime": 1795817876.1791544,
-    "seen": 1795818359.072755,
-    "ast_hash": "27c08541f9c475db229580c269eb596a",
+    "mtime": 1795847104.3856242,
+    "seen": 1795847254.5933256,
+    "ast_hash": "9aa3ae7e3ebcba72630f5bdd2873d246",
     "semantic_hash": ""
   },
   "internal/modules/gateway/module_test.go": {
@@ -3216,15 +3216,15 @@
     "semantic_hash": ""
   },
   "internal/modules/combos/catalog.go": {
-    "mtime": 1795710119.1256187,
-    "seen": 1795770205.4549875,
-    "ast_hash": "4e174b50556f71d0418ec1e21918be75",
+    "mtime": 1795846657.36356,
+    "seen": 1795846800.5922356,
+    "ast_hash": "e2bfc3757550b335290e3c4f3813792b",
     "semantic_hash": ""
   },
   "internal/modules/combos/catalog_test.go": {
-    "mtime": 1795710119.126206,
-    "seen": 1795770205.4549897,
-    "ast_hash": "ba028a8c57b29cd9305d8fb725c26f34",
+    "mtime": 1795846688.7813861,
+    "seen": 1795846800.5922391,
+    "ast_hash": "88199c71dbf706c09c95bf0ae2cd4c33",
     "semantic_hash": ""
   },
   "web/src/features/models/catalogUtils.test.ts": {
@@ -3276,15 +3276,15 @@
     "semantic_hash": ""
   },
   "web/src/features/combos/strategies.ts": {
-    "mtime": 1795710119.16833,
-    "seen": 1795770205.4555185,
-    "ast_hash": "bd5b94d87bb422fa5b72ab6b9c3db2ed",
+    "mtime": 1795846480.32408,
+    "seen": 1795846800.6031096,
+    "ast_hash": "89295bcdf6396b194a6cb2d81e8428ea",
     "semantic_hash": ""
   },
   "web/src/features/combos/CombosConsole.tsx": {
-    "mtime": 1795807905.6331768,
-    "seen": 1795807926.393086,
-    "ast_hash": "c2915a85d82a505e382b2ec3f3ace4bf",
+    "mtime": 1795846586.301107,
+    "seen": 1795846800.6028695,
+    "ast_hash": "f4e2871217e176ad4acfef85042ccce4",
     "semantic_hash": ""
   },
   "web/src/App.test.ts": {
@@ -3576,21 +3576,21 @@
     "semantic_hash": ""
   },
   "web/src/features/combos/ComboRegistrationForm.tsx": {
-    "mtime": 1795807905.6405594,
-    "seen": 1795807926.3930838,
-    "ast_hash": "d409485cdf63cced2660f898f7b486b4",
+    "mtime": 1795846704.33152,
+    "seen": 1795846800.602863,
+    "ast_hash": "092ba9f11b69699aee18e6e695e375d7",
     "semantic_hash": ""
   },
   "web/src/features/combos/StrategyGuideModal.tsx": {
-    "mtime": 1795710119.1672065,
-    "seen": 1795770205.455504,
-    "ast_hash": "297babed524280a3a620056a4c31aebe",
+    "mtime": 1795846533.2680228,
+    "seen": 1795846800.6028728,
+    "ast_hash": "d2204fa6208c010eda842fe285779b4e",
     "semantic_hash": ""
   },
   "web/src/features/combos/comboHelpers.test.ts": {
-    "mtime": 1795710119.1672065,
-    "seen": 1795770205.4555063,
-    "ast_hash": "ac0789d38c9977ea481d4c395b4e7d49",
+    "mtime": 1795846668.6627908,
+    "seen": 1795846800.6028757,
+    "ast_hash": "7066566b73b88af88f9b72b933b2d4a9",
     "semantic_hash": ""
   },
   "web/src/features/combos/comboHelpers.ts": {
@@ -3963,6 +3963,36 @@
     "mtime": 1795845678.5698576,
     "seen": 1795845719.889106,
     "ast_hash": "8e06a4e72ff311aa1099c3d5288e3533",
+    "semantic_hash": ""
+  },
+  "web/src/features/combos/ComboCard.tsx": {
+    "mtime": 1795846710.3766437,
+    "seen": 1795846800.6028576,
+    "ast_hash": "802ebc3884b8e878c8d9460b61a6fbda",
+    "semantic_hash": ""
+  },
+  "web/src/features/combos/ComboStepList.tsx": {
+    "mtime": 1795846711.2156608,
+    "seen": 1795846800.6028662,
+    "ast_hash": "598f147ca267969b0fdb483120d29b67",
+    "semantic_hash": ""
+  },
+  "web/src/features/combos/strategyGuideContent.ts": {
+    "mtime": 1795846478.7830567,
+    "seen": 1795846800.603113,
+    "ast_hash": "19db5125b49f0e97478b861c46718924",
+    "semantic_hash": ""
+  },
+  "internal/modules/combos/resolver_runtime_test.go": {
+    "mtime": 1795847139.9273164,
+    "seen": 1795847254.592848,
+    "ast_hash": "c86f6b65295c7346c7e70a91162edbcc",
+    "semantic_hash": ""
+  },
+  "internal/modules/gateway/combo_runtime_test.go": {
+    "mtime": 1795847166.200828,
+    "seen": 1795847254.593187,
+    "ast_hash": "4e82ec8519423230ced930558fba280b",
     "semantic_hash": ""
   }
 }

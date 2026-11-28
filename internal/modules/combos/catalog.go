@@ -356,29 +356,58 @@ func (m *Module) handleTestCombo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp := testComboResponse{
-		Results: make([]ComboTargetTestResult, 0, len(targetCombo.Targets)),
+	steps := targetCombo.Steps
+	if len(steps) == 0 {
+		steps = stepsFromTargets(targetCombo.Targets)
 	}
 
-	for _, target := range targetCombo.Targets {
+	resp := testComboResponse{
+		Results: make([]ComboTargetTestResult, 0, len(steps)),
+	}
+
+	for _, step := range steps {
 		if r.Context().Err() != nil {
 			break
 		}
-		providerID, modelID := splitTargetIdentifier(target)
+		target := step.targetIdentifier()
+		if target == "" {
+			continue
+		}
 		var probeRes ModelTestResult
-		if providerID != "" {
-			probeRes = m.probeProviderModel(r.Context(), providerID, modelID)
-		} else {
-			// Resolve bare model via resolver to pick best provider connection.
-			resolved, resolveErr := m.Resolve(r.Context(), modelID, nil)
+		if step.Kind == "combo-ref" {
+			resolved, resolveErr := m.Resolve(r.Context(), target, nil)
 			if resolveErr != nil || len(resolved) == 0 {
 				probeRes = ModelTestResult{
 					OK:     false,
 					Status: "error",
-					Error:  "no enabled provider connection for target",
+					Error:  "no enabled provider connection for referenced combo",
 				}
 			} else {
 				probeRes = m.probeConnectionModel(r.Context(), resolved[0].ConnectionID, resolved[0].UpstreamModel)
+			}
+		} else {
+			providerID, modelID := splitTargetIdentifier(target)
+			switch {
+			case step.ConnectionID != "":
+				probeModel := modelID
+				if probeModel == "" {
+					probeModel = target
+				}
+				probeRes = m.probeConnectionModel(r.Context(), step.ConnectionID, probeModel)
+			case providerID != "":
+				probeRes = m.probeProviderModel(r.Context(), providerID, modelID)
+			default:
+				// Resolve bare model via resolver to pick best provider connection.
+				resolved, resolveErr := m.Resolve(r.Context(), modelID, nil)
+				if resolveErr != nil || len(resolved) == 0 {
+					probeRes = ModelTestResult{
+						OK:     false,
+						Status: "error",
+						Error:  "no enabled provider connection for target",
+					}
+				} else {
+					probeRes = m.probeConnectionModel(r.Context(), resolved[0].ConnectionID, resolved[0].UpstreamModel)
+				}
 			}
 		}
 

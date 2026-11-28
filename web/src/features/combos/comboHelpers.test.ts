@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { readFileSync } from "node:fs";
 import type { ProviderConnectionSummary } from "@/features/providers/schemas";
 import {
   buildProviderAccountGroups,
@@ -8,6 +9,7 @@ import {
   qualifyProviderModel,
 } from "./comboHelpers";
 import { COMBO_STRATEGY_OPTIONS, STRATEGY_CATEGORIES } from "./strategies";
+import { STRATEGY_GUIDE_CONTENT } from "./strategyGuideContent";
 
 function makeConn(
   overrides: Partial<ProviderConnectionSummary> &
@@ -140,13 +142,26 @@ describe("COMBO_STRATEGY_OPTIONS guide completeness", () => {
 
     for (const s of COMBO_STRATEGY_OPTIONS) {
       expect(validCategories.has(s.category)).toBe(true);
-      expect(s.howItWorksEn.trim().length).toBeGreaterThan(15);
-      expect(s.howItWorksId.trim().length).toBeGreaterThan(15);
-      expect(s.bestForEn.trim().length).toBeGreaterThan(10);
-      expect(s.bestForId.trim().length).toBeGreaterThan(10);
-      expect(s.whenToUseEn.trim().length).toBeGreaterThan(10);
-      expect(s.whenToUseId.trim().length).toBeGreaterThan(10);
       expect(s.flowPreview.trim().length).toBeGreaterThan(3);
+      const guide = STRATEGY_GUIDE_CONTENT[s.value];
+      expect(guide).toBeDefined();
+      expect(guide.howItWorksEn.trim().length).toBeGreaterThan(15);
+      expect(guide.howItWorksId.trim().length).toBeGreaterThan(15);
+      expect(guide.bestForEn.trim().length).toBeGreaterThan(10);
+      expect(guide.bestForId.trim().length).toBeGreaterThan(10);
+      expect(guide.whenToUseEn.trim().length).toBeGreaterThan(10);
+      expect(guide.whenToUseId.trim().length).toBeGreaterThan(10);
     }
+  });
+
+  test("CombosConsole lazy-loads StrategyGuideModal, uses valid ink token, and aborts in-flight tests on unmount", () => {
+    const consoleSource = readFileSync(new URL("./CombosConsole.tsx", import.meta.url), "utf8");
+    const strategiesSource = readFileSync(new URL("./strategies.ts", import.meta.url), "utf8");
+
+    expect(consoleSource).toContain('import("./StrategyGuideModal")');
+    expect(consoleSource).toContain("AbortController");
+    expect(consoleSource).toContain("--accent-primary-ink");
+    expect(consoleSource).not.toContain("--accent-fg");
+    expect(strategiesSource).not.toContain("howItWorksEn");
   });
 });
