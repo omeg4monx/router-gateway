@@ -14,6 +14,7 @@ import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } fro
 import { Link, useLocation, useNavigate } from "react-router";
 import { useAuthSession, useLogoutMutation } from "@/features/auth/hooks";
 import { useSystemHealth, useSystemVersion } from "@/features/system/hooks";
+import { SystemUpdateControl } from "@/features/system/SystemUpdateControl";
 import { cn } from "@/shared/lib/utils";
 import { PwaInstallButton, PwaStatusBanner } from "@/shared/pwa/PwaControls";
 import { usePwaStatus } from "@/shared/pwa/usePwaStatus";
@@ -805,6 +806,7 @@ export function AppShell({ children }: AppShellProps) {
                 </kbd>
               </button>
 
+              <SystemUpdateControl />
               <PwaInstallButton
                 canInstall={pwaStatus.canInstall}
                 isInstalling={pwaStatus.isInstalling}

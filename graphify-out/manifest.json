@@ -18,15 +18,15 @@
     "semantic_hash": ""
   },
   "internal/platform/config/config.go": {
-    "mtime": 1795710119.141592,
-    "seen": 1795770205.4553628,
-    "ast_hash": "48a62b3118e9717186ae2cb02a895c19",
+    "mtime": 1795876261.343588,
+    "seen": 1795876772.4715097,
+    "ast_hash": "d8dbefa0a3105839a6fddf3da90b3e5e",
     "semantic_hash": ""
   },
   "internal/platform/config/config_test.go": {
-    "mtime": 1795710119.1416676,
-    "seen": 1795770205.4553661,
-    "ast_hash": "462755684e670909ecfda6967c547d88",
+    "mtime": 1795876233.664463,
+    "seen": 1795876772.4715118,
+    "ast_hash": "9f95e1ce8d3a060556a43822e42c74b3",
     "semantic_hash": ""
   },
   "internal/platform/crypto/crypto_test.go": {
@@ -180,9 +180,9 @@
     "semantic_hash": ""
   },
   "cmd/omeg4mon-router/main.go": {
-    "mtime": 1795866896.381691,
-    "seen": 1795870873.0548995,
-    "ast_hash": "59aa61bac86ef30d078eacc309a0ce72",
+    "mtime": 1795876503.7817686,
+    "seen": 1795876772.4670825,
+    "ast_hash": "022730163d974f2259b5e2ff6e242a46",
     "semantic_hash": ""
   },
   "cmd/omeg4mon-router/main_test.go": {
@@ -210,15 +210,15 @@
     "semantic_hash": "61e7987b4e33695ead54a6d514b44f44"
   },
   "contracts/openapi/modules/system.yaml": {
-    "mtime": 1795710119.0982056,
-    "seen": 1795770205.4549541,
-    "ast_hash": "d94528b1a54b7815040bd2a832cdda90",
+    "mtime": 1795876268.2500417,
+    "seen": 1795876772.46752,
+    "ast_hash": "1fb278c304bbd86807c4a13925742ccd",
     "semantic_hash": ""
   },
   "contracts/openapi/openapi.yaml": {
-    "mtime": 1795867111.794295,
-    "seen": 1795870873.0557082,
-    "ast_hash": "44528b7cae065dbd3e236509a353edbd",
+    "mtime": 1795876269.7441397,
+    "seen": 1795876772.4676256,
+    "ast_hash": "af42be0a7fd31f731aa4130b938abcfb",
     "semantic_hash": ""
   },
   "internal/modules/system/migrations/0001_init.sql": {
@@ -228,9 +228,9 @@
     "semantic_hash": ""
   },
   "internal/modules/system/module.go": {
-    "mtime": 1795710119.1387594,
-    "seen": 1795770205.4552605,
-    "ast_hash": "b8278c47caf6c44f9edc16602a8f2b03",
+    "mtime": 1795876421.7070282,
+    "seen": 1795876772.4708436,
+    "ast_hash": "9c9b85ebaf07920c075722add7258b67",
     "semantic_hash": ""
   },
   "internal/modules/system/module_test.go": {
@@ -270,9 +270,9 @@
     "semantic_hash": ""
   },
   "web/src/features/system/hooks.ts": {
-    "mtime": 1795710119.1805644,
-    "seen": 1795770205.45568,
-    "ast_hash": "4947decb8563099b869047a3b7b14f69",
+    "mtime": 1795876594.50696,
+    "seen": 1795876772.4749455,
+    "ast_hash": "63d30816c7f44b883d65be233fcd5ea0",
     "semantic_hash": ""
   },
   "web/src/features/system/password.test.ts": {
@@ -300,15 +300,15 @@
     "semantic_hash": ""
   },
   "web/src/shared/api/client.ts": {
-    "mtime": 1795710119.1848085,
-    "seen": 1795770205.4557395,
-    "ast_hash": "850c65e67f8a4d6cd59bfeb6354a4d55",
+    "mtime": 1795876271.2612393,
+    "seen": 1795876772.4758556,
+    "ast_hash": "704ec57479fa26d1100deb2eb10da165",
     "semantic_hash": ""
   },
   "web/src/shared/api/schema.d.ts": {
-    "mtime": 1795870145.0924652,
-    "seen": 1795870873.0631368,
-    "ast_hash": "eb211fc6e54c07f857e0c68450e33828",
+    "mtime": 1795880783.7616158,
+    "seen": 1795880794.6409686,
+    "ast_hash": "f319500a29a799e86e49871174431f09",
     "semantic_hash": ""
   },
   "web/src/shared/lib/utils.test.ts": {
@@ -336,9 +336,9 @@
     "semantic_hash": ""
   },
   "web/src/shared/ui/AppShell.tsx": {
-    "mtime": 1795866896.420825,
-    "seen": 1795870873.0633423,
-    "ast_hash": "8d807dd6f7668562039b00efb110f3db",
+    "mtime": 1795876597.4506376,
+    "seen": 1795876772.4761455,
+    "ast_hash": "fd84bbc7be9fe30f7a8aea6d923f0313",
     "semantic_hash": ""
   },
   "web/src/shared/ui/CaduceusLogo.tsx": {
@@ -4173,6 +4173,66 @@
     "mtime": 1795873683.0298944,
     "seen": 1795873802.9975567,
     "ast_hash": "9bf91f12ed44bc6ffdbd3a0529a47d5f",
+    "semantic_hash": ""
+  },
+  ".github/workflows/main-rolling-release.yml": {
+    "mtime": 1795876510.4499323,
+    "seen": 1795876772.4669502,
+    "ast_hash": "c406b051e9e6bc1c9178444fe6c4d25e",
+    "semantic_hash": ""
+  },
+  "cmd/omeg4mon-router/restart_unix.go": {
+    "mtime": 1795876675.244379,
+    "seen": 1795876772.4671063,
+    "ast_hash": "28c84c462f5cae02c555d8563821e48b",
+    "semantic_hash": ""
+  },
+  "cmd/omeg4mon-router/restart_windows.go": {
+    "mtime": 1795876676.7727246,
+    "seen": 1795876772.467108,
+    "ast_hash": "bcbb7782ca1b292932dcacbeb7c5ca36",
+    "semantic_hash": ""
+  },
+  "internal/modules/system/updater.go": {
+    "mtime": 1795880687.8013966,
+    "seen": 1795880794.6340487,
+    "ast_hash": "b1ae6df86939965693a402f27d1f17ee",
+    "semantic_hash": ""
+  },
+  "internal/modules/system/updater_test.go": {
+    "mtime": 1795880606.1478992,
+    "seen": 1795880794.6340523,
+    "ast_hash": "7631752b413ac253d861d5c7908309f4",
+    "semantic_hash": ""
+  },
+  "web/src/features/system/SystemUpdateControl.tsx": {
+    "mtime": 1795880712.4426243,
+    "seen": 1795880794.6397645,
+    "ast_hash": "de468c3024f252b9009d9dab2c5bf652",
+    "semantic_hash": ""
+  },
+  "web/src/features/system/updateCopy.test.ts": {
+    "mtime": 1795880607.6820507,
+    "seen": 1795880794.6400144,
+    "ast_hash": "612cdb9694f783d61b89dd7a6ef122aa",
+    "semantic_hash": ""
+  },
+  "web/src/features/system/updateCopy.ts": {
+    "mtime": 1795880694.3068392,
+    "seen": 1795880794.6400166,
+    "ast_hash": "0d02fb9ad1f9e984385abfdb11283e86",
+    "semantic_hash": ""
+  },
+  "docs/superpowers/plans/2026-11-28-auto-update-main.md": {
+    "mtime": 1795876211.3235404,
+    "seen": 1795876772.4771314,
+    "ast_hash": "8672ab9d105ec1ffb47662b084a84337",
+    "semantic_hash": ""
+  },
+  "docs/superpowers/specs/2026-11-28-auto-update-main-design.md": {
+    "mtime": 1795876018.5938413,
+    "seen": 1795876772.477316,
+    "ast_hash": "73575213eca8d2e887905b398a27e413",
     "semantic_hash": ""
   }
 }

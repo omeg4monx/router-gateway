@@ -90,6 +90,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/system/update": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Check for updates on the configured branch and inspect active update progress */
+        get: operations["getSystemUpdateStatus"];
+        put?: never;
+        /** Trigger an automatic update from the configured branch and restart the router */
+        post: operations["triggerSystemUpdate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/auth/login": {
         parameters: {
             query?: never;
@@ -4126,6 +4144,33 @@ export interface components {
         ClearImporterHistoryResponse: {
             deleted: number;
         };
+        SystemUpdateStatusResponse: {
+            currentVersion: string;
+            currentCommit: string;
+            branch: string;
+            latestCommit: string;
+            latestShortCommit: string;
+            latestMessage: string;
+            latestPublishedAt: string;
+            latestUrl: string;
+            updateAvailable: boolean;
+            canApply: boolean;
+            /** @enum {string} */
+            mode: "binary" | "source" | "none";
+            unavailableReason: string;
+            /** @enum {string} */
+            state: "idle" | "checking" | "downloading" | "building" | "verifying" | "applying" | "restarting" | "failed";
+            message: string;
+            error: string;
+            /** Format: date-time */
+            checkedAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        SystemUpdateRequest: {
+            /** @enum {string} */
+            mode?: "auto" | "binary" | "source";
+        };
         DiscoveredModel: {
             id: string;
             name?: string;
@@ -4474,6 +4519,98 @@ export interface operations {
             };
             /** @description Shutdown is disabled on non-loopback bind addresses unless explicitly overridden. */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    getSystemUpdateStatus: {
+        parameters: {
+            query?: {
+                /** @description Bypass the in-memory update check cache when set to 1 or true. */
+                force?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current update availability, mode detection, and execution state. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SystemUpdateStatusResponse"];
+                };
+            };
+            /** @description Administrative authentication is required. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+        };
+    };
+    triggerSystemUpdate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["SystemUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Update job accepted and started asynchronously. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SystemUpdateStatusResponse"];
+                };
+            };
+            /** @description Invalid request body or unsupported update mode. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Administrative authentication is required. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description Self-update is disabled on non-loopback bind addresses unless explicitly overridden. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorEnvelope"];
+                };
+            };
+            /** @description An update is already in progress or no applicable update is available. */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

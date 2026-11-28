@@ -7,14 +7,18 @@ import {
   type InitRequest,
   type InitStatusResponse,
   type SystemTelemetryResponse,
+  type SystemUpdateRequest,
+  type SystemUpdateStatusResponse,
   type VersionResponse,
 } from "@/shared/api/client";
+import { isUpdateInProgress } from "./updateCopy";
 
 export const systemKeys = {
   health: ["system", "health"] as const,
   version: ["system", "version"] as const,
   initStatus: ["system", "init"] as const,
   telemetry: ["system", "telemetry"] as const,
+  update: ["system", "update"] as const,
 };
 
 function isHealthResponse(value: unknown): value is HealthResponse {
@@ -109,6 +113,64 @@ export function useInitializeSystem() {
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: systemKeys.initStatus });
+    },
+  });
+}
+
+export function useSystemUpdateStatus() {
+  return useQuery<SystemUpdateStatusResponse, Error>({
+    queryKey: systemKeys.update,
+    queryFn: async ({ signal }) => {
+      const { data, error } = await apiClient.GET("/api/system/update", { signal });
+      if (data) {
+        return data;
+      }
+      throw new Error(extractErrorMessage(error));
+    },
+    staleTime: 5 * 60_000,
+    refetchInterval: (query) => {
+      const state = query.state.data?.state;
+      return isUpdateInProgress(state) ? 1_500 : 5 * 60_000;
+    },
+    refetchIntervalInBackground: false,
+    retry: false,
+  });
+}
+
+export function useForceCheckSystemUpdate() {
+  const queryClient = useQueryClient();
+
+  return useMutation<SystemUpdateStatusResponse, Error, void>({
+    mutationFn: async () => {
+      const { data, error } = await apiClient.GET("/api/system/update", {
+        params: { query: { force: true } },
+      });
+      if (data) {
+        return data;
+      }
+      throw new Error(extractErrorMessage(error));
+    },
+    onSuccess: (data) => {
+      queryClient.setQueryData(systemKeys.update, data);
+    },
+  });
+}
+
+export function useTriggerSystemUpdate() {
+  const queryClient = useQueryClient();
+
+  return useMutation<SystemUpdateStatusResponse, Error, SystemUpdateRequest | undefined>({
+    mutationFn: async (payload) => {
+      const { data, error } = await apiClient.POST("/api/system/update", {
+        body: payload ?? { mode: "auto" },
+      });
+      if (data) {
+        return data;
+      }
+      throw new Error(extractErrorMessage(error));
+    },
+    onSuccess: (data) => {
+      queryClient.setQueryData(systemKeys.update, data);
     },
   });
 }

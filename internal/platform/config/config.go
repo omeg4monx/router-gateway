@@ -16,10 +16,12 @@ import (
 )
 
 const (
-	defaultHost       = "127.0.0.1"
-	defaultPort       = 20128
-	defaultLogLevel   = "info"
-	defaultAPITimeout = 30 * time.Second
+	defaultHost         = "127.0.0.1"
+	defaultPort         = 20128
+	defaultLogLevel     = "info"
+	defaultAPITimeout   = 30 * time.Second
+	defaultUpdateRepo   = "omeg4monx/router-gateway"
+	defaultUpdateBranch = "main"
 )
 
 // Config holds the resolved runtime settings for omeg4mon-router.
@@ -35,6 +37,9 @@ type Config struct {
 	APITimeout          time.Duration
 	TLSCertFile         string
 	TLSKeyFile          string
+	UpdateRepo          string
+	UpdateBranch        string
+	UpdateToken         string
 }
 
 // CoreModules returns the names of core modules that cannot be disabled.
@@ -59,11 +64,13 @@ func Load(args []string, getenv func(string) string) (Config, error) {
 	}
 
 	cfg := Config{
-		Host:       defaultHost,
-		Port:       defaultPort,
-		DataDir:    resolveDefaultDataDir(getenv),
-		LogLevel:   defaultLogLevel,
-		APITimeout: defaultAPITimeout,
+		Host:         defaultHost,
+		Port:         defaultPort,
+		DataDir:      resolveDefaultDataDir(getenv),
+		LogLevel:     defaultLogLevel,
+		APITimeout:   defaultAPITimeout,
+		UpdateRepo:   defaultUpdateRepo,
+		UpdateBranch: defaultUpdateBranch,
 	}
 
 	if v := strings.TrimSpace(getenv("OMEG4MON_HOST")); v != "" {
@@ -100,6 +107,13 @@ func Load(args []string, getenv func(string) string) (Config, error) {
 	}
 	cfg.TLSCertFile = strings.TrimSpace(getenv("OMEG4MON_TLS_CERT_FILE"))
 	cfg.TLSKeyFile = strings.TrimSpace(getenv("OMEG4MON_TLS_KEY_FILE"))
+	if v := strings.TrimSpace(getenv("OMEG4MON_UPDATE_REPO")); v != "" {
+		cfg.UpdateRepo = v
+	}
+	if v := strings.TrimSpace(getenv("OMEG4MON_UPDATE_BRANCH")); v != "" {
+		cfg.UpdateBranch = v
+	}
+	cfg.UpdateToken = strings.TrimSpace(getenv("OMEG4MON_UPDATE_TOKEN"))
 
 	disabled, err := parseDisabledModules(getenv("OMEG4MON_DISABLED_MODULES"))
 	if err != nil {

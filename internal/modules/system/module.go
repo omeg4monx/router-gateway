@@ -43,11 +43,16 @@ type BuildInfo struct {
 
 // Options configures a new system Module instance.
 type Options struct {
-	DB            *db.DB
-	Config        config.Config
-	Build         BuildInfo
-	ActiveModules func() []string
-	Shutdown      func()
+	DB               *db.DB
+	Config           config.Config
+	Build            BuildInfo
+	ActiveModules    func() []string
+	Shutdown         func()
+	Restart          func(exePath string)
+	HTTPClient       *http.Client
+	UpdateAPIBaseURL string
+	ExecutablePath   func() (string, error)
+	LookupPath       func(string) (string, error)
 }
 
 // Module implements lifecycle.Module for core system endpoints and state.
@@ -58,6 +63,7 @@ type Module struct {
 	build         BuildInfo
 	activeModules func() []string
 	shutdown      func()
+	updater       *updater
 
 	startedMu    sync.RWMutex
 	startedAt    time.Time
@@ -80,6 +86,7 @@ func New(opts Options) *Module {
 		build:         opts.Build,
 		activeModules: opts.ActiveModules,
 		shutdown:      opts.Shutdown,
+		updater:       newUpdater(opts),
 		startedAt:     time.Now(),
 	}
 }
@@ -115,6 +122,8 @@ func (m *Module) RegisterRoutes(mounts lifecycle.RouteMounts) {
 	if mounts.AdminAPI != nil {
 		mounts.AdminAPI.Get("/system/telemetry", m.handleTelemetry)
 		mounts.AdminAPI.Post("/system/shutdown", m.handleShutdown)
+		mounts.AdminAPI.Get("/system/update", m.handleGetUpdate)
+		mounts.AdminAPI.Post("/system/update", m.handlePostUpdate)
 	}
 }
 
@@ -128,6 +137,7 @@ func (m *Module) Start(ctx context.Context) error {
 	m.startedMu.Lock()
 	m.startedAt = time.Now()
 	m.startedMu.Unlock()
+	m.updater.start()
 
 	if err := m.repo.EnsureDefaultRequireLogin(ctx); err != nil {
 		return err
@@ -159,7 +169,8 @@ func (m *Module) Start(ctx context.Context) error {
 }
 
 // Stop completes graceful shutdown for the system module.
-func (m *Module) Stop(context.Context) error {
+func (m *Module) Stop(ctx context.Context) error {
+	m.updater.stop(ctx)
 	return nil
 }
 

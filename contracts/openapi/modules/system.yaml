@@ -140,6 +140,74 @@ paths:
             application/json:
               schema:
                 $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+  /api/system/update:
+    get:
+      operationId: getSystemUpdateStatus
+      summary: Check for updates on the configured branch and inspect active update progress
+      tags:
+        - system
+      parameters:
+        - name: force
+          in: query
+          required: false
+          description: Bypass the in-memory update check cache when set to 1 or true.
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: Current update availability, mode detection, and execution state.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SystemUpdateStatusResponse'
+        '401':
+          description: Administrative authentication is required.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+    post:
+      operationId: triggerSystemUpdate
+      summary: Trigger an automatic update from the configured branch and restart the router
+      tags:
+        - system
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SystemUpdateRequest'
+      responses:
+        '202':
+          description: Update job accepted and started asynchronously.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SystemUpdateStatusResponse'
+        '400':
+          description: Invalid request body or unsupported update mode.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Administrative authentication is required.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Self-update is disabled on non-loopback bind addresses unless explicitly overridden.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
+        '409':
+          description: An update is already in progress or no applicable update is available.
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi.yaml#/components/schemas/ErrorEnvelope'
 components:
   schemas:
     HealthResponse:
@@ -289,5 +357,86 @@ components:
             - ok
             - error
         sampledAt:
+          type: string
+          format: date-time
+    SystemUpdateRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        mode:
+          type: string
+          enum:
+            - auto
+            - binary
+            - source
+    SystemUpdateStatusResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - currentVersion
+        - currentCommit
+        - branch
+        - latestCommit
+        - latestShortCommit
+        - latestMessage
+        - latestPublishedAt
+        - latestUrl
+        - updateAvailable
+        - canApply
+        - mode
+        - unavailableReason
+        - state
+        - message
+        - error
+        - checkedAt
+        - updatedAt
+      properties:
+        currentVersion:
+          type: string
+        currentCommit:
+          type: string
+        branch:
+          type: string
+        latestCommit:
+          type: string
+        latestShortCommit:
+          type: string
+        latestMessage:
+          type: string
+        latestPublishedAt:
+          type: string
+        latestUrl:
+          type: string
+        updateAvailable:
+          type: boolean
+        canApply:
+          type: boolean
+        mode:
+          type: string
+          enum:
+            - binary
+            - source
+            - none
+        unavailableReason:
+          type: string
+        state:
+          type: string
+          enum:
+            - idle
+            - checking
+            - downloading
+            - building
+            - verifying
+            - applying
+            - restarting
+            - failed
+        message:
+          type: string
+        error:
+          type: string
+        checkedAt:
+          type: string
+          format: date-time
+        updatedAt:
           type: string
           format: date-time
